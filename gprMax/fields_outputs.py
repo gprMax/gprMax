@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 SOURCE_EXCITATION_SCHEMA_VERSION = 1
 RECEIVER_TIMING_SCHEMA_VERSION = 1
-SURFACE_IMPEDANCE_SCHEMA_VERSION = 1
+SURFACE_IMPEDANCE_SCHEMA_VERSION = 3
 
 
 def _waveform_metadata(grid, waveform_id):
@@ -315,8 +315,28 @@ def _write_surface_impedance_metadata(basegrp, grid) -> None:
         group.attrs["UsedByCompiledBoundary"] = model.ID in used_ids
         group.attrs["Preset"] = model.preset or ""
         group.attrs["Provenance"] = model.provenance or ""
+        group.attrs["SourceKind"] = (
+            "preset"
+            if model.preset is not None
+            else "conductivity"
+            if model.conductivity_s_per_m is not None
+            else "resistance"
+        )
+        group.attrs["FitPlotInFullRun"] = model.plot_fit_in_full_run
+        if model.conductivity_s_per_m is not None:
+            group.attrs["ConductivitySiemensPerMetre"] = model.conductivity_s_per_m
+        if model.fit_requested_order is not None:
+            group.attrs["FitRequestedOrder"] = str(model.fit_requested_order)
+        if model.fit_pole_count is not None:
+            group.attrs["FitPoleCount"] = model.fit_pole_count
+        if model.fit_tolerance is not None:
+            group.attrs["FitTolerance"] = model.fit_tolerance
+        if model.fit_method is not None:
+            group.attrs["FitMethod"] = model.fit_method
         if model.fit_max_relative_error is not None:
             group.attrs["FitMaximumRelativeError"] = model.fit_max_relative_error
+        if model.fit_rms_relative_error is not None:
+            group.attrs["FitRMSRelativeError"] = model.fit_rms_relative_error
         group.create_dataset("A", data=model.A)
         group.create_dataset("B", data=model.B)
         group.create_dataset("C", data=model.C)
@@ -333,13 +353,20 @@ def _write_surface_impedance_metadata(basegrp, grid) -> None:
         # passed discretisation/passivity checks during grid construction.
         if model.ID in used_ids:
             discrete = model.discretise(grid.dt)
+            decay = np.diag(discrete.F)
+            if not np.array_equal(discrete.F, np.diag(decay)):
+                raise ValueError(
+                    f"compiled surface-impedance model {model.ID!r} does not have "
+                    "the diagonal Foster form required by the local FDTD runtime"
+                )
             runtime = group.create_group("fdtd_discrete")
             runtime.attrs["TimeStep"] = float(grid.dt)
             runtime.attrs["Z0"] = discrete.Z0
             runtime.attrs["PassivityChecked"] = not model.allow_active
-            runtime.create_dataset("F", data=discrete.F)
-            runtime.create_dataset("G", data=discrete.G)
-            runtime.create_dataset("L", data=discrete.L)
+            runtime.attrs["StateVariable"] = "y = L * x"
+            runtime.attrs["Recurrence"] = "y_new = f * y + q * K"
+            runtime.create_dataset("f", data=decay)
+            runtime.create_dataset("q", data=discrete.L * discrete.G)
 
 
 def write_hd5_data(basegrp, grid, is_subgrid=False):

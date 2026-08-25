@@ -176,7 +176,6 @@ class FDTDGrid:
         # components after all ordinary geometry has been resolved.
         self.surface_impedance_models = {}
         self.impedance_marker_models = {}
-        self.impedance_volume_specs = []
         self.impedance_surfaces = None
         # MPI ranks parse the same scene but instantiate a point terminal only
         # on its owning rank. These replicated definitions let later
@@ -1676,74 +1675,73 @@ class FDTDGrid:
                     pmlarrays += (self.nx + 1) * self.ny * v
                     pmlarrays += self.nx * (self.ny + 1) * v
 
-        # Conservative sparse surface-impedance estimate. Overlapping boxes
-        # are intentionally counted independently: this is a memory preflight,
-        # while the final compiler later removes overwritten/internal faces.
+        # Conservative sparse surface-impedance estimate from the final voxel
+        # ownership. This naturally includes every material-bearing geometry
+        # object and honours normal last-object-wins overwrite semantics.
         impedancearrays = 0
         real_size = np.dtype(config.sim_config.dtypes["float_or_double"]).itemsize
-        if self.impedance_volume_specs:
+        marker_cell_counts = {}
+        if self.impedance_marker_models:
+            material_cell_counts = np.bincount(
+                self.solid.reshape(-1),
+                minlength=len(self.materials),
+            )
+            marker_cell_counts = {
+                marker_numid: int(material_cell_counts[marker_numid])
+                for marker_numid in self.impedance_marker_models
+                if marker_numid < material_cell_counts.size
+            }
+        marker_cell_counts = {
+            marker_numid: count for marker_numid, count in marker_cell_counts.items() if count
+        }
+        if marker_cell_counts:
             impedancearrays += self.nx * self.ny * self.nz * np.dtype(np.int32).itemsize
-            for spec in self.impedance_volume_specs:
-                if spec.get("kind") == "tagged":
-                    # An arbitrary tagged union can have cavities, roughness,
-                    # or disconnected voxels.  Twelve E edges and two surface
-                    # ports per edge is the isolated-voxel upper bound.
-                    edges = 12 * spec["cell_count"]
-                    ports = 24 * spec["cell_count"]
-                else:
-                    sx, sy, sz = (
-                        stop - start for start, stop in zip(spec["lower"], spec["upper"])
-                    )
-                    edges = 4 * (sx * sy + sx * sz + sy * sz)
-                    ports = 2 * (
-                        sy * (sz + 1)
-                        + sz * (sy + 1)
-                        + sx * (sz + 1)
-                        + sz * (sx + 1)
-                        + sx * (sy + 1)
-                        + sy * (sx + 1)
-                    )
-                order = self.surface_impedance_models[spec["model_id"]].order
-                # Per boundary edge: edge_info (8 int32), edge_params and
-                # edge_fraction (3 real), plus at most four clipped H records
-                # (4 int32 + 1 real each). This is the isolated/rough-voxel
-                # upper bound; smooth faces merge several circulation terms.
-                impedancearrays += edges * (
-                    24 * np.dtype(np.int32).itemsize + 7 * real_size
-                )
+            estimated_state_values = 0
+            for marker_numid, cell_count in marker_cell_counts.items():
+                # Twelve E edges and 24 surface ports per cell are the
+                # isolated-voxel upper bounds for arbitrary unions, cavities,
+                # roughness, and disconnected bodies.
+                edges = 12 * cell_count
+                ports = 24 * cell_count
+                model_id = self.impedance_marker_models[marker_numid]
+                order = self.surface_impedance_models[model_id].order
+                # Per boundary edge: edge_info (8 int32), edge_params,
+                # edge_runtime, and edge_fraction (5 real), plus at most four
+                # clipped H records (4 int32 + 1 real each). This is the
+                # isolated/rough-voxel upper bound; smooth faces merge several
+                # circulation terms.
+                impedancearrays += edges * (24 * np.dtype(np.int32).itemsize + 9 * real_size)
+                # Each port stores its model/state indices, normal, area,
+                # geometric weight, and two precomputed Z0 ratios. Foster
+                # history has one in-place scalar per port and retained pole;
+                # there is no second ADE state buffer.
                 impedancearrays += ports * (
                     2 * np.dtype(np.int32).itemsize
                     + 2 * np.dtype(np.int8).itemsize
-                    + 2 * real_size
-                    + 2 * order * real_size
+                    + (4 + order) * real_size
                 )
+                estimated_state_values += ports * order
 
             # Per-model packed runtime tables are shared by all ports. Include
-            # the dense F matrix (order squared), G/L vectors, Z0, model_info,
-            # and the one-element sentinels used for empty packed arrays.
+            # the diagonal decay/source vectors, one Z0 per model, and the
+            # two-int model_info row. Each empty packed pole vector retains a
+            # one-real sentinel.
             referenced_ids = tuple(
-                dict.fromkeys(spec["model_id"] for spec in self.impedance_volume_specs)
+                dict.fromkeys(
+                    self.impedance_marker_models[marker_numid]
+                    for marker_numid in marker_cell_counts
+                )
             )
             orders = [self.surface_impedance_models[ID].order for ID in referenced_ids]
-            impedancearrays += 3 * len(orders) * np.dtype(np.int32).itemsize
-            impedancearrays += (
-                max(1, sum(order * order for order in orders))
-                + 2 * max(1, sum(orders))
-                + len(orders)
-            ) * real_size
-            # ``state`` and ``state_new`` each retain a one-real sentinel when
-            # every attached model has zero order. Adding them unconditionally
-            # keeps this an upper bound for both zero- and higher-order cases.
-            impedancearrays += 2 * real_size
+            impedancearrays += 2 * len(orders) * np.dtype(np.int32).itemsize
+            impedancearrays += (2 * max(1, sum(orders)) + len(orders)) * real_size
+            # The per-port term above counts every dynamic state. A purely
+            # resistive boundary still has a one-real state_y sentinel so the
+            # compiled Cython memoryview remains valid.
+            if estimated_state_values == 0:
+                impedancearrays += real_size
 
-        mem_use = (
-            fieldarrays
-            + solidarray
-            + tagarray
-            + rigidarrays
-            + pmlarrays
-            + impedancearrays
-        )
+        mem_use = fieldarrays + solidarray + tagarray + rigidarrays + pmlarrays + impedancearrays
 
         return mem_use
 

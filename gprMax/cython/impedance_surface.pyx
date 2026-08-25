@@ -60,21 +60,68 @@ cdef inline double _magnetic_get(
     return Hz[i, j, k]
 
 
+cdef inline double _port_history(
+    Py_ssize_t port_index,
+    np.int32_t[:, ::1] port_info,
+    np.int32_t[:, ::1] model_info,
+    float_or_double[::1] state_y,
+) noexcept nogil:
+    """Return the local Foster history ``sum(y_m)`` for one surface port."""
+
+    cdef Py_ssize_t row
+    cdef int model_index = port_info[port_index, 0]
+    cdef int state_start = port_info[port_index, 1]
+    cdef int state_count = model_info[model_index, 0]
+    cdef double history = 0.0
+
+    for row in range(state_count):
+        history = history + state_y[state_start + row]
+    return history
+
+
+cdef inline void _advance_port(
+    Py_ssize_t port_index,
+    double midpoint_e,
+    double history,
+    np.int32_t[:, ::1] port_info,
+    float_or_double[::1] port_inv_Z0,
+    np.int32_t[:, ::1] model_info,
+    float_or_double[::1] model_f,
+    float_or_double[::1] model_q,
+    float_or_double[::1] state_y,
+) noexcept nogil:
+    """Advance independent scaled Foster states in place for one port."""
+
+    cdef Py_ssize_t row
+    cdef int model_index = port_info[port_index, 0]
+    cdef int state_start = port_info[port_index, 1]
+    cdef int state_count = model_info[model_index, 0]
+    cdef int coefficient_start = model_info[model_index, 1]
+    cdef double current
+
+    if state_count == 0:
+        return
+    current = (midpoint_e - history) * port_inv_Z0[port_index]
+    for row in range(state_count):
+        state_y[state_start + row] = (
+            model_f[coefficient_start + row] * state_y[state_start + row]
+            + model_q[coefficient_start + row] * current
+        )
+
+
 cpdef void update_impedance_surfaces(
     int nthreads,
     np.int32_t[:, ::1] edge_info,
-    float_or_double[:, ::1] edge_params,
+    float_or_double[:, ::1] edge_runtime,
     np.int32_t[:, ::1] h_info,
     float_or_double[::1] h_weight,
     np.int32_t[:, ::1] port_info,
-    float_or_double[::1] port_g,
+    float_or_double[::1] port_g_over_Z0,
+    float_or_double[::1] port_inv_Z0,
     np.int32_t[:, ::1] model_info,
-    float_or_double[::1] model_F,
-    float_or_double[::1] model_G,
-    float_or_double[::1] model_L,
-    float_or_double[::1] model_Z0,
-    float_or_double[::1] state_old,
-    float_or_double[::1] state_new,
+    float_or_double[::1] model_f,
+    float_or_double[::1] model_q,
+    float_or_double[::1] state_y,
     float_or_double[:, :, ::1] Ex,
     float_or_double[:, :, ::1] Ey,
     float_or_double[:, :, ::1] Ez,
@@ -82,14 +129,12 @@ cpdef void update_impedance_surfaces(
     float_or_double[:, :, ::1] Hy,
     float_or_double[:, :, ::1] Hz,
 ):
-    """Advance every independent boundary E edge and its attached port states."""
+    """Advance every boundary E edge and its local scalar Foster states."""
 
-    cdef Py_ssize_t edge_index, h_index, port_index, row, column
+    cdef Py_ssize_t edge_index, h_index
     cdef int component, i, j, k, h_start, h_count, port_start, port_count
-    cdef int h_component, hi, hj, hk, model_index, state_start, state_count
-    cdef int matrix_start, vector_start
-    cdef double e_old, e_new, r_h, denominator, rhs, history, current, value
-    cdef double g, z0
+    cdef int h_component, hi, hj, hk
+    cdef double e_old, e_new, midpoint_e, r_h, rhs, history0, history1
 
     for edge_index in prange(edge_info.shape[0], nogil=True, num_threads=nthreads):
         component = edge_info[edge_index, 0]
@@ -111,38 +156,41 @@ cpdef void update_impedance_surfaces(
                 h_component, hi, hj, hk, Hx, Hy, Hz
             )
 
-        denominator = edge_params[edge_index, 0]
-        rhs = edge_params[edge_index, 1] * e_old + r_h
-        for port_index in range(port_start, port_start + port_count):
-            model_index = port_info[port_index, 0]
-            state_start = port_info[port_index, 1]
-            state_count = model_info[model_index, 0]
-            vector_start = model_info[model_index, 2]
-            history = 0.0
-            for row in range(state_count):
-                history = history + model_L[vector_start + row] * state_old[state_start + row]
-            g = port_g[port_index]
-            z0 = model_Z0[model_index]
-            denominator = denominator - g / (2.0 * z0)
-            rhs = rhs + g * e_old / (2.0 * z0) - g * history / z0
+        history0 = _port_history(port_start, port_info, model_info, state_y)
+        history1 = 0.0
+        rhs = (
+            edge_runtime[edge_index, 0] * e_old
+            + r_h
+            - port_g_over_Z0[port_start] * history0
+        )
+        if port_count == 2:
+            history1 = _port_history(port_start + 1, port_info, model_info, state_y)
+            rhs = rhs - port_g_over_Z0[port_start + 1] * history1
 
-        e_new = rhs / denominator
+        e_new = rhs * edge_runtime[edge_index, 1]
         _electric_set(component, i, j, k, e_new, Ex, Ey, Ez)
 
-        for port_index in range(port_start, port_start + port_count):
-            model_index = port_info[port_index, 0]
-            state_start = port_info[port_index, 1]
-            state_count = model_info[model_index, 0]
-            matrix_start = model_info[model_index, 1]
-            vector_start = model_info[model_index, 2]
-            history = 0.0
-            for row in range(state_count):
-                history = history + model_L[vector_start + row] * state_old[state_start + row]
-            current = (0.5 * (e_new + e_old) - history) / model_Z0[model_index]
-            for row in range(state_count):
-                value = model_G[vector_start + row] * current
-                for column in range(state_count):
-                    value = value + model_F[
-                        matrix_start + row * state_count + column
-                    ] * state_old[state_start + column]
-                state_new[state_start + row] = value
+        midpoint_e = 0.5 * (e_new + e_old)
+        _advance_port(
+            port_start,
+            midpoint_e,
+            history0,
+            port_info,
+            port_inv_Z0,
+            model_info,
+            model_f,
+            model_q,
+            state_y,
+        )
+        if port_count == 2:
+            _advance_port(
+                port_start + 1,
+                midpoint_e,
+                history1,
+                port_info,
+                port_inv_Z0,
+                model_info,
+                model_f,
+                model_q,
+                state_y,
+            )

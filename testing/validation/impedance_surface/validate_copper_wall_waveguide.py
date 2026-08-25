@@ -1,13 +1,15 @@
-"""Validate complex TE10 transmission through a copper-impedance guide.
+"""Validate TE10 propagation in a copper-wall rectangular waveguide.
 
 An active eigenmode port launches TE10 into a rectangular waveguide whose four
 walls use the built-in copper surface-impedance preset.  Two downstream
 passive ports define a raw propagation factor for comparison with physical
-copper/Yee theory.  Because finite-record ripple can dominate a few tenths of
-a decibel, that raw comparison is diagnostic rather than a release gate.  The
-quantitative gates instead compare attenuation from the exact FDFD ``neff``
-anchors with first-order copper perturbation theory and require low driven-port
-reflection after the modal field is injected into FDTD.
+copper/Yee theory. The report contains impedance, reflection, FDFD-alpha, and
+FDTD-alpha panels.
+The excitation begins sufficiently above cutoff for its smoothed spectral tail
+to reach both passive planes and settle within the compact record. Quantitative
+gates compare attenuation from both the exact FDFD ``neff`` anchors and the
+FDTD two-plane propagation factor with first-order copper perturbation theory,
+and require low driven-port reflection after modal-field injection.
 
 The finite impedance walls stop outside the PML.  The time window ends before
 the earliest possible reflection from either wall end can return to any port,
@@ -16,7 +18,7 @@ guide termination model.
 
 Example::
 
-    python -m testing.validation.validate_impedance_copper_waveguide_s21 --threads 4
+    python -m testing.validation.impedance_surface.validate_copper_wall_waveguide
 """
 
 from __future__ import annotations
@@ -25,63 +27,111 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from time import perf_counter
 
 import h5py
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c, epsilon_0, mu_0
 
 import gprMax
+from gprMax.impedance_surfaces import SurfaceImpedanceModel
 from gprMax.surface_impedance_presets import (
     get_metal_surface_preset,
     good_conductor_surface_impedance,
 )
+from testing.validation.impedance_surface._wall_waveguide_common import (
+    complex_relative_l2_error,
+    plot_wall_waveguide_validation,
+    validation_cache_stem,
+)
 
-
+RESULTS_ROOT = Path(__file__).resolve().parent / "results"
 DL = 0.1e-3
-DOMAIN = (0.160, 0.0028, 0.002)
+DOMAIN = (0.210, 0.0028, 0.002)
 PML_CELLS = 3
-TIME_WINDOW = 0.42e-9
+TIME_WINDOW = 0.500e-9
 GUIDE_WIDTH = 0.0016
 GUIDE_HEIGHT = 0.0008
 GUIDE_LOWER = (0.0006, 0.0006)
 GUIDE_UPPER = (0.0022, 0.0014)
 WALL_OUTER_LOWER = (0.0004, 0.0004)
 WALL_OUTER_UPPER = (0.0024, 0.0016)
-WALL_X = (4 * DL, 1596 * DL)
-SOURCE_X = 0.0675
-PORT1_X = 0.0825
-PORT2_X = 0.1025
+WALL_X = (4 * DL, 2096 * DL)
+SOURCE_X = 0.090
+PORT1_X = 0.105
+PORT2_X = 0.145
 REFERENCE_PLANE_SPACING = PORT2_X - PORT1_X
 FMIN = 130e9
 FMAX = 150e9
-DFT_POINTS = 3
-EXCITATION_FMIN = 110e9
+DFT_POINTS = 31
+EXCITATION_FMIN = 120e9
 EXCITATION_FMAX = 150e9
-EXCITATION_POINTS = 2
-VALIDATION_FREQUENCIES = tuple(np.linspace(FMIN, FMAX, DFT_POINTS))
+EXCITATION_TRANSITION = 20e9
+VALIDATION_POINTS = 21
+VALIDATION_FREQUENCIES = tuple(np.linspace(FMIN, FMAX, VALIDATION_POINTS))
 # Solving at the actual DFT bins avoids folding broadband modal-interpolation
 # error into the copper propagation comparison.
-ANCHORS = (
-    90e9,
-    EXCITATION_FMIN,
-    120e9,
-    *VALIDATION_FREQUENCIES,
+SOURCE_ANCHORS = (
+    100e9,
+    110e9,
+    *np.linspace(EXCITATION_FMIN, EXCITATION_FMAX, DFT_POINTS),
+    160e9,
+    170e9,
+)
+# The source retains an exact FDFD solve at every DFT bin used by the
+# attenuation panel.  The passive propagation planes only decompose the same
+# smooth TE10 field, so five-gigahertz interpolation anchors retain dense modal
+# coverage without repeating all 35 cross-section solves at both planes.
+PROPAGATION_ANCHORS = (
+    100e9,
+    110e9,
+    *np.linspace(EXCITATION_FMIN, EXCITATION_FMAX, 7),
+    160e9,
     170e9,
 )
 MODEL_ID = "copper_wall"
 METAL_PRESET = "copper"
 FIT_FMIN = 80e9
 # The FDFD boundary evaluates the trapezoidal ADE at bilinear-warped anchor
-# frequencies, so the declared fit band deliberately extends past 170 GHz.
+# frequencies, so the declared fit band deliberately extends past 170 GHz and
+# covers the complete 100--170 GHz excitation transition/anchor span.
 FIT_FMAX = 180e9
+FIT_TOLERANCE = 2e-3
 MAX_ATTENUATION_RELATIVE_L2_ERROR = 0.01
+MAX_FDTD_ATTENUATION_RELATIVE_L2_ERROR = 0.02
 MAX_SOURCE_REFLECTION_DB = -20.0
 ETA0 = np.sqrt(mu_0 / epsilon_0)
+IMPEDANCE_PLOT_POINTS = 401
+
+
+def wall_surface_impedance() -> gprMax.SurfaceImpedance:
+    """Return the fitted copper wall model used by the scene."""
+
+    return gprMax.SurfaceImpedance(
+        id=MODEL_ID,
+        preset=METAL_PRESET,
+        fit_frequency_range=(FIT_FMIN, FIT_FMAX),
+        fit_order="auto",
+        fit_tolerance=FIT_TOLERANCE,
+    )
+
+
+def fitted_surface_impedance(frequency_hz) -> np.ndarray:
+    """Evaluate the continuous Foster realization used by the solver."""
+
+    surface = wall_surface_impedance()
+    model = SurfaceImpedanceModel(
+        ID=surface.ID,
+        A=surface.A,
+        B=surface.B,
+        C=surface.C,
+        D=surface.D,
+        fit_fmin_hz=surface.fit_fmin_hz,
+        fit_fmax_hz=surface.fit_fmax_hz,
+    )
+    return model.impedance(frequency_hz)
 
 
 def te10_cutoff() -> float:
@@ -151,10 +201,7 @@ def perturbation_coefficient(frequency_hz) -> np.ndarray:
     if np.any(k <= kc):
         raise ValueError("TE10 perturbation theory requires frequencies above cutoff")
     beta = np.sqrt(np.square(k) - kc**2)
-    return (
-        k / (beta * GUIDE_HEIGHT)
-        + 2 * kc**2 / (k * beta * GUIDE_WIDTH)
-    ) / ETA0
+    return (k / (beta * GUIDE_HEIGHT) + 2 * kc**2 / (k * beta * GUIDE_WIDTH)) / ETA0
 
 
 def continuum_beta(frequency_hz) -> np.ndarray:
@@ -185,9 +232,7 @@ def yee_beta(
     timestep = spacing / (c * np.sqrt(3)) if dt is None else float(dt)
     if not np.isfinite(timestep) or timestep <= 0:
         raise ValueError("Yee timestep must be finite and positive")
-    temporal = np.square(
-        np.sin(np.pi * frequency * timestep) / (c * timestep)
-    )
+    temporal = np.square(np.sin(np.pi * frequency * timestep) / (c * timestep))
     transverse = np.square(np.sin(np.pi * spacing / (2 * GUIDE_WIDTH)) / spacing)
     longitudinal = temporal - transverse
     if np.any(longitudinal <= 0):
@@ -211,11 +256,7 @@ def theoretical_s21(
     impedance = copper_surface_impedance(frequency)
     coefficient = perturbation_coefficient(frequency)
     alpha = coefficient * impedance.real
-    beta0 = (
-        yee_beta(frequency, dt=dt)
-        if numerical_dispersion
-        else continuum_beta(frequency)
-    )
+    beta0 = yee_beta(frequency, dt=dt) if numerical_dispersion else continuum_beta(frequency)
     beta = beta0 + coefficient * impedance.imag
     return np.exp(-(alpha + 1j * beta) * float(propagation_length))
 
@@ -231,11 +272,7 @@ def theoretical_phase_rad(
 
     frequency = np.asarray(frequency_hz, dtype=np.float64)
     impedance = copper_surface_impedance(frequency)
-    beta0 = (
-        yee_beta(frequency, dt=dt)
-        if numerical_dispersion
-        else continuum_beta(frequency)
-    )
+    beta0 = yee_beta(frequency, dt=dt) if numerical_dispersion else continuum_beta(frequency)
     beta = beta0 + perturbation_coefficient(frequency) * impedance.imag
     return -beta * float(propagation_length)
 
@@ -256,36 +293,39 @@ def _wall_boxes() -> tuple[tuple[tuple[float, ...], tuple[float, ...]], ...]:
     )
 
 
-def build_scene(threads: int = 1) -> gprMax.Scene:
-    """Return the causally isolated copper-guide scene."""
+def build_scene(threads: int = 4) -> gprMax.Scene:
+    """Return one causally isolated copper-wall waveguide scene."""
 
     if earliest_wall_end_round_trip() <= TIME_WINDOW:
         raise RuntimeError("benchmark geometry no longer isolates wall-end returns")
+    dft_frequencies = np.linspace(EXCITATION_FMIN, EXCITATION_FMAX, DFT_POINTS)
+    for frequency in VALIDATION_FREQUENCIES:
+        if not np.any(np.isclose(dft_frequencies, frequency, rtol=0, atol=1e-3)):
+            raise ValueError("the excitation DFT grid must contain every validation frequency")
     scene = gprMax.Scene()
     scene.add(gprMax.Domain(p1=DOMAIN))
     scene.add(gprMax.Discretisation(p1=(DL, DL, DL)))
     scene.add(gprMax.TimeWindow(time=TIME_WINDOW))
     scene.add(gprMax.PMLThickness(thickness=PML_CELLS))
     scene.add(gprMax.OMPThreads(n=threads))
-    scene.add(
-        gprMax.SurfaceImpedance(
-            id=MODEL_ID,
-            preset=METAL_PRESET,
-            fit_fmin_hz=FIT_FMIN,
-            fit_fmax_hz=FIT_FMAX,
-        )
-    )
+    scene.add(wall_surface_impedance())
     for lower, upper in _wall_boxes():
-        scene.add(gprMax.ImpedanceBox(lower, upper, MODEL_ID))
+        scene.add(
+            gprMax.Box(
+                p1=lower,
+                p2=upper,
+                material_id=MODEL_ID,
+                averaging="n",
+            )
+        )
 
     scene.add(
         gprMax.EigenmodeBand(
-            id="copper_te10",
+            id="copper_wall_te10",
             fmin=EXCITATION_FMIN,
             fmax=EXCITATION_FMAX,
-            points=EXCITATION_POINTS,
-            frequencies=VALIDATION_FREQUENCIES,
-            transition=20e9,
+            points=DFT_POINTS,
+            transition=EXCITATION_TRANSITION,
         )
     )
     for port, x, direction in (
@@ -300,7 +340,7 @@ def build_scene(threads: int = 1) -> gprMax.Scene:
                 p2=(x, GUIDE_UPPER[0], GUIDE_UPPER[1]),
                 direction=direction,
                 modes=(1,),
-                anchors=ANCHORS,
+                anchors=SOURCE_ANCHORS if port == 1 else PROPAGATION_ANCHORS,
                 plot_fields=False,
             )
         )
@@ -386,9 +426,7 @@ def analyse_s21(
         "attenuation_relative_l2_error": float(
             np.linalg.norm(alpha_error) / np.linalg.norm(analytical_alpha)
         ),
-        "continuum_phase_discretisation_deg": wrapped_phase_error_deg(
-            analytical, continuum
-        ),
+        "continuum_phase_discretisation_deg": wrapped_phase_error_deg(analytical, continuum),
         "dt_s": dt,
         "propagation_length_m": length,
         "analytical_phase_rad": theoretical_phase_rad(
@@ -413,24 +451,14 @@ def _read_port(path: Path, port: int):
         valid_name = "power_wave_valid" if "power_wave_valid" in group else "valid"
         valid = np.asarray(group[valid_name], dtype=bool)[0]
         s_parameter = np.asarray(group["S"])[0] if "S" in group else None
-        s_valid_name = (
-            "power_wave_valid_S"
-            if "power_wave_valid_S" in group
-            else "valid_S"
-        )
+        s_valid_name = "power_wave_valid_S" if "power_wave_valid_S" in group else "valid_S"
         s_valid = (
-            np.asarray(group[s_valid_name], dtype=bool)[0]
-            if s_parameter is not None
-            else None
+            np.asarray(group[s_valid_name], dtype=bool)[0] if s_parameter is not None else None
         )
-        anchors = np.asarray(
-            group.attrs["CandidateAnchorFrequencies"], dtype=np.float64
-        )
+        anchors = np.asarray(group.attrs["CandidateAnchorFrequencies"], dtype=np.float64)
         anchor_neff = np.asarray(group["anchor_complex_neff"])[:, 0]
         anchor_valid = np.asarray(group["anchor_mode_valid"], dtype=bool)[:, 0]
-        anchor_reference_valid = np.asarray(
-            group["anchor_mode_reference_valid"], dtype=bool
-        )[:, 0]
+        anchor_reference_valid = np.asarray(group["anchor_mode_reference_valid"], dtype=bool)[:, 0]
         plane_index = int(group.attrs["PlaneIndex"])
     return {
         "frequency": frequency,
@@ -453,18 +481,13 @@ def _exact_anchor_neff(port: dict, frequency_hz) -> np.ndarray:
     values = []
     for frequency in np.asarray(frequency_hz, dtype=np.float64):
         tolerance = 32 * np.finfo(float).eps * frequency
-        matches = np.flatnonzero(
-            np.isclose(port["anchors"], frequency, rtol=0, atol=tolerance)
-        )
+        matches = np.flatnonzero(np.isclose(port["anchors"], frequency, rtol=0, atol=tolerance))
         if matches.size != 1:
             raise RuntimeError(
                 f"expected one FDFD anchor at {frequency:g} Hz, found {matches.size}"
             )
         index = int(matches[0])
-        if not (
-            port["anchor_valid"][index]
-            and port["anchor_reference_valid"][index]
-        ):
+        if not (port["anchor_valid"][index] and port["anchor_reference_valid"][index]):
             raise RuntimeError(f"FDFD anchor at {frequency:g} Hz is invalid")
         values.append(port["anchor_neff"][index])
     return np.asarray(values, dtype=np.complex128)
@@ -476,17 +499,59 @@ def analyse_output(copper_path: Path) -> dict:
     source, near, far = [_read_port(copper_path, port) for port in (1, 2, 3)]
     with h5py.File(copper_path, "r") as copper_data:
         dt = float(copper_data.attrs["dt"])
+        iterations = int(copper_data.attrs["Iterations"])
         spacing = np.asarray(copper_data.attrs["dx_dy_dz"], dtype=np.float64)
+        grid_shape = np.asarray(copper_data.attrs["nx_ny_nz"], dtype=np.int64)
     if not np.allclose(spacing, DL, rtol=0, atol=32 * np.finfo(float).eps):
+        raise RuntimeError(f"benchmark expected a cubic {DL:g} m grid, output records {spacing}")
+    expected_grid_shape = np.rint(np.asarray(DOMAIN) / DL).astype(np.int64)
+    if not np.array_equal(grid_shape, expected_grid_shape):
         raise RuntimeError(
-            f"benchmark expected a cubic {DL:g} m grid, output records {spacing}"
+            f"benchmark expected grid shape {expected_grid_shape}, output records "
+            f"{grid_shape}; rerun without --reuse"
         )
+    expected_planes = tuple(round(position / DL) for position in (SOURCE_X, PORT1_X, PORT2_X))
+    actual_planes = tuple(port["plane_index"] for port in (source, near, far))
+    if actual_planes != expected_planes:
+        raise RuntimeError(
+            f"benchmark expected port planes {expected_planes}, output records "
+            f"{actual_planes}; rerun without --reuse"
+        )
+    expected_frequency = np.linspace(EXCITATION_FMIN, EXCITATION_FMAX, DFT_POINTS)
     np.testing.assert_array_equal(source["frequency"], near["frequency"])
     np.testing.assert_array_equal(near["frequency"], far["frequency"])
     frequency = near["frequency"]
+    if frequency.shape != expected_frequency.shape or not np.allclose(
+        frequency,
+        expected_frequency,
+        rtol=0,
+        atol=32 * np.finfo(float).eps * EXCITATION_FMAX,
+    ):
+        raise RuntimeError(
+            "benchmark output has a stale modal-frequency grid; rerun without --reuse"
+        )
+    for port, expected_anchors in (
+        (source, SOURCE_ANCHORS),
+        (near, PROPAGATION_ANCHORS),
+        (far, PROPAGATION_ANCHORS),
+    ):
+        if port["anchors"].shape != np.shape(expected_anchors) or not np.allclose(
+            port["anchors"],
+            expected_anchors,
+            rtol=0,
+            atol=32 * np.finfo(float).eps * max(expected_anchors),
+        ):
+            raise RuntimeError("benchmark output has stale FDFD anchors; rerun without --reuse")
+    integration_duration = iterations * dt
+    last_sample_time = (iterations - 1) * dt
+    if last_sample_time < TIME_WINDOW or integration_duration > TIME_WINDOW + 3 * dt:
+        raise RuntimeError("benchmark output has a stale time window; rerun without --reuse")
+    wall_return = earliest_wall_end_round_trip()
+    if integration_duration >= wall_return:
+        raise RuntimeError("executed record reaches the earliest wall-end return")
     valid = source["valid"] & near["valid"] & far["valid"]
     comparison = (frequency >= FMIN) & (frequency <= FMAX)
-    if np.count_nonzero(comparison) != DFT_POINTS:
+    if np.count_nonzero(comparison) != VALIDATION_POINTS:
         raise RuntimeError("benchmark output does not contain every comparison bin")
     if not np.all(valid[comparison]):
         invalid = frequency[comparison & ~valid]
@@ -529,10 +594,21 @@ def analyse_output(copper_path: Path) -> dict:
     if not np.all(source["s_valid"][comparison]):
         raise RuntimeError("driven copper port has invalid HDF5 S11")
     source_reflection = source["s_parameter"][comparison]
+    impedance_frequency = np.linspace(FMIN, FMAX, IMPEDANCE_PLOT_POINTS)
+    target_impedance = copper_surface_impedance(impedance_frequency)
+    fitted_impedance = fitted_surface_impedance(impedance_frequency)
     result.update(
         {
+            "impedance_frequency_hz": impedance_frequency,
+            "target_impedance_ohm": target_impedance,
+            "fitted_impedance_ohm": fitted_impedance,
+            "impedance_fit_relative_l2_error": complex_relative_l2_error(
+                fitted_impedance,
+                target_impedance,
+            ),
             "copper_neff": copper_neff,
             "fdfd_alpha_per_m": fdfd_alpha,
+            "fdfd_theory_alpha_per_m": physical_alpha,
             "physical_alpha_per_m": physical_alpha,
             "fdfd_alpha_error_per_m": fdfd_alpha_error,
             "fdfd_alpha_relative_l2_error": float(
@@ -542,9 +618,13 @@ def analyse_output(copper_path: Path) -> dict:
             "physical_insertion_loss_db": 8.685889638 * physical_alpha * length,
             "source_reflection": source_reflection,
             "source_reflection_db": magnitude_db(source_reflection),
-            "maximum_source_reflection_db": float(
-                np.max(magnitude_db(source_reflection))
-            ),
+            "fdtd_alpha_per_m": result["measured_alpha_per_m"],
+            "fdtd_theory_alpha_per_m": result["analytical_alpha_per_m"],
+            "maximum_source_reflection_db": float(np.max(magnitude_db(source_reflection))),
+            "fdtd_iterations": iterations,
+            "fdtd_integration_duration_s": integration_duration,
+            "fdtd_last_sample_time_s": last_sample_time,
+            "wall_return_margin_s": wall_return - integration_duration,
         }
     )
     return result
@@ -555,9 +635,15 @@ def _write_csv(path: Path, result: dict) -> None:
     analytical = result["analytical_s21"]
     continuum = result["continuum_s21"]
     copper_phase = result["analytical_phase_rad"] + np.angle(copper / analytical)
+    target_impedance = copper_surface_impedance(result["frequency_hz"])
+    fitted_impedance = fitted_surface_impedance(result["frequency_hz"])
     table = np.column_stack(
         (
             result["frequency_hz"],
+            target_impedance.real,
+            target_impedance.imag,
+            fitted_impedance.real,
+            fitted_impedance.imag,
             copper.real,
             copper.imag,
             magnitude_db(copper),
@@ -587,7 +673,9 @@ def _write_csv(path: Path, result: dict) -> None:
         table,
         delimiter=",",
         header=(
-            "frequency_hz,gprmax_copper_T_real,gprmax_copper_T_imag,"
+            "frequency_hz,target_Zs_real_ohm,target_Zs_imag_ohm,"
+            "fitted_Zs_real_ohm,fitted_Zs_imag_ohm,"
+            "gprmax_copper_T_real,gprmax_copper_T_imag,"
             "gprmax_copper_T_magnitude_db,gprmax_copper_T_matched_phase_deg,"
             "theory_yee_T_real,theory_yee_T_imag,theory_yee_T_magnitude_db,"
             "theory_yee_T_phase_deg,theory_continuum_T_real,"
@@ -602,76 +690,56 @@ def _write_csv(path: Path, result: dict) -> None:
 
 
 def _write_plot(path: Path, result: dict) -> None:
-    """Write raw propagation and independent FDFD attenuation comparisons."""
+    """Write the common four-panel copper-wall validation plot."""
 
-    frequency_ghz = result["frequency_hz"] * 1e-9
-    copper = result["measured_s21"]
-    analytical = result["analytical_s21"]
-    continuum = result["continuum_s21"]
-    copper_phase = result["analytical_phase_rad"] + np.angle(copper / analytical)
-
-    figure, axes = plt.subplots(3, 1, figsize=(8.8, 8.8), sharex=True)
-    axes[0].plot(frequency_ghz, magnitude_db(analytical), "k-", label="Theory + Yee")
-    axes[0].plot(frequency_ghz, magnitude_db(continuum), ":", color="0.5", label="Continuum theory")
-    axes[0].plot(frequency_ghz, magnitude_db(copper), "o--", label="gprMax")
-    axes[0].set_ylabel("Raw propagation (dB)")
-    axes[0].set_title("Copper rectangular-guide TE10 propagation")
-    axes[0].legend()
-
-    axes[1].plot(
-        frequency_ghz,
-        np.rad2deg(result["analytical_phase_rad"]),
-        "k-",
-        label="Theory + Yee",
+    plot_wall_waveguide_validation(
+        path,
+        result,
+        title="Copper-wall rectangular waveguide",
+        maximum_source_reflection_db=MAX_SOURCE_REFLECTION_DB,
     )
-    axes[1].plot(
-        frequency_ghz,
-        np.rad2deg(result["continuum_phase_rad"]),
-        ":",
-        color="0.5",
-        label="Continuum theory",
-    )
-    axes[1].plot(frequency_ghz, np.rad2deg(copper_phase), "o--", label="gprMax")
-    axes[1].set_ylabel("Matched phase (degrees)")
-    axes[1].legend()
-
-    axes[2].plot(
-        frequency_ghz,
-        result["physical_alpha_per_m"],
-        "k-",
-        label="Perturbation theory",
-    )
-    axes[2].plot(
-        frequency_ghz,
-        result["fdfd_alpha_per_m"],
-        "o--",
-        label="FDFD anchor neff",
-    )
-    axes[2].set_xlabel("Frequency (GHz)")
-    axes[2].set_ylabel(r"$\alpha$ (Np/m)")
-    axes[2].legend()
-    for axis in axes:
-        axis.grid(True, alpha=0.3)
-    figure.tight_layout()
-    figure.savefig(path, dpi=180)
-    plt.close(figure)
 
 
 def run_validation(
     output_dir: Path,
     *,
-    threads: int = 1,
+    threads: int = 4,
     reuse: bool = False,
 ) -> dict:
-    """Run the copper-guide benchmark and write CSV plus JSON acceptance."""
+    """Run the copper-wall benchmark and write CSV, PNG, and JSON results."""
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     cache = output_dir / "_cache"
     cache.mkdir(exist_ok=True)
-    copper_stem = cache / "impedance_copper_waveguide_s21_copper"
+    cache_configuration = {
+        "schema": 1,
+        "spacing_m": (DL, DL, DL),
+        "domain_m": DOMAIN,
+        "pml_cells": PML_CELLS,
+        "time_window_s": TIME_WINDOW,
+        "guide_lower_m": GUIDE_LOWER,
+        "guide_upper_m": GUIDE_UPPER,
+        "wall_outer_lower_m": WALL_OUTER_LOWER,
+        "wall_outer_upper_m": WALL_OUTER_UPPER,
+        "wall_x_m": WALL_X,
+        "port_x_m": (SOURCE_X, PORT1_X, PORT2_X),
+        "dft_band_hz": (
+            EXCITATION_FMIN,
+            EXCITATION_FMAX,
+            DFT_POINTS,
+            EXCITATION_TRANSITION,
+        ),
+        "source_anchors_hz": SOURCE_ANCHORS,
+        "passive_anchors_hz": PROPAGATION_ANCHORS,
+        "preset": METAL_PRESET,
+        "fit": (FIT_FMIN, FIT_FMAX, "auto", FIT_TOLERANCE),
+    }
+    copper_stem = cache / validation_cache_stem(
+        "copper_wall_waveguide",
+        cache_configuration,
+    )
     copper_path = copper_stem.with_suffix(".h5")
-    started = perf_counter()
     if not (reuse and copper_path.is_file()):
         gprMax.run(
             scenes=[build_scene(threads)],
@@ -681,8 +749,8 @@ def run_validation(
             log_level=logging.WARNING,
         )
     result = analyse_output(copper_path)
-    _write_csv(output_dir / "impedance_copper_waveguide_s21.csv", result)
-    _write_plot(output_dir / "impedance_copper_waveguide_s21.png", result)
+    _write_csv(output_dir / "copper_wall_waveguide.csv", result)
+    _write_plot(output_dir / "copper_wall_waveguide.png", result)
 
     checks = {
         "source_reflection": {
@@ -693,57 +761,63 @@ def run_validation(
         "fdfd_physical_attenuation": {
             "relative_l2_error": result["fdfd_alpha_relative_l2_error"],
             "maximum_relative_l2_error": MAX_ATTENUATION_RELATIVE_L2_ERROR,
+            "passed": (result["fdfd_alpha_relative_l2_error"] < MAX_ATTENUATION_RELATIVE_L2_ERROR),
+        },
+        "fdtd_physical_attenuation": {
+            "relative_l2_error": result["attenuation_relative_l2_error"],
+            "maximum_relative_l2_error": (MAX_FDTD_ATTENUATION_RELATIVE_L2_ERROR),
             "passed": (
-                result["fdfd_alpha_relative_l2_error"]
-                < MAX_ATTENUATION_RELATIVE_L2_ERROR
+                result["attenuation_relative_l2_error"] < MAX_FDTD_ATTENUATION_RELATIVE_L2_ERROR
             ),
         },
     }
     copper = get_metal_surface_preset(METAL_PRESET)
+    fitted_surface = wall_surface_impedance()
     summary = {
-        "model": "rectangular_TE10_copper_surface_impedance",
+        "model": "copper_wall_rectangular_TE10_waveguide",
         "s21_definition": (
-            "raw diagnostic T = outgoing(port3) / outgoing(port2) between "
-            "passive electric reference planes"
+            "T = outgoing(port3) / outgoing(port2) between " "passive electric reference planes"
         ),
         "metal_preset": METAL_PRESET,
         "conductivity_s_per_m": copper.conductivity_s_per_m,
         "reference_temperature_k": copper.reference_temperature_k,
+        "fit_order": fitted_surface.fit_order,
+        "fit_pole_count": fitted_surface.fit_pole_count,
+        "fit_tolerance": fitted_surface.fit_tolerance,
+        "fit_frequency_range_hz": [FIT_FMIN, FIT_FMAX],
         "frequency_band_hz": [FMIN, FMAX],
         "excitation_band_hz": [EXCITATION_FMIN, EXCITATION_FMAX],
+        "modal_dft_points": DFT_POINTS,
+        "validation_modal_dft_points": VALIDATION_POINTS,
+        "validation_fdfd_anchor_points": len(VALIDATION_FREQUENCIES),
+        "source_modal_anchor_points": len(SOURCE_ANCHORS),
+        "passive_modal_anchor_points": len(PROPAGATION_ANCHORS),
+        "source_anchor_frequencies_hz": [float(value) for value in SOURCE_ANCHORS],
+        "passive_anchor_frequencies_hz": [float(value) for value in PROPAGATION_ANCHORS],
         "guide_width_m": GUIDE_WIDTH,
         "guide_height_m": GUIDE_HEIGHT,
+        "domain_m": [float(value) for value in DOMAIN],
+        "port_planes_m": [SOURCE_X, PORT1_X, PORT2_X],
         "next_mode_cutoff_hz": next_rectangular_mode_cutoff(),
         "reference_plane_spacing_m": result["propagation_length_m"],
         "time_window_s": TIME_WINDOW,
         "fdtd_dt_s": result["dt_s"],
+        "fdtd_iterations": result["fdtd_iterations"],
+        "fdtd_integration_duration_s": result["fdtd_integration_duration_s"],
+        "fdtd_last_sample_time_s": result["fdtd_last_sample_time_s"],
         "earliest_wall_end_round_trip_s": earliest_wall_end_round_trip(),
-        "runtime_seconds": perf_counter() - started,
+        "wall_return_margin_s": result["wall_return_margin_s"],
         "metrics": {
-            "maximum_source_reflection_db": result[
-                "maximum_source_reflection_db"
-            ],
-            "fdfd_physical_alpha_relative_l2_error": result[
-                "fdfd_alpha_relative_l2_error"
-            ],
-            "physical_insertion_loss_db_min": float(
-                np.min(result["physical_insertion_loss_db"])
-            ),
-            "physical_insertion_loss_db_max": float(
-                np.max(result["physical_insertion_loss_db"])
-            ),
-            "fdfd_insertion_loss_db_min": float(
-                np.min(result["fdfd_insertion_loss_db"])
-            ),
-            "fdfd_insertion_loss_db_max": float(
-                np.max(result["fdfd_insertion_loss_db"])
-            ),
-            "maximum_raw_physical_magnitude_error_db": result[
-                "maximum_magnitude_error_db"
-            ],
-            "maximum_raw_physical_phase_error_deg": result[
-                "maximum_phase_error_deg"
-            ],
+            "impedance_fit_relative_l2_error": result["impedance_fit_relative_l2_error"],
+            "maximum_source_reflection_db": result["maximum_source_reflection_db"],
+            "fdfd_physical_alpha_relative_l2_error": result["fdfd_alpha_relative_l2_error"],
+            "fdtd_physical_alpha_relative_l2_error": result["attenuation_relative_l2_error"],
+            "physical_insertion_loss_db_min": float(np.min(result["physical_insertion_loss_db"])),
+            "physical_insertion_loss_db_max": float(np.max(result["physical_insertion_loss_db"])),
+            "fdfd_insertion_loss_db_min": float(np.min(result["fdfd_insertion_loss_db"])),
+            "fdfd_insertion_loss_db_max": float(np.max(result["fdfd_insertion_loss_db"])),
+            "maximum_raw_physical_magnitude_error_db": result["maximum_magnitude_error_db"],
+            "maximum_raw_physical_phase_error_deg": result["maximum_phase_error_deg"],
             "maximum_continuum_phase_discretisation_deg": float(
                 np.max(result["continuum_phase_discretisation_deg"])
             ),
@@ -765,15 +839,19 @@ def main() -> int:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(__file__).with_name("impedance_copper_waveguide_s21_results"),
+        default=RESULTS_ROOT / "copper_wall_waveguide",
     )
-    parser.add_argument("--threads", type=int, default=1)
+    parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--reuse", action="store_true")
     args = parser.parse_args()
-    summary = run_validation(args.output_dir, threads=args.threads, reuse=args.reuse)
+    summary = run_validation(
+        args.output_dir,
+        threads=args.threads,
+        reuse=args.reuse,
+    )
     print(json.dumps(summary, indent=2, sort_keys=True))
     if not summary["acceptance"]["passed"]:
-        raise SystemExit("copper-guide S21 validation failed")
+        raise SystemExit("copper-wall waveguide validation failed")
     return 0
 
 

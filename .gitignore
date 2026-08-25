@@ -39,6 +39,8 @@ examples/**/*.vtkhdf
 examples/features/eigenmode_ports/**/*.csv
 !examples/features/eigenmode_ports/**/modal_cases.csv
 examples/features/eigenmode_ports/**/*.png
+examples/features/impedance_surface/**/*.csv
+examples/features/impedance_surface/**/*.png
 examples/**/*_eigenmode_*.png
 toolboxes/STEPtoVoxel/examples/**/output/
 

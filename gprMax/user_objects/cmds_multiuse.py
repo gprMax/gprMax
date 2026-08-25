@@ -38,13 +38,7 @@ from gprMax.eigenmode_config import (
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.impedance_surfaces import SurfaceImpedanceModel
-from gprMax.surface_impedance_presets import (
-    DEFAULT_METAL_FMAX_HZ,
-    DEFAULT_METAL_FMIN_HZ,
-    DEFAULT_METAL_FIT_ORDER,
-    fit_metal_surface_impedance,
-)
+from gprMax.impedance_surfaces import SurfaceImpedanceModel, is_reserved_impedance_id
 from gprMax.material_database import build_material_from_spec, load_material_spec
 from gprMax.materials import CrimMixture as CrimMixtureUser
 from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
@@ -65,6 +59,16 @@ from gprMax.sources import MagneticFrillSource as MagneticFrillSourceUser
 from gprMax.sources import TransmissionLine as TransmissionLineUser
 from gprMax.sources import VoltageSource as VoltageSourceUser
 from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.surface_impedance_plotting import (
+    plot_good_conductor_surface_impedance_fit,
+    surface_impedance_fit_plot_path,
+)
+from gprMax.surface_impedance_presets import (
+    DEFAULT_METAL_FIT_ORDER,
+    DEFAULT_METAL_FIT_TOLERANCE,
+    fit_conductivity_surface_impedance,
+    fit_metal_surface_impedance,
+)
 from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     rotate_2point_object,
     rotate_polarisation,
@@ -468,12 +472,21 @@ class RationalNetwork(GridUserObject):
 
 
 class SurfaceImpedance(GridUserObject):
-    """Define a reusable scalar surface impedance in real state-space form.
+    """Define a reusable scalar passive surface impedance.
 
-    A constant resistance uses only ``resistance``. A dispersive model uses
-    real ``A``, ``B``, ``C``, and ``D`` coefficients for
-    ``Z(s) = D + C(sI-A)^-1B``. Common bulk-metal models use ``preset`` and
-    are fitted as passive Foster realizations over the requested band.
+    Assign its ``id`` directly as the ``material_id`` of a closed,
+    cell-occupying geometry object. Sheet, edge, zero-thickness, and
+    directional ``material_ids`` assignments are unsupported.
+
+    Select exactly one of a constant ``resistance``, a named bulk-metal
+    ``preset``, or a user-supplied bulk-metal ``conductivity``. Fitted sources
+    require ``fit_frequency_range=(fmin, fmax)`` and are converted internally
+    to a passive Foster realization. ``fit_order='auto'`` tests increasing
+    actual runtime pole counts and chooses the first deterministic local fit
+    independently certified to reach ``fit_tolerance``. An integer asks for
+    exactly that many Foster poles. The constant-resistance form is an
+    idealized broadband boundary rather than a complete physical material
+    model and emits a warning when built.
     """
 
     @property
@@ -484,78 +497,154 @@ class SurfaceImpedance(GridUserObject):
     def hash(self):
         return "#surface_impedance"
 
+    def __str__(self) -> str:
+        """Return a valid hash-command representation of this object."""
+
+        if self.resistance is not None:
+            return f"{self.hash}: {self.ID} resistance {self.resistance:g}"
+
+        source = (
+            f"preset {self.preset}"
+            if self.preset is not None
+            else f"conductivity {self.conductivity:g}"
+        )
+        return (
+            f"{self.hash}: {self.ID} {source} {self.fit_fmin_hz:g} "
+            f"{self.fit_fmax_hz:g} {self.fit_order} {self.fit_tolerance:g} "
+            f"{'y' if self.plot_fit else 'n'}"
+        )
+
     def __init__(
         self,
         id: str,
         resistance: Optional[float] = None,
         *,
-        A=(),
-        B=(),
-        C=(),
-        D: Optional[float] = None,
-        fit_fmin_hz: float = 0.0,
-        fit_fmax_hz: float = np.inf,
-        allow_active: bool = False,
         preset: Optional[str] = None,
-        fit_order: int = DEFAULT_METAL_FIT_ORDER,
+        conductivity: Optional[float] = None,
+        fit_frequency_range: Optional[Tuple[float, float]] = None,
+        fit_order: Union[str, int] = DEFAULT_METAL_FIT_ORDER,
+        fit_tolerance: float = DEFAULT_METAL_FIT_TOLERANCE,
+        plot_fit: bool = False,
     ):
-        state_space_supplied = D is not None or any(
-            np.asarray(value).size for value in (A, B, C)
-        )
+        supplied_sources = sum(value is not None for value in (resistance, preset, conductivity))
+        if supplied_sources != 1:
+            raise ValueError(
+                "SurfaceImpedance requires exactly one of resistance, preset, or conductivity"
+            )
+        if not isinstance(plot_fit, (bool, np.bool_)):
+            raise ValueError("SurfaceImpedance plot_fit must be a boolean")
+
         fitted = None
-        if preset is not None:
-            if resistance is not None or state_space_supplied:
+        if resistance is not None:
+            if fit_frequency_range is not None:
                 raise ValueError(
-                    "SurfaceImpedance preset cannot be combined with resistance or A/B/C/D"
+                    "SurfaceImpedance resistance is frequency independent and does not "
+                    "accept fit_frequency_range"
                 )
-            preset_fmin = (
-                DEFAULT_METAL_FMIN_HZ if fit_fmin_hz == 0 else float(fit_fmin_hz)
-            )
-            preset_fmax = (
-                DEFAULT_METAL_FMAX_HZ if np.isinf(fit_fmax_hz) else float(fit_fmax_hz)
-            )
-            fitted = fit_metal_surface_impedance(
-                preset, preset_fmin, preset_fmax, fit_order
-            )
-            A, B, C, D = fitted.A, fitted.B, fitted.C, fitted.D
+            if fit_order != DEFAULT_METAL_FIT_ORDER:
+                raise ValueError(
+                    "SurfaceImpedance resistance is frequency independent and does not "
+                    "accept fit_order"
+                )
+            if float(fit_tolerance) != DEFAULT_METAL_FIT_TOLERANCE:
+                raise ValueError(
+                    "SurfaceImpedance resistance is frequency independent and does not "
+                    "accept fit_tolerance"
+                )
+            if plot_fit:
+                raise ValueError(
+                    "SurfaceImpedance resistance is frequency independent and has no fit to plot"
+                )
+            direct = float(resistance)
+            if not np.isfinite(direct) or direct <= 0:
+                raise ValueError("SurfaceImpedance resistance must be finite and positive")
+            A = B = C = ()
+            fit_fmin_hz = 0.0
+            fit_fmax_hz = np.inf
+            canonical_preset = None
+            fitted_conductivity = None
+            provenance = None
+        else:
+            if fit_frequency_range is None:
+                raise ValueError(
+                    "SurfaceImpedance preset and conductivity fits require "
+                    "fit_frequency_range=(fmin, fmax)"
+                )
+            try:
+                fit_fmin_hz, fit_fmax_hz = fit_frequency_range
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    "SurfaceImpedance fit_frequency_range must contain exactly " "two frequencies"
+                ) from exc
+            if preset is not None:
+                fitted = fit_metal_surface_impedance(
+                    preset,
+                    fit_fmin_hz,
+                    fit_fmax_hz,
+                    fit_order,
+                    fit_tolerance,
+                )
+                canonical_preset = fitted.preset.key
+                provenance = fitted.preset.source
+            else:
+                fitted = fit_conductivity_surface_impedance(
+                    conductivity,
+                    fit_fmin_hz,
+                    fit_fmax_hz,
+                    fit_order,
+                    fit_tolerance,
+                )
+                canonical_preset = None
+                provenance = "user-specified bulk conductivity"
+            A, B, C, direct = fitted.A, fitted.B, fitted.C, fitted.D
             fit_fmin_hz, fit_fmax_hz = fitted.fmin_hz, fitted.fmax_hz
-            preset = fitted.preset.key
-        elif resistance is not None and state_space_supplied:
-            raise ValueError("SurfaceImpedance accepts either resistance or A/B/C/D")
-        if resistance is None and D is None:
-            raise ValueError("SurfaceImpedance requires resistance, preset, or D")
-        direct = float(resistance if resistance is not None else D)
+            fitted_conductivity = fitted.conductivity_s_per_m
+
         super().__init__(
             id=id,
             resistance=resistance,
-            A=A,
-            B=B,
-            C=C,
-            D=direct,
-            fit_fmin_hz=fit_fmin_hz,
-            fit_fmax_hz=fit_fmax_hz,
-            allow_active=allow_active,
-            preset=preset,
+            preset=canonical_preset,
+            conductivity=fitted_conductivity,
+            fit_frequency_range=(fit_fmin_hz, fit_fmax_hz) if fitted else None,
             fit_order=fit_order,
+            fit_tolerance=fit_tolerance,
+            plot_fit=bool(plot_fit),
         )
         self.ID = id
+        self.resistance = direct if resistance is not None else None
         self.A = A
         self.B = B
         self.C = C
         self.D = direct
         self.fit_fmin_hz = fit_fmin_hz
         self.fit_fmax_hz = fit_fmax_hz
-        self.allow_active = allow_active
-        self.preset = preset
-        self.fit_order = int(fit_order)
-        self.provenance = fitted.preset.source if fitted is not None else None
-        self.fit_max_relative_error = (
-            fitted.max_relative_error if fitted is not None else None
-        )
+        self.fit_frequency_range = (fit_fmin_hz, fit_fmax_hz) if fitted is not None else None
+        self.allow_active = False
+        self.preset = canonical_preset
+        self.conductivity = fitted_conductivity
+        self.fit_order = fitted.requested_order if fitted is not None else None
+        self.fit_pole_count = fitted.selected_pole_count if fitted is not None else 0
+        self.fit_tolerance = fitted.tolerance if fitted is not None else None
+        self.plot_fit = bool(plot_fit)
+        self.provenance = provenance
+        self.fit_max_relative_error = fitted.max_relative_error if fitted is not None else None
+        self.fit_rms_relative_error = fitted.rms_relative_error if fitted is not None else None
+        self.fit_meets_tolerance = fitted.meets_tolerance if fitted is not None else None
+        self.fit_attempts = fitted.attempts if fitted is not None else ()
+        self.fit_result = fitted
 
     def build(self, grid: FDTDGrid):
+        if is_reserved_impedance_id(self.ID):
+            raise ValueError(
+                f"{self.params_str()} surface-impedance ID uses the reserved "
+                f"prefix '__impedance_'"
+            )
         if self.ID in grid.surface_impedance_models:
             raise ValueError(f"{self.params_str()} surface-impedance model ID is already in use")
+        if any(material.ID == self.ID for material in grid.materials):
+            raise ValueError(
+                f"{self.params_str()} surface-impedance ID conflicts with an existing material ID"
+            )
         model = SurfaceImpedanceModel(
             ID=self.ID,
             A=self.A,
@@ -567,19 +656,72 @@ class SurfaceImpedance(GridUserObject):
             allow_active=self.allow_active,
             preset=self.preset,
             provenance=self.provenance,
+            conductivity_s_per_m=self.conductivity,
+            fit_requested_order=self.fit_order,
+            fit_pole_count=self.fit_pole_count if self.fit_result is not None else None,
+            fit_tolerance=self.fit_tolerance,
             fit_max_relative_error=self.fit_max_relative_error,
+            fit_rms_relative_error=self.fit_rms_relative_error,
+            fit_method="passive-foster-bvls-v2" if self.fit_result is not None else None,
+            plot_fit_in_full_run=self.plot_fit,
         )
+
+        geometry_only = bool(config.sim_config is not None and config.sim_config.geometry_only)
+        coordinator = not hasattr(grid, "is_coordinator") or grid.is_coordinator()
+        if self.resistance is not None and coordinator:
+            logger.warning(
+                self.grid_name(grid)
+                + f"Surface impedance {self.ID!r} is frequency independent and purely real. "
+                "This is an idealized boundary condition, not a complete physical material "
+                "model. Real conductor surfaces are dispersive and generally have a reactive "
+                "component. Use a fitted metal preset or conductivity model for physically "
+                "representative conductor loss."
+            )
+        if self.fit_result is not None and coordinator and (geometry_only or self.plot_fit):
+            target = (
+                f"{self.preset} preset"
+                if self.preset is not None
+                else f"conductivity {self.conductivity:g} S/m"
+            )
+            output_path = surface_impedance_fit_plot_path(
+                config.get_model_config().output_file_path,
+                self.ID,
+            )
+            plot_good_conductor_surface_impedance_fit(
+                model=model,
+                conductivity_s_per_m=self.conductivity,
+                target_label=target,
+                output_path=output_path,
+                requested_order=self.fit_order,
+                selected_pole_count=self.fit_pole_count,
+                fit_tolerance=self.fit_tolerance,
+            )
+            logger.info(
+                self.grid_name(grid)
+                + f"Surface impedance {self.ID!r} fit plot written to {output_path}."
+            )
         grid.surface_impedance_models[self.ID] = model
         description = f"D={model.D:g} Ohm, order {model.order}"
-        if model.preset is not None:
+        if self.fit_order is not None:
+            target = (
+                f"{model.preset} preset"
+                if model.preset is not None
+                else f"conductivity {self.conductivity:g} S/m"
+            )
             description += (
-                f", {model.preset} preset over {model.fit_fmin_hz:g}--"
+                f", {target} over {model.fit_fmin_hz:g}--"
                 f"{model.fit_fmax_hz:g} Hz, maximum fit error "
                 f"{100 * model.fit_max_relative_error:.3g}%"
             )
-        logger.info(
-            self.grid_name(grid) + f"Surface impedance {self.ID!r}: {description}."
-        )
+            if not self.fit_meets_tolerance:
+                logger.warning(
+                    self.grid_name(grid)
+                    + f"Surface impedance {self.ID!r} explicit {self.fit_pole_count}-pole "
+                    "fit missed tolerance "
+                    f"{self.fit_tolerance:g}; maximum relative error is "
+                    f"{self.fit_max_relative_error:g}."
+                )
+        logger.info(self.grid_name(grid) + f"Surface impedance {self.ID!r}: {description}.")
 
 
 class NetworkTerminal(GridUserObject):
@@ -3731,7 +3873,11 @@ class Material(GridUserObject):
             logger.exception(f"{self.params_str()} requires a positive value for magnetic loss.")
             raise ValueError
 
-        if any(x.ID == material_id for x in grid.materials):
+        if (
+            is_reserved_impedance_id(material_id)
+            or any(x.ID == material_id for x in grid.materials)
+            or material_id in getattr(grid, "surface_impedance_models", {})
+        ):
             logger.exception(f"{self.params_str()} with ID {material_id} already exists")
             raise ValueError
 

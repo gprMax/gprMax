@@ -1,0 +1,131 @@
+{
+  "acceptance": {
+    "checks": {
+      "fdfd_physical_attenuation": {
+        "maximum_relative_l2_error": 0.01,
+        "passed": true,
+        "relative_l2_error": 0.0014682897619472245
+      },
+      "fdtd_physical_attenuation": {
+        "maximum_relative_l2_error": 0.02,
+        "passed": true,
+        "relative_l2_error": 0.007598607715850814
+      },
+      "source_reflection": {
+        "maximum_allowed_db": -20.0,
+        "maximum_db": -65.00045936715561,
+        "passed": true
+      }
+    },
+    "passed": true
+  },
+  "conductivity_s_per_m": 59665871.12171838,
+  "domain_m": [
+    0.21,
+    0.0028,
+    0.002
+  ],
+  "earliest_wall_end_round_trip_s": 5.977468585950884e-10,
+  "excitation_band_hz": [
+    120000000000.0,
+    150000000000.0
+  ],
+  "fdtd_dt_s": 1.92583320154647e-13,
+  "fdtd_integration_duration_s": 5.003314657617729e-10,
+  "fdtd_iterations": 2598,
+  "fdtd_last_sample_time_s": 5.001388824416182e-10,
+  "fit_frequency_range_hz": [
+    80000000000.0,
+    180000000000.0
+  ],
+  "fit_order": "auto",
+  "fit_pole_count": 3,
+  "fit_tolerance": 0.002,
+  "frequency_band_hz": [
+    130000000000.0,
+    150000000000.0
+  ],
+  "guide_height_m": 0.0008,
+  "guide_width_m": 0.0016,
+  "metal_preset": "copper",
+  "metrics": {
+    "fdfd_insertion_loss_db_max": 0.23368011191722066,
+    "fdfd_insertion_loss_db_min": 0.2045330523166247,
+    "fdfd_physical_alpha_relative_l2_error": 0.0014682897619472245,
+    "fdtd_physical_alpha_relative_l2_error": 0.007598607715850814,
+    "impedance_fit_relative_l2_error": 0.00026022659962488345,
+    "maximum_continuum_phase_discretisation_deg": 7.296523282472418,
+    "maximum_raw_physical_magnitude_error_db": 0.003034434058757668,
+    "maximum_raw_physical_phase_error_deg": 0.0193107983432366,
+    "maximum_source_reflection_db": -65.00045936715561,
+    "physical_insertion_loss_db_max": 0.23430464443547658,
+    "physical_insertion_loss_db_min": 0.20441970510064555
+  },
+  "modal_dft_points": 31,
+  "model": "copper_wall_rectangular_TE10_waveguide",
+  "next_mode_cutoff_hz": 187370286250.0,
+  "passive_anchor_frequencies_hz": [
+    100000000000.0,
+    110000000000.0,
+    120000000000.0,
+    125000000000.0,
+    130000000000.0,
+    135000000000.0,
+    140000000000.0,
+    145000000000.0,
+    150000000000.0,
+    160000000000.0,
+    170000000000.0
+  ],
+  "passive_modal_anchor_points": 11,
+  "port_planes_m": [
+    0.09,
+    0.105,
+    0.145
+  ],
+  "reference_plane_spacing_m": 0.04,
+  "reference_temperature_k": 293.0,
+  "s21_definition": "T = outgoing(port3) / outgoing(port2) between passive electric reference planes",
+  "source_anchor_frequencies_hz": [
+    100000000000.0,
+    110000000000.0,
+    120000000000.0,
+    121000000000.0,
+    122000000000.0,
+    123000000000.0,
+    124000000000.0,
+    125000000000.0,
+    126000000000.0,
+    127000000000.0,
+    128000000000.0,
+    129000000000.0,
+    130000000000.0,
+    131000000000.0,
+    132000000000.0,
+    133000000000.0,
+    134000000000.0,
+    135000000000.0,
+    136000000000.0,
+    137000000000.0,
+    138000000000.0,
+    139000000000.0,
+    140000000000.0,
+    141000000000.0,
+    142000000000.0,
+    143000000000.0,
+    144000000000.0,
+    145000000000.0,
+    146000000000.0,
+    147000000000.0,
+    148000000000.0,
+    149000000000.0,
+    150000000000.0,
+    160000000000.0,
+    170000000000.0
+  ],
+  "source_modal_anchor_points": 35,
+  "time_window_s": 5e-10,
+  "validation_fdfd_anchor_points": 21,
+  "validation_modal_dft_points": 21,
+  "wall_return_margin_s": 9.741539283331549e-11
+}

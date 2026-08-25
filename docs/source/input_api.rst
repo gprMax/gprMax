@@ -603,14 +603,40 @@ Surface impedance
 -----------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.SurfaceImpedance
 
-Common-metal surface impedances use ``preset='copper'``, ``'silver'``, or
-``'gold'``. The optional ``fit_fmin_hz``, ``fit_fmax_hz``, and ``fit_order``
-parameters control their passive Foster fit. The defaults cover 1 MHz to
-100 GHz with 16 candidate poles. These are 293 K thick-bulk good-conductor
-models, not optical or thin-film material data.
+Use the resulting ID directly as the ``material_id`` of an ordinary closed,
+cell-occupying geometry object. Surface-impedance IDs and bulk-material IDs
+share one geometry namespace and therefore must be unique. Directional
+``material_ids`` assignments are not supported for a scalar surface
+impedance. IDs beginning with ``__impedance_`` are reserved for private
+runtime materials.
+
+Select exactly one of ``resistance``, a named ``preset``, or a positive bulk
+``conductivity``. Preset and conductivity models require
+``fit_frequency_range=(fmin, fmax)``. ``fit_order='auto'`` tests actual
+runtime pole counts from 1 through 64 and selects the first whose
+deterministic local fit is independently certified to meet
+``fit_tolerance``; an integer requests exactly that many Foster poles, in
+which case a tolerance miss produces a warning rather than changing the
+requested order. The resulting surface exposes the actual count as
+``fit_pole_count``.
+
+The constant ``resistance`` form is a frequency-independent, purely real
+idealization and generates a build warning because it does not represent the
+causal, dispersive surface impedance of a physical conductor. Use a fitted
+metal preset or bulk conductivity for physically representative conductor
+loss.
+
+``plot_fit=False`` writes the fit
+plot only for geometry-only runs, while ``True`` also writes it for full
+runs. Presets are available for aluminium, copper, gold, molybdenum,
+palladium, silver, tungsten, and zinc, with element-symbol aliases. These are
+293 K thick-bulk good-conductor models, not optical or thin-film data. Fitted
+bands are capped at 300 GHz and must satisfy the good-conductor criterion
+:math:`\sigma/(\omega\epsilon_0)\geq100` at their upper edge.
 Output HDF5 files preserve each model's continuous ``A, B, C, D`` data,
-fit/provenance/hash metadata, and the exact ``F, G, L, Z0`` coefficients used
-at the run's FDTD time step under ``surface_impedance_models``.
+fit/provenance/hash metadata, and the exact local ``f, q, Z0`` recurrence
+coefficients used at the run's FDTD time step under
+``surface_impedance_models``.
 The complete geometry semantics, ADE derivation, sparse FDTD update, FDFD
 reduction, modal workflow, and validation procedure are described in
 :doc:`impedance_surfaces`.
@@ -796,35 +822,56 @@ formed later by selecting several leaf tags such as ``brain``, ``eyes``, and
 Closed impedance volumes
 ------------------------
 
-``ImpedanceBox`` directly creates an axis-aligned closed impedance volume.
-For any other volumetric voxelizer, assign a geometry ``tag`` and place an
-``ImpedanceVolume`` after the tagged geometry. The operator converts the
-currently surviving tagged cells, so normal ordered overwrite semantics also
-support unions and cavities.
+Assign a :class:`gprMax.SurfaceImpedance` ID directly as the ``material_id``
+of a supported ordinary geometry object. No separate conversion object is
+needed.
 
 .. code-block:: python
 
-    scene.add(gprMax.SurfaceImpedance(id='metal', preset='copper'))
+    scene.add(gprMax.SurfaceImpedance(
+        id='metal',
+        preset='copper',
+        fit_frequency_range=(8e9, 12e9),
+    ))
     scene.add(gprMax.Sphere(
         p1=(0.15, 0.10, 0.08), r=0.025,
-        material_id='free_space', tag='metal_body',
-    ))
-    scene.add(gprMax.ImpedanceVolume(
-        geometry_tag='metal_body', surface_impedance_id='metal',
+        material_id='metal', averaging='n',
     ))
 
-.. autoclass:: gprMax.user_objects.cmds_geometry.impedance_box.ImpedanceBox
+Supported inputs are boxes, spheres, ellipsoids, cylinders, cones,
+finite-thickness cylindrical sectors, and finite-thickness triangular prisms.
+A ``FractalBox`` accepts a surface-impedance ID as ``mixing_model_id`` only
+with ``n_materials=1`` and a roughness, grass, or water modifier. An
+unmodified one-material ``FractalBox`` continues to require ``Box`` instead.
+The assignment must be scalar: use ``material_id``, not directional
+``material_ids``. Surface-impedance geometry is excluded from dielectric
+smoothing.
 
-.. autoclass:: gprMax.user_objects.cmds_geometry.impedance_volume.ImpedanceVolume
+Plates, electric and magnetic edges, zero-thickness triangles and cylindrical
+sectors, and boxes with zero rasterized extent on any axis are rejected.
+These sheet and line shapes require a future two-sided transition condition,
+not the present one-sided opaque-volume boundary.
 
-The supported inputs are closed cell-occupying volumes, including boxes,
-spheres, ellipsoids, cylinders, cones, finite-thickness sectors and triangular
-prisms, fractal boxes, and tagged imported voxel geometry. Plates, wires, and
-zero-thickness patches require a future two-sided sheet transition condition
-and are deliberately rejected by this one-sided opaque-volume API. A voxel
-shape that contains a diagonally touching, non-manifold Yee edge is also
-rejected; increase its resolution, thickness, or radius so the rasterized
-volume has an unambiguous closed boundary.
+Object construction still follows normal scene order. Overlapping impedance
+primitives with the same ID form a union, a later bulk-material object can
+carve a cavity, and any later geometry replaces earlier cells under the usual
+last-object-wins rule. Geometry ``tag`` remains optional metadata and has no
+role in assigning the surface impedance.
+
+The final rasterized geometry is checked after these ordered overwrites.
+Ordinary face-connected staircases are valid, but impedance cells that touch
+only diagonally across a Yee edge or only at a grid vertex are rejected. In
+every local ``2 x 2 x 2`` vertex neighbourhood, both the impedance cells and
+the retained cells must be connected through voxel faces when non-empty. All
+surface-impedance IDs count as the same occupied class for this test. Connect
+the offending regions through a full voxel face, or separate them so they
+share neither an edge nor a vertex; refining, thickening, or repositioning the
+geometry can also repair the rasterized topology. See
+:ref:`impedance-surfaces` for the complete rule and error guidance.
+
+``GeometryObjectsWrite``/``GeometryObjectsRead`` round trips are not yet
+supported for impedance geometry; recreate the ``SurfaceImpedance`` and
+native geometry in the destination scene.
 
 This first version is restricted to three-dimensional CPU models without MPI
 domain decomposition or subgrids. An impedance volume cannot coexist with a

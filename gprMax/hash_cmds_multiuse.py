@@ -22,7 +22,7 @@ import logging
 import numpy as np
 
 import gprMax.config as config
-from gprMax.surface_impedance_presets import DEFAULT_METAL_FIT_ORDER
+from gprMax.surface_impedance_presets import DEFAULT_METAL_FIT_ORDER, DEFAULT_METAL_FIT_TOLERANCE
 
 from .user_objects.cmds_multiuse import (
     PMLCFS,
@@ -161,34 +161,48 @@ def process_multicmds(multicmds):
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tokens = cmdinstance.split()
-            if len(tokens) not in (2, 4, 5):
+            if len(tokens) < 2:
+                raise ValueError(f"'{cmdname}: {cmdinstance}' requires an ID and source kind")
+            source_kind = tokens[1].lower()
+            if source_kind == "resistance":
+                if len(tokens) != 3:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' resistance form requires "
+                        "ID, the 'resistance' source kind, and resistance in Ohms"
+                    )
+                scene_objects.append(SurfaceImpedance(id=tokens[0], resistance=float(tokens[2])))
+                continue
+
+            if source_kind not in ("preset", "conductivity") or not 5 <= len(tokens) <= 8:
                 raise ValueError(
-                    f"'{cmdname}: {cmdinstance}' requires an ID and resistance, or an ID, "
-                    "metal preset, fmin, fmax, and optional fit order"
+                    f"'{cmdname}: {cmdinstance}' fitted form requires ID, preset and "
+                    "metal name, or ID, conductivity and S/m; both forms then require "
+                    "fmin and fmax, optionally followed by auto/integer fit order, "
+                    "tolerance, and y/n plot flag"
                 )
-            if len(tokens) == 2:
-                try:
-                    resistance = float(tokens[1])
-                except ValueError:
-                    scene_objects.append(SurfaceImpedance(id=tokens[0], preset=tokens[1]))
-                else:
-                    scene_objects.append(
-                        SurfaceImpedance(id=tokens[0], resistance=resistance)
-                    )
+
+            fit_order = DEFAULT_METAL_FIT_ORDER
+            if len(tokens) >= 6:
+                fit_order = "auto" if tokens[5].lower() == "auto" else int(tokens[5])
+            fit_tolerance = float(tokens[6]) if len(tokens) >= 7 else DEFAULT_METAL_FIT_TOLERANCE
+            plot_fit = False
+            if len(tokens) == 8:
+                if tokens[7].lower() not in ("y", "n"):
+                    raise ValueError(f"{cmdname} plot-fit flag must be 'y' or 'n'")
+                plot_fit = tokens[7].lower() == "y"
+
+            fitted_options = {
+                "id": tokens[0],
+                "fit_frequency_range": (float(tokens[3]), float(tokens[4])),
+                "fit_order": fit_order,
+                "fit_tolerance": fit_tolerance,
+                "plot_fit": plot_fit,
+            }
+            if source_kind == "preset":
+                fitted_options["preset"] = tokens[2]
             else:
-                scene_objects.append(
-                    SurfaceImpedance(
-                        id=tokens[0],
-                        preset=tokens[1],
-                        fit_fmin_hz=float(tokens[2]),
-                        fit_fmax_hz=float(tokens[3]),
-                        fit_order=(
-                            int(tokens[4])
-                            if len(tokens) == 5
-                            else DEFAULT_METAL_FIT_ORDER
-                        ),
-                    )
-                )
+                fitted_options["conductivity"] = float(tokens[2])
+            scene_objects.append(SurfaceImpedance(**fitted_options))
 
     cmdname = "#network_terminal"
     if multicmds[cmdname] is not None:
@@ -484,10 +498,7 @@ def process_multicmds(multicmds):
     for cmdinstance in eigenmode_band_cmds:
         tmp = cmdinstance.split()
         if len(tmp) < 4:
-            raise ValueError(
-                "#eigenmode_band requires id fmin fmax points "
-                "[frequency ...]."
-            )
+            raise ValueError("#eigenmode_band requires id fmin fmax points " "[frequency ...].")
         kwargs = {
             "id": tmp[0],
             "fmin": float(tmp[1]),

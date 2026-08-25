@@ -313,8 +313,6 @@ def check_cmd_names(processedlines, checkessential=True):
         "#plate",
         "#triangle",
         "#box",
-        "#impedance_box",
-        "#impedance_volume",
         "#sphere",
         "#ellipsoid",
         "#cone",

@@ -51,8 +51,6 @@ from .user_objects.cmds_geometry.edge import Edge
 from .user_objects.cmds_geometry.ellipsoid import Ellipsoid
 from .user_objects.cmds_geometry.fractal_box import FractalBox
 from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
-from .user_objects.cmds_geometry.impedance_box import ImpedanceBox
-from .user_objects.cmds_geometry.impedance_volume import ImpedanceVolume
 from .user_objects.cmds_geometry.magnetic_edge import MagneticEdge
 from .user_objects.cmds_geometry.plate import Plate
 from .user_objects.cmds_geometry.sphere import Sphere

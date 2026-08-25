@@ -24,15 +24,13 @@ def restore_package_logging():
 
 
 def _shape(kind: str):
-    common = {"material_id": "free_space", "averaging": "n", "tag": "body"}
+    common = {"material_id": "wall", "averaging": "n", "tag": "body"}
     if kind == "box":
         return gprMax.Box(p1=(0.006, 0.007, 0.008), p2=(0.014, 0.016, 0.018), **common)
     if kind == "sphere":
         return gprMax.Sphere(p1=(0.015, 0.015, 0.015), r=0.005, **common)
     if kind == "ellipsoid":
-        return gprMax.Ellipsoid(
-            p1=(0.015, 0.015, 0.015), xr=0.006, yr=0.004, zr=0.005, **common
-        )
+        return gprMax.Ellipsoid(p1=(0.015, 0.015, 0.015), xr=0.006, yr=0.004, zr=0.005, **common)
     if kind == "cylinder":
         return gprMax.Cylinder(
             p1=(0.015, 0.015, 0.007),
@@ -87,7 +85,6 @@ def _scene(kind: str) -> gprMax.Scene:
     scene.add(gprMax.OMPThreads(1))
     scene.add(gprMax.SurfaceImpedance(id="wall", resistance=50.0))
     scene.add(_shape(kind))
-    scene.add(gprMax.ImpedanceVolume(geometry_tag="body", surface_impedance_id="wall"))
     return scene
 
 
@@ -96,9 +93,7 @@ def _scene(kind: str) -> gprMax.Scene:
     "kind",
     ("box", "sphere", "ellipsoid", "cylinder", "cone", "sector", "prism"),
 )
-def test_native_volumetric_shape_compiles_to_sparse_impedance_boundary(
-    kind, tmp_path, monkeypatch
-):
+def test_native_volumetric_shape_compiles_to_sparse_impedance_boundary(kind, tmp_path, monkeypatch):
     import gprMax.impedance_surfaces as implementation
 
     captured = {}
@@ -124,16 +119,8 @@ def test_native_volumetric_shape_compiles_to_sparse_impedance_boundary(
     tag_id = grid.geometry_tag_registry.id_for("body")
     tagged_cells = grid.geometry_tag_map.data == tag_id
     assert np.count_nonzero(tagged_cells) > 0
-    assert grid.impedance_volume_specs == [
-        {
-            "kind": "tagged",
-            "model_id": "wall",
-            "geometry_tag": "body",
-            "cell_count": int(np.count_nonzero(tagged_cells)),
-            "lower": tuple(np.argwhere(tagged_cells).min(axis=0)),
-            "upper": tuple(np.argwhere(tagged_cells).max(axis=0) + 1),
-        }
-    ]
+    marker_id = next(iter(grid.impedance_marker_models))
+    assert np.all(grid.solid[tagged_cells] == marker_id)
     assert system is grid.impedance_surfaces
     assert system.model_ids == ("wall",)
     assert system.edge_count > 0

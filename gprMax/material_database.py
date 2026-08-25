@@ -32,6 +32,7 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.impedance_surfaces import is_reserved_impedance_id
 from gprMax.materials import (
     DispersiveMaterial,
     Material,
@@ -579,7 +580,11 @@ def validate_material_database(
 def build_material_from_spec(grid: FDTDGrid, spec: MaterialSpec, material_id: str) -> Material:
     """Create a grid material from a validated, immutable specification."""
 
-    if any(existing.ID == material_id for existing in grid.materials):
+    if (
+        is_reserved_impedance_id(material_id)
+        or any(existing.ID == material_id for existing in grid.materials)
+        or material_id in getattr(grid, "surface_impedance_models", {})
+    ):
         raise ValueError(f"Material with ID '{material_id}' already exists")
 
     if spec.model in ("constant", "builtin"):

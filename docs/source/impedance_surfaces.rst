@@ -15,12 +15,10 @@ equation (ADE) supplies frequency dispersion. The same time-discrete ADE is
 reduced harmonically for the FDFD eigenmode solve, so the mode launched into
 FDTD sees the boundary law that FDTD actually advances.
 
-Three user objects have distinct roles:
-
-* :class:`gprMax.SurfaceImpedance` defines a reusable boundary material;
-* :class:`gprMax.ImpedanceBox` directly marks an axis-aligned closed volume;
-* :class:`gprMax.ImpedanceVolume` converts the surviving cells of a tagged
-  volumetric object.
+The :class:`gprMax.SurfaceImpedance` object defines a reusable boundary
+material. Assign its ID directly to the ``material_id`` of an ordinary
+cell-occupying geometry object. No separate impedance-geometry object or
+conversion step is required.
 
 Despite the feature name, the implemented geometry is a **one-sided boundary
 of a closed opaque volume**. It is not a zero-thickness, transmissive sheet.
@@ -32,7 +30,9 @@ The first implementation is intended for microwave and radio-frequency
 models in which a local scalar surface impedance is appropriate. In
 particular, the common-metal presets describe thick, smooth, non-magnetic
 bulk metal at 293 K. They are not thin-film, rough-surface, alloy,
-temperature-dependent, ferromagnetic, or optical material models.
+temperature-dependent, ferromagnetic, or optical material models. Fitted
+bands are capped at 300 GHz and must satisfy
+:math:`\sigma/(\omega\epsilon_0)\geq100` at their upper edge.
 
 Quick start
 ===========
@@ -40,7 +40,16 @@ Quick start
 Python API
 ----------
 
-The shortest model is a constant surface resistance on a closed box:
+A constant surface resistance remains available for idealized algorithmic
+studies on a closed box:
+
+.. warning::
+
+   A frequency-independent, purely real surface impedance does not represent
+   the causal, frequency-dispersive response of a physical conductor. gprMax
+   emits a warning when this form is built. Use a fitted metal preset or bulk
+   conductivity over the intended frequency band for physically representative
+   conductor loss.
 
 .. code-block:: python
 
@@ -52,10 +61,11 @@ The shortest model is a constant surface resistance on a closed box:
     scene.add(gprMax.TimeWindow(time=8e-9))
 
     scene.add(gprMax.SurfaceImpedance(id='wall', resistance=50.0))
-    scene.add(gprMax.ImpedanceBox(
+    scene.add(gprMax.Box(
         p1=(0.10, 0.07, 0.05),
         p2=(0.20, 0.13, 0.10),
-        surface_impedance_id='wall',
+        material_id='wall',
+        averaging='n',
     ))
 
 A common-metal preset creates a passive dispersive realization over a stated
@@ -66,67 +76,69 @@ band:
     scene.add(gprMax.SurfaceImpedance(
         id='copper_wall',
         preset='copper',
-        fit_fmin_hz=8e9,
-        fit_fmax_hz=12e9,
-        fit_order=16,
+        fit_frequency_range=(8e9, 12e9),
+        fit_order='auto',
+        fit_tolerance=2e-3,
+        plot_fit=False,
     ))
 
-The accepted preset names are ``copper``, ``silver``, and ``gold``. The
-case-insensitive element-symbol aliases ``Cu``, ``Ag``, and ``Au`` are also
-accepted. If the fit limits are omitted, the defaults are 1 MHz and 100 GHz.
-``fit_order`` is the number of candidate Foster relaxation poles and must be
-between 4 and 64. Numerically negligible branches are removed, so the stored
-realization order can be smaller than the candidate order.
+The accepted preset names are ``aluminium``, ``copper``, ``gold``,
+``molybdenum``, ``palladium``, ``silver``, ``tungsten``, and ``zinc``.
+Case-insensitive element symbols are accepted, as is the spelling
+``aluminum``. A finite ``fit_frequency_range`` is mandatory. By default,
+``fit_order='auto'`` tests actual runtime pole counts from 1 through 64 and
+selects the first count that reaches ``fit_tolerance``. An integer requests
+exactly that many runtime poles. With an explicit order, ``fit_tolerance`` is
+a diagnostic threshold: a miss produces a build warning but does not override
+the requested order. The selected count is available as ``fit_pole_count`` on
+the surface object and as ``fit_result.selected_pole_count`` on its fit result.
+For example, the default
+0.2% tolerance needs two poles over 8--12 GHz, rather than a fixed high order
+for every bandwidth.
 
-Any supported cell-occupying geometry can become an impedance volume through
-its tag:
+``plot_fit=False`` writes the intended-versus-fitted impedance plot during a
+geometry-only run. Set it to ``True`` to also write the plot during a full
+field solve. The setting never opens an interactive window; it writes a
+headless PNG beside the selected output stem.
+
+Any supported cell-occupying geometry can use the surface-impedance ID in the
+same position as an ordinary material ID:
 
 .. code-block:: python
 
-    scene.add(gprMax.SurfaceImpedance(id='silver_body', preset='silver'))
+    scene.add(gprMax.SurfaceImpedance(
+        id='silver_body',
+        preset='silver',
+        fit_frequency_range=(8e9, 12e9),
+    ))
     scene.add(gprMax.Sphere(
         p1=(0.15, 0.10, 0.075),
         r=0.025,
-        material_id='free_space',
-        tag='target_body',
-    ))
-    scene.add(gprMax.ImpedanceVolume(
-        geometry_tag='target_body',
-        surface_impedance_id='silver_body',
+        material_id='silver_body',
+        averaging='n',
     ))
 
-``ImpedanceVolume`` must occur after all geometry that forms the selected tag.
-It converts only cells which still carry that tag at that point in scene
-order. Several primitives can use one tag to form a union. An ordinary object
-can overwrite part of the tag before conversion to form a cavity, and later
-geometry can overwrite impedance markers under the usual last-object-wins
-rule.
+Geometry retains the usual ordered overwrite semantics. Several primitives
+with the same surface-impedance ID can form a union. A later ordinary object
+can overwrite part of that region to form a cavity, and later geometry can
+replace either kind of material under the normal last-object-wins rule. Tags
+remain optional semantic metadata and are not needed to assign an impedance.
 
-The Python API also accepts a real state-space model. For example, the
-following stable first-order model tends from 70 Ohms at DC to 50 Ohms at
-high frequency:
+Alternatively, specify a positive bulk conductivity directly. It uses the
+same passive good-conductor target and fitting machinery as a named preset:
 
 .. code-block:: python
 
-    import numpy as np
-
-    rate = 2 * np.pi * 1e9
     scene.add(gprMax.SurfaceImpedance(
-        id='first_order_wall',
-        A=((-rate,),),
-        B=(rate,),
-        C=(20.0,),
-        D=50.0,
-        fit_fmin_hz=1e7,
-        fit_fmax_hz=5e9,
+        id='alloy_wall',
+        conductivity=3.2e7,
+        fit_frequency_range=(8e9, 12e9),
+        fit_order=12,
     ))
 
-The matrix ``A`` and vectors ``B`` and ``C`` must be real. ``A`` must be
-strictly Hurwitz, and the realization dimensions must agree. The default
-path rejects a negative feedthrough and checks discrete passivity during grid
-construction. ``allow_active=True`` is an expert escape hatch for research
-models; it removes the passivity guarantee and should not be used for an
-ordinary passive boundary.
+The public object deliberately does not accept state-space coefficients.
+gprMax retains ``A, B, C, D`` internally for its ADE and writes them to HDF5
+for exact reproducibility.
 
 Hash-command input
 ------------------
@@ -135,20 +147,20 @@ The corresponding material forms are:
 
 .. code-block:: text
 
-    #surface_impedance: resistive_wall 50
-    #surface_impedance: copper_default copper
-    #surface_impedance: copper_xband Cu 8e9 12e9 16
+    #surface_impedance: resistive_wall resistance 50
+    #surface_impedance: copper_xband preset Cu 8e9 12e9 auto 2e-3 n
+    #surface_impedance: alloy_wall conductivity 3.2e7 8e9 12e9 12
 
-The text format does not accept arbitrary ``A, B, C, D`` matrices; use the
-Python API for a custom realization. Apply a material with either a direct
-box or a tag conversion:
+The ``resistance`` form is the idealized boundary described in the warning
+above and generates the same build warning for hash-command input.
+
+The final ``n`` above plots during geometry-only runs; ``y`` also plots during
+full runs. Apply the surface-impedance ID directly as the geometry material:
 
 .. code-block:: text
 
-    #impedance_box: 0.10 0.07 0.05 0.20 0.13 0.10 resistive_wall
-
-    #sphere: 0.15 0.10 0.075 0.025 free_space n target_body
-    #impedance_volume: target_body copper_default
+    #box: 0.10 0.07 0.05 0.20 0.13 0.10 resistive_wall n
+    #sphere: 0.15 0.10 0.075 0.025 copper_xband n
 
 See :ref:`input-hash-cmds` and :ref:`input-api` for the complete command and
 constructor signatures.
@@ -156,27 +168,71 @@ constructor signatures.
 Geometry semantics
 ==================
 
-Supported volume sources
-------------------------
+Supported geometry
+------------------
 
-``ImpedanceBox`` is the simplest and fastest way to express an axis-aligned
-rectangular volume. The tag-driven path is deliberately independent of the
-primitive which wrote the cell map. It supports the current volumetric
-voxelizers, including boxes, spheres, ellipsoids, axis-aligned and oblique
-cylinders and cones when their rasterized boundaries are manifold,
-finite-thickness cylindrical sectors, triangular prisms, fractal boxes, and
-tagged imported voxel geometry.
+Surface-impedance IDs can be assigned directly to boxes, spheres,
+ellipsoids, axis-aligned and oblique cylinders and cones when their rasterized
+boundaries are manifold, finite-thickness cylindrical sectors, and
+finite-thickness triangular prisms. A ``FractalBox`` can also use a
+surface-impedance ID as its ``mixing_model_id``, but it must set
+``n_materials=1`` because one opaque volume cannot contain a graded set of
+surface models, and it must be used with a roughness, grass, or water
+modifier. An unmodified one-material ``FractalBox`` retains its existing
+instruction to use ``Box`` instead.
 
-The final rasterized cells are authoritative. Curved and oblique surfaces are
-therefore represented by the same Yee-aligned staircase as other gprMax
-geometry. Two impedance regions that touch through a face are one opaque
-excluded region at that interface; an internal metal-to-metal face is not
-given a second boundary condition. Disconnected tagged bodies are permitted
-provided every resulting boundary is closed and manifold.
+The assignment must be scalar. In the Python API, use ``material_id`` rather
+than directional ``material_ids``. Hash-command geometry must likewise use
+the surface-impedance ID as its sole material identifier. Surface-impedance
+geometry is not dielectric-smoothed.
+
+Plates, electric or magnetic edges, zero-thickness triangles and cylindrical
+sectors, and boxes that collapse to zero cells on any axis are rejected.
+Those sheet and line objects have retained fields on both sides and require a
+two-sided sheet transition condition rather than the implemented one-sided
+opaque-volume boundary.
+
+Impedance geometry cannot yet be round-tripped through
+``GeometryObjectsWrite`` and ``GeometryObjectsRead``. Recreate the
+``SurfaceImpedance`` definition and native geometry in the destination scene.
 
 The volume must occupy at least one cell along every non-empty axis and there
 must be at least one retained cell between the complete impedance region and
 each domain boundary. Its surface must not intersect a PML.
+
+Rasterized topology
+-------------------
+
+The final rasterized cell ownership is authoritative. The topology check runs
+after all geometry objects and ordered overwrites have produced the cells used
+by the solver. Curved and oblique surfaces are therefore represented by the
+same Yee-aligned staircase as other gprMax geometry, and two individually
+valid primitives can still produce an invalid final union or cutout.
+
+Impedance cells must connect locally through full voxel faces. Around a Yee
+edge, one impedance quadrant, two adjacent impedance quadrants, or three
+impedance quadrants form valid flat or staircased boundaries. Exactly two
+diagonally opposite impedance quadrants touch only through that edge. This
+non-manifold pattern is rejected because it does not define an unambiguous
+clipped H circulation and local boundary normal.
+
+At every grid vertex, the impedance cells and the retained cells in the
+incident ``2 x 2 x 2`` voxel neighbourhood must each be connected through
+voxel faces whenever the respective set is non-empty. This rejects both
+vertex-only impedance contacts and a pinched retained region. The check is
+binary across surface models: cells assigned any surface-impedance ID count
+as impedance cells, even when the IDs differ. Consequently, two impedance
+regions that meet through a face form one excluded volume at that interface;
+the internal metal-to-metal face receives no boundary condition.
+
+This is a local rule, not a requirement that every impedance object in the
+model belong to one connected component. Separate bodies remain valid when
+they do not touch through only an edge or vertex and every resulting boundary
+is closed and manifold. To repair an invalid contact, add or thicken impedance
+cells so the regions connect through a full voxel face, or move them apart so
+they share neither an edge nor a vertex. Refining the mesh, increasing a thin
+feature's thickness or a curved object's radius, or adjusting its position can
+also produce an unambiguous rasterized boundary.
 
 Yee degrees of freedom
 ----------------------
@@ -187,8 +243,10 @@ The compiler classifies the edge as follows:
 
 * zero metal quadrants: use the ordinary Yee update;
 * four metal quadrants: remove the electric degree of freedom;
-* one to three metal quadrants: retain one boundary electric degree of
-  freedom and compile a sparse impedance row.
+* one, two adjacent, or three metal quadrants: retain one boundary electric
+  degree of freedom and compile a sparse impedance row;
+* exactly two diagonally opposite metal quadrants: reject the non-manifold
+  edge contact before any field-update data are compiled.
 
 The retained dielectric quadrants determine the electric mass and the
 conductive mass,
@@ -218,10 +276,9 @@ edge is shared, but there is one port per adjacent face and per surface model.
 
 Interior H components are assigned zero update coefficients. At an interface,
 the normal H degree of freedom remains associated with the retained material;
-tangential boundary action is supplied by the surface current. A pattern in
-which only two diagonally opposite quadrants are metal is non-manifold at a
-Yee edge and is rejected. Refining the mesh or increasing a thin object's
-thickness or radius normally removes this ambiguity.
+tangential boundary action is supplied by the surface current. The local
+face-connectivity checks above ensure that this clipped update is compiled
+only for an unambiguous manifold boundary.
 
 Supported solver configurations
 -------------------------------
@@ -325,19 +382,19 @@ The reusable continuous model is
 It is impedance, rather than admittance, because retaining the surface
 current in the local boundary relation avoids fitting a very large
 :math:`1/Z_s` for a good conductor. The implementation accepts a proper real
-realization only: there is no proportional :math:`sE` term. Dynamic models
-may declare a finite validity band; the default custom-model band is unbounded,
-while metal presets always use a finite fit band. FDTD can advance a
-realization over its whole discrete spectrum after it passes the passivity
-check, but accuracy outside a finite fitted band is the user's responsibility.
-An impedance-aware FDFD solve refuses to extrapolate a declared physical or
+realization internally: there is no proportional :math:`sE` term. Users
+select resistance, a preset, or conductivity rather than supplying the
+realization coefficients. Every fitted model has a finite mandatory validity
+band. FDTD can advance the passive realization over its whole discrete
+spectrum, but accuracy is advertised only inside that band. An
+impedance-aware FDFD solve refuses to extrapolate a declared physical or
 bilinear-warped evaluation frequency.
 
-At construction time gprMax checks that coefficients are finite, dimensions
-agree, and every eigenvalue of ``A`` has strictly negative real part. Unless
-``allow_active`` is selected, the direct term must be non-negative. At the
-actual FDTD time step the code additionally checks the mapped unit-circle
-response for negative real impedance.
+At construction time gprMax verifies that the generated coefficients are
+finite, dimensions agree, every eigenvalue of ``A`` has strictly negative
+real part, and the direct term is non-negative. At the actual FDTD time step
+the code additionally checks the mapped unit-circle response for negative
+real impedance. Active surface impedances are not part of the public API.
 
 Common-metal Foster presets
 ---------------------------
@@ -352,26 +409,50 @@ For a thick good conductor, the target under the stated time convention is
 
 The stored 293 K bulk-pure-metal resistivities are:
 
-.. list-table:: Common-metal preset data
+.. list-table:: Common-metal preset data at 293 K
    :header-rows: 1
-   :widths: 18 24 24
+   :widths: 18 24 24 22
 
    * - Preset
      - Resistivity (Ohm metre)
      - Conductivity (S/m)
+     - Source
+   * - aluminium
+     - :math:`2.650\times10^{-8}`
+     - :math:`3.774\times10^{7}`
+     - [DES1984A]_
    * - copper
      - :math:`1.676\times10^{-8}`
      - :math:`5.966\times10^{7}`
-   * - silver
-     - :math:`1.586\times10^{-8}`
-     - :math:`6.305\times10^{7}`
+     - [MAT1979]_
    * - gold
      - :math:`2.192\times10^{-8}`
      - :math:`4.562\times10^{7}`
+     - [MAT1979]_
+   * - molybdenum
+     - :math:`5.340\times10^{-8}`
+     - :math:`1.873\times10^{7}`
+     - [DES1984S]_
+   * - palladium
+     - :math:`1.054\times10^{-7}`
+     - :math:`9.488\times10^{6}`
+     - [MAT1979]_
+   * - silver
+     - :math:`1.586\times10^{-8}`
+     - :math:`6.305\times10^{7}`
+     - [MAT1979]_
+   * - tungsten
+     - :math:`5.280\times10^{-8}`
+     - :math:`1.894\times10^{7}`
+     - [DES1984S]_
+   * - zinc
+     - :math:`5.964\times10^{-8}`
+     - :math:`1.677\times10^{7}`
+     - [DES1984S]_
 
-The values come from the recommended resistivity tables of Matula at 293 K
-[MAT1979]_. The measured reference quantity is stored as
-resistivity and inverted only when constructing the target impedance.
+The measured reference quantity is stored as resistivity and inverted only
+when constructing the target impedance. Named presets describe pure bulk
+metal at the reference temperature, not an alloy or plated finish.
 
 The fit uses a positive-real Foster form
 
@@ -381,12 +462,63 @@ The fit uses a positive-real Foster form
       =R_0+\sum_{m=1}^{N}R_m\frac{s}{s+a_m},
    \qquad R_0,R_m\ge0,\quad a_m>0.
 
-Candidate relaxation rates span two decades below and above the requested
-fit band. Non-negative least squares fits real and imaginary parts with
-relative-error weighting. Because every coefficient is non-negative, the
-result is passive over the complete frequency axis, not only at the sample
-points. The advertised maximum fit error still applies only inside the
-requested band.
+The target is first normalised by the lower fit frequency and by its impedance
+scale. For each requested runtime order, deterministic logarithmic relaxation
+grids with several out-of-band extensions are tested. Active subsets from
+slightly overcomplete grids supply additional non-uniform starting points.
+The pole locations are then refined in logarithmic frequency by deterministic
+bounded Powell searches. At every nonlinear evaluation, column-scaled bounded
+least squares fits the direct term and Foster residues to the real and
+imaginary target with relative-error weighting. The residues remain
+non-negative, so the result is passive over the complete frequency axis, not
+only at the sample points. A separate grid of at least 16,385 points certifies
+the reported maximum and RMS errors.
+
+Automatic order tests one, two, and then increasing actual Foster state counts
+through 64. It stops at the first count whose deterministic local searches
+produce a certified maximum complex relative error no larger than
+``fit_tolerance``. This is a sequential local model-order search, rather than a
+claim of a mathematical global optimum over all possible pole locations. An
+explicit integer is an exact state count.
+The normalised good-conductor problem depends on bandwidth ratio rather than
+conductivity or absolute frequency, so each ratio-and-pole-count realization
+is cached and scaled to the requested band and metal. That realization is
+independent of the requested tolerance; tolerance is used only to accept or
+reject its certified error during order selection. Consequently every
+common-metal preset selects the same pole count for the same frequency ratio
+and tolerance. The advertised error still applies only inside the requested
+band.
+
+For the default 0.2% tolerance, representative selections are:
+
+.. list-table:: Automatic Foster order versus fitted bandwidth
+   :header-rows: 1
+   :widths: 28 18 22 24
+
+   * - Fit band
+     - Band ratio
+     - Selected poles
+     - Maximum relative error
+   * - 10--10.1 GHz
+     - 1.01
+     - 1
+     - 0.10304%
+   * - 8--12 GHz
+     - 1.5
+     - 2
+     - 0.14848%
+   * - 8--16 GHz
+     - 2
+     - 3
+     - 0.03695%
+   * - 0.1--10 GHz
+     - 100
+     - 8
+     - 0.1341%
+   * - 1 MHz--100 GHz
+     - 100,000
+     - 13
+     - 0.1412%
 
 The realization stored by gprMax is
 
@@ -450,10 +582,36 @@ The impedance output is centred at the same half time as the surface current:
    \qquad
    Z_0=D+\frac12CG.
 
-``F``, ``G``, ``L``, and ``Z0`` are the exact runtime data shared by the FDTD
-kernel and the FDFD reduction. gprMax requires ``Z0`` to be finite and
-strictly positive. A constant resistance is the order-zero case:
-``F``, ``G``, and ``L`` are empty and ``Z0`` is the resistance.
+``F``, ``G``, ``L``, and ``Z0`` define the exact discrete law used by both the
+FDTD kernel and FDFD reduction. The FDTD pack stores its diagonal local form
+described below. gprMax requires ``Z0`` to be finite and strictly positive. A
+constant resistance is the order-zero case: ``F``, ``G``, and ``L`` are empty
+and ``Z0`` is the resistance.
+
+Local Foster recurrence
+-----------------------
+
+For the supported metal realization, :math:`A` and therefore :math:`F` are
+diagonal. The time-step kernel does not store or multiply the zero off-diagonal
+entries. For pole :math:`m`, define
+
+.. math::
+
+   f_m=F_{mm},\qquad q_m=L_mG_m,\qquad y_{p,m}^n=L_mx_{p,m}^n.
+
+The history and state update for surface-current port :math:`p` then reduce to
+
+.. math::
+
+   h_p^n=\sum_m y_{p,m}^n,
+   \qquad
+   y_{p,m}^{n+1}=f_m y_{p,m}^n+q_m k_p^{n+1/2}.
+
+The read-only :math:`f_m,q_m` coefficients are shared by every port using a
+material, while every port owns its own local :math:`y_{p,m}` history. The
+history is summed once, the locally implicit electric edge is solved, and the
+independent pole states are then advanced in place. No second state buffer or
+dense pole-to-pole matrix product is required.
 
 Discrete passivity
 ------------------
@@ -526,14 +684,18 @@ expression executed by the Python reference path and Cython kernel is
          \frac{g_pe^n}{2Z_{0,p}}-\frac{g_ph_p^n}{Z_{0,p}}
        \right)}{d_e}.
 
-The kernel then recovers every :math:`k_p^{n+1/2}` and advances
+The kernel then recovers every :math:`k_p^{n+1/2}` and advances each local
+Foster pole
 
 .. math::
 
-   \mathbf x_p^{n+1}=F_p\mathbf x_p^n+G_pk_p^{n+1/2}.
+   y_{p,m}^{n+1}=f_m y_{p,m}^n+q_mk_p^{n+1/2}.
 
 This analytic scalar elimination naturally handles several faces sharing one
-electric edge; it does not perform a dense solve at each time step.
+electric edge; it does not perform a dense solve at each time step. A flat
+boundary edge normally has one port and one current. A convex manifold edge
+can have two face ports: they share the scalar electric solve but retain
+separate histories and separate :math:`k_p` values.
 
 Packed data and update order
 ----------------------------
@@ -543,8 +705,13 @@ The compiler packs:
 * boundary edge component/index, H range, and port range;
 * :math:`a_+`, :math:`a_-`, and retained dual-area fraction;
 * H component/index records and signed half-line weights;
-* port model, unique state offset, :math:`g_p`, face normal, and face area;
-* one copy of ``F, G, L, Z0`` for each used material model.
+* the precomputed old-E coefficient and inverse scalar denominator for each
+  boundary edge;
+* port model, unique state offset, :math:`g_p`, :math:`g_p/Z_{0,p}`,
+  :math:`1/Z_{0,p}`, face normal, and face area;
+* one copy of the :math:`f_m,q_m` vectors and :math:`Z_0` for each used
+  material model;
+* one in-place :math:`y_{p,m}` value per port and selected pole.
 
 The dense material arrays use private ``surface-hold`` and ``volume-void``
 rows. The ordinary electric update preserves a boundary value without
@@ -557,18 +724,21 @@ explicit electric-edge overlaps are rejected during compilation.
 
 Each boundary electric edge and all of its port-state slices have one owner.
 The Cython implementation can therefore use OpenMP ``prange`` without atomics
-or cross-edge state races. Runtime and state storage scale with boundary area
-and rational-model order, rather than conductor volume:
+or cross-edge state races. The one or two histories on an edge are thread-local
+scalars. Runtime work and state storage scale linearly with boundary area and
+the selected Foster order, rather than conductor volume:
 
 .. math::
 
-   \text{work}\sim O(N_{\Gamma,E}\overline N_p^2),
+   \text{work}\sim O(N_{\Gamma,E}+N_{\Gamma,K}\overline N_p),
    \qquad
    \text{state}\sim O(N_{\Gamma,K}\overline N_p),
 
-where the matrix-vector state update gives the quadratic order dependence for
-a general dense realization. The metal presets have diagonal ``F``, although
-the present packed kernel retains the general dense loop.
+where :math:`N_{\Gamma,K}` is the number of local surface-current ports and
+:math:`\overline N_p` is their average selected pole count. Shared model
+coefficient storage is also linear in pole count. The optimized representation
+therefore avoids both the former quadratic dense-matrix arithmetic and its
+second per-port state buffer.
 
 Exact surface-ADE reduction for FDFD
 ====================================
@@ -591,6 +761,13 @@ The discrete state recurrence has the exact harmonic response
 
    Z_{\mathrm{alg}}(f,\Delta t)
       =Z_0+L(zI-F)^{-1}G.
+
+For the diagonal Foster pack this is equivalently the local pole sum
+
+.. math::
+
+   Z_{\mathrm{alg}}(f,\Delta t)
+      =Z_0+\sum_m\frac{q_m}{z-f_m}.
 
 The midpoint boundary equation is
 
@@ -682,8 +859,9 @@ Eigenmode solution and FDTD injection
 A direct modal solve reuses the component IDs, retained masks, clipped H
 weights, dual fractions, port models, and FDTD ``dt`` from the already
 compiled three-dimensional grid. There is no separately redrawn FDFD wall.
-This shared geometry is as important as sharing ``F, G, L, Z0``: a half-cell
-area or sign mismatch would change both loss and mode phase.
+This shared geometry is as important as sharing the exact discrete ADE law
+(``f``, ``q``, and ``Z0`` in its local Foster form): a half-cell area or sign
+mismatch would change both loss and mode phase.
 
 For a rectangular impedance guide, a typical source/monitor definition is:
 
@@ -715,7 +893,7 @@ For a rectangular impedance guide, a typical source/monitor definition is:
     ))
 
 The complete four-wall geometry is shown in
-``testing/validation/validate_impedance_copper_waveguide_s21.py``.
+``testing/validation/impedance_surface/validate_copper_wall_waveguide.py``.
 
 The mode solver returns fields on their native component-specific Yee grids.
 Lossy walls generally produce genuinely complex field profiles. The source
@@ -791,8 +969,7 @@ to isolate FDFD/FDTD boundary compatibility at a finite time step. These are
 different comparisons and should not be conflated.
 
 The end-to-end copper validation also removes the known lossless spatial and
-temporal dispersion of its cubic Yee grid from its diagnostic phase
-comparison.
+temporal dispersion of its cubic Yee grid from its phase comparison.
 For cubic spacing :math:`\Delta`, its analytical lossless reference is
 
 .. math::
@@ -804,46 +981,15 @@ For cubic spacing :math:`\Delta`, its analytical lossless reference is
       \right]^{1/2}
    \right\}.
 
-That diagnostic reference replaces :math:`\beta_0` by :math:`\beta_Y` in the
-phase term while retaining the continuum perturbation factor :math:`Q`. The
-pure continuum result is written separately so mesh dispersion remains
-visible rather than being mistaken for a copper-boundary error. It is not a
-release gate: a finite-record ratio between two passive planes can contain a
-small projection ripple comparable with the already small conductor loss.
+That reference replaces :math:`\beta_0` by :math:`\beta_Y` in the phase term
+while retaining the continuum perturbation factor :math:`Q`. The pure
+continuum result is written separately so mesh dispersion remains visible
+rather than being mistaken for a copper-boundary error. The FDTD attenuation
+comparison uses :math:`-\ln|S_{21}|/L`, so its loss gate is independent of this
+phase correction.
 
 Validation and benchmarking
 ===========================
-
-Normal-incidence reflection
----------------------------
-
-``testing.validation.validate_impedance_box_reflection`` runs all six face
-orientations. A loaded simulation is subtracted from a geometrically
-identical free-space run, time-gated before edge diffraction, and de-embedded
-with the axial Yee wavenumber. It compares against the exact algorithm
-executed by the ADE and half-cell boundary, not a continuous Fresnel formula.
-
-For a flat free-space wall with normal cell size :math:`\Delta`, define
-
-.. math::
-
-   Y_\Gamma
-      =j\epsilon_0\frac{\Delta}{\Delta t}\sin(\theta/2)
-       +\frac{c_\theta}{Z_{\mathrm{alg}}}.
-
-If :math:`k_Y` is the axial Yee wavenumber, the reference at the boundary-E
-plane is
-
-.. math::
-
-   \Gamma_{\mathrm{Yee}}
-      =\frac{e^{+jk_Y\Delta/2}-\eta_0Y_\Gamma}
-             {e^{-jk_Y\Delta/2}+\eta_0Y_\Gamma}.
-
-This catches the three common errors separately: wrong surface-normal signs,
-omitting bilinear ADE warping, and using a full rather than half electric dual
-cell. The automated gates are 0.005 magnitude RMSE, 0.7 degrees phase RMSE,
-and 0.01 complex relative L2 error for each requested face.
 
 FDFD attenuation and modal launch
 ---------------------------------
@@ -853,65 +999,84 @@ compares :math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` with the TE10
 perturbation result using :math:`Z_{\mathrm{alg}}/c_\theta`, and applies a 2%
 relative tolerance.
 
-``testing.validation.validate_impedance_modal_injection`` uses a deliberately
-larger constant resistance so attenuation is measurable in a compact model.
-It checks both the source-plane backward wave and the attenuation obtained
-from two passive modal planes. Its acceptance gates are -20 dB maximum source
-reflection and 12% relative L2 attenuation error. The wall ends are outside
-the causal return window, so termination reflections cannot make the test
-pass or fail.
-
-``testing.validation.validate_impedance_copper_waveguide_s21`` is the
+``testing.validation.impedance_surface.validate_copper_wall_waveguide`` is the
 physical common-metal case. It uses a 1.6 mm by 0.8 mm copper-lined guide on a
 0.1 mm cubic grid. TE10 is evaluated from 130 to 150 GHz, below the 187.37 GHz
-next-mode cutoff, over a 20 mm reference-plane spacing. The independent
-good-conductor formula predicts 0.102--0.117 dB insertion loss, making copper
+next-mode cutoff, over a 40 mm reference-plane spacing. The independent
+good-conductor formula predicts 0.204--0.234 dB insertion loss, making copper
 loss materially larger than in the initial microwave-scale test.
 
-The release checks deliberately separate the two requested milestones. First,
-the attenuation :math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` stored for each
-exact FDFD anchor is compared with :math:`Q\operatorname{Re}Z_s`; the relative
-L2 gate is 1%. Second, the driven FDTD port must have maximum
-:math:`S_{11}<-20` dB after the complex modal field is injected. The raw
-two-passive-plane propagation factor
-:math:`T_{32}=b_3^+/b_2^+` and the perturbative
-:math:`e^{-j\beta L}` curve are still written to CSV and plotted for
-inspection, but are not acceptance gates. This distinction prevents a small
-finite-record projection ripple from being misidentified as an error in the
-copper ADE. The workflow still exercises the copper preset, Foster fit, exact
-FDFD boundary reduction, complex modal source, FDTD ADE, and modal projection.
+The comparison uses 21 uniform validation frequencies from 130 to 150 GHz,
+and each is an exact source-port FDFD anchor. The copper excitation spans
+120--150 GHz on a 31-point, 1 GHz DFT grid. The source port uses all 31 bins
+plus guards at 100, 110, 160, and 170 GHz, for 35 anchors. Each passive port uses
+only 11 anchors: the four guards and seven uniformly spaced anchors from 120
+to 150 GHz. Dense source anchors preserve exact in-band ``neff`` validation
+and modal injection; sparse guarded passive anchors avoid repeating
+unnecessary FDFD solves while retaining smooth modal interpolation. Starting
+the excitation sufficiently above the 93.69 GHz TE10 cutoff prevents a slow
+near-cutoff tail from entering the finite record.
 
-Run the validations from the repository root:
+The copper surface explicitly uses ``fit_order='auto'`` over 80--180 GHz with
+a 0.2% tolerance and selects three poles. The model uses a 210 mm domain and a
+500 ps record. The active source is at 90 mm and the passive planes are at 105
+and 145 mm. The finite walls extend almost to the domain ends, leaving 97.415
+ps between the record endpoint and the conservative earliest wall-end return.
+This gives the source response time to settle while retaining a causally
+isolated one-way propagation measurement.
+
+The copper release checks cover three milestones. The attenuation
+:math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` stored for each exact in-band
+FDFD anchor is compared with :math:`Q\operatorname{Re}Z_s` using a 1% relative
+L2 gate. The driven FDTD port must have maximum :math:`S_{11}<-20` dB after the
+complex modal field is injected. Finally, attenuation obtained from the FDTD
+two-plane propagation factor is compared with the same perturbation theory
+using a 2% relative L2 gate. The workflow therefore exercises the copper
+preset, Foster fit, exact FDFD boundary reduction, complex modal source, FDTD
+ADE, modal projection, and propagation loss in one accepted result.
+
+In the retained double-precision four-thread result, the impedance fit error
+is 0.026023%, the FDFD and FDTD attenuation errors are 0.146829% and 0.759861%,
+and maximum reflection is -65.0005 dB. The reduced domain, record, and
+passive-anchor set complete in 86.606 s, compared with approximately 148--158 s
+for the previous validation configuration on the same four-thread workflow.
+
+Run the validation from the repository root:
 
 .. code-block:: console
 
-    python -m testing.validation.validate_impedance_box_reflection --threads 4
-    python -m testing.validation.validate_impedance_modal_injection --threads 4
-    python -m testing.validation.validate_impedance_copper_waveguide_s21 --threads 4
+    python -m testing.validation.impedance_surface.validate_copper_wall_waveguide --threads 4
 
-Use ``--reuse`` to reanalyse compatible cached solver output when a driver
-supports it. Each validation exits non-zero when an acceptance criterion
-fails and writes numerical data plus a machine-readable summary below its
-selected output directory.
+Use ``--reuse`` to reanalyse compatible cached solver output. The validation
+exits non-zero when an acceptance criterion fails and writes numerical data
+plus a machine-readable summary below its selected output directory.
 
 Sparse-kernel performance
 -------------------------
 
 ``testing.benchmarking.benchmark_impedance_box`` alternates otherwise
-identical baseline and impedance runs, times the full solve, and also isolates
-the sparse kernel and a bulk-plus-surface hot loop:
+identical baseline, resistive, automatic-order copper, and explicit-order
+copper runs. It times the full solve and also isolates the sparse kernel and a
+bulk-plus-surface hot loop:
 
 .. code-block:: console
 
     python -m testing.benchmarking.benchmark_impedance_box \
         --cells 80 --iterations 250 --threads 4 --repeats 3 \
-        --kernel-iterations 1000 --hot-iterations 250 --hot-repeats 3
+        --fit-band 8e9 12e9 --fit-tolerance 2e-3 \
+        --explicit-orders 4 8 16 32 \
+        --kernel-iterations 1000 --kernel-repeats 3 \
+        --hot-iterations 250 --hot-repeats 3 \
+        --output impedance_box_benchmark.json
 
-Report ``boundary_edges`` and ``surface_ports`` with timing results: overhead
-depends on boundary area, fit order, compiler, CPU, thread count, and the
-surface-to-volume ratio. The most useful outputs are sparse edge updates per
-second, median solve overhead, and bulk-plus-surface hot-loop overhead.
-Wall-clock construction time should not be mixed with time-stepping overhead.
+The JSON records requested and selected order, boundary edges, surface ports,
+per-port state values and bytes, packed coefficient bytes, edge/port/pole
+update rates, median solve overhead, and bulk-plus-surface hot-loop overhead.
+The resistive case separates fixed sparse-boundary cost from pole cost, while
+the explicit-order sweep reveals order scaling. Results depend on compiler,
+CPU, thread count, boundary area, and surface-to-volume ratio; timing values
+are not portable CI thresholds. Wall-clock construction time should not be
+mixed with time-stepping overhead.
 
 HDF5 reproducibility metadata
 =============================
@@ -919,7 +1084,7 @@ HDF5 reproducibility metadata
 Every output file containing a surface definition has a root group
 ``/surface_impedance_models``. Its attributes are:
 
-* ``SchemaVersion``;
+* ``SchemaVersion = 3``;
 * ``TimeConvention = exp(+j*omega*t)``;
 * ``FourierAnalysisConvention = exp(-j*omega*t)``;
 * ``SurfaceNormalConvention = metal_to_retained_dielectric``;
@@ -929,16 +1094,19 @@ Every output file containing a surface definition has a root group
 
 Each definition appears as ``model1``, ``model2``, and so on, in definition
 order. A model group stores ``ID``, ``ModelHashSHA256``, ``Order``, ``D``, fit
-limits, ``AllowActive``, ``UsedByCompiledBoundary``, ``Preset``,
-``Provenance``, and, when available, ``FitMaximumRelativeError``. The
-continuous ``A``, ``B``, and ``C`` arrays are datasets. A preset additionally
-stores reference temperature, resistivity, and conductivity.
+limits, source kind, conductivity, preset/provenance, requested and selected
+pole counts, fit method and tolerance, maximum/RMS errors, plotting policy, and
+whether the compiled boundary uses it. The continuous ``A``, ``B``, and ``C``
+arrays are datasets. A preset additionally stores reference temperature and
+resistivity.
 
 For every model used by the compiled boundary, ``fdtd_discrete`` stores the
-exact ``F``, ``G``, and ``L`` arrays and the ``TimeStep``, ``Z0``, and
-``PassivityChecked`` attributes. A defined but unused model has no discrete
-subgroup. The model hash covers ID, continuous coefficients, fit limits,
-preset, and provenance. The current schema does not serialize the complete
+exact local ``f`` and ``q`` pole vectors and the ``TimeStep``, ``Z0``, and
+``PassivityChecked`` attributes. Together with the continuous realization,
+these reproduce both the in-place FDTD recurrence and the equivalent FDFD
+transfer. A defined but unused model has no discrete subgroup. The model hash
+covers the continuous model and fitting provenance. The current schema does
+not serialize the complete
 sparse geometry/port map, so geometry reproducibility still depends on the
 input model and normal gprMax output metadata.
 
@@ -964,9 +1132,8 @@ For example, inspect one used realization with:
         A = wall['A'][...]
         B = wall['B'][...]
         C = wall['C'][...]
-        F = wall['fdtd_discrete/F'][...]
-        G = wall['fdtd_discrete/G'][...]
-        L = wall['fdtd_discrete/L'][...]
+        f = wall['fdtd_discrete/f'][...]
+        q = wall['fdtd_discrete/q'][...]
         Z0 = wall['fdtd_discrete'].attrs['Z0']
 
 Implementation map
@@ -984,14 +1151,13 @@ The main implementation seams are:
      - Model validation/discretization, voxel-boundary compilation, packed
        records, and the Python reference update.
    * - ``gprMax/surface_impedance_presets.py``
-     - Metal reference data, good-conductor target, and passive Foster NNLS
-       fit.
+     - Metal reference data, good-conductor target, and passive Foster
+       bounded least-squares (BVLS) fit.
    * - ``gprMax/cython/impedance_surface.pyx``
      - OpenMP sparse locally implicit FDTD update.
-   * - ``gprMax/user_objects/cmds_geometry/impedance_box.py``
-     - Direct axis-aligned marker geometry.
-   * - ``gprMax/user_objects/cmds_geometry/impedance_volume.py``
-     - Tag-driven conversion of arbitrary surviving volumetric voxels.
+   * - ``gprMax/user_objects/cmds_geometry/cmds_geometry.py``
+     - Geometry-only material resolution, marker creation, and rejection of
+       sheet, line, and directional surface-impedance assignments.
    * - ``gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py``
      - Exact ADE harmonic response and boundary-row effective coefficient.
    * - ``gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py``
@@ -1019,20 +1185,31 @@ Troubleshooting
     bypass the check.
 
 ``non-passive on the discrete band``
-    The trapezoidal unit-circle response has negative real impedance. Refit
-    the model with passive constraints. ``allow_active=True`` disables this
-    protection but also removes the passive-stability expectation.
+    The trapezoidal unit-circle response has negative real impedance. This is
+    an internal fit failure for the public passive models and should be
+    reported with the input and fit band.
 
 ``frequency is outside ... fit band``
-    Expand the preset/custom fit band to include every eigenmode anchor and
+    Expand the preset or conductivity fit band to include every eigenmode anchor and
     its bilinear-warped frequency. Close to Nyquist the warped frequency can
     be much higher than the physical anchor. Reducing ``dt`` also reduces the
     difference.
 
-``voxel topology is non-manifold at a Yee edge``
-    Two metal quadrants touch only diagonally. Refine the mesh, thicken the
-    feature, increase a curved object's radius, or alter its position so the
-    rasterized boundary has an unambiguous inside and outside.
+``impedance-volume voxel topology is non-manifold at a Yee edge``
+    The error reports the edge orientation and grid index where two impedance
+    quadrants touch only diagonally. Connect the impedance cells through a
+    full voxel face, or move them apart so they no longer share the reported
+    edge. Refining the mesh, thickening the feature, increasing a curved
+    object's radius, or adjusting its position can change the final
+    rasterization.
+
+``impedance-volume voxel topology is non-manifold at grid vertex``
+    The error reports the vertex index and whether the impedance cells,
+    retained cells, or both are not face-connected within its incident
+    ``2 x 2 x 2`` neighbourhood. Reshape the geometry so both sets connect
+    through voxel faces, or separate the impedance regions so they share
+    neither an edge nor a vertex. The check includes contacts between
+    different surface-impedance IDs.
 
 ``must have at least one retained cell on every side`` or PML intersection
     Move or shorten the impedance volume. The excluded region cannot touch a
@@ -1118,4 +1295,4 @@ References
 
 The Yee grid convention follows [YEE1966]_. Background on
 surface-impedance FDTD boundaries is given by [MAL1992]_ and [BEG1992]_. The
-preset resistivity provenance is [MAT1979]_.
+preset resistivity provenance is [MAT1979]_, [DES1984A]_, and [DES1984S]_.

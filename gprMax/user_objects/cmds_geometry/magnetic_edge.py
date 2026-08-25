@@ -31,7 +31,7 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import rotate_2point_object
+from .cmds_geometry import resolve_geometry_materials, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +98,12 @@ class MagneticEdge(RotatableMixin, GeometryUserObject):
         xs, ys, zs = discretised_p1
         xf, yf, zf = discretised_p2
 
-        material = next((x for x in grid.materials if x.ID == material_id), None)
-
-        if not material:
-            logger.exception(f"Material with ID {material_id} does not exist")
-            raise ValueError
+        material = resolve_geometry_materials(
+            grid,
+            [material_id],
+            geometry=self.params_str(),
+            cell_volume=False,
+        )[0]
 
         # Check for valid orientations
         if (

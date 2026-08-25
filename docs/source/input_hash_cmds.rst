@@ -272,42 +272,68 @@ For example ``#material: 3 0.01 1 0 my_sand`` creates a material called ``my_san
 #surface_impedance:
 -------------------
 
-Defines a reusable scalar surface impedance for a closed impedance volume.
-The command accepts either a constant real resistance or a common bulk-metal
-preset:
+Defines a reusable scalar surface-impedance material for closed,
+cell-occupying geometry. Use its identifier directly as the geometry's sole
+material identifier. The command accepts either a constant real resistance
+or a fitted microwave-metal target from a named preset or bulk conductivity:
 
 .. code-block:: none
 
-    #surface_impedance: str1 f1
-    #surface_impedance: str1 str2
-    #surface_impedance: str1 str2 f2 f3 [i1]
+    #surface_impedance: str1 resistance f1
+    #surface_impedance: str1 preset str2 f2 f3 [auto|i1] [f4] [c1]
+    #surface_impedance: str1 conductivity f1 f2 f3 [auto|i1] [f4] [c1]
 
 * ``str1`` is the surface-impedance identifier.
 * ``f1`` is the positive surface resistance in Ohms.
-* ``str2`` is ``copper``, ``silver``, or ``gold`` (element symbols are also
-  accepted).
-* ``f2`` and ``f3`` optionally set the positive fit-band limits in Hertz.
-* ``i1`` optionally sets the number of candidate Foster relaxation poles;
-  the default is 16 and the accepted range is 4--64.
+  In the conductivity form it is instead the positive bulk conductivity in
+  S/m.
+* ``str2`` is ``aluminium``, ``copper``, ``gold``, ``molybdenum``,
+  ``palladium``, ``silver``, ``tungsten``, or ``zinc``. Element symbols and
+  ``aluminum`` are also accepted.
+* ``f2`` and ``f3`` are the mandatory positive fit-band limits in Hertz.
+* ``auto`` tests actual runtime pole counts from 1 through 64 and selects the
+  first whose deterministic local fit is independently certified to meet the
+  tolerance. ``i1`` instead requests exactly that many Foster poles in the
+  same range. The default is ``auto``.
+* ``f4`` is the positive maximum relative fit-error tolerance; the default is
+  ``2e-3``. It controls order selection for ``auto``. With an explicit
+  integer order it is a diagnostic threshold, and a miss produces a warning
+  without changing the requested order.
+* ``c1`` controls full-run fit plotting. ``n`` (the default) writes the plot
+  only for ``--geometry-only``; ``y`` writes it for geometry-only and full
+  runs. To specify a later optional field, include those before it.
 
-For example, ``#surface_impedance: resistive_wall 50`` defines a 50 Ohm
-surface. ``#surface_impedance: copper_wall copper`` uses the default
-:math:`1\,\mathrm{MHz}`--:math:`100\,\mathrm{GHz}` fit band. For example, an
-explicit GPR band can instead use
-``#surface_impedance: copper_wall copper 1e7 5e9 12``.
+Surface-impedance and bulk-material identifiers must be unique. The
+``__impedance_`` prefix is reserved for private runtime materials.
 
-The metal presets use bulk-pure-metal resistivity at 293 K from R. A. Matula,
-*Journal of Physical and Chemical Reference Data* **8**, 1147--1298 (1979),
-doi:`10.1063/1.555614 <https://doi.org/10.1063/1.555614>`_. gprMax fits the
+.. warning::
+
+    The ``resistance`` form is a frequency-independent, purely real idealized
+    boundary condition; it does not represent the causal, dispersive response
+    of a physical conductor. gprMax emits a warning when it is built. Use a
+    fitted metal preset or bulk conductivity over the intended frequency band
+    for physically representative conductor loss.
+
+For example, ``#surface_impedance: resistive_wall resistance 50`` defines a
+50 Ohm surface. A copper fit over X band is
+``#surface_impedance: copper_wall preset copper 8e9 12e9 auto 2e-3 n``.
+An explicit conductivity and order can use
+``#surface_impedance: alloy_wall conductivity 3.2e7 8e9 12e9 12``.
+
+The metal presets use recommended bulk-pure-metal resistivity at 293 K from
+Matula and Desai et al.; exact per-metal provenance is stored in the output.
+gprMax fits the
 good-conductor surface impedance with a non-negative Foster expansion. This
 makes the resulting realization passive over the complete frequency axis;
-its advertised accuracy applies only inside the selected fit band. The
-Python API additionally accepts a passive real state-space model ``A, B, C,
-D`` representing
-:math:`Z(s)=D+C(sI-A)^{-1}B`; gprMax discretises it using the simulation time
-step. Output HDF5 files store the continuous model, fit/provenance/hash
-metadata, and the exact runtime ``F, G, L, Z0`` coefficients under
-``surface_impedance_models``.
+its advertised accuracy applies only inside the selected fit band. Output
+HDF5 files store the internal continuous model, fit/provenance/hash
+metadata, and the exact local runtime ``f, q, Z0`` recurrence coefficients
+under ``surface_impedance_models``.
+
+This microwave-only implementation requires ``f3 <= 300e9`` and checks
+:math:`\sigma/(\omega\epsilon_0)\geq100` at the upper band edge. It rejects
+optical/terahertz bands and targets for which the good-conductor law is not a
+valid approximation.
 
 See :doc:`impedance_surfaces` for the surface-current convention, ADE and
 FDFD equations, geometry compilation rules, metal applicability, validation,
@@ -316,8 +342,12 @@ and troubleshooting guidance.
 .. note::
 
     This first implementation is limited to the 3-D CPU solver and closed,
-    voxelized ``#impedance_box`` or tagged ``#impedance_volume`` volumes. It
-    does not yet support MPI, subgrids, accelerator backends, any symmetry
+    cell-occupying geometry. Pass the ``#surface_impedance`` ID directly as
+    the sole material identifier of ``#box``, ``#sphere``, ``#ellipsoid``,
+    ``#cylinder``, ``#cone``, or a finite-thickness ``#triangle`` or
+    ``#cylindrical_sector``. Sheets, lines, zero-thickness patches, and
+    directional material assignments are rejected. The implementation does
+    not yet support MPI, subgrids, accelerator backends, any symmetry
     boundary, thin wires, a PML intersection, or a dispersive dielectric
     immediately outside the impedance boundary. Axial discrete plane waves
     are unsupported. A homogeneous vector/angle plane wave is allowed only
@@ -611,6 +641,36 @@ Object construction commands
 ============================
 
 Object construction commands are processed in the order they appear in the input file. Therefore space in the model allocated to a specific material using for example the ``#box`` command can be reallocated to another material using the same or any other object construction command. Space in the model can be regarded as a canvas in which objects are introduced and one can be overlaid on top of the other overwriting its properties in order to produce the desired geometry. The object construction commands can therefore be used to create complex shapes and configurations.
+
+A ``#surface_impedance`` ID can be used directly wherever these commands take
+one isotropic material identifier for a closed, cell-occupying volume. For
+example:
+
+.. code-block:: none
+
+    #surface_impedance: resistive_wall resistance 50
+    #box: 0.1 0.1 0.1 0.3 0.3 0.2 resistive_wall n
+
+Normal ordered overwrite semantics apply. Several objects with the same
+surface-impedance ID can form a union; a later ordinary material object can
+carve a cavity; and any later geometry can replace earlier cells. Plates,
+edges, zero-thickness triangles and cylindrical sectors, and boxes that
+occupy zero cells on any axis reject surface-impedance IDs. A scalar surface
+impedance also cannot be used as one member of a directional anisotropic
+material assignment. ``#fractal_box`` accepts a surface-impedance ID only as
+its sole material with one material bin and a roughness, grass, or water
+modifier; an unmodified one-material fractal box must use ``#box`` instead.
+
+The final rasterized geometry is checked after all ordered overwrites.
+Face-connected staircases are valid. Impedance cells that touch only
+diagonally across a Yee edge or only at a grid vertex are non-manifold and are
+rejected, including contacts between different surface-impedance IDs. Within
+each local ``2 x 2 x 2`` vertex neighbourhood, both the impedance and retained
+cell sets must be face-connected when non-empty. Connect the regions through a
+full voxel face, or separate them so they share neither an edge nor a vertex;
+mesh refinement, increased feature thickness, or a small position change can
+also repair the final voxel topology. See :doc:`impedance_surfaces` for the
+complete rule and troubleshooting guidance.
 
 Anisotropy
 ----------
@@ -956,66 +1016,6 @@ Allows you to introduce an orthogonal parallelepiped with specific properties in
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
-
-#impedance_box:
----------------
-
-Creates a closed, opaque, axis-aligned volume whose conductor-interior field
-components are held at zero and whose exterior faces use a previously defined
-surface impedance:
-
-.. code-block:: none
-
-    #impedance_box: f1 f2 f3 f4 f5 f6 str1
-
-* ``f1 f2 f3`` and ``f4 f5 f6`` are the lower and upper corners.
-* ``str1`` is a ``#surface_impedance`` identifier.
-
-For example:
-
-.. code-block:: none
-
-    #surface_impedance: resistive_wall 50
-    #impedance_box: 0.1 0.1 0.1 0.3 0.3 0.2 resistive_wall
-
-The box must occupy at least one cell on every axis and must have retained
-cells between it and every domain boundary. Boundary electric edges use
-fractional dual areas, including the :math:`3/4` retained area at convex box
-edges. This object represents an opaque one-sided surface-impedance boundary;
-it is not a transmissive zero-thickness impedance sheet.
-
-#impedance_volume:
-------------------
-
-Converts the currently surviving cells of a previously rasterized geometry
-tag into an opaque closed surface-impedance volume:
-
-.. code-block:: none
-
-    #impedance_volume: str1 str2
-
-* ``str1`` is a cell-centred geometry tag.
-* ``str2`` is a previously defined ``#surface_impedance`` identifier.
-
-For example:
-
-.. code-block:: none
-
-    #surface_impedance: metal copper
-    #sphere: 0.15 0.10 0.08 0.025 free_space n metal_body
-    #impedance_volume: metal_body metal
-
-The conversion command must occur after the tagged volumetric geometry. It
-uses only tagged cells that survive earlier overwrites, and later geometry can
-overwrite the impedance marker normally. The same mechanism supports boxes,
-spheres, ellipsoids, cylinders, cones, finite-thickness sectors and triangular
-prisms, fractal boxes, and tagged imported voxel geometry. It does not convert
-plates, wires, or zero-thickness patches; those require a two-sided sheet
-boundary rather than an opaque closed volume.
-
-A voxel shape that contains a diagonally touching, non-manifold Yee edge is
-rejected. Increasing its resolution, thickness, or radius normally removes
-this rasterization ambiguity.
 
 #sphere:
 --------

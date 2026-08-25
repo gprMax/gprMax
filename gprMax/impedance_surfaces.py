@@ -26,6 +26,8 @@ from gprMax.materials import Material
 
 logger = logging.getLogger(__name__)
 
+PRIVATE_IMPEDANCE_ID_PREFIX = "__impedance_"
+
 try:
     from gprMax.cython.impedance_surface import update_impedance_surfaces as _cython_update
 except ImportError:  # pragma: no cover - exercised only before an extension rebuild
@@ -56,7 +58,14 @@ class SurfaceImpedanceModel:
     allow_active: bool = False
     preset: str | None = None
     provenance: str | None = None
+    conductivity_s_per_m: float | None = None
+    fit_requested_order: str | int | None = None
+    fit_pole_count: int | None = None
+    fit_tolerance: float | None = None
     fit_max_relative_error: float | None = None
+    fit_rms_relative_error: float | None = None
+    fit_method: str | None = None
+    plot_fit_in_full_run: bool = False
 
     def __post_init__(self) -> None:
         if not self.ID or "/" in self.ID or "\x00" in self.ID:
@@ -76,6 +85,10 @@ class SurfaceImpedanceModel:
         fmin = float(self.fit_fmin_hz)
         fmax = float(self.fit_fmax_hz)
         fit_error = self.fit_max_relative_error
+        fit_rms_error = self.fit_rms_relative_error
+        conductivity = self.conductivity_s_per_m
+        fit_tolerance = self.fit_tolerance
+        fit_pole_count = self.fit_pole_count
         if not all(np.all(np.isfinite(value)) for value in (A, B, C)) or not np.isfinite(D):
             raise ValueError("surface-impedance realization coefficients must be finite")
         if fmin < 0 or not np.isfinite(fmin) or np.isnan(fmax) or fmax <= fmin:
@@ -88,6 +101,26 @@ class SurfaceImpedanceModel:
             fit_error = float(fit_error)
             if not np.isfinite(fit_error) or fit_error < 0:
                 raise ValueError("surface-impedance fit error must be finite and non-negative")
+        if fit_rms_error is not None:
+            fit_rms_error = float(fit_rms_error)
+            if not np.isfinite(fit_rms_error) or fit_rms_error < 0:
+                raise ValueError("surface-impedance RMS fit error must be finite and non-negative")
+        if conductivity is not None:
+            conductivity = float(conductivity)
+            if not np.isfinite(conductivity) or conductivity <= 0:
+                raise ValueError("surface-impedance conductivity must be finite and positive")
+        if fit_tolerance is not None:
+            fit_tolerance = float(fit_tolerance)
+            if not np.isfinite(fit_tolerance) or fit_tolerance <= 0:
+                raise ValueError("surface-impedance fit tolerance must be finite and positive")
+        if fit_pole_count is not None:
+            fit_pole_count = int(fit_pole_count)
+            if fit_pole_count < 1:
+                raise ValueError("surface-impedance pole count must be positive")
+            if fit_pole_count != order:
+                raise ValueError(
+                    "surface-impedance fit pole count must match the realization order"
+                )
 
         # The dataclass is frozen, so its array members must be frozen too.
         # Immutable byte backing detaches caller-owned buffers and also blocks
@@ -96,9 +129,7 @@ class SurfaceImpedanceModel:
         for value in (A, B, C):
             contiguous = np.array(value, dtype=np.float64, order="C", copy=True)
             immutable_arrays.append(
-                np.frombuffer(contiguous.tobytes(), dtype=np.float64).reshape(
-                    contiguous.shape
-                )
+                np.frombuffer(contiguous.tobytes(), dtype=np.float64).reshape(contiguous.shape)
             )
         object.__setattr__(self, "A", immutable_arrays[0])
         object.__setattr__(self, "B", immutable_arrays[1])
@@ -106,7 +137,12 @@ class SurfaceImpedanceModel:
         object.__setattr__(self, "D", D)
         object.__setattr__(self, "fit_fmin_hz", fmin)
         object.__setattr__(self, "fit_fmax_hz", fmax)
+        object.__setattr__(self, "conductivity_s_per_m", conductivity)
+        object.__setattr__(self, "fit_pole_count", fit_pole_count)
+        object.__setattr__(self, "fit_tolerance", fit_tolerance)
         object.__setattr__(self, "fit_max_relative_error", fit_error)
+        object.__setattr__(self, "fit_rms_relative_error", fit_rms_error)
+        object.__setattr__(self, "plot_fit_in_full_run", bool(self.plot_fit_in_full_run))
 
     @property
     def order(self) -> int:
@@ -121,6 +157,17 @@ class SurfaceImpedanceModel:
         digest.update(np.asarray((self.fit_fmin_hz, self.fit_fmax_hz), dtype="<f8").tobytes())
         digest.update((self.preset or "").encode("utf-8"))
         digest.update((self.provenance or "").encode("utf-8"))
+        digest.update((self.fit_method or "").encode("utf-8"))
+        digest.update(str(self.fit_requested_order or "").encode("utf-8"))
+        optional_numbers = (
+            np.nan if self.conductivity_s_per_m is None else self.conductivity_s_per_m,
+            np.nan if self.fit_pole_count is None else self.fit_pole_count,
+            np.nan if self.fit_tolerance is None else self.fit_tolerance,
+            np.nan if self.fit_max_relative_error is None else self.fit_max_relative_error,
+            np.nan if self.fit_rms_relative_error is None else self.fit_rms_relative_error,
+            float(self.plot_fit_in_full_run),
+        )
+        digest.update(np.asarray(optional_numbers, dtype="<f8").tobytes())
         return digest.hexdigest()
 
     def impedance(self, frequencies_hz: npt.ArrayLike) -> npt.NDArray[np.complex128]:
@@ -146,9 +193,7 @@ class SurfaceImpedanceModel:
 
         frequency = float(frequency_hz)
         if not np.isfinite(frequency) or frequency <= 0:
-            raise ValueError(
-                f"{purpose} {frequency_kind} frequency must be finite and positive"
-            )
+            raise ValueError(f"{purpose} {frequency_kind} frequency must be finite and positive")
         # A zero-order resistance is frequency independent even when the user
         # supplied a descriptive output band. Dynamic realizations, including
         # common-metal fits, must stay inside their declared validity band.
@@ -191,10 +236,14 @@ class SurfaceImpedanceModel:
             phases = np.linspace(0, np.pi, 2049, endpoint=False)
             warped_frequencies = np.tan(0.5 * phases) / (np.pi * dt)
             values = self.impedance(warped_frequencies)
-            passive_tolerance = 2048 * np.finfo(np.float64).eps * max(
-                1.0,
-                abs(self.D),
-                float(np.max(np.abs(values), initial=0.0)),
+            passive_tolerance = (
+                2048
+                * np.finfo(np.float64).eps
+                * max(
+                    1.0,
+                    abs(self.D),
+                    float(np.max(np.abs(values), initial=0.0)),
+                )
             )
             minimum = min(float(np.min(np.real(values))), self.D)
             if minimum < -passive_tolerance:
@@ -229,6 +278,12 @@ class _PrivateImpedanceMaterial(Material):
         self.DA = self.DBx = self.DBy = self.DBz = self.srcm = 0.0
 
 
+def is_reserved_impedance_id(ID: str) -> bool:
+    """Return whether an ID belongs to the private impedance material namespace."""
+
+    return isinstance(ID, str) and ID.startswith(PRIVATE_IMPEDANCE_ID_PREFIX)
+
+
 def create_impedance_marker_material(grid, model_id: str) -> Material:
     """Return the private voxel marker associated with a surface model."""
 
@@ -238,9 +293,17 @@ def create_impedance_marker_material(grid, model_id: str) -> Material:
     )
     if existing_numid is not None:
         return grid.materials[existing_numid]
-    marker = Material(len(grid.materials), f"__impedance_volume__{model_id}")
+
+    marker_id = f"__impedance_volume__{model_id}"
+    if any(material.ID == marker_id for material in grid.materials):
+        raise ValueError(
+            f"material ID {marker_id!r} conflicts with a reserved internal "
+            "surface-impedance material ID"
+        )
+    marker = Material(len(grid.materials), marker_id)
     marker.type = "impedance-volume-marker"
     marker.averagable = False
+    marker.surface_impedance_id = model_id
     grid.materials.append(marker)
     grid.impedance_marker_models[marker.numID] = model_id
     return marker
@@ -250,7 +313,12 @@ def _sentinel_material(grid, role: str) -> _PrivateImpedanceMaterial:
     ID = f"__impedance_{role.replace('-', '_')}__"
     existing = next((material for material in grid.materials if material.ID == ID), None)
     if existing is not None:
-        return existing
+        if isinstance(existing, _PrivateImpedanceMaterial) and existing.impedance_role == role:
+            return existing
+        raise ValueError(
+            f"material ID {ID!r} conflicts with a reserved internal "
+            "surface-impedance material ID"
+        )
     material = _PrivateImpedanceMaterial(len(grid.materials), ID, role)
     grid.materials.append(material)
     return material
@@ -290,6 +358,114 @@ def _electric_quadrants(owner: npt.NDArray[np.int32], axis: int):
     return arrays, offsets
 
 
+def _face_component_count(mask: npt.NDArray[np.bool_]) -> int:
+    """Count 6-connected components in a small three-dimensional Boolean mask."""
+
+    remaining = {tuple(int(value) for value in coord) for coord in np.argwhere(mask)}
+    components = 0
+    while remaining:
+        components += 1
+        pending = [remaining.pop()]
+        while pending:
+            coord = pending.pop()
+            for axis in range(3):
+                for step in (-1, 1):
+                    neighbour = list(coord)
+                    neighbour[axis] += step
+                    neighbour_tuple = tuple(neighbour)
+                    if neighbour_tuple in remaining:
+                        remaining.remove(neighbour_tuple)
+                        pending.append(neighbour_tuple)
+    return components
+
+
+def _vertex_topology_status_table() -> npt.NDArray[np.uint8]:
+    """Return a lookup table for local occupied/retained face connectivity.
+
+    Bit zero marks a disconnected occupied set and bit one marks a
+    disconnected retained set. Empty sets are valid: all-retained and
+    all-occupied neighbourhoods contain no local interface.
+    """
+
+    status = np.zeros(256, dtype=np.uint8)
+    coordinates = tuple(np.ndindex((2, 2, 2)))
+    for pattern in range(256):
+        occupied = np.zeros((2, 2, 2), dtype=np.bool_)
+        for bit, coord in enumerate(coordinates):
+            occupied[coord] = bool(pattern & (1 << bit))
+        if _face_component_count(occupied) > 1:
+            status[pattern] |= 1
+        if _face_component_count(~occupied) > 1:
+            status[pattern] |= 2
+    return status
+
+
+_VERTEX_TOPOLOGY_STATUS = _vertex_topology_status_table()
+
+
+def _validate_impedance_voxel_topology(owner: npt.NDArray[np.int32]) -> None:
+    """Reject locally non-manifold binary impedance-voxel configurations.
+
+    Every non-negative owner is treated as occupied, irrespective of which
+    surface-impedance model owns it. The check is deliberately local: it does
+    not require separate impedance bodies to form one globally connected set.
+    """
+
+    if owner.ndim != 3:
+        raise ValueError("surface-impedance voxel ownership must be three-dimensional")
+
+    axis_names = "xyz"
+    for axis in range(3):
+        quadrants, _ = _electric_quadrants(owner, axis)
+        occupied = tuple(value >= 0 for value in quadrants)
+        diagonal = (occupied[0] & occupied[2] & ~occupied[1] & ~occupied[3]) | (
+            occupied[1] & occupied[3] & ~occupied[0] & ~occupied[2]
+        )
+        if np.any(diagonal):
+            flat_index = int(np.argmax(diagonal))
+            coord = tuple(int(value) for value in np.unravel_index(flat_index, diagonal.shape))
+            raise ValueError(
+                "impedance-volume voxel topology is non-manifold at a Yee edge: "
+                f"{axis_names[axis]}-directed edge {coord}; connect the "
+                "impedance cells through a cell face, or separate them with "
+                "retained cells so they do not share the edge"
+            )
+
+    if any(size < 2 for size in owner.shape):
+        return
+
+    occupied = owner >= 0
+    block_shape = tuple(size - 1 for size in owner.shape)
+    patterns = np.zeros(block_shape, dtype=np.uint8)
+    for bit, (di, dj, dk) in enumerate(np.ndindex((2, 2, 2))):
+        local = occupied[
+            di : di + block_shape[0],
+            dj : dj + block_shape[1],
+            dk : dk + block_shape[2],
+        ]
+        patterns |= local.astype(np.uint8) << bit
+
+    status = _VERTEX_TOPOLOGY_STATUS[patterns]
+    if np.any(status):
+        flat_index = int(np.argmax(status))
+        lower = tuple(int(value) for value in np.unravel_index(flat_index, status.shape))
+        vertex = tuple(value + 1 for value in lower)
+        local_status = int(status[lower])
+        disconnected = []
+        if local_status & 1:
+            disconnected.append("impedance")
+        if local_status & 2:
+            disconnected.append("retained")
+        raise ValueError(
+            "impedance-volume voxel topology is non-manifold at grid vertex "
+            f"{vertex}: the {' and '.join(disconnected)} incident cells are "
+            "not face-connected; reshape the geometry so both impedance and "
+            "retained incident cells connect through cell faces, or separate "
+            "the impedance cells with retained cells so they do not touch at "
+            "an edge or vertex"
+        )
+
+
 def _component_valid_view(array: np.ndarray, component: int, grid):
     if component == 0:
         return array[0 : grid.nx, 0 : grid.ny + 1, 0 : grid.nz + 1]
@@ -307,7 +483,11 @@ def _component_valid_view(array: np.ndarray, component: int, grid):
 def _assign_magnetic_component_ids(grid, owner, void_numid: int) -> None:
     """Void interior H and restore interface-normal H from the retained cell."""
 
-    shapes = ((grid.nx + 1, grid.ny, grid.nz), (grid.nx, grid.ny + 1, grid.nz), (grid.nx, grid.ny, grid.nz + 1))
+    shapes = (
+        (grid.nx + 1, grid.ny, grid.nz),
+        (grid.nx, grid.ny + 1, grid.nz),
+        (grid.nx, grid.ny, grid.nz + 1),
+    )
     for axis, shape in enumerate(shapes):
         padding = [(0, 0), (0, 0), (0, 0)]
         padding[axis] = (1, 1)
@@ -336,9 +516,7 @@ def _check_plane_wave_compatibility(
 
     if not plane_waves:
         return
-    boundary_coordinates = np.asarray(
-        [(i, j, k) for _, i, j, k in boundary_keys], dtype=np.int32
-    )
+    boundary_coordinates = np.asarray([(i, j, k) for _, i, j, k in boundary_keys], dtype=np.int32)
     for plane_wave in plane_waves:
         # The axial DPW samples the completed grid along its propagation
         # line when it is initialised.  An opaque impedance volume on
@@ -352,10 +530,7 @@ def _check_plane_wave_compatibility(
             )
         corners = np.asarray(plane_wave.corners, dtype=np.int32)
         lower, upper = corners[:3], corners[3:]
-        if not (
-            np.all(boundary_coordinates > lower)
-            and np.all(boundary_coordinates < upper)
-        ):
+        if not (np.all(boundary_coordinates > lower) and np.all(boundary_coordinates < upper)):
             raise ValueError(
                 "an impedance volume illuminated by a plane wave must lie strictly "
                 "inside its TFSF box"
@@ -367,8 +542,8 @@ def _check_supported_configuration(grid, boundary_keys: set[tuple[int, int, int,
         raise ValueError("impedance volumes currently support only 3-D models")
     if config.sim_config.general["solver"] != "cpu":
         raise ValueError("impedance volumes currently support only the CPU solver")
-    from gprMax.subgrids.grid import SubGridBaseGrid
     from gprMax.grid.mpi_grid import MPIGrid
+    from gprMax.subgrids.grid import SubGridBaseGrid
 
     if isinstance(grid, SubGridBaseGrid):
         raise ValueError("impedance volumes are not yet supported in subgrids")
@@ -407,44 +582,47 @@ def _check_supported_configuration(grid, boundary_keys: set[tuple[int, int, int,
 
 
 class ImpedanceSurfaceSystem:
-    """Packed sparse boundary records and per-port ADE state."""
+    """Packed sparse boundary records and local per-port Foster state."""
 
     def __init__(
         self,
         *,
         edge_info,
         edge_params,
+        edge_runtime,
         edge_fraction,
         h_info,
         h_weight,
         port_info,
         port_g,
+        port_g_over_Z0,
+        port_inv_Z0,
         port_normal,
         port_area,
         model_info,
-        model_F,
-        model_G,
-        model_L,
+        model_f,
+        model_q,
         model_Z0,
-        state,
+        state_y,
         model_ids,
     ):
         self.edge_info = edge_info
         self.edge_params = edge_params
+        self.edge_runtime = edge_runtime
         self.edge_fraction = edge_fraction
         self.h_info = h_info
         self.h_weight = h_weight
         self.port_info = port_info
         self.port_g = port_g
+        self.port_g_over_Z0 = port_g_over_Z0
+        self.port_inv_Z0 = port_inv_Z0
         self.port_normal = port_normal
         self.port_area = port_area
         self.model_info = model_info
-        self.model_F = model_F
-        self.model_G = model_G
-        self.model_L = model_L
+        self.model_f = model_f
+        self.model_q = model_q
         self.model_Z0 = model_Z0
-        self.state = state
-        self.state_new = np.zeros_like(state)
+        self.state_y = state_y
         self.model_ids = tuple(model_ids)
 
     @property
@@ -456,8 +634,7 @@ class ImpedanceSurfaceSystem:
         return int(self.port_info.shape[0])
 
     def reset(self) -> None:
-        self.state.fill(0)
-        self.state_new.fill(0)
+        self.state_y.fill(0)
 
     @staticmethod
     def _field(fields, component, i, j, k):
@@ -468,41 +645,44 @@ class ImpedanceSurfaceSystem:
         magnetic = (grid.Hx, grid.Hy, grid.Hz)
         for edge_index, edge in enumerate(self.edge_info):
             component, i, j, k, h_start, h_count, port_start, port_count = edge
+            if not 1 <= port_count <= 2:
+                raise ValueError("surface-impedance boundary edges require one or two local ports")
             e_old = float(electric[component][i, j, k])
             r_h = 0.0
             for h_index in range(h_start, h_start + h_count):
                 h_component, hi, hj, hk = self.h_info[h_index]
                 r_h += self.h_weight[h_index] * magnetic[h_component][hi, hj, hk]
-            a_plus, a_minus = self.edge_params[edge_index]
-            denominator = a_plus
-            rhs = a_minus * e_old + r_h
+            old_e_coefficient, inverse_denominator = self.edge_runtime[edge_index]
+            rhs = old_e_coefficient * e_old + r_h
+            histories = []
             for port_index in range(port_start, port_start + port_count):
                 model_index, state_start = self.port_info[port_index]
-                state_count, _, vector_start = self.model_info[model_index]
+                state_count, _ = self.model_info[model_index]
                 section = slice(state_start, state_start + state_count)
-                vector = slice(vector_start, vector_start + state_count)
-                history = float(self.model_L[vector] @ self.state[section])
-                g = self.port_g[port_index]
-                z0 = self.model_Z0[model_index]
-                denominator -= g / (2 * z0)
-                rhs += g * e_old / (2 * z0) - g * history / z0
-            e_new = rhs / denominator
+                history = float(np.sum(self.state_y[section], dtype=np.float64))
+                histories.append(history)
+                rhs -= self.port_g_over_Z0[port_index] * history
+            e_new = rhs * inverse_denominator
             electric[component][i, j, k] = e_new
-            for port_index in range(port_start, port_start + port_count):
+            midpoint_e = 0.5 * (e_new + e_old)
+            for history, port_index in zip(
+                histories,
+                range(port_start, port_start + port_count),
+            ):
                 model_index, state_start = self.port_info[port_index]
-                state_count, matrix_start, vector_start = self.model_info[model_index]
+                state_count, coefficient_start = self.model_info[model_index]
+                if not state_count:
+                    continue
                 section = slice(state_start, state_start + state_count)
-                vector = slice(vector_start, vector_start + state_count)
-                history = float(self.model_L[vector] @ self.state[section])
-                current = (0.5 * (e_new + e_old) - history) / self.model_Z0[model_index]
-                if state_count:
-                    matrix = self.model_F[
-                        matrix_start : matrix_start + state_count * state_count
-                    ].reshape(state_count, state_count)
-                    self.state_new[section] = (
-                        matrix @ self.state[section] + self.model_G[vector] * current
-                    )
-        self.state, self.state_new = self.state_new, self.state
+                coefficients = slice(
+                    coefficient_start,
+                    coefficient_start + state_count,
+                )
+                current = (midpoint_e - history) * self.port_inv_Z0[port_index]
+                self.state_y[section] = (
+                    self.model_f[coefficients] * self.state_y[section]
+                    + self.model_q[coefficients] * current
+                )
 
     def update(self, grid) -> None:
         if not self.edge_count:
@@ -513,18 +693,16 @@ class ImpedanceSurfaceSystem:
         _cython_update(
             config.get_model_config().ompthreads,
             self.edge_info,
-            self.edge_params,
+            self.edge_runtime,
             self.h_info,
             self.h_weight,
             self.port_info,
-            self.port_g,
+            self.port_g_over_Z0,
+            self.port_inv_Z0,
             self.model_info,
-            self.model_F,
-            self.model_G,
-            self.model_L,
-            self.model_Z0,
-            self.state,
-            self.state_new,
+            self.model_f,
+            self.model_q,
+            self.state_y,
             grid.Ex,
             grid.Ey,
             grid.Ez,
@@ -532,7 +710,6 @@ class ImpedanceSurfaceSystem:
             grid.Hy,
             grid.Hz,
         )
-        self.state, self.state_new = self.state_new, self.state
 
 
 def compile_impedance_surfaces(grid) -> ImpedanceSurfaceSystem | None:
@@ -561,6 +738,8 @@ def compile_impedance_surfaces(grid) -> ImpedanceSurfaceSystem | None:
     maximum = occupied.max(axis=0)
     if np.any(minimum == 0) or np.any(maximum == np.asarray(owner.shape) - 1):
         raise ValueError("an impedance volume must have at least one retained cell on every side")
+
+    _validate_impedance_voxel_topology(owner)
 
     hold = _sentinel_material(grid, "surface-hold")
     void = _sentinel_material(grid, "volume-void")
@@ -591,11 +770,6 @@ def compile_impedance_surfaces(grid) -> ImpedanceSurfaceSystem | None:
         count = sum(value.astype(np.uint8) for value in metal)
         target = _component_valid_view(grid.ID[axis], axis, grid)
         target[count == 4] = void.numID
-        diagonal = (metal[0] & metal[2] & ~metal[1] & ~metal[3]) | (
-            metal[1] & metal[3] & ~metal[0] & ~metal[2]
-        )
-        if np.any(diagonal):
-            raise ValueError("impedance-volume voxel topology is non-manifold at a Yee edge")
 
         for coord_array in np.argwhere((count > 0) & (count < 4)):
             coord = tuple(int(value) for value in coord_array)
@@ -648,6 +822,10 @@ def compile_impedance_surfaces(grid) -> ImpedanceSurfaceSystem | None:
                 port_g.append(-length)
                 port_normals.append((normal_axis, normal_sign))
                 port_areas.append(length * dl[axis])
+            if not 1 <= len(local_ports) <= 2:
+                raise RuntimeError(
+                    "a manifold impedance boundary edge must have one or two surface ports"
+                )
 
             edge_records.append(
                 (
@@ -674,20 +852,24 @@ def compile_impedance_surfaces(grid) -> ImpedanceSurfaceSystem | None:
 
     real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
     discrete = [grid.surface_impedance_models[ID].discretise(grid.dt) for ID in model_ids]
-    model_info = np.zeros((len(discrete), 3), dtype=np.int32)
-    F_values = []
-    G_values = []
-    L_values = []
-    matrix_offset = 0
-    vector_offset = 0
+    model_info = np.zeros((len(discrete), 2), dtype=np.int32)
+    f_values = []
+    q_values = []
+    coefficient_offset = 0
     for index, item in enumerate(discrete):
         order = item.G.size
-        model_info[index] = (order, matrix_offset, vector_offset)
-        F_values.extend(item.F.reshape(-1))
-        G_values.extend(item.G)
-        L_values.extend(item.L)
-        matrix_offset += order * order
-        vector_offset += order
+        diagonal_f = np.diag(item.F)
+        if not np.array_equal(item.F, np.diag(diagonal_f)):
+            raise ValueError(
+                f"surface-impedance model {model_ids[index]!r} cannot use the local "
+                "Foster runtime because its discrete state matrix is not diagonal"
+            )
+        model_info[index] = (order, coefficient_offset)
+        f_values.extend(diagonal_f)
+        # Scale x_m by L_m so the boundary history is the direct local sum of
+        # y_m and every independent pole advances as y'_m=f_m*y_m+q_m*K.
+        q_values.extend(item.L * item.G)
+        coefficient_offset += order
 
     port_info = np.zeros((len(port_models), 2), dtype=np.int32)
     state_offset = 0
@@ -696,6 +878,23 @@ def compile_impedance_surfaces(grid) -> ImpedanceSurfaceSystem | None:
         port_info[index] = (surface_model, state_offset)
         state_offset += order
 
+    model_Z0 = np.asarray([item.Z0 for item in discrete], dtype=np.float64)
+    port_inv_Z0 = 1.0 / model_Z0[np.asarray(port_models, dtype=np.intp)]
+    port_g_over_Z0 = np.asarray(port_g, dtype=np.float64) * port_inv_Z0
+    edge_runtime = np.empty((len(edge_records), 2), dtype=np.float64)
+    for edge_index, edge in enumerate(edge_records):
+        port_start = edge[6]
+        port_stop = port_start + edge[7]
+        metric_admittance = float(np.sum(port_g_over_Z0[port_start:port_stop]))
+        a_plus, a_minus = edge_params[edge_index]
+        denominator = a_plus - 0.5 * metric_admittance
+        if not np.isfinite(denominator) or denominator <= 0:
+            raise ValueError("surface-impedance local edge solve has a non-positive denominator")
+        edge_runtime[edge_index] = (
+            a_minus + 0.5 * metric_admittance,
+            1.0 / denominator,
+        )
+
     def packed(values):
         array = np.asarray(values, dtype=real_dtype)
         return np.ascontiguousarray(array if array.size else np.zeros(1, dtype=real_dtype))
@@ -703,19 +902,21 @@ def compile_impedance_surfaces(grid) -> ImpedanceSurfaceSystem | None:
     system = ImpedanceSurfaceSystem(
         edge_info=np.ascontiguousarray(np.asarray(edge_records, dtype=np.int32).reshape(-1, 8)),
         edge_params=np.ascontiguousarray(np.asarray(edge_params, dtype=real_dtype).reshape(-1, 2)),
+        edge_runtime=np.ascontiguousarray(edge_runtime, dtype=real_dtype),
         edge_fraction=np.ascontiguousarray(np.asarray(edge_fractions, dtype=real_dtype)),
         h_info=np.ascontiguousarray(np.asarray(h_records, dtype=np.int32).reshape(-1, 4)),
         h_weight=packed(h_weights),
         port_info=np.ascontiguousarray(port_info),
         port_g=packed(port_g),
+        port_g_over_Z0=packed(port_g_over_Z0),
+        port_inv_Z0=packed(port_inv_Z0),
         port_normal=np.ascontiguousarray(np.asarray(port_normals, dtype=np.int8).reshape(-1, 2)),
         port_area=packed(port_areas),
         model_info=np.ascontiguousarray(model_info),
-        model_F=packed(F_values),
-        model_G=packed(G_values),
-        model_L=packed(L_values),
-        model_Z0=packed([item.Z0 for item in discrete]),
-        state=np.zeros(max(state_offset, 1), dtype=real_dtype),
+        model_f=packed(f_values),
+        model_q=packed(q_values),
+        model_Z0=packed(model_Z0),
+        state_y=np.zeros(max(state_offset, 1), dtype=real_dtype),
         model_ids=model_ids,
     )
     grid.impedance_surfaces = system
