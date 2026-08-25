@@ -784,10 +784,7 @@ class EigenmodeSource(Source):
             if port_stop <= port_start:
                 raise RuntimeError("compiled surface Ampere row has no current port")
             port_indices = tuple(range(port_start, port_stop))
-            if any(
-                int(system.port_normal[index, 0]) == self.normal_axis
-                for index in port_indices
-            ):
+            if any(int(system.port_normal[index, 0]) == self.normal_axis for index in port_indices):
                 raise ValueError(
                     "surface-impedance eigenmodes require the volume boundary to be "
                     "propagation-invariant through the modal plane"

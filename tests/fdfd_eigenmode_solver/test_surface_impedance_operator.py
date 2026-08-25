@@ -91,11 +91,7 @@ def test_boundary_permittivity_reproduces_integral_discrete_ampere_load():
     )
 
     represented_load = (
-        1j
-        * response.physical_angular_frequency
-        * epsilon0
-        * retained_area
-        * effective
+        1j * response.physical_angular_frequency * epsilon0 * retained_area * effective
     )
     expected_load = (
         1j * response.discrete_angular_frequency * electric_mass

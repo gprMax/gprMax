@@ -228,11 +228,6 @@ def boundary_edge_relative_permittivity(
     # the complete discrete load onto that physical-frequency convention.  A
     # denominator based on Omega would rescale the electric row while leaving
     # its clipped curl coefficients on the omega convention.
-    denominator = (
-        1j
-        * response.physical_angular_frequency
-        * epsilon0
-        * retained_dual_area
-    )
+    denominator = 1j * response.physical_angular_frequency * epsilon0 * retained_dual_area
     discrete_mass = 1j * response.discrete_angular_frequency * electric_mass
     return complex((discrete_mass + load) / denominator)

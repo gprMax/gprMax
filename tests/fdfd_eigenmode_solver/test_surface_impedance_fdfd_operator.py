@@ -314,9 +314,7 @@ def test_copper_exact_boundary_rows_match_rectangular_te10_attenuation():
     nu, nv = 60, 30
     du, dv = width / nu, height / nv
     constants = config.sim_config.em_consts
-    dt = 0.99 / (
-        constants["c"] * np.sqrt(du**-2 + dv**-2 + min(du, dv) ** -2)
-    )
+    dt = 0.99 / (constants["c"] * np.sqrt(du**-2 + dv**-2 + min(du, dv) ** -2))
     fit = fit_metal_surface_impedance("copper", 1e8, 1e11, 16)
     model = SurfaceImpedanceModel(
         "copper",
@@ -359,9 +357,10 @@ def test_copper_exact_boundary_rows_match_rectangular_te10_attenuation():
     beta = k0 * expected_neff
     cutoff_wavenumber = np.pi / width
     effective_impedance = 1 / response.admittance
-    expected_alpha = effective_impedance.real / constants["z0"] * (
-        k0 / (beta * height)
-        + 2 * cutoff_wavenumber**2 / (k0 * beta * width)
+    expected_alpha = (
+        effective_impedance.real
+        / constants["z0"]
+        * (k0 / (beta * height) + 2 * cutoff_wavenumber**2 / (k0 * beta * width))
     )
     calculated_alpha = -k0 * solver.modal_complex_neff.imag
 
