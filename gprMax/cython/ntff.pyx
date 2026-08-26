@@ -529,6 +529,75 @@ cpdef void deposit_equivalent_current_time(
             )
 
 
+cpdef void deposit_layered_impulse_time(
+    int nthreads,
+    Py_ssize_t sample_index,
+    int yee_half_step,
+    const float_or_double[:, ::1] values,
+    const np.int64_t[::1] row_template,
+    const np.int64_t[::1] row_integer_shift,
+    const float_or_double[::1] row_fractional_shift,
+    const np.int64_t[::1] response_offsets,
+    const np.int64_t[::1] integer_delay,
+    const float_or_double[::1] fractional_delay,
+    const float_or_double[::1] impulse_amplitude,
+    Py_ssize_t time_origin_step,
+    float_or_double[:, ::1] output,
+):
+    """Deposit one scalar layered response for every direction and patch.
+
+    ``response_offsets`` is a CSR row pointer over unique axial response
+    templates. Each flattened ``direction * npatches + patch`` row selects a
+    template and adds its lateral integer/fractional delay. Complete output
+    directions are owned by OpenMP workers, so the ragged impulse accumulation
+    needs no atomics.
+    """
+
+    cdef Py_ssize_t direction, patch, row, template, impulse, destination
+    cdef Py_ssize_t ndirections = values.shape[0]
+    cdef Py_ssize_t npatches = values.shape[1]
+    cdef float_or_double fraction, contribution
+
+    for direction in prange(
+        ndirections,
+        nogil=True,
+        schedule="static",
+        num_threads=nthreads,
+    ):
+        for patch in range(npatches):
+            row = direction * npatches + patch
+            template = row_template[row]
+            contribution = values[direction, patch]
+            if contribution == 0:
+                continue
+            for impulse in range(
+                response_offsets[template], response_offsets[template + 1]
+            ):
+                fraction = (
+                    fractional_delay[impulse]
+                    + row_fractional_shift[row]
+                    + 0.5 * yee_half_step
+                )
+                destination = (
+                    sample_index
+                    + integer_delay[impulse]
+                    + row_integer_shift[row]
+                    - time_origin_step
+                )
+                if fraction >= 2:
+                    fraction = fraction - 2
+                    destination = destination + 2
+                elif fraction >= 1:
+                    fraction = fraction - 1
+                    destination = destination + 1
+                output[direction, destination] += (
+                    (1 - fraction) * contribution * impulse_amplitude[impulse]
+                )
+                output[direction, destination + 1] += (
+                    fraction * contribution * impulse_amplitude[impulse]
+                )
+
+
 cpdef void deposit_time_domain_surface(
     int nthreads,
     Py_ssize_t sample_index,

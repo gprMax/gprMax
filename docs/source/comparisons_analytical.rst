@@ -210,6 +210,134 @@ refinement. The comparison exercises the complete field collection,
 Yee-time correction, material-interface smoothing, complex TE/TM recursion,
 and angular far-field evaluation.
 
+Grounded-slab direct-time benchmark
+-----------------------------------
+
+The :download:`grounded-slab validation driver
+<../../testing/validation/planar_layered_ntff/validate_capoglu_grounded_time.py>`
+reproduces Figure 11 of Çapoğlu's thesis [CAP2007]_. Horizontal and vertical
+Hertzian electric dipoles lie 1 mm below the air interface of a 2 mm,
+:math:`\epsilon_r=2.5` slab backed by a PEC plane. The spatial step is the
+published 0.1 mm, the differentiated-Gaussian pulse has
+:math:`\tau=5` ps, and :math:`rE_\theta` is observed at
+:math:`\theta=\phi=45` degrees. The analytical curves in the thesis were
+obtained from Cicchetti's grounded-slab expressions [CIC1993]_.
+
+For either TE or TM polarisation :math:`p`, the independent validation uses
+the grounded echo train
+
+.. math::
+
+    V^p(t)=\sum_{n=0}^{\infty}
+    \Upsilon^p_{10}(-\Gamma^p_{10})^n
+    \delta\!\left(t-\frac{2nh}{v_1}\right),
+
+and the source-in-slab voltage and current responses
+
+.. math::
+
+    V_v^p(t\mid z')=\frac{1}{2}
+    \left[V^p\!\left(t+\frac{z'}{v_1}\right)
+    +V^p\!\left(t-\frac{2h+z'}{v_1}\right)\right],
+
+.. math::
+
+    V_i^p(t\mid z')=\frac{Z_1^p}{2}
+    \left[V^p\!\left(t+\frac{z'}{v_1}\right)
+    -V^p\!\left(t-\frac{2h+z'}{v_1}\right)\right].
+
+These are Eqs. (59), (63), and (65) of [CAP2007]_. The validation evaluates
+the series independently, uses the stored half-step current samples, and
+places the point current at the centre of its Yee edge. Neither amplitude,
+phase, nor time is fitted. A common source pre-delay is removed from the
+reported axis; it only places the published pulse inside the transform's
+complete retarded-history interval.
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/capoglu_grounded_time/capoglu_grounded_time.png
+    :width: 750 px
+
+    Published grounded-slab HED and VED configurations: the independent echo
+    series is shown by lines and the gprMax FDTD/direct-time transform by
+    symbols.
+
+The HED maximum and RMS errors are 0.494 and 0.149 percent of the analytical
+peak. The VED values are 0.915 and 0.287 percent. The comparison exercises the
+PEC short-circuit response, the five-face surface whose omitted face
+coincides with the ground, both tangential and normal electric-current
+orientations, and the complete time-domain surface transformation.
+
+PEC image theory and coated-ground far fields
+----------------------------------------------
+
+Two further drivers validate PEC termination without using curves digitised
+from the thesis. The :download:`grounded-dipole driver
+<../../testing/validation/planar_layered_ntff/validate_grounded_dipoles.py>`
+uses exact image theory for tangential and normal electric and magnetic
+dipoles above a bare PEC. It also places electric dipoles above a lossless
+:math:`\epsilon_r=4` coating backed by PEC. For the coated conductor, the
+independent far-zone reference decomposes the dipole spectrum into oblique
+TM and TE plane waves. With
+
+.. math::
+
+    q=\sqrt{\epsilon_r-\sin^2\theta},\qquad
+    Z_1^{\mathrm{TM}}=\eta_0\frac{q}{\epsilon_r},\qquad
+    Z_1^{\mathrm{TE}}=\eta_0\frac{1}{q},
+
+the short-circuited slab input impedance and tangential-electric-field
+reflection coefficient are
+
+.. math::
+
+    Z_{\mathrm{in}}^p=jZ_1^p\tan(k_0qd),\qquad
+    \Gamma^p=\frac{Z_{\mathrm{in}}^p-Z_0^p}
+                   {Z_{\mathrm{in}}^p+Z_0^p}.
+
+For a bare PEC, :math:`\Gamma^{\mathrm{TM}}=
+\Gamma^{\mathrm{TE}}=-1`, recovering the electric and magnetic image signs.
+The direct and reflected vector fields retain the physical Yee-component
+centre, the selected transform origin, and their separate propagation
+phases. This is the radiative far-zone term of the coated-conductor spectrum
+described by Tang and Hong [TANG2002]_; finite-distance surface and lateral
+waves are not part of an asymptotic NTFF output.
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/grounded_dipoles/grounded_dipole_patterns.png
+    :width: 850 px
+
+    Principal-plane power patterns at 2 GHz. Lines are the independent image
+    or short-circuited-slab solution and symbols are the five-face production
+    Huygens transform.
+
+The electric-dipole complex vector fields have a worst peak-normalised
+pointwise difference of 0.0483 percent over 1.5, 2.0, and 2.5 GHz. Their
+worst maximum-directivity difference is 0.977 percent. Magnetic source
+discretisation is more demanding: the tangential magnetic case has worst
+vector-field, power, and maximum-directivity differences of 3.83, 5.07, and
+3.19 percent, respectively; the normal magnetic case is below one percent
+for all three measures. A repeat of the worst tangential-magnetic case with
+the cell size reduced from 1.5 mm to 0.75 mm reduces those three differences
+at 2.5 GHz to 1.89, 2.47, and 1.56 percent, respectively. This convergence
+test identifies the larger magnetic-source difference as a finite-mesh
+limitation rather than hiding it by cut-by-cut normalisation.
+
+The :download:`grounded-slab reflection driver
+<../../testing/validation/planar_layered_ntff/validate_grounded_slab_reflection.py>`
+provides an independent broadband phase check. It subtracts a free-space
+axial-DPW trace from the total field of a 12 mm,
+:math:`\epsilon_r=4` PEC-backed slab and de-embeds the ratio with the axial
+Yee numerical wavenumber.
+
+.. figure:: ../../testing/validation/planar_layered_ntff/results/grounded_slab_reflection/grounded_slab_reflection.png
+    :width: 750 px
+
+    Exact and FDTD complex reflection coefficient from 0.4--7.0 GHz.
+
+Across 132 retained frequencies, the maximum magnitude error is
+:math:`2.11\times10^{-8}`, the maximum phase error is 0.0553 degrees, and the
+complex relative L2 error is 0.0309 percent. Normal-incidence TE and TM are
+degenerate in this second model; the coated-dipole E- and H-plane cuts above
+exercise their distinct oblique coefficients.
+
 Published eight-layer transform verification
 ---------------------------------------------
 

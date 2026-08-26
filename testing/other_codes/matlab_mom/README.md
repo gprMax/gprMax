@@ -15,6 +15,7 @@ The current complementary cases are:
 | `antenna_bowtie_fs` | Planar triangular PEC rasterisation, x-directed feed |
 | `antenna_dipole_array_fs` | Coherent dual feeds, mutual coupling, active impedance, array factor |
 | `antenna_patch_fs` | Dielectric substrate, finite ground, probe feeds, mesh convergence |
+| `antenna_reflector_grounded` | Strip dipole above an infinite PEC plane, five-face layered NTFF |
 | `rcs_comparison` | Plane-wave scattering, absolute monostatic RCS, PEC plates |
 
 Every modern case follows the same evidence chain:

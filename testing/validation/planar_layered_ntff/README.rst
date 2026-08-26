@@ -1,6 +1,74 @@
 Planar-layered NTFF validation
 ==============================
 
+The direct time-domain transmission-line kernel has independent closed-form
+checks for the dielectric half-space and ungrounded dielectric slab in
+``tests/ntff/test_layered_time.py``. They evaluate the impulse amplitudes and
+delays in Eqs. (53)--(55) and (71)--(75) of Çapoğlu's 2007 thesis for both TE
+and TM voltage/current responses. The tests account explicitly for gprMax's
+factor-two Green-response convention and observation-medium impedance
+normalisation. Random multilayer tests and an end-to-end FDTD comparison then
+check the direct impulse trains against the established frequency-domain
+recursion.
+
+``validate_capoglu_grounded_time.py`` reproduces the PEC-grounded slab in
+Figure 11 of the thesis. It models horizontal and vertical Hertzian electric
+dipoles 1 mm below the air interface of a 2 mm, :math:`\epsilon_r=2.5` slab,
+using the published 0.1 mm spatial step and 5 ps differentiated-Gaussian
+pulse. The transform surface omits only its lower face, which coincides with
+the terminal PEC plane. The independent reference evaluates the short-circuit
+echo series in Eqs. (59), (63), and (65), using the stored source samples and
+the physical centre of the Yee source edge. No amplitude, phase, or time
+alignment is fitted.
+
+Run the double-precision CPU benchmark with::
+
+    python -m testing.validation.planar_layered_ntff.validate_capoglu_grounded_time
+
+or exercise the device-resident CUDA collector with, for example::
+
+    python -m testing.validation.planar_layered_ntff.validate_capoglu_grounded_time --gpu 0 --precision double
+
+The retained HED maximum and RMS errors are 0.494 and 0.149 percent of the
+analytical peak; the VED values are 0.915 and 0.287 percent. The result checks
+the PEC short-circuit recursion, direct retarded-time propagation, the
+terminal-face omission, and both tangential and normal source orientations.
+The retained CPU and double-precision CUDA error metrics agree to better than
+``3e-14`` in absolute normalised error on the validation system.
+The thesis's Figure 12 and later microstrip examples remain illustrative
+rather than quantitative independent reference curves.
+
+Independent PEC image and reflection checks
+===========================================
+
+``validate_grounded_dipoles.py`` compares four bare-PEC electric/magnetic
+dipole configurations with exact image theory and two dielectric-coated PEC
+electric-dipole configurations with an independent short-circuited TE/TM
+plane-wave-spectrum calculation. It retains complex field, power-pattern,
+and maximum-directivity errors at 1.5, 2.0, and 2.5 GHz. The electric cases
+remain below 0.049 percent pointwise complex-field error; the deliberately
+retained worst case is the tangential magnetic source, whose maximum power
+difference is 5.07 percent at this mesh. Halving the cell size from 1.5 mm to
+0.75 mm reduces its 2.5 GHz complex-field, power, and maximum-directivity
+differences from 3.83, 5.07, and 3.19 percent to 1.89, 2.47, and 1.56 percent,
+respectively.
+
+``validate_grounded_slab_reflection.py`` uses total-minus-incident DPW fields
+to measure the complex normal-incidence reflection of a 12 mm,
+:math:`\epsilon_r=4` PEC-backed slab over 0.4--7.0 GHz. The exact reference
+is formed from :math:`Z_{\rm in}=jZ_1\tan(k_1d)`. Its retained maximum
+magnitude and phase errors are :math:`2.11\times10^{-8}` and 0.0553 degrees.
+
+Run both with::
+
+    python -m testing.validation.planar_layered_ntff.validate_grounded_dipoles
+    python -m testing.validation.planar_layered_ntff.validate_grounded_slab_reflection
+
+The magnetic-source refinement can be repeated on a CUDA device with::
+
+    python -m testing.validation.planar_layered_ntff.validate_grounded_dipoles \
+        --case magnetic_tangential_bare --dl 0.00075 --gpu 0
+
 ``validate_point_dipole.py`` compares the production FDTD transform with a
 direct frequency-domain point-current solution in a three-layer medium.  The
 Huygens surface crosses both material interfaces.  The analytical calculation

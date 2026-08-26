@@ -1131,6 +1131,17 @@ ranks; it does not change field normalisation or array ordering.
             directions
             terminal_field_ratios
             terminal_decay_ok
+            layered_background/ [direct layered-time transforms only]
+                interfaces
+                material_ids
+                relative_permittivity
+                relative_permeability
+                termination/ [PEC-terminated stacks only]
+            observation_material_index [direct layered-time transforms only]
+            observation_impedance [direct layered-time transforms only]
+            observation_wave_speed [direct layered-time transforms only]
+            impulse_counts [direct layered-time transforms only]
+            discarded_path_amplitude_sums [direct layered-time transforms only]
             fields/<output>
         frequency/<transform_id>/
             frequencies
@@ -1139,6 +1150,7 @@ ranks; it does not change field normalisation or array ordering.
                 material_ids
                 relative_permittivity
                 relative_permeability
+                termination/ [PEC-terminated stacks only]
             surface_dft/<component>/
                 field
                 normal_derivative
@@ -1229,6 +1241,11 @@ far-field group uses the appropriate observation half-space for every
 direction. Its normalization attribute is therefore
 ``r * exp(+j*k_observation_halfspace*r) * field``.
 
+For a PEC-backed stack, ``termination`` records ``kind=pec``, its
+``positive`` or ``negative`` side, and physical ``position``. The PEC is not
+included in ``material_ids`` or the constitutive arrays. Only the open
+observation side exists, so two-exterior regional datasets are absent.
+
 Exact frequency receiver groups have ``range_normalized=False``. They contain
 physical finite-distance phasors with every ``1/R`` and ``1/R**2`` term.
 Far-field groups have ``range_normalized=True`` and a ``normalization``
@@ -1237,12 +1254,23 @@ absent. Complex datasets use the complex type paired with the configured
 gprMax real precision.
 
 The ``time_far_field`` group is produced by ``#ntff_time_far_field`` or its
-array form. It records ``formulation=equivalent_current_1997``, linear
-fractional-delay interpolation, CPU/Cython collection, and the normalization
-``r * field at reduced time t - r/c``. Its real field arrays have shape
+array form, or by the corresponding direct layered-time commands. The
+homogeneous form records ``formulation=equivalent_current_1997`` and the
+normalization ``r * field at reduced time t - r/c``. A direct layered result
+records ``formulation=planar_layered_equivalent_current_time``, its transform
+and background IDs, path tolerance and safety limit, resolved lossless stack,
+observation-half-space properties, retained impulse counts, and the summed
+absolute amplitudes of paths discarded at the configured threshold. Its
+normalization is ``r * field at reduced time t - r/c_observation``.
+The last axis of both impulse datasets is labelled by its ``response_order``
+attribute as ``Vi_e, Vv_e, Vi_h, Vv_h``.
+
+Both forms record linear fractional-delay interpolation and their collection
+backend. Their real field arrays have shape
 ``(ndirections, ntimes)``. ``Er`` and ``Hr`` are identically zero in the
 far-zone model; magnetic components are derived from
-:math:`\mathbf H=(\hat{\mathbf r}\times\mathbf E)/\eta`.
+:math:`\mathbf H=(\hat{\mathbf r}\times\mathbf E)/\eta_o`, using the
+direction-selected exterior impedance for a layered stack.
 The complete definitions and the distinction between the retained Yee-time
 staggering and fractional-delay interpolation are given in
 :ref:`ntff-formulations`.

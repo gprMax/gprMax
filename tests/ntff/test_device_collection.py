@@ -8,6 +8,7 @@ from numpy.testing import assert_allclose
 
 from gprMax.cuda_opencl.knl_ntff import (
     build_equivalent_current_time_kernel_source,
+    build_layered_equivalent_current_time_kernel_source,
     build_ntff_kernel_source,
     build_time_domain_ntff_kernel_source,
 )
@@ -35,12 +36,8 @@ class _HostEmulatedDeviceCollector(_DeviceKSIRCollector):
         inside = values[record.inside_index]
         outside = values[record.outside_index]
         shape = record.shape
-        record.device["inside_real"] += (
-            (multiplier.real[:, np.newaxis] * inside[np.newaxis, :]).reshape(shape).ravel()
-        )
-        record.device["inside_imag"] += (
-            (multiplier.imag[:, np.newaxis] * inside[np.newaxis, :]).reshape(shape).ravel()
-        )
+        record.device["inside_real"] += (multiplier.real[:, np.newaxis] * inside[np.newaxis, :]).reshape(shape).ravel()
+        record.device["inside_imag"] += (multiplier.imag[:, np.newaxis] * inside[np.newaxis, :]).reshape(shape).ravel()
         record.device["outside_real"] += (
             (multiplier.real[:, np.newaxis] * outside[np.newaxis, :]).reshape(shape).ravel()
         )
@@ -49,10 +46,7 @@ class _HostEmulatedDeviceCollector(_DeviceKSIRCollector):
         )
 
     def _download(self, record):
-        return tuple(
-            record.device[name]
-            for name in ("inside_real", "inside_imag", "outside_real", "outside_imag")
-        )
+        return tuple(record.device[name] for name in ("inside_real", "inside_imag", "outside_real", "outside_imag"))
 
 
 def test_frequency_collector_rejects_int32_work_item_overflow():
@@ -110,9 +104,7 @@ def _monitor(name, surfaces, real_dtype, complex_dtype, iterations, dt):
 def test_device_contract_matches_cpu_flat_index_collection(real_dtype, complex_dtype, rtol):
     shape = (9, 10, 8)
     surfaces = {
-        component: build_component_surface(
-            component, (2, 2, 2), (5, 6, 5), (0.03, 0.04, 0.05), shape
-        )
+        component: build_component_surface(component, (2, 2, 2), (5, 6, 5), (0.03, 0.04, 0.05), shape)
         for component in ("Ex", "Hx")
     }
     iterations = 12
@@ -269,9 +261,7 @@ def test_backend_kernel_sources_use_configured_real_type(backend, c_real, marker
         ("metal", "float", "thread_position_in_grid"),
     ],
 )
-def test_equivalent_current_time_kernel_sources_are_backend_complete(
-    backend, c_real, marker
-):
+def test_equivalent_current_time_kernel_sources_are_backend_complete(backend, c_real, marker):
     source = build_equivalent_current_time_kernel_source(c_real, backend)
 
     assert marker in source
@@ -279,6 +269,25 @@ def test_equivalent_current_time_kernel_sources_are_backend_complete(
     assert "deposit_equivalent_current_time" in source
     assert "current[patch * 3]" in source
     assert "inverse_dt" in source
+
+
+@pytest.mark.parametrize(
+    "backend,c_real,marker",
+    [
+        ("cuda", "float", "blockIdx.x"),
+        ("opencl", "double", "get_global_id(0)"),
+        ("metal", "float", "thread_position_in_grid"),
+    ],
+)
+def test_layered_equivalent_current_time_kernel_sources_are_backend_complete(backend, c_real, marker):
+    source = build_layered_equivalent_current_time_kernel_source(c_real, backend)
+
+    assert marker in source
+    assert "gather_equivalent_current_time" in source
+    assert "deposit_layered_equivalent_current_time" in source
+    assert "response_offsets" in source
+    assert "inverse_eps_ratio" in source
+    assert "inverse_mu_ratio" in source
 
 
 @pytest.mark.parametrize(

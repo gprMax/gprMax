@@ -131,10 +131,27 @@ transmission magnitude and phase directly with
 :math:`S_{21}=\exp(-j\beta L)`.
 The planar-layered NTFF case compares a Huygens surface crossing two material
 interfaces with the closed-form three-layer Hertzian-dipole Green function.
-Additional layered-medium cases reproduce Çapoğlu's eight-layer benchmark,
-compare interfacial and finite-height dipoles with the independent asymptotic
-expressions of Engheta and Smith, and verify the distance convergence of the
-GSSI-like pulse-energy patterns reported by Warren and Giannopoulos.
+A direct-time benchmark reproduces Çapoğlu's PEC-grounded slab for horizontal
+and vertical Hertzian dipoles: its retained maximum errors are 0.494 and 0.915
+percent of the corresponding analytical peaks. Additional layered-medium
+cases compare electric and magnetic dipoles over bare PEC with exact image
+theory, validate a dielectric-coated PEC against its exact short-circuited
+TE/TM spectrum, reproduce Çapoğlu's eight-layer benchmark, compare interfacial and
+finite-height dipoles with the independent asymptotic expressions of Engheta
+and Smith, and verify the distance convergence of the GSSI-like pulse-energy
+patterns reported by Warren and Giannopoulos.
+
+The direct lossless layered time-domain transform has two additional
+cross-formulation checks. Fourier transforms of its four sparse impulse
+responses are compared with the established frequency-domain recursion for
+random two- to five-layer stacks, both observation exteriors, every source
+layer, and electric and magnetic contrast. A production FDTD test then
+compares the transient transform spectrum with the independently collected
+layered frequency transform for stack normals along x, y, and z. Across the
+two retained frequencies and both exteriors, the largest vector difference is
+0.390 percent of the frequency-domain result; changing the stack axis gives
+identical errors. These are implementation verifications, not an additional
+independent analytical solution.
 
 The dispersive studies compare exact pole-residue interface averaging with
 the non-averaged staircased representation for planar layers, homogeneous

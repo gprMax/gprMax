@@ -1,0 +1,46 @@
+{
+  "model": {
+    "dl_metres": 0.0015,
+    "domain_metres": [
+      0.288,
+      0.288,
+      0.21
+    ],
+    "dipole_length_metres": 0.15,
+    "dipole_width_metres": 0.015,
+    "feed_gap_metres": 0.0015,
+    "lambda_8_spacing_metres": 0.0375,
+    "lambda_4_spacing_metres": 0.075,
+    "pattern_frequency_hz": 1000000000.0
+  },
+  "cases": {
+    "lambda_8": {
+      "runtime_seconds": 76.87100365757942,
+      "maximum_directivity_dbi": 8.787362098693848,
+      "maximum_directivity_theta_deg": 0.0,
+      "maximum_directivity_phi_deg": 136.0,
+      "maximum_gain_dbi": 8.787928581237793,
+      "maximum_realized_gain_dbi": 5.948064804077148,
+      "radiation_efficiency": 1.000130534172058,
+      "total_efficiency": 0.5200802087783813,
+      "input_impedance_real_ohm": 81.40048079459349,
+      "input_impedance_imag_ohm": 118.70172007848713,
+      "s11_magnitude_db": -3.1803830593970166,
+      "s11_phase_deg": 33.08997585404725
+    },
+    "lambda_4": {
+      "runtime_seconds": 101.59371925890446,
+      "maximum_directivity_dbi": 7.577317237854004,
+      "maximum_directivity_theta_deg": 2.0,
+      "maximum_directivity_phi_deg": 94.0,
+      "maximum_gain_dbi": 7.578017234802246,
+      "maximum_realized_gain_dbi": 5.894684791564941,
+      "radiation_efficiency": 1.000161051750183,
+      "total_efficiency": 0.6787919998168945,
+      "input_impedance_real_ohm": 171.07224840659046,
+      "input_impedance_imag_ohm": 39.44490086309491,
+      "s11_magnitude_db": -4.92779585176804,
+      "s11_phase_deg": 7.9290206994903585
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "matlab_release": "2024b",
+  "pattern_frequency_hz": 1.0E+9,
+  "reference_impedance_ohm": 50,
+  "far_field_sampling_radius_metres": 100,
+  "cases": {
+    "lambda_8": {
+      "maximum_directivity_dbi": 8.7279065178682345,
+      "maximum_directivity_theta_deg": 0,
+      "maximum_directivity_phi_deg": 180,
+      "maximum_gain_dbi": 8.7279065178682345,
+      "maximum_realized_gain_dbi": 6.4651702801709616,
+      "radiation_efficiency": 1,
+      "total_efficiency": 0.59391784751573362,
+      "input_impedance_real_ohm": 53.66396981780489,
+      "input_impedance_imag_ohm": 85.585964860380258,
+      "s11_magnitude_db": -3.9138609755238662,
+      "s11_phase_deg": 48.005235046425973
+    },
+    "lambda_4": {
+      "maximum_directivity_dbi": 7.512716922654862,
+      "maximum_directivity_theta_deg": 0,
+      "maximum_directivity_phi_deg": 180,
+      "maximum_gain_dbi": 7.512716922654862,
+      "maximum_realized_gain_dbi": 6.1477218001057423,
+      "radiation_efficiency": 1,
+      "total_efficiency": 0.73029863305272735,
+      "input_impedance_real_ohm": 133.54568195072733,
+      "input_impedance_imag_ohm": 53.701761910525633,
+      "s11_magnitude_db": -5.6911685237486882,
+      "s11_phase_deg": 16.4238183393604
+    }
+  }
+}

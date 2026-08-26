@@ -116,7 +116,12 @@ The available formulations are summarised below.
      - Far-zone fields
      - Time
      - No
-     - CPU and six physical faces are required
+     - CPU/CUDA/OpenCL/Metal; six physical faces are required
+   * - Planar-layered direct Love currents [CAP2007]_
+     - Far-zone fields
+     - Time
+     - No
+     - Lossless nondispersive stacks; CPU/MPI/CUDA/OpenCL/Metal
 
 Definitions and conventions
 ---------------------------
@@ -338,6 +343,21 @@ surface integral. In a homogeneous medium these dyadics reduce to the
 identity and the implementation reproduces the conventional transform above
 for both observation half-spaces.
 
+One end of the declared stack may instead terminate at a PEC plane. For a
+short-circuited terminal layer of thickness :math:`d`, the recursion starts
+from
+
+.. math::
+
+    Z_{\mathrm{in}}=-j\eta\tan(\beta d)
+
+when the open observation region is on the positive-axis side (the mirrored
+recursion applies on the other side). No field may be requested through the
+PEC. Radiation power is then integrated only over the open hemisphere, while
+directivity retains its conventional :math:`4\pi U/P_{\mathrm{rad}}`
+definition. The two-exterior regional outputs do not apply to a terminated
+stack.
+
 Finite internal layers may be conductive or electrically dispersive. The two
 semi-infinite observation media must be lossless so that a conventional far
 field and real wave impedance exist. Exact grazing directions are singular
@@ -364,6 +384,58 @@ cannot be assigned standard gain or directivity by this transform. Such a
 problem should instead use a finite lossy layer above a lossless exterior, or
 report finite-depth fields, interface-crossing power, or absorbed-power and
 radiometric quantities without labelling them as far-field antenna gain.
+
+Planar-layered direct time-domain far field
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For a positive, lossless, nondispersive planar stack, the transmission-line
+Green functions also have a direct time-domain representation [CAP2007]_.
+For observation angle :math:`\theta` relative to the stack normal, each layer
+has real axial slowness and real TE/TM line impedance
+
+.. math::
+
+    s_n=\frac{\sqrt{\epsilon_n\mu_n-\sin^2\theta}}{c_o},
+    \qquad
+    \eta_n^{\mathrm{TM}}=
+    \frac{\sqrt{\epsilon_n\mu_n-\sin^2\theta}}{\epsilon_n},
+    \qquad
+    \eta_n^{\mathrm{TE}}=
+    \frac{\mu_n}{\sqrt{\epsilon_n\mu_n-\sin^2\theta}}.
+
+The interface reflection and voltage-transmission coefficients are
+
+.. math::
+
+    \Gamma_{n,n+1}=\frac{\eta_{n+1}-\eta_n}{\eta_{n+1}+\eta_n},
+    \qquad
+    T_{n,n+1}=\frac{2\eta_{n+1}}{\eta_{n+1}+\eta_n},
+
+evaluated independently for TE and TM polarization. Because these
+coefficients are frequency independent and propagation is a pure delay, each
+of the four scalar voltage/current-source Green responses is a sparse train
+
+.. math::
+
+    v(t)=\sum_p A_p\,\delta(t-\tau_p).
+
+The path amplitude :math:`A_p` is the product of its interface coefficients,
+and :math:`\tau_p` is the sum of its layer traversal times. gprMax enumerates
+these multiple-reflection paths down to a user-controlled relative amplitude
+tolerance, coalesces coincident path events and impulses, then convolves them
+directly with the time derivatives of the six-face Love currents. The electric
+and magnetic current derivatives retain the natural Yee half-step placement
+of the 1997 homogeneous transform; only each generally fractional propagation
+delay is linearly deposited between output samples.
+
+This direct construction avoids a bank of per-frequency surface DFTs and
+returns a broadband transient in one run. It is intentionally not applied to
+lossy or dispersive layers, where the Green responses are no longer delayed
+impulse trains, or to a direction which is evanescent in any layer. Those
+cases remain available through the planar-layered frequency transform. Exact
+grazing is singular. The first implementation uses a Cython/OpenMP CPU kernel
+and supports MPI surface partitioning; accelerator backends currently use the
+frequency-domain formulation.
 
 Modified 1997 time-domain far field
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -406,16 +478,34 @@ propagation delay to the reduced-time grid. Thus the extra Yee-time
 interpolation removed by the 1997 method is not reintroduced by the
 implementation.
 
+At a terminal PEC the travelling voltage wave reflects with coefficient
+minus one. For example, a dielectric slab of thickness :math:`h` produces
+the grounded echo series [CAP2007]_
+
+.. math::
+
+    V^p(t)=\sum_{n=0}^{\infty}
+    \Upsilon^p_{10}(-\Gamma^p_{10})^n
+    \delta\!\left(t-\frac{2nh}{v_1}\right).
+
+The series is truncated by the same relative impulse tolerance as an open
+multilayer. A transform face that coincides exactly with the PEC plane may be
+omitted: the grounded Green function enforces the required image
+cancellation. Other omitted faces remain invalid for a direct time-domain
+transform.
+
 Only the interval supported by every integration patch is returned. This
 removes the range-dependent zero prefix and prevents an incomplete
 retarded-time tail from being presented as a physical late-time response.
 
 Equivalent-current outputs are far-zone quantities and therefore have no
 radius parameter. KSIR remains the appropriate choice when finite-distance or
-near-field reconstruction is required. The frequency-domain
-equivalent-current collector supports CPU, CUDA, OpenCL, and Metal; its
-angular evaluation is Cython/OpenMP post-processing. The one-step transient
-implementation currently uses the CPU solver.
+near-field reconstruction is required. The frequency-domain, homogeneous
+transient, and planar-layered transient equivalent-current collectors support
+CPU, CUDA, OpenCL, and Metal; MPI is available with the CPU solver. Angular
+frequency-domain evaluation remains Cython/OpenMP post-processing, while
+accelerator transient collectors retain their sampled currents and accumulated
+far-field traces on the device until finalisation.
 
 Subgridding
 ===========
