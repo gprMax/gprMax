@@ -1933,6 +1933,12 @@ hash commands:
       - ``#ksir_frequency``
     * - ``NTFFFrequencyTransform``
       - ``#ntff_frequency``
+    * - ``NTFFLayeredBackground``
+      - ``#ntff_layered_background``
+    * - ``NTFFLayeredFrequencyTransform``
+      - ``#ntff_layered_frequency``
+    * - ``NTFFLayeredTimeTransform``
+      - ``#ntff_layered_time``
     * - ``KSIRAntennaPorts``
       - ``#ksir_antenna_ports``
     * - ``NTFFAntennaPorts``
@@ -1961,6 +1967,10 @@ hash commands:
       - ``#ntff_time_far_field``
     * - ``NTFFTimeFarFieldArray``
       - ``#ntff_time_far_field_array``
+    * - ``NTFFLayeredTimeFarField``
+      - ``#ntff_layered_time_far_field``
+    * - ``NTFFLayeredTimeFarFieldArray``
+      - ``#ntff_layered_time_far_field_array``
 
 The mapping covers the reusable operations and their normal options. The
 Python API also exposes advanced keyword arguments that cannot be entered
@@ -1981,8 +1991,26 @@ enclosed by either a closed KSIR or closed equivalent-current surface.
 Huygens surface. ``omit_faces`` accepts one to five distinct Cartesian face
 names; at least one of the six faces must remain active. A feed crossing an
 opening continues uniformly into its PML, with the impressed source plane
-outside the Huygens volume. KSIR and transient equivalent-current outputs
-reject omitted physical faces.
+outside the Huygens volume. KSIR and ordinary transient equivalent-current
+outputs reject omitted physical faces. The exception is a direct layered-time
+transform whose one omitted face coincides exactly with its declared terminal
+PEC plane. This is the grounded-slab construction described in
+:ref:`ntff-formulations`.
+
+A PEC-backed substrate can be declared through the same background class;
+``pec`` is the terminal entry and the adjacent interface is its physical
+coordinate:
+
+.. code-block:: python
+
+    scene.add(gprMax.NTFFLayeredBackground(
+        id='grounded', axis='z',
+        materials=('free_space', 'substrate', 'pec'),
+        interfaces=(0.0, -0.002),
+    ))
+
+This declaration does not build the corresponding substrate or PEC geometry.
+Only directions in the open hemisphere may be requested.
 
 NTFF definitions are main-grid objects, but their notional closed integration
 surface may enclose complete HSG subgrids. A surface must not touch or cut an
@@ -2169,6 +2197,8 @@ Equivalent-current far fields
 
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFLayeredFrequencyTransform
 
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFLayeredTimeTransform
+
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFFarField
 
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFFarFieldArray
@@ -2296,12 +2326,46 @@ Modified one-step transient far fields
 
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFTimeFarFieldArray
 
-These classes implement the modified time-domain equivalent-current method of
-Giannopoulos *et al.* [GIAFF1997]_ on the CPU, CUDA, OpenCL, and Metal
-solvers. Their ``times`` are reduced
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFLayeredTimeFarField
+
+.. autoclass:: gprMax.user_objects.cmds_output.NTFFLayeredTimeFarFieldArray
+
+``NTFFTimeFarField`` and ``NTFFTimeFarFieldArray`` implement the modified
+homogeneous time-domain equivalent-current method of Giannopoulos *et al.*
+[GIAFF1997]_ on the CPU, CUDA, OpenCL, and Metal solvers. Their ``times`` are reduced
 times for range-normalized far fields, and only samples supported by every
 surface patch are returned. The time placement of both current derivatives is
 defined in :ref:`ntff-formulations`.
+
+``NTFFLayeredTimeTransform`` and its request classes replace homogeneous
+propagation by the direct TE/TM impulse responses of a lossless planar stack
+[CAP2007]_. They reuse ``NTFFLayeredBackground``. Every layer must be
+positive, lossless, and nondispersive, and each requested direction must be
+propagating in every layer and non-grazing. CPU and MPI execution use a
+Cython/OpenMP accumulation kernel; CUDA, OpenCL, and Metal use device-resident
+gather and sparse-deposition kernels. Use ``NTFFLayeredFrequencyTransform``
+for conductive, dispersive, or evanescent cases.
+
+For example:
+
+.. code-block:: python
+
+    scene.add(gprMax.NTFFLayeredTimeTransform(
+        surface_id='radiation_surface',
+        id='ground_transient',
+        background_id='ground',
+    ))
+    scene.add(gprMax.NTFFLayeredTimeFarFieldArray(
+        theta_start=5,
+        theta_stop=175,
+        theta_step=5,
+        phi_start=0,
+        phi_stop=355,
+        phi_step=5,
+        transform_id='ground_transient',
+        id='transient_pattern',
+        outputs=('Etheta', 'Ephi'),
+    ))
 
 Subgrid
 -------

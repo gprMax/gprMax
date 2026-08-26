@@ -42,6 +42,9 @@ physical optics where appropriate, from the `MATLAB Antenna Toolbox
         directivity, and realised gain
     * - Two-element dipole array
       - Coherent ports, mutual coupling, active impedance, and array factor
+    * - Reflector-backed strip dipole
+      - Five-face planar-layered NTFF, infinite PEC termination, directivity,
+        principal-plane patterns, and port diagnostics
     * - PEC plates
       - Plane-wave scattering and absolute monostatic RCS for square and
         circular plates
@@ -156,6 +159,28 @@ factors.
     :width: 750 px
 
     Array-axis and transverse patterns from gprMax and MATLAB.
+
+Reflector-backed strip dipole
+==============================
+
+The :download:`grounded-reflector study
+<../../testing/other_codes/matlab_mom/antenna_reflector_grounded/README.md>`
+places a 150 mm by 15 mm balanced strip dipole at one-eighth and one-quarter
+of a free-space wavelength above an infinite PEC plane at 1 GHz. MATLAB uses
+its infinite-ground-plane MoM formulation. gprMax uses a five-face
+equivalent-current surface whose omitted face is supplied analytically by the
+PEC-terminated layered Green function.
+
+.. figure:: ../../testing/other_codes/matlab_mom/antenna_reflector_grounded/results/reflector_dipole_pattern_comparison.png
+    :width: 750 px
+
+    Principal-plane patterns for the two reflector spacings. The retained
+    gprMax/MATLAB peak-directivity differences are 0.059 dB and 0.065 dB.
+
+The one-cell FDTD feed gap and MATLAB delta-gap feed are not geometrically
+identical, so the retained impedance and S11 curves are diagnostics rather
+than asserted port validation. The normalised radiation patterns and
+directivity provide the primary numerical comparison.
 
 PEC-plate radar cross section
 =============================

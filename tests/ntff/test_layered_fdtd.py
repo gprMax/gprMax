@@ -1,7 +1,10 @@
 import h5py
 import numpy as np
+import pytest
 
 import gprMax
+from gprMax.ntff.conventions import engineering_dft
+from gprMax.ntff.layered import AXIS_BASES
 
 
 def _far_vectors(transform_group, output_ids):
@@ -80,15 +83,100 @@ def test_nested_surfaces_are_equivalent_across_a_dielectric_interface(tmp_path):
             rtol=2e-15,
         )
         for region in (positive, negative):
-            expected = (
-                4
-                * np.pi
-                * region["maximum_radiation_intensity"][...]
-                / inner_u0["radiated_power"][...]
-            )
+            expected = 4 * np.pi * region["maximum_radiation_intensity"][...] / inner_u0["radiated_power"][...]
             np.testing.assert_allclose(region["maximum_directivity"][...], expected)
             assert np.isfinite(region["maximum_theta"][...]).all()
             assert np.isfinite(region["maximum_phi"][...]).all()
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("axis", ("x", "y", "z"))
+def test_direct_layered_time_fft_matches_layered_frequency_transform(tmp_path, axis):
+    """The independent direct-time and phasor paths use the same layered Green function."""
+
+    frequencies = np.asarray((1.5e9, 2.0e9))
+    lower_box = {
+        "x": "0 0 0 0.06 0.12 0.12",
+        "y": "0 0 0 0.12 0.06 0.12",
+        "z": "0 0 0 0.12 0.12 0.06",
+    }[axis]
+    source_axis, source_position = {
+        "x": ("y", "0.076 0.06 0.06"),
+        "y": ("z", "0.06 0.076 0.06"),
+        "z": ("x", "0.06 0.06 0.076"),
+    }[axis]
+    surface = {
+        "x": "0.036 0.036 0.036 0.088 0.084 0.084",
+        "y": "0.036 0.036 0.036 0.084 0.088 0.084",
+        "z": "0.036 0.036 0.036 0.084 0.084 0.088",
+    }[axis]
+
+    def global_angles(local_theta, local_phi):
+        theta = np.deg2rad(local_theta)
+        phi = np.deg2rad(local_phi)
+        local = np.asarray((np.sin(theta) * np.cos(phi), np.sin(theta) * np.sin(phi), np.cos(theta)))
+        direction = local @ AXIS_BASES[axis]
+        return (
+            float(np.rad2deg(np.arccos(np.clip(direction[2], -1, 1)))),
+            float(np.rad2deg(np.arctan2(direction[1], direction[0])) % 360),
+        )
+
+    upper_theta, upper_phi = global_angles(20, 20)
+    lower_theta, lower_phi = global_angles(160, 20)
+    inputfile = tmp_path / f"layered_time_frequency_{axis}.in"
+    inputfile.write_text(
+        "#domain: 0.12 0.12 0.12\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 3.2e-9\n"
+        "#pml_cells: 3\n"
+        "#material: 4 0 1 0 dielectric\n"
+        f"#box: {lower_box} dielectric\n"
+        "#waveform: ricker 1 2e9 pulse\n"
+        f"#hertzian_dipole: {source_axis} {source_position} pulse\n"
+        f"#ntff_surface: {surface} surface\n"
+        f"#ntff_layered_background: halfspace {axis} free_space 0.06 dielectric\n"
+        "#ntff_layered_frequency: surface spectrum halfspace 1.5e9 2e9 rectangular\n"
+        f"#ntff_far_field: {upper_theta} {upper_phi} spectrum upper Etheta Ephi\n"
+        f"#ntff_far_field: {lower_theta} {lower_phi} spectrum lower Etheta Ephi\n"
+        "#ntff_layered_time: surface transient halfspace 1e-11 100000\n"
+        f"#ntff_layered_time_far_field: {upper_theta} {upper_phi} transient "
+        "upper_time Etheta Ephi\n"
+        f"#ntff_layered_time_far_field: {lower_theta} {lower_phi} transient "
+        "lower_time Etheta Ephi\n"
+    )
+    outputfile = tmp_path / f"layered_time_frequency_{axis}"
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        dt = float(output.attrs["dt"])
+        frequency_group = output["ntff/surface/frequency/spectrum/far_field"]
+        time_group = output["ntff/surface/time_far_field"]
+        for output_id in ("upper", "lower"):
+            transient = time_group[f"{output_id}_time"]
+            times = transient["times"][...]
+            transformed_components = []
+            expected_components = []
+            for component in ("Etheta", "Ephi"):
+                transformed_components.append(
+                    engineering_dft(
+                        transient[f"fields/{component}"][0],
+                        frequencies,
+                        dt,
+                        time_offset=float(times[0]),
+                    )
+                )
+                expected_components.append(frequency_group[f"{output_id}/fields/{component}"][..., 0])
+            transformed = np.stack(transformed_components, axis=-1)
+            expected = np.stack(expected_components, axis=-1)
+            assert np.all(transient["terminal_decay_ok"][...])
+            scale = max(float(np.max(np.linalg.norm(expected, axis=-1))), 1e-30)
+            np.testing.assert_allclose(transformed / scale, expected / scale, atol=0.01)
 
 
 def test_layered_exterior_efficiency_uses_antenna_port_power(tmp_path):
@@ -139,17 +227,11 @@ def test_layered_exterior_efficiency_uses_antenna_port_power(tmp_path):
             )
             np.testing.assert_allclose(
                 region["maximum_gain"][...],
-                4
-                * np.pi
-                * region["maximum_radiation_intensity"][...]
-                / port_power["accepted_power"][...],
+                4 * np.pi * region["maximum_radiation_intensity"][...] / port_power["accepted_power"][...],
             )
             np.testing.assert_allclose(
                 region["maximum_realized_gain"][...],
-                4
-                * np.pi
-                * region["maximum_radiation_intensity"][...]
-                / port_power["incident_power"][...],
+                4 * np.pi * region["maximum_radiation_intensity"][...] / port_power["incident_power"][...],
             )
             accepted_sum += region["accepted_coupling_efficiency"][...]
             realized_sum += region["realized_coupling_efficiency"][...]
@@ -161,9 +243,7 @@ def test_layered_exterior_efficiency_uses_antenna_port_power(tmp_path):
             realized_sum,
             group["fields/total_efficiency"][...],
         )
-        efficiency_only = output[
-            "ntff/surface/frequency/band/far_field/efficiency_only/exterior_regions"
-        ]
+        efficiency_only = output["ntff/surface/frequency/band/far_field/efficiency_only/exterior_regions"]
         assert "radiated_power" not in efficiency_only["positive_axis"]
         assert "maximum_directivity" not in efficiency_only["positive_axis"]
         assert "accepted_coupling_efficiency" in efficiency_only["positive_axis"]

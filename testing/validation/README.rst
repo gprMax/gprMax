@@ -21,6 +21,21 @@ The main validations are:
 * ``planar_layered_ntff/validate_point_dipole.py`` -- the frequency-domain
   planar-layered Huygens transform for a lossy, magnetic three-layer stack,
   compared with the closed-form layered Hertzian-dipole Green function;
+* ``planar_layered_ntff/validate_capoglu_grounded_time.py`` -- the direct
+  time-domain transform for horizontal and vertical Hertzian dipoles in the
+  PEC-grounded dielectric slab of Figure 11 in Çapoğlu's thesis, compared
+  with its independent short-circuit echo series;
+* ``planar_layered_ntff/validate_grounded_dipoles.py`` -- electric and
+  magnetic dipoles over bare PEC against exact image theory, plus electric
+  dipoles over a dielectric-coated PEC against an independently evaluated
+  short-circuited TE/TM spectrum;
+* ``planar_layered_ntff/validate_grounded_slab_reflection.py`` -- broadband
+  axial-DPW reflection magnitude and phase from a PEC-backed dielectric slab
+  against its exact short-circuited transmission-line input impedance;
+* ``tests/ntff/test_layered_time.py`` -- direct time-domain planar-layered
+  impulse amplitudes and delays against the dielectric half-space and
+  ungrounded-slab expressions in Eqs. (53)--(55) and (71)--(75) of Çapoğlu's
+  thesis, followed by random-stack and production-FDTD cross-checks;
 * ``planar_layered_ntff/validate_capoglu_paper.py`` -- the complete
   nine-dipole, eight-layer Figure 2 benchmark of Çapoğlu *et al.*, including
   spectral and angular TE/TM results;
@@ -124,6 +139,9 @@ Run modules from the repository root, for example::
     python -m testing.validation.validate_plane_wave_realistic_materials --gpu 0
     python -m testing.validation.validate_hertzian_dipole --gpu 0
     python -m testing.validation.planar_layered_ntff.validate_point_dipole
+    python -m testing.validation.planar_layered_ntff.validate_capoglu_grounded_time
+    python -m testing.validation.planar_layered_ntff.validate_grounded_dipoles
+    python -m testing.validation.planar_layered_ntff.validate_grounded_slab_reflection
     python -m testing.validation.planar_layered_ntff.validate_capoglu_paper --gpu 0
     python -m testing.validation.planar_layered_ntff.validate_engheta_interfacial_dipoles --gpu 0
     python -m testing.validation.planar_layered_ntff.validate_smith_dipole_height --gpu 0

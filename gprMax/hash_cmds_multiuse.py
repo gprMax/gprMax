@@ -80,6 +80,9 @@ from .user_objects.cmds_output import (
     NTFFFrequencyTransform,
     NTFFLayeredBackground,
     NTFFLayeredFrequencyTransform,
+    NTFFLayeredTimeFarField,
+    NTFFLayeredTimeFarFieldArray,
+    NTFFLayeredTimeTransform,
     NTFFSurface,
     NTFFTimeFarField,
     NTFFTimeFarFieldArray,
@@ -1121,6 +1124,29 @@ def process_multicmds(multicmds):
                 )
             )
 
+    cmdname = "#ntff_layered_time"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 3 or len(tokens) > 5:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' requires a surface ID, transform ID, "
+                    "background ID, and optional impulse tolerance and maximum impulse count"
+                )
+            kwargs = {}
+            if len(tokens) >= 4:
+                kwargs["impulse_tolerance"] = float(tokens[3])
+            if len(tokens) == 5:
+                kwargs["max_impulses"] = int(tokens[4])
+            scene_objects.append(
+                NTFFLayeredTimeTransform(
+                    surface_id=tokens[0],
+                    id=tokens[1],
+                    background_id=tokens[2],
+                    **kwargs,
+                )
+            )
+
     cmdname = "#ksir_antenna_ports"
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -1315,6 +1341,30 @@ def process_multicmds(multicmds):
                 NTFFTimeFarFieldArray(
                     *(float(value) for value in tokens[:6]),
                     surface_id=tokens[6],
+                    **kwargs,
+                )
+            )
+
+    cmdname = "#ntff_layered_time_far_field"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 3)
+            scene_objects.append(
+                NTFFLayeredTimeFarField(
+                    float(tokens[0]), float(tokens[1]), tokens[2], **kwargs
+                )
+            )
+
+    cmdname = "#ntff_layered_time_far_field_array"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            kwargs = parse_point_options(cmdname, cmdinstance, tokens, 7)
+            scene_objects.append(
+                NTFFLayeredTimeFarFieldArray(
+                    *(float(value) for value in tokens[:6]),
+                    transform_id=tokens[6],
                     **kwargs,
                 )
             )

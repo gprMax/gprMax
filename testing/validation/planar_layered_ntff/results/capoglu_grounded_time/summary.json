@@ -1,0 +1,13 @@
+{
+  "HED": {
+    "maximum_error_normalised_to_analytical_peak": 0.004937983672218814,
+    "rms_error_normalised_to_analytical_peak": 0.0014912624110499232,
+    "analytical_peak": 0.005587558377876406
+  },
+  "VED": {
+    "maximum_error_normalised_to_analytical_peak": 0.009147635188245502,
+    "rms_error_normalised_to_analytical_peak": 0.0028728949273530073,
+    "analytical_peak": 0.0017971000063333987
+  },
+  "passed": true
+}

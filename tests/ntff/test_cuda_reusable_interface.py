@@ -159,6 +159,55 @@ def _equivalent_current_time_scene():
     return scene, far_field
 
 
+def _layered_equivalent_current_time_scene():
+    dl = 0.004
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.08, 0.08, 0.08)))
+    scene.add(gprMax.TimeWindow(time=4e-9))
+    scene.add(gprMax.PMLThickness(thickness=3))
+    scene.add(gprMax.Material(er=2.5, se=0, mr=1, sm=0, id="substrate"))
+    scene.add(gprMax.Box(p1=(0, 0, 0), p2=(0.08, 0.08, 0.04), material_id="substrate"))
+    scene.add(gprMax.Box(p1=(0, 0, 0), p2=(0.08, 0.08, 0.016), material_id="pec"))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
+    scene.add(gprMax.HertzianDipole(polarisation="x", p1=(0.04, 0.04, 0.032), waveform_id="pulse"))
+    scene.add(
+        gprMax.NTFFSurface(
+            p1=(0.028, 0.028, 0.016),
+            p2=(0.052, 0.052, 0.052),
+            id="surface",
+            origin=(0.04, 0.04, 0.04),
+            omit_faces=("z0",),
+        )
+    )
+    scene.add(
+        gprMax.NTFFLayeredBackground(
+            id="grounded",
+            axis="z",
+            materials=("free_space", "substrate", "pec"),
+            interfaces=(0.04, 0.016),
+        )
+    )
+    scene.add(
+        gprMax.NTFFLayeredTimeTransform(
+            surface_id="surface",
+            id="transient",
+            background_id="grounded",
+            impulse_tolerance=1e-2,
+            max_impulses=1_000,
+        )
+    )
+    far_field = gprMax.NTFFLayeredTimeFarField(
+        theta=(20, 35, 50),
+        phi=(0, 30, 90),
+        transform_id="transient",
+        id="layered",
+        outputs=("Etheta", "Ephi"),
+    )
+    scene.add(far_field)
+    return scene, far_field
+
+
 @pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
 @pytest.mark.parametrize(
     "precision,rtol",
@@ -182,9 +231,7 @@ def test_cuda_equivalent_current_time_far_fields_match_cpu(tmp_path, gpu_device,
     )
 
     assert_allclose(cuda_far.result.times, cpu_far.result.times, rtol=0, atol=0)
-    field_scale = max(
-        np.max(np.abs(cpu_far.result.fields[component])) for component in ("Etheta", "Ephi")
-    )
+    field_scale = max(np.max(np.abs(cpu_far.result.fields[component])) for component in ("Etheta", "Ephi"))
     assert field_scale > 0
     for component in ("Etheta", "Ephi"):
         expected = cpu_far.result.fields[component]
@@ -197,6 +244,76 @@ def test_cuda_equivalent_current_time_far_fields_match_cpu(tmp_path, gpu_device,
             # physical co-polar field rather than numerical cancellation.
             atol=rtol * field_scale,
         )
+
+
+@pytest.mark.skipif(not HAS_CUDA, reason="No CUDA device/pycuda available")
+@pytest.mark.parametrize(
+    "precision,rtol",
+    [("single", 8e-4), ("double", 1e-7)],
+)
+def test_cuda_layered_equivalent_current_time_far_fields_match_cpu(tmp_path, gpu_device, precision, rtol):
+    cpu_scene, cpu_far = _layered_equivalent_current_time_scene()
+    cuda_scene, cuda_far = _layered_equivalent_current_time_scene()
+    gprMax.run(
+        scenes=[cpu_scene],
+        outputfile=tmp_path / f"layered_time_cpu_{precision}",
+        hide_progress_bars=True,
+        cpu_precision=precision,
+    )
+    gprMax.run(
+        scenes=[cuda_scene],
+        outputfile=tmp_path / f"layered_time_cuda_{precision}",
+        hide_progress_bars=True,
+        gpu=[gpu_device],
+        gpu_precision=precision,
+    )
+
+    assert_allclose(cuda_far.result.times, cpu_far.result.times, rtol=0, atol=0)
+    field_scale = max(np.max(np.abs(cpu_far.result.fields[component])) for component in ("Etheta", "Ephi"))
+    assert field_scale > 0
+    for component in ("Etheta", "Ephi"):
+        assert_allclose(
+            cuda_far.result.fields[component],
+            cpu_far.result.fields[component],
+            rtol=rtol,
+            atol=rtol * field_scale,
+        )
+    with h5py.File(tmp_path / f"layered_time_cuda_{precision}.h5", "r") as output:
+        group = output["ntff/surface/time_far_field/layered"]
+        assert group.attrs["solver"] == "cuda"
+        assert group.attrs["collection_backend"] == "cuda_device_layered"
+
+
+def test_opencl_layered_equivalent_current_time_far_fields_match_cpu(tmp_path, opencl_device):
+    cpu_scene, cpu_far = _layered_equivalent_current_time_scene()
+    opencl_scene, opencl_far = _layered_equivalent_current_time_scene()
+    gprMax.run(
+        scenes=[cpu_scene],
+        outputfile=tmp_path / "layered_time_cpu_opencl",
+        hide_progress_bars=True,
+        cpu_precision="single",
+    )
+    gprMax.run(
+        scenes=[opencl_scene],
+        outputfile=tmp_path / "layered_time_opencl",
+        hide_progress_bars=True,
+        opencl=[opencl_device],
+        gpu_precision="single",
+    )
+
+    assert_allclose(opencl_far.result.times, cpu_far.result.times, rtol=0, atol=0)
+    field_scale = max(np.max(np.abs(cpu_far.result.fields[component])) for component in ("Etheta", "Ephi"))
+    for component in ("Etheta", "Ephi"):
+        assert_allclose(
+            opencl_far.result.fields[component],
+            cpu_far.result.fields[component],
+            rtol=1e-3,
+            atol=1e-3 * field_scale,
+        )
+    with h5py.File(tmp_path / "layered_time_opencl.h5", "r") as output:
+        group = output["ntff/surface/time_far_field/layered"]
+        assert group.attrs["solver"] == "opencl"
+        assert group.attrs["collection_backend"] == "opencl_device_layered"
 
 
 def _plane_wave_rcs_scene():
@@ -251,9 +368,7 @@ def _plane_wave_rcs_scene():
         ("double", np.dtype("float64"), np.dtype("complex128"), 2e-10),
     ],
 )
-def test_cuda_reusable_outputs_match_cpu(
-    tmp_path, gpu_device, precision, real_dtype, complex_dtype, rtol
-):
+def test_cuda_reusable_outputs_match_cpu(tmp_path, gpu_device, precision, real_dtype, complex_dtype, rtol):
     cpu_scene, cpu_transform, cpu_time, cpu_frequency, cpu_far = _scene()
     cuda_scene, cuda_transform, cuda_time, cuda_frequency, cuda_far = _scene()
     gprMax.run(
@@ -294,9 +409,7 @@ def test_cuda_reusable_outputs_match_cpu(
     for component in cuda_transform.surface_data:
         expected = cpu_transform.surface_data[component]
         actual = cuda_transform.surface_data[component]
-        assert_allclose(
-            actual.field, expected.field, rtol=rtol, atol=rtol * np.max(np.abs(expected.field))
-        )
+        assert_allclose(actual.field, expected.field, rtol=rtol, atol=rtol * np.max(np.abs(expected.field)))
         assert_allclose(
             actual.normal_derivative,
             expected.normal_derivative,
@@ -346,9 +459,7 @@ def test_cuda_reusable_outputs_match_cpu(
         ("double", np.dtype("complex128"), 2e-10),
     ],
 )
-def test_cuda_equivalent_current_far_field_matches_cpu(
-    tmp_path, gpu_device, precision, complex_dtype, rtol
-):
+def test_cuda_equivalent_current_far_field_matches_cpu(tmp_path, gpu_device, precision, complex_dtype, rtol):
     cpu_scene, _, cpu_far = _equivalent_current_scene()
     cuda_scene, cuda_transform, cuda_far = _equivalent_current_scene()
     gprMax.run(
@@ -445,9 +556,7 @@ def test_cuda_antenna_metrics_match_cpu(tmp_path, gpu_device):
         ("double", np.dtype("complex128"), 2e-10),
     ],
 )
-def test_cuda_plane_wave_rcs_incident_reference_matches_cpu(
-    tmp_path, gpu_device, precision, complex_dtype, rtol
-):
+def test_cuda_plane_wave_rcs_incident_reference_matches_cpu(tmp_path, gpu_device, precision, complex_dtype, rtol):
     cpu_scene, cpu_transform, _ = _plane_wave_rcs_scene()
     cuda_scene, cuda_transform, cuda_far = _plane_wave_rcs_scene()
     gprMax.run(

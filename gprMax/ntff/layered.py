@@ -46,6 +46,29 @@ AXIS_BASES = {
 
 
 @dataclass(frozen=True)
+class LayeredTermination:
+    """A perfect boundary terminating one end of a planar stack."""
+
+    kind: str
+    side: str
+    position: float
+
+    def validate(self, interfaces: npt.ArrayLike) -> None:
+        if self.kind != "pec":
+            raise ValueError("layered termination kind must be 'pec'")
+        if self.side not in ("positive", "negative"):
+            raise ValueError("layered termination side must be 'positive' or 'negative'")
+        if not np.isfinite(self.position):
+            raise ValueError("layered termination position must be finite")
+        values = np.asarray(interfaces)
+        if values.size:
+            if self.side == "positive" and not self.position > values[0]:
+                raise ValueError("positive-axis termination must lie above every interface")
+            if self.side == "negative" and not self.position < values[-1]:
+                raise ValueError("negative-axis termination must lie below every interface")
+
+
+@dataclass(frozen=True)
 class LayeredMedium:
     """Resolved frequency-dependent properties of one planar stack.
 
@@ -59,6 +82,7 @@ class LayeredMedium:
     material_ids: tuple[str, ...]
     relative_permittivity: npt.NDArray[np.complexfloating]
     relative_permeability: npt.NDArray[np.complexfloating]
+    termination: LayeredTermination | None = None
 
     def validate(self, frequencies: npt.ArrayLike) -> None:
         values = np.asarray(frequencies)
@@ -71,27 +95,41 @@ class LayeredMedium:
             raise ValueError("a layered medium requires at least one material")
         if interfaces.shape != (len(self.material_ids) - 1,):
             raise ValueError("layered-medium interfaces and materials are inconsistent")
-        if interfaces.size and (
-            not np.all(np.isfinite(interfaces)) or not np.all(np.diff(interfaces) < 0)
-        ):
+        if interfaces.size and (not np.all(np.isfinite(interfaces)) or not np.all(np.diff(interfaces) < 0)):
             raise ValueError("layered-medium interfaces must be finite and strictly descending")
+        if self.termination is not None:
+            self.termination.validate(interfaces)
         expected = (values.size, len(self.material_ids))
         if eps.shape != expected or mu.shape != expected:
             raise ValueError(f"layered constitutive arrays must both have shape {expected}")
         if not np.all(np.isfinite(eps)) or not np.all(np.isfinite(mu)):
             raise ValueError("layered constitutive properties must be finite")
         if np.any(np.real(eps) <= 0) or np.any(np.real(mu) <= 0):
-            raise ValueError(
-                "layered materials require positive real permittivity and permeability"
-            )
+            raise ValueError("layered materials require positive real permittivity and permeability")
         # A conventional far field exists in the two semi-infinite exterior
         # regions only when they are lossless.  Finite internal layers may be
         # lossy and dispersive.
-        for exterior in (0, -1):
+        exteriors = [0, -1]
+        if self.termination is not None:
+            exteriors.remove(0 if self.termination.side == "positive" else -1)
+        for exterior in exteriors:
             if not np.allclose(np.imag(eps[:, exterior]), 0, rtol=0, atol=1e-12) or not np.allclose(
                 np.imag(mu[:, exterior]), 0, rtol=0, atol=1e-12
             ):
-                raise ValueError("the two observation half-spaces must be lossless")
+                raise ValueError("observation half-spaces must be lossless; a PEC-terminated " "side is excluded")
+
+
+def _observation_indices(local_normal: npt.ArrayLike, medium: LayeredMedium):
+    """Return open exterior indices, rejecting observation through a termination."""
+
+    values = np.asarray(local_normal)
+    if medium.termination is not None:
+        terminated = values > 0 if medium.termination.side == "positive" else values < 0
+        if np.any(terminated):
+            raise ValueError(
+                f"far-field observation cannot point through the " f"{medium.termination.side}-axis PEC termination"
+            )
+    return np.where(values > 0, 0, -1)
 
 
 @dataclass(frozen=True)
@@ -117,16 +155,14 @@ def observation_properties(
     medium.validate(frequency_values)
     basis = AXIS_BASES[medium.axis]
     local_normal = direction_values @ basis[2]
-    exterior = np.where(local_normal > 0, 0, -1)
+    exterior = _observation_indices(local_normal, medium)
     impedance = np.empty((frequency_values.size, direction_values.shape[0]), dtype=float)
     wavenumber = np.empty_like(impedance)
     for direction_number, material_index in enumerate(exterior):
         eps = np.real(medium.relative_permittivity[:, material_index])
         mu = np.real(medium.relative_permeability[:, material_index])
         impedance[:, direction_number] = np.sqrt(mu_0 * mu / (epsilon_0 * eps))
-        wavenumber[:, direction_number] = (
-            2 * np.pi * frequency_values * np.sqrt(epsilon_0 * eps * mu_0 * mu)
-        )
+        wavenumber[:, direction_number] = 2 * np.pi * frequency_values * np.sqrt(epsilon_0 * eps * mu_0 * mu)
     return impedance, wavenumber
 
 
@@ -140,11 +176,63 @@ def _outgoing_sqrt(values: npt.ArrayLike) -> npt.NDArray[np.complexfloating]:
     return result
 
 
-def _layer_thicknesses(interfaces: npt.ArrayLike, nlayers: int) -> npt.NDArray[np.floating]:
+def _layer_bounds(
+    interfaces: npt.ArrayLike,
+    nlayers: int,
+    termination: LayeredTermination | None = None,
+) -> tuple[npt.NDArray[np.floating], npt.NDArray[np.floating]]:
+    """Return phase-reference planes for every active material layer."""
+
+    values = np.asarray(interfaces)
+    dtype = values.dtype if values.size else np.dtype(float)
+    top = np.zeros(nlayers, dtype=dtype)
+    bottom = np.zeros(nlayers, dtype=dtype)
+    if values.size:
+        top[0] = values[0]
+        top[1:] = values
+        bottom[:-1] = values
+        bottom[-1] = values[-1]
+    if termination is not None:
+        if termination.side == "positive":
+            top[0] = termination.position
+            if nlayers == 1:
+                bottom[0] = termination.position
+        else:
+            bottom[-1] = termination.position
+            if nlayers == 1:
+                top[0] = termination.position
+    return top, bottom
+
+
+def _layer_thicknesses(
+    interfaces: npt.ArrayLike,
+    nlayers: int,
+    termination: LayeredTermination | None = None,
+) -> npt.NDArray[np.floating]:
     thickness = np.zeros(nlayers, dtype=np.asarray(interfaces).dtype)
     if nlayers > 2:
         thickness[1:-1] = np.asarray(interfaces)[:-1] - np.asarray(interfaces)[1:]
+    if termination is not None:
+        top, bottom = _layer_bounds(interfaces, nlayers, termination)
+        layer = 0 if termination.side == "positive" else nlayers - 1
+        thickness[layer] = top[layer] - bottom[layer]
     return thickness
+
+
+def _exterior_reference(
+    interfaces: npt.ArrayLike,
+    termination: LayeredTermination | None,
+    *,
+    upper_observation: bool,
+) -> float:
+    """Coordinate used by the exterior travelling-wave phase reference."""
+
+    values = np.asarray(interfaces)
+    if values.size:
+        return float(values[0] if upper_observation else values[-1])
+    if termination is not None:
+        return float(termination.position)
+    return 0.0
 
 
 def _safe_ratio(numerator: complex, denominator: complex, label: str) -> complex:
@@ -160,6 +248,7 @@ def _voltage_coefficients(
     thickness: npt.NDArray[np.floating],
     *,
     upper_observation: bool,
+    termination: LayeredTermination | None = None,
 ) -> tuple[npt.NDArray[np.complexfloating], npt.NDArray[np.complexfloating]]:
     """Return upward/downward TL voltage-wave coefficients in every layer.
 
@@ -172,16 +261,29 @@ def _voltage_coefficients(
     nlayers = line_impedance.size
     plus = np.zeros(nlayers, dtype=np.complex128)
     minus = np.zeros(nlayers, dtype=np.complex128)
+    if termination is not None:
+        if upper_observation and termination.side != "negative":
+            raise ValueError("upper far field requires an open positive-axis exterior")
+        if not upper_observation and termination.side != "positive":
+            raise ValueError("lower far field requires an open negative-axis exterior")
     if nlayers == 1:
         if upper_observation:
             minus[0] = line_impedance[0]
+            if termination is not None:
+                plus[0] = -minus[0]
         else:
             plus[0] = line_impedance[0]
+            if termination is not None:
+                minus[0] = -plus[0]
         return plus, minus
 
     interface_impedance = np.empty(nlayers - 1, dtype=np.complex128)
     if upper_observation:
-        interface_impedance[-1] = -line_impedance[-1]
+        if termination is None:
+            interface_impedance[-1] = -line_impedance[-1]
+        else:
+            tangent = np.tan(beta[-1] * thickness[-1])
+            interface_impedance[-1] = -1j * line_impedance[-1] * tangent
         for layer in range(nlayers - 2, 0, -1):
             tangent = np.tan(beta[layer] * thickness[layer])
             load = interface_impedance[layer]
@@ -216,8 +318,14 @@ def _voltage_coefficients(
                 )
                 * np.exp(-1j * beta[layer] * thickness[layer])
             )
+        if termination is not None:
+            plus[-1] = -minus[-1] * np.exp(-1j * beta[-1] * thickness[-1])
     else:
-        interface_impedance[0] = line_impedance[0]
+        if termination is None:
+            interface_impedance[0] = line_impedance[0]
+        else:
+            tangent = np.tan(beta[0] * thickness[0])
+            interface_impedance[0] = 1j * line_impedance[0] * tangent
         for layer in range(1, nlayers - 1):
             tangent = np.tan(beta[layer] * thickness[layer])
             load = interface_impedance[layer - 1]
@@ -252,6 +360,8 @@ def _voltage_coefficients(
                 )
                 * np.exp(-1j * beta[layer] * thickness[layer])
             )
+        if termination is not None:
+            minus[0] = -plus[0] * np.exp(-1j * beta[0] * thickness[0])
     return plus, minus
 
 
@@ -263,33 +373,27 @@ def _responses_at_positions(
     line_impedance: npt.NDArray[np.complexfloating],
     plus: npt.NDArray[np.complexfloating],
     minus: npt.NDArray[np.complexfloating],
+    termination: LayeredTermination | None = None,
 ) -> tuple[npt.NDArray[np.complexfloating], npt.NDArray[np.complexfloating]]:
     """Evaluate the TL current- and voltage-source responses at patch depths."""
 
     nlayers = line_impedance.size
     vi = np.empty(positions.size, dtype=np.complex128)
     vv = np.empty(positions.size, dtype=np.complex128)
+    layer_top, layer_bottom = _layer_bounds(interfaces, nlayers, termination)
     for layer in range(nlayers):
         selected = layer_index == layer
         if not np.any(selected):
             continue
-        if nlayers == 1:
-            # With no physical interface, use the transform origin as the
-            # common fictitious reference plane. ``positions`` are already
-            # relative to that origin.
-            top = bottom = 0.0
-        else:
-            top = interfaces[0] if layer == 0 else interfaces[layer - 1]
-            bottom = interfaces[-1] if layer == nlayers - 1 else interfaces[layer]
+        top = layer_top[layer]
+        bottom = layer_bottom[layer]
         # Exterior fictitious interfaces coincide with their only physical
         # boundary, removing arbitrary exterior phase references.
         z = positions[selected]
         phase_plus = np.exp(-1j * beta[layer] * (z - bottom))
         phase_minus = np.exp(1j * beta[layer] * (z - top))
         vi[selected] = plus[layer] * phase_plus + minus[layer] * phase_minus
-        vv[selected] = (-plus[layer] * phase_plus + minus[layer] * phase_minus) / line_impedance[
-            layer
-        ]
+        vv[selected] = (-plus[layer] * phase_plus + minus[layer] * phase_minus) / line_impedance[layer]
     return vi, vv
 
 
@@ -345,14 +449,12 @@ def _cython_layered_currents(
     observation_wavenumber = np.empty((nf, nd), dtype=real_dtype)
     electric_factor = np.empty((nf, nd), dtype=real_dtype)
     magnetic_factor = np.empty((nf, nd), dtype=real_dtype)
-    observation_index = np.where(local_directions[:, 2] > 0, 0, -1).astype(np.int8)
+    observation_index = _observation_indices(local_directions[:, 2], medium).astype(np.int8)
 
     for direction_number, direction in enumerate(local_directions):
         cos_theta = float(direction[2])
         if abs(cos_theta) <= grazing_tolerance:
-            raise ValueError(
-                "layered NTFF is singular at exact grazing incidence; omit theta=90 degrees"
-            )
+            raise ValueError("layered NTFF is singular at exact grazing incidence; omit theta=90 degrees")
         upper_observation = cos_theta > 0
         exterior = 0 if upper_observation else -1
         sin_theta = float(np.hypot(direction[0], direction[1]))
@@ -362,9 +464,7 @@ def _cython_layered_currents(
             eps_observation = float(np.real(eps_absolute[exterior]))
             mu_observation = float(np.real(mu_absolute[exterior]))
             angular_frequency = 2 * np.pi * float(frequency)
-            k_observation = angular_frequency * np.sqrt(
-                epsilon_0 * eps_observation * mu_0 * mu_observation
-            )
+            k_observation = angular_frequency * np.sqrt(epsilon_0 * eps_observation * mu_0 * mu_observation)
             impedance = np.sqrt(mu_0 * mu_observation / (epsilon_0 * eps_observation))
             eps = eps_absolute / eps_observation
             mu = mu_absolute / mu_observation
@@ -373,16 +473,25 @@ def _cython_layered_currents(
             eta_e_values = q / eps
             eta_h_values = mu / q
             pe, me = _voltage_coefficients(
-                beta_values, eta_e_values, thickness, upper_observation=upper_observation
+                beta_values,
+                eta_e_values,
+                thickness,
+                upper_observation=upper_observation,
+                termination=medium.termination,
             )
             ph, mh = _voltage_coefficients(
-                beta_values, eta_h_values, thickness, upper_observation=upper_observation
+                beta_values,
+                eta_h_values,
+                thickness,
+                upper_observation=upper_observation,
+                termination=medium.termination,
             )
-            if interfaces.size:
+            if interfaces.size or medium.termination is not None:
+                reference = _exterior_reference(interfaces, medium.termination, upper_observation=upper_observation)
                 if upper_observation:
-                    exterior_phase = np.exp(1j * beta_values[0] * interfaces[0])
+                    exterior_phase = np.exp(1j * beta_values[0] * reference)
                 else:
-                    exterior_phase = np.exp(-1j * beta_values[-1] * interfaces[-1])
+                    exterior_phase = np.exp(-1j * beta_values[-1] * reference)
                 pe *= exterior_phase
                 me *= exterior_phase
                 ph *= exterior_phase
@@ -405,13 +514,9 @@ def _cython_layered_currents(
                 angular_frequency * impedance * epsilon_0 * eps_observation / (4 * np.pi)
             )
 
-    layer_top = np.zeros(nl, dtype=real_dtype)
-    layer_bottom = np.zeros(nl, dtype=real_dtype)
-    if interfaces.size:
-        layer_top[0] = interfaces[0]
-        layer_top[1:] = interfaces
-        layer_bottom[:-1] = interfaces
-        layer_bottom[-1] = interfaces[-1]
+    layer_top, layer_bottom = _layer_bounds(interfaces, nl, medium.termination)
+    layer_top = np.asarray(layer_top, dtype=real_dtype)
+    layer_bottom = np.asarray(layer_bottom, dtype=real_dtype)
 
     electric_local = np.zeros((nf, nd, 3), dtype=complex_dtype)
     magnetic_local = np.zeros_like(electric_local)
@@ -540,13 +645,36 @@ def evaluate_layered_currents(
     basis = np.asarray(AXIS_BASES[medium.axis], dtype=real_dtype)
     relative_positions = (np.asarray(currents.positions) - origin_values) @ basis.T
     local_directions = direction_values @ basis.T
+    _observation_indices(local_directions[:, 2], medium)
     local_j = np.einsum("fpi,ji->fpj", currents.electric_current, basis)
     local_m = np.einsum("fpi,ji->fpj", currents.magnetic_current, basis)
-    interfaces = (
-        np.asarray(medium.interfaces, dtype=real_dtype) - origin_values["xyz".index(medium.axis)]
-    )
+    interfaces = np.asarray(medium.interfaces, dtype=real_dtype) - origin_values["xyz".index(medium.axis)]
+    termination = None
+    if medium.termination is not None:
+        termination = LayeredTermination(
+            medium.termination.kind,
+            medium.termination.side,
+            medium.termination.position - origin_values["xyz".index(medium.axis)],
+        )
     layer_index = _local_layer_indices(relative_positions[:, 2], interfaces)
-    thickness = _layer_thicknesses(interfaces, len(medium.material_ids))
+    if termination is not None:
+        outside = (
+            relative_positions[:, 2] > termination.position
+            if termination.side == "positive"
+            else relative_positions[:, 2] < termination.position
+        )
+        if np.any(outside):
+            raise ValueError("equivalent-current patches cannot lie beyond the PEC termination")
+    thickness = _layer_thicknesses(interfaces, len(medium.material_ids), termination)
+
+    local_medium = LayeredMedium(
+        axis=medium.axis,
+        interfaces=interfaces,
+        material_ids=medium.material_ids,
+        relative_permittivity=medium.relative_permittivity,
+        relative_permeability=medium.relative_permeability,
+        termination=termination,
+    )
 
     if _evaluate_layered_cython is not None:
         (
@@ -565,7 +693,7 @@ def evaluate_layered_currents(
             interfaces,
             layer_index,
             thickness,
-            medium,
+            local_medium,
             grazing_tolerance,
             nthreads,
         )
@@ -588,14 +716,12 @@ def evaluate_layered_currents(
     magnetic_local = np.zeros_like(electric_local)
     observation_impedance = np.empty((nf, nd), dtype=real_dtype)
     observation_wavenumber = np.empty((nf, nd), dtype=real_dtype)
-    observation_index = np.where(local_directions[:, 2] > 0, 0, -1).astype(np.int8)
+    observation_index = _observation_indices(local_directions[:, 2], local_medium).astype(np.int8)
 
     for direction_number, direction in enumerate(local_directions):
         cos_theta = float(direction[2])
         if abs(cos_theta) <= grazing_tolerance:
-            raise ValueError(
-                "layered NTFF is singular at exact grazing incidence; omit theta=90 degrees"
-            )
+            raise ValueError("layered NTFF is singular at exact grazing incidence; omit theta=90 degrees")
         upper_observation = cos_theta > 0
         exterior = 0 if upper_observation else -1
         sin_theta = float(np.hypot(direction[0], direction[1]))
@@ -617,9 +743,7 @@ def evaluate_layered_currents(
             eps_observation = float(np.real(eps_absolute[exterior]))
             mu_observation = float(np.real(mu_absolute[exterior]))
             angular_frequency = 2 * np.pi * float(frequency)
-            k_observation = angular_frequency * np.sqrt(
-                epsilon_0 * eps_observation * mu_0 * mu_observation
-            )
+            k_observation = angular_frequency * np.sqrt(epsilon_0 * eps_observation * mu_0 * mu_observation)
             eta_observation = np.sqrt(mu_0 * mu_observation / (epsilon_0 * eps_observation))
             observation_impedance[frequency_number, direction_number] = eta_observation
             observation_wavenumber[frequency_number, direction_number] = k_observation
@@ -631,21 +755,30 @@ def evaluate_layered_currents(
             eta_e = q / eps  # TM (electric) normalized line impedance
             eta_h = mu / q  # TE (magnetic) normalized line impedance
             plus_e, minus_e = _voltage_coefficients(
-                beta, eta_e, thickness, upper_observation=upper_observation
+                beta,
+                eta_e,
+                thickness,
+                upper_observation=upper_observation,
+                termination=termination,
             )
             plus_h, minus_h = _voltage_coefficients(
-                beta, eta_h, thickness, upper_observation=upper_observation
+                beta,
+                eta_h,
+                thickness,
+                upper_observation=upper_observation,
+                termination=termination,
             )
             # The recursions reference their exterior travelling wave to the
             # nearest physical interface. Restore the absolute phase relative
             # to the user-selected NTFF origin. This is essential: inserting
             # a fictitious interface between identical materials must not
             # change the far field.
-            if interfaces.size:
+            if interfaces.size or termination is not None:
+                reference = _exterior_reference(interfaces, termination, upper_observation=upper_observation)
                 if upper_observation:
-                    exterior_phase = np.exp(1j * beta[0] * interfaces[0])
+                    exterior_phase = np.exp(1j * beta[0] * reference)
                 else:
-                    exterior_phase = np.exp(-1j * beta[-1] * interfaces[-1])
+                    exterior_phase = np.exp(-1j * beta[-1] * reference)
                 plus_e *= exterior_phase
                 minus_e *= exterior_phase
                 plus_h *= exterior_phase
@@ -658,6 +791,7 @@ def evaluate_layered_currents(
                 eta_e,
                 plus_e,
                 minus_e,
+                termination,
             )
             vi_h, vv_h = _responses_at_positions(
                 relative_positions[:, 2],
@@ -667,14 +801,10 @@ def evaluate_layered_currents(
                 eta_h,
                 plus_h,
                 minus_h,
+                termination,
             )
             lateral_phase = np.exp(
-                1j
-                * k_observation
-                * (
-                    direction[0] * relative_positions[:, 0]
-                    + direction[1] * relative_positions[:, 1]
-                )
+                1j * k_observation * (direction[0] * relative_positions[:, 0] + direction[1] * relative_positions[:, 1])
             )
             weight = np.asarray(currents.area_weights) * lateral_phase
             j = local_j[frequency_number]
@@ -687,9 +817,7 @@ def evaluate_layered_currents(
             m_radial = cos_phi * m[:, 0] + sin_phi * m[:, 1]
             m_phi = -sin_phi * m[:, 0] + cos_phi * m[:, 1]
 
-            aj_theta = dyadic_sign * np.sum(
-                weight * (vi_e * j_radial - vv_e * (sin_theta / eps_patch) * j[:, 2])
-            )
+            aj_theta = dyadic_sign * np.sum(weight * (vi_e * j_radial - vv_e * (sin_theta / eps_patch) * j[:, 2]))
             aj_phi = dyadic_sign * np.sum(weight * cos_theta * vi_h * j_phi)
             fm_theta = dyadic_sign * np.sum(
                 weight * cos_theta * (vv_h * m_radial - vi_h * (sin_theta / mu_patch) * m[:, 2])
@@ -698,19 +826,12 @@ def evaluate_layered_currents(
 
             factor = -1j * angular_frequency / (4 * np.pi)
             e_theta = factor * (
-                mu_0 * mu_observation * aj_theta
-                + eta_observation * epsilon_0 * eps_observation * fm_phi
+                mu_0 * mu_observation * aj_theta + eta_observation * epsilon_0 * eps_observation * fm_phi
             )
-            e_phi = factor * (
-                mu_0 * mu_observation * aj_phi
-                - eta_observation * epsilon_0 * eps_observation * fm_theta
-            )
-            electric_local[frequency_number, direction_number] = (
-                e_theta * theta_hat + e_phi * phi_hat
-            )
+            e_phi = factor * (mu_0 * mu_observation * aj_phi - eta_observation * epsilon_0 * eps_observation * fm_theta)
+            electric_local[frequency_number, direction_number] = e_theta * theta_hat + e_phi * phi_hat
             magnetic_local[frequency_number, direction_number] = (
-                np.cross(direction, electric_local[frequency_number, direction_number])
-                / eta_observation
+                np.cross(direction, electric_local[frequency_number, direction_number]) / eta_observation
             )
 
     electric = np.einsum("fdi,ij->fdj", electric_local, basis)
@@ -769,7 +890,5 @@ def material_constitutive_arrays(
             if not hasattr(material, "inclusive_w"):
                 relative_permittivity += material.se / (1j * angular_frequency * epsilon_0)
             eps[frequency_number, material_number] = relative_permittivity
-            mu[frequency_number, material_number] = material.mr + material.sm / (
-                1j * angular_frequency * mu_0
-            )
+            mu[frequency_number, material_number] = material.mr + material.sm / (1j * angular_frequency * mu_0)
     return eps, mu

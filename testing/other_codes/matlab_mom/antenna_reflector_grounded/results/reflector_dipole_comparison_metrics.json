@@ -1,0 +1,92 @@
+{
+  "cases": {
+    "lambda_8": {
+      "patterns": {
+        "e_plane": {
+          "rms_difference_db": 0.11852653287407174,
+          "maximum_absolute_difference_db": 0.2928351356516643,
+          "retained_points": 84
+        },
+        "h_plane": {
+          "rms_difference_db": 0.014469481619390432,
+          "maximum_absolute_difference_db": 0.023829547742472812,
+          "retained_points": 90
+        }
+      },
+      "complex_fields": {
+        "least_squares_scale_real": -1.5684336366853958e-08,
+        "least_squares_scale_imag": 2.2180425595350634e-09,
+        "rms_error_peak_normalised": 0.07166468951727298,
+        "maximum_error_peak_normalised": 0.16216811755354132,
+        "retained_complex_samples": 243
+      },
+      "maximum_directivity": {
+        "matlab_dbi": 8.727906517868234,
+        "gprmax_dbi": 8.787362098693848,
+        "difference_db": 0.0594555808256132
+      },
+      "radiation_efficiency": {
+        "matlab": 1,
+        "gprmax": 1.000130534172058,
+        "difference": 0.00013053417205810547
+      },
+      "s11": {
+        "magnitude_rms_difference_db": 0.7583277275201659,
+        "magnitude_maximum_absolute_difference_db": 2.0801431949863467,
+        "magnitude_difference_at_1ghz_db": 0.7334779161268532
+      },
+      "impedance": {
+        "complex_rms_difference_ohm": 248.89561349800834,
+        "complex_maximum_difference_ohm": 491.68465054953157,
+        "complex_difference_at_1ghz_ohm": {
+          "real": 27.736510976788594,
+          "imag": 33.11575521810683
+        }
+      }
+    },
+    "lambda_4": {
+      "patterns": {
+        "e_plane": {
+          "rms_difference_db": 0.14733023330173034,
+          "maximum_absolute_difference_db": 0.42482575323273863,
+          "retained_points": 85
+        },
+        "h_plane": {
+          "rms_difference_db": 0.015322467095870776,
+          "maximum_absolute_difference_db": 0.024899234115839164,
+          "retained_points": 90
+        }
+      },
+      "complex_fields": {
+        "least_squares_scale_real": -8.822591645021783e-09,
+        "least_squares_scale_imag": 1.369241586274005e-08,
+        "rms_error_peak_normalised": 0.16782826256352731,
+        "maximum_error_peak_normalised": 0.4109218307030069,
+        "retained_complex_samples": 272
+      },
+      "maximum_directivity": {
+        "matlab_dbi": 7.512716922654862,
+        "gprmax_dbi": 7.577317237854004,
+        "difference_db": 0.06460031519914189
+      },
+      "radiation_efficiency": {
+        "matlab": 1,
+        "gprmax": 1.000161051750183,
+        "difference": 0.00016105175018310547
+      },
+      "s11": {
+        "magnitude_rms_difference_db": 1.7798182503250086,
+        "magnitude_maximum_absolute_difference_db": 6.450009104223154,
+        "magnitude_difference_at_1ghz_db": 0.7633726719806502
+      },
+      "impedance": {
+        "complex_rms_difference_ohm": 90.02195038077933,
+        "complex_maximum_difference_ohm": 147.5407559116499,
+        "complex_difference_at_1ghz_ohm": {
+          "real": 37.526566455863474,
+          "imag": -14.25686104743069
+        }
+      }
+    }
+  }
+}

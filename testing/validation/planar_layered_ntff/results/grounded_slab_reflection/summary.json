@@ -1,0 +1,39 @@
+{
+  "model": {
+    "dl_metres": 0.00025,
+    "slab_relative_permittivity": 4.0,
+    "slab_thickness_metres": 0.011999999999999997,
+    "frequency_band_hz": [
+      400000000.0,
+      7000000000.0
+    ],
+    "frequency_samples": 132
+  },
+  "metrics": {
+    "magnitude_rmse": 8.430980957340642e-09,
+    "magnitude_maximum_error": 2.1015472029262128e-08,
+    "phase_rmse_degrees": 0.01772045135181498,
+    "phase_maximum_error_degrees": 0.05525325926830495,
+    "complex_relative_l2_error": 0.0003092802151035877
+  },
+  "acceptance": {
+    "passed": true,
+    "checks": {
+      "magnitude_maximum_error": {
+        "value": 2.1015472029262128e-08,
+        "maximum": 1e-06,
+        "passed": true
+      },
+      "phase_maximum_error_degrees": {
+        "value": 0.05525325926830495,
+        "maximum": 0.1,
+        "passed": true
+      },
+      "complex_relative_l2_error": {
+        "value": 0.0003092802151035877,
+        "maximum": 0.001,
+        "passed": true
+      }
+    }
+  }
+}

@@ -2867,6 +2867,21 @@ build FDTD geometry. The corresponding boxes/layers must be built separately
 at the same coordinates. Repeating a material on both sides of an interface
 is permitted and is useful for homogeneous-reduction checks.
 
+The built-in ``pec`` identifier may be used once as the first or last
+material. It then represents a perfect short-circuit termination at its
+adjacent interface, rather than a semi-infinite propagation material. For a
+2 mm substrate below free space and backed by a PEC plane, for example,
+
+.. code-block:: none
+
+    #ntff_layered_background: grounded z free_space 0.0 substrate -0.002 pec
+
+The FDTD substrate and PEC geometry must still be built separately. Far-field
+directions through the PEC are invalid. Directivity and radiated power use
+the open hemisphere with conventional full-sphere directivity normalisation;
+``exterior_power``, ``exterior_efficiency``, and ``exterior_maximum`` are not
+defined for a terminated stack.
+
 #ntff_layered_frequency:
 ------------------------
 
@@ -2882,7 +2897,8 @@ surface may cross one or more declared layer interfaces. Internal materials
 may be electrically conductive or Debye, Lorentz, Drude, or inclusive
 multipole dispersive materials; their complex properties are evaluated at
 each requested frequency. The positive- and negative-axis exterior
-materials must be lossless. PEC and PMC layers are not supported.
+materials must be lossless. A terminal PEC is supported as described above;
+internal PEC layers and PMC layers are not supported.
 
 The transform is consumed by the existing ``#ntff_far_field``,
 ``#ntff_far_field_array``, and ``#ntff_antenna_ports`` commands. It returns
@@ -2917,6 +2933,42 @@ or ``-z`` is ground.
     #ntff_antenna_ports: ground_band feed
     #ntff_far_field: 30 0 ground_band upper_cut Etheta Ephi directivity_dbi exterior_power exterior_efficiency exterior_maximum
     #ntff_far_field: 150 0 ground_band lower_cut Etheta Ephi directivity_dbi
+
+#ntff_layered_time:
+-------------------
+
+Declares a direct time-domain equivalent-current transform for a previously
+defined lossless planar background [CAP2007]_:
+
+.. code-block:: none
+
+    #ntff_layered_time: surface_id transform_id background_id [impulse_tolerance [max_impulses]]
+
+The closed surface may cross declared interfaces. Every stack material must
+be positive, lossless, and nondispersive. Requested directions must be
+non-grazing and propagating in every layer; use
+``#ntff_layered_frequency`` for conductive, dispersive, evanescent, or total-
+internal-reflection cases. ``impulse_tolerance`` is the relative per-path
+cutoff for the multiple-reflection impulse train and defaults to ``1e-10``.
+``max_impulses`` is a safety limit on processed, time-coalesced path events
+and defaults to ``100000``. Reducing the tolerance or observing close to a
+critical angle may require a larger value and a longer FDTD time window.
+
+For a PEC-terminated stack, the surface may either remain closed above the
+termination or place one boundary exactly on the PEC coordinate and omit only
+that face with ``#ntff_surface``. For example, a negative-z termination uses
+the trailing ``z0`` option. The grounded Green function supplies the image
+cancellation at that plane. No other face may be omitted from a direct
+time-domain transform.
+
+The transform is available with the CPU, MPI CPU, CUDA, OpenCL, and Metal
+solvers. CPU and MPI surface gathering and sparse impulse deposition use
+Cython/OpenMP; accelerator backends keep the sampled currents, TE/TM impulse
+metadata, and accumulated far-field traces on the device until finalisation.
+
+.. code-block:: none
+
+    #ntff_layered_time: radiation_surface ground_transient ground 1e-10 100000
 
 #ksir_antenna_ports:
 --------------------
@@ -3115,6 +3167,29 @@ symmetry-completed surfaces.
 .. code-block:: none
 
     #ntff_time_far_field_array: 0 180 2 0 360 2 radiation_surface transient Etheta Ephi
+
+#ntff_layered_time_far_field: and #ntff_layered_time_far_field_array:
+---------------------------------------------------------------------------
+
+Request range-normalized transient far fields from a
+``#ntff_layered_time`` transform:
+
+.. code-block:: none
+
+    #ntff_layered_time_far_field: theta phi transform_id [output_id [output1 output2 ...]]
+    #ntff_layered_time_far_field_array: theta1 theta2 dtheta phi1 phi2 dphi transform_id [output_id [output1 output2 ...]]
+
+The defaults and available Cartesian/spherical field components are the same
+as for ``#ntff_time_far_field``. The reduced time is
+:math:`t-r/c_o`, where :math:`c_o` is the wave speed of the positive- or
+negative-axis observation half-space selected by each direction. The
+corresponding exterior impedance is used to derive the magnetic field. Only
+the interval supported by the complete FDTD history and every retained
+multiple-reflection impulse is written.
+
+.. code-block:: none
+
+    #ntff_layered_time_far_field_array: 5 175 5 0 355 5 ground_transient transient_pattern Etheta Ephi
 
 #ksir_frequency_rx: and #ksir_frequency_rx_spherical:
 ------------------------------------------------------

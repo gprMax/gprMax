@@ -329,9 +329,7 @@ def build_time_domain_ntff_kernel_source(c_real: str, backend: str = "cuda") -> 
         raise ValueError("backend must be 'cuda', 'opencl', or 'metal'")
 
     if backend == "cuda":
-        preamble = (
-            _CUDA_FLOAT_ATOMIC_PREAMBLE if c_real == "float" else _CUDA_DOUBLE_ATOMIC_PREAMBLE
-        )
+        preamble = _CUDA_FLOAT_ATOMIC_PREAMBLE if c_real == "float" else _CUDA_DOUBLE_ATOMIC_PREAMBLE
         gather_index = "int patch = blockIdx.x * blockDim.x + threadIdx.x;"
         deposit_body = deposit_time_domain_ntff["func_cuda"].substitute(REAL=c_real)
     elif backend == "opencl":
@@ -348,10 +346,7 @@ def build_time_domain_ntff_kernel_source(c_real: str, backend: str = "cuda") -> 
     gather_declaration = gather_time_domain_ntff[f"args_{backend}"].substitute(REAL=c_real)
     gather_body = gather_time_domain_ntff["func"].substitute(REAL=c_real, INDEX=gather_index)
     deposit_declaration = deposit_time_domain_ntff[f"args_{backend}"].substitute(REAL=c_real)
-    return (
-        f"{preamble}\n{gather_declaration}{{\n{gather_body}}}\n"
-        f"{deposit_declaration}{{\n{deposit_body}}}\n"
-    )
+    return f"{preamble}\n{gather_declaration}{{\n{gather_body}}}\n" f"{deposit_declaration}{{\n{deposit_body}}}\n"
 
 
 _EQUIVALENT_CURRENT_GATHER_ARGS = {
@@ -545,11 +540,251 @@ def build_equivalent_current_time_kernel_source(c_real: str, backend: str) -> st
         gather_index = ""
         deposit_index = ""
     gather = _EQUIVALENT_CURRENT_GATHER_ARGS[backend].substitute(REAL=c_real)
-    gather_body = _EQUIVALENT_CURRENT_GATHER_BODY.substitute(
-        REAL=c_real, INDEX=gather_index
-    )
+    gather_body = _EQUIVALENT_CURRENT_GATHER_BODY.substitute(REAL=c_real, INDEX=gather_index)
     deposit = _EQUIVALENT_CURRENT_DEPOSIT_ARGS[backend].substitute(REAL=c_real)
-    deposit_body = _EQUIVALENT_CURRENT_DEPOSIT_BODY.substitute(
-        REAL=c_real, INDEX=deposit_index
+    deposit_body = _EQUIVALENT_CURRENT_DEPOSIT_BODY.substitute(REAL=c_real, INDEX=deposit_index)
+    return f"{preamble}{gather}{{\n{gather_body}}}\n{deposit}{{\n{deposit_body}}}\n"
+
+
+_LAYERED_EQUIVALENT_CURRENT_DEPOSIT_ARGS = {
+    "cuda": Template(
+        """
+extern "C" __global__ void deposit_layered_equivalent_current_time(
+    int ndirections, int npatches, int ntemplates, int output_length,
+    int sample_index, int time_origin_step, int magnetic_current,
+    $REAL inverse_dt,
+    const $REAL* __restrict__ current,
+    const $REAL* __restrict__ previous,
+    const $REAL* __restrict__ local_basis,
+    const $REAL* __restrict__ cos_theta,
+    const $REAL* __restrict__ sin_theta,
+    const $REAL* __restrict__ cos_phi,
+    const $REAL* __restrict__ sin_phi,
+    const $REAL* __restrict__ area_weights,
+    const $REAL* __restrict__ j_common,
+    const $REAL* __restrict__ m_common,
+    const $REAL* __restrict__ inverse_eps_ratio,
+    const $REAL* __restrict__ inverse_mu_ratio,
+    const int* __restrict__ row_template,
+    const int* __restrict__ row_integer_shift,
+    const $REAL* __restrict__ row_fractional_shift,
+    const int* __restrict__ response_offsets,
+    const int* __restrict__ response_bases,
+    const int* __restrict__ response_integer_delay,
+    const $REAL* __restrict__ response_fraction,
+    const $REAL* __restrict__ response_amplitude,
+    $REAL* output_theta, $REAL* output_phi)
+"""
+    ),
+    "opencl": Template(
+        """
+__kernel void deposit_layered_equivalent_current_time(
+    int ndirections, int npatches, int ntemplates, int output_length,
+    int sample_index, int time_origin_step, int magnetic_current,
+    $REAL inverse_dt,
+    __global const $REAL* restrict current,
+    __global const $REAL* restrict previous,
+    __global const $REAL* restrict local_basis,
+    __global const $REAL* restrict cos_theta,
+    __global const $REAL* restrict sin_theta,
+    __global const $REAL* restrict cos_phi,
+    __global const $REAL* restrict sin_phi,
+    __global const $REAL* restrict area_weights,
+    __global const $REAL* restrict j_common,
+    __global const $REAL* restrict m_common,
+    __global const $REAL* restrict inverse_eps_ratio,
+    __global const $REAL* restrict inverse_mu_ratio,
+    __global const int* restrict row_template,
+    __global const int* restrict row_integer_shift,
+    __global const $REAL* restrict row_fractional_shift,
+    __global const int* restrict response_offsets,
+    __global const int* restrict response_bases,
+    __global const int* restrict response_integer_delay,
+    __global const $REAL* restrict response_fraction,
+    __global const $REAL* restrict response_amplitude,
+    __global $REAL* output_theta,
+    __global $REAL* output_phi)
+"""
+    ),
+    "metal": Template(
+        """
+kernel void deposit_layered_equivalent_current_time(
+    device const int& ndirections, device const int& npatches,
+    device const int& ntemplates, device const int& output_length,
+    device const int& sample_index, device const int& time_origin_step,
+    device const int& magnetic_current, device const $REAL& inverse_dt,
+    device const $REAL* current,
+    device const $REAL* previous,
+    device const $REAL* local_basis,
+    device const $REAL* cos_theta,
+    device const $REAL* sin_theta,
+    device const $REAL* cos_phi,
+    device const $REAL* sin_phi,
+    device const $REAL* area_weights,
+    device const $REAL* j_common,
+    device const $REAL* m_common,
+    device const $REAL* inverse_eps_ratio,
+    device const $REAL* inverse_mu_ratio,
+    device const int* row_template,
+    device const int* row_integer_shift,
+    device const $REAL* row_fractional_shift,
+    device const int* response_offsets,
+    device const int* response_bases,
+    device const int* response_integer_delay,
+    device const $REAL* response_fraction,
+    device const $REAL* response_amplitude,
+    device $REAL* output_theta,
+    device $REAL* output_phi,
+    uint direction [[thread_position_in_grid]])
+"""
+    ),
+}
+
+
+_LAYERED_EQUIVALENT_CURRENT_DEPOSIT_BODY = Template(
+    r"""
+    $INDEX
+    if ($CONDITION) {
+        int output_offset = direction * output_length;
+        int ratio_offset = direction * npatches;
+        $REAL half_step = magnetic_current ? ($REAL)0.5 : ($REAL)0;
+        $PATCH_BEGIN
+            int vector = patch * 3;
+            $REAL gx = (current[vector] - previous[vector]) * inverse_dt;
+            $REAL gy = (current[vector + 1] - previous[vector + 1]) * inverse_dt;
+            $REAL gz = (current[vector + 2] - previous[vector + 2]) * inverse_dt;
+            $REAL lx = local_basis[0] * gx + local_basis[1] * gy
+                + local_basis[2] * gz;
+            $REAL ly = local_basis[3] * gx + local_basis[4] * gy
+                + local_basis[5] * gz;
+            $REAL lz = local_basis[6] * gx + local_basis[7] * gy
+                + local_basis[8] * gz;
+            $REAL radial = cos_phi[direction] * lx + sin_phi[direction] * ly;
+            $REAL phi_component = -sin_phi[direction] * lx
+                + cos_phi[direction] * ly;
+            $REAL theta_values[3];
+            $REAL phi_values[3];
+            int theta_responses[3];
+            int phi_responses[3];
+            int theta_count;
+            int phi_count;
+            $REAL area = area_weights[patch];
+            if (magnetic_current) {
+                $REAL common = area * m_common[direction];
+                theta_count = 1;
+                theta_responses[0] = 1;
+                theta_values[0] = common * phi_component;
+                phi_count = 2;
+                phi_responses[0] = 3;
+                phi_values[0] = common * (-cos_theta[direction]) * radial;
+                phi_responses[1] = 2;
+                phi_values[1] = common * cos_theta[direction]
+                    * sin_theta[direction] * inverse_mu_ratio[ratio_offset + patch] * lz;
+            } else {
+                $REAL common = area * j_common[direction];
+                theta_count = 2;
+                theta_responses[0] = 0;
+                theta_values[0] = common * radial;
+                theta_responses[1] = 1;
+                theta_values[1] = common * (-sin_theta[direction])
+                    * inverse_eps_ratio[ratio_offset + patch] * lz;
+                phi_count = 1;
+                phi_responses[0] = 2;
+                phi_values[0] = common * cos_theta[direction] * phi_component;
+            }
+
+            int row = ratio_offset + patch;
+            int template_index = row_template[row];
+            for (int component = 0; component < theta_count + phi_count; component++) {
+                int response;
+                $REAL value;
+                int is_theta = component < theta_count;
+                if (is_theta) {
+                    response = theta_responses[component];
+                    value = theta_values[component];
+                } else {
+                    int phi_component_index = component - theta_count;
+                    response = phi_responses[phi_component_index];
+                    value = phi_values[phi_component_index];
+                }
+                int response_offset = response * (ntemplates + 1);
+                int first = response_bases[response]
+                    + response_offsets[response_offset + template_index];
+                int last = response_bases[response]
+                    + response_offsets[response_offset + template_index + 1];
+                for (int impulse = first; impulse < last; impulse++) {
+                    $REAL coordinate_fraction = response_fraction[impulse]
+                        + row_fractional_shift[row] + half_step;
+                    int carry = (int)floor(coordinate_fraction);
+                    $REAL fraction = coordinate_fraction - ($REAL)carry;
+                    int destination = sample_index
+                        + response_integer_delay[impulse]
+                        + row_integer_shift[row] + carry - time_origin_step;
+                    $REAL weighted = value * response_amplitude[impulse];
+                    device_atomic_add(
+                        is_theta ? output_theta + output_offset + destination
+                                 : output_phi + output_offset + destination,
+                        (($REAL)1 - fraction) * weighted);
+                    device_atomic_add(
+                        is_theta ? output_theta + output_offset + destination + 1
+                                 : output_phi + output_offset + destination + 1,
+                        fraction * weighted);
+                }
+            }
+        $PATCH_END
+    }
+"""
+)
+
+
+def build_layered_equivalent_current_time_kernel_source(c_real: str, backend: str) -> str:
+    """Render gather and layered delayed-deposition kernels for accelerators."""
+
+    if c_real not in ("float", "double"):
+        raise ValueError("c_real must be 'float' or 'double'")
+    if backend not in ("cuda", "opencl", "metal"):
+        raise ValueError("backend must be 'cuda', 'opencl', or 'metal'")
+    if backend == "cuda":
+        atomic_preamble = _CUDA_FLOAT_ATOMIC_PREAMBLE if c_real == "float" else _CUDA_DOUBLE_ATOMIC_PREAMBLE
+        preamble = atomic_preamble.replace("ksir_atomic_add", "device_atomic_add")
+        gather_index = "int patch = blockIdx.x * blockDim.x + threadIdx.x;"
+        deposit_index = (
+            "int row = blockIdx.x * blockDim.x + threadIdx.x; "
+            "int direction = row / npatches; int patch = row - direction * npatches;"
+        )
+        deposit_condition = "row < ndirections * npatches"
+        patch_begin = ""
+        patch_end = ""
+    elif backend == "opencl":
+        preamble = "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n" if c_real == "double" else ""
+        # One work item owns each direction, so no atomic operation is needed.
+        preamble += (
+            f"inline void device_atomic_add(__global {c_real}* address, {c_real} value) {{ *address += value; }}\n"
+        )
+        gather_index = "int patch = get_global_id(0);"
+        deposit_index = "int direction = get_global_id(0);"
+        deposit_condition = "direction < ndirections"
+        patch_begin = "for (int patch = 0; patch < npatches; patch++) {"
+        patch_end = "}"
+    else:
+        preamble = (
+            "#include <metal_stdlib>\nusing namespace metal;\n"
+            f"inline void device_atomic_add(device {c_real}* address, {c_real} value) "
+            "{ *address += value; }\n"
+        )
+        gather_index = ""
+        deposit_index = ""
+        deposit_condition = "direction < ndirections"
+        patch_begin = "for (int patch = 0; patch < npatches; patch++) {"
+        patch_end = "}"
+    gather = _EQUIVALENT_CURRENT_GATHER_ARGS[backend].substitute(REAL=c_real)
+    gather_body = _EQUIVALENT_CURRENT_GATHER_BODY.substitute(REAL=c_real, INDEX=gather_index)
+    deposit = _LAYERED_EQUIVALENT_CURRENT_DEPOSIT_ARGS[backend].substitute(REAL=c_real)
+    deposit_body = _LAYERED_EQUIVALENT_CURRENT_DEPOSIT_BODY.substitute(
+        REAL=c_real,
+        INDEX=deposit_index,
+        CONDITION=deposit_condition,
+        PATCH_BEGIN=patch_begin,
+        PATCH_END=patch_end,
     )
     return f"{preamble}{gather}{{\n{gather_body}}}\n{deposit}{{\n{deposit_body}}}\n"

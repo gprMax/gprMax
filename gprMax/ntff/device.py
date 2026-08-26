@@ -27,6 +27,7 @@ import numpy.typing as npt
 
 from gprMax.cuda_opencl.knl_ntff import (
     build_equivalent_current_time_kernel_source,
+    build_layered_equivalent_current_time_kernel_source,
     build_ntff_kernel_source,
     build_time_domain_ntff_kernel_source,
 )
@@ -45,6 +46,10 @@ def _is_time_domain_monitor(monitor) -> bool:
 
 def _is_equivalent_current_time_monitor(monitor) -> bool:
     return hasattr(monitor, "load_device_far_field_output")
+
+
+def _is_layered_equivalent_current_time_monitor(monitor) -> bool:
+    return _is_equivalent_current_time_monitor(monitor) and hasattr(monitor, "_response_csr")
 
 
 def configure_ntff_monitors(grid, *, allow_time_domain: bool = False) -> None:
@@ -142,9 +147,7 @@ class _DeviceKSIRCollector:
                     )
                 reference_index = int(monitor._incident_reference_index)
                 if reference_index < 0 or reference_index > limits.max:
-                    raise ValueError(
-                        "KSIR incident plane-wave reference index exceeds device " "int32 indexing"
-                    )
+                    raise ValueError("KSIR incident plane-wave reference index exceeds device " "int32 indexing")
                 component_records = []
                 indices = np.asarray([reference_index], dtype=np.int32)
                 for axis, component in enumerate(ELECTRIC_COMPONENTS):
@@ -173,9 +176,7 @@ class _DeviceKSIRCollector:
     ) -> None:
         raise NotImplementedError
 
-    def _download(
-        self, record: _ComponentRecord
-    ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
+    def _download(self, record: _ComponentRecord) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
         raise NotImplementedError
 
     def _observe(self, iteration: int, components: Iterable[str]) -> None:
@@ -228,9 +229,7 @@ class CUDAKSIRCollector(_DeviceKSIRCollector):
     def __init__(self, updates, monitors=None, *, configure: bool = True):
         c_real = updates.ntff_c_real
         source = build_ntff_kernel_source("cuda", c_real)
-        module = updates.source_module(
-            source, options=getattr(updates, "ntff_compiler_options", None)
-        )
+        module = updates.source_module(source, options=getattr(updates, "ntff_compiler_options", None))
         self.kernel = module.get_function("accumulate_ntff")
         self.gpuarray = updates.grid.gpuarray
         self.real_dtype = np.dtype(updates.grid.Ex.dtype)
@@ -273,8 +272,7 @@ class CUDAKSIRCollector(_DeviceKSIRCollector):
 
     def _download(self, record):
         return tuple(
-            record.device[name].get()
-            for name in ("inside_real", "inside_imag", "outside_real", "outside_imag")
+            record.device[name].get() for name in ("inside_real", "inside_imag", "outside_real", "outside_imag")
         )
 
 
@@ -309,9 +307,7 @@ class CUDATimeDomainKSIRCollector:
         self.inverse_two_dt = 1 / (2 * self.grid.dt)
         self.gpuarray = self.grid.gpuarray
         source = build_time_domain_ntff_kernel_source(updates.ntff_c_real)
-        module = updates.source_module(
-            source, options=getattr(updates, "ntff_compiler_options", None)
-        )
+        module = updates.source_module(source, options=getattr(updates, "ntff_compiler_options", None))
         self.gather_kernel = module.get_function("gather_time_domain_ntff")
         self.deposit_kernel = module.get_function("deposit_time_domain_ntff")
         self._initialise_records("cuda")
@@ -340,10 +336,7 @@ class CUDATimeDomainKSIRCollector:
                     output_length=monitor.output_length,
                     device={},
                 )
-                if (
-                    record.total > int_limit.max
-                    or record.npoints * record.output_length > int_limit.max
-                ):
+                if record.total > int_limit.max or record.npoints * record.output_length > int_limit.max:
                     raise ValueError("KSIR time-domain arrays exceed device int32 indexing")
                 self._allocate(record, accumulator)
                 self.records.append(record)
@@ -374,19 +367,13 @@ class CUDATimeDomainKSIRCollector:
             "fractional_delay": accumulator._fractional_delay.ravel(),
         }
         for name, values in real_arrays.items():
-            record.device[name] = self.gpuarray.to_gpu(
-                np.ascontiguousarray(values, dtype=self.real_dtype)
-            )
+            record.device[name] = self.gpuarray.to_gpu(np.ascontiguousarray(values, dtype=self.real_dtype))
 
-        record.device["surface"] = [
-            self.gpuarray.empty(record.nbase_patches, self.real_dtype) for _ in range(3)
-        ]
+        record.device["surface"] = [self.gpuarray.empty(record.nbase_patches, self.real_dtype) for _ in range(3)]
         record.device["normal_derivative"] = [
             self.gpuarray.empty(record.nbase_patches, self.real_dtype) for _ in range(3)
         ]
-        record.device["output"] = self.gpuarray.zeros(
-            record.npoints * record.output_length, self.real_dtype
-        )
+        record.device["output"] = self.gpuarray.zeros(record.npoints * record.output_length, self.real_dtype)
 
     def _gather(self, record: _TimeComponentRecord, iteration: int) -> None:
         slot = iteration % 3
@@ -448,9 +435,7 @@ class CUDATimeDomainKSIRCollector:
             if record.component not in selected:
                 continue
             if iteration != record.observed:
-                raise ValueError(
-                    f"expected device KSIR iteration {record.observed}, received {iteration}"
-                )
+                raise ValueError(f"expected device KSIR iteration {record.observed}, received {iteration}")
             self._gather(record, iteration)
             record.observed += 1
             if iteration < 2:
@@ -483,8 +468,7 @@ class CUDATimeDomainKSIRCollector:
         iterations = record.monitor.iterations
         if record.observed != iterations:
             raise RuntimeError(
-                f"device KSIR component {record.component} received "
-                f"{record.observed} of {iterations} samples"
+                f"device KSIR component {record.component} received " f"{record.observed} of {iterations} samples"
             )
         if iterations == 1:
             self._deposit(record, 0, (0, 0, 0), (0, 0, 0))
@@ -539,9 +523,7 @@ class _EquivalentCurrentTimeCollector:
         limits = np.iinfo(np.int32)
         for monitor in self.monitors:
             if monitor.device_backend != backend:
-                raise ValueError(
-                    f"{backend} equivalent-current monitor is not configured for {backend}"
-                )
+                raise ValueError(f"{backend} equivalent-current monitor is not configured for {backend}")
             if monitor.real_dtype != self.real_dtype:
                 raise ValueError("equivalent-current monitor dtype does not match field dtype")
             max_samples = max(
@@ -586,44 +568,26 @@ class _EquivalentCurrentTimeCollector:
         monitor = record.monitor
         result = {
             "normals": np.ascontiguousarray(monitor.normals, dtype=self.real_dtype),
-            "area_weights": np.ascontiguousarray(
-                monitor.area_weights, dtype=self.real_dtype
-            ),
-            "electric_theta_basis": np.ascontiguousarray(
-                monitor.phi_basis, dtype=self.real_dtype
-            ),
-            "electric_phi_basis": np.ascontiguousarray(
-                -monitor.theta_basis, dtype=self.real_dtype
-            ),
-            "magnetic_theta_basis": np.ascontiguousarray(
-                monitor.theta_basis, dtype=self.real_dtype
-            ),
-            "magnetic_phi_basis": np.ascontiguousarray(
-                monitor.phi_basis, dtype=self.real_dtype
-            ),
+            "area_weights": np.ascontiguousarray(monitor.area_weights, dtype=self.real_dtype),
+            "electric_theta_basis": np.ascontiguousarray(monitor.phi_basis, dtype=self.real_dtype),
+            "electric_phi_basis": np.ascontiguousarray(-monitor.theta_basis, dtype=self.real_dtype),
+            "magnetic_theta_basis": np.ascontiguousarray(monitor.theta_basis, dtype=self.real_dtype),
+            "magnetic_phi_basis": np.ascontiguousarray(monitor.phi_basis, dtype=self.real_dtype),
         }
         for kind, components in (
             ("electric", ELECTRIC_COMPONENTS),
             ("magnetic", MAGNETIC_COMPONENTS),
         ):
             for axis, component in zip("xyz", components):
-                count, stencil = self._packed_component_stencil(
-                    monitor, component, record.max_samples
-                )
+                count, stencil = self._packed_component_stencil(monitor, component, record.max_samples)
                 result[f"{kind}_count_{axis}"] = count
                 result[f"{kind}_stencil_{axis}"] = stencil
         for kind, offset in (("electric", 0.5), ("magnetic", 0.0)):
             integer_delay, fraction = monitor._delay_maps[offset]
-            if np.any(integer_delay < np.iinfo(np.int32).min) or np.any(
-                integer_delay > np.iinfo(np.int32).max
-            ):
+            if np.any(integer_delay < np.iinfo(np.int32).min) or np.any(integer_delay > np.iinfo(np.int32).max):
                 raise ValueError("equivalent-current delay exceeds device int32 indexing")
-            result[f"{kind}_integer_delay"] = np.ascontiguousarray(
-                integer_delay.ravel(), dtype=np.int32
-            )
-            result[f"{kind}_fractional_delay"] = np.ascontiguousarray(
-                fraction.ravel(), dtype=self.real_dtype
-            )
+            result[f"{kind}_integer_delay"] = np.ascontiguousarray(integer_delay.ravel(), dtype=np.int32)
+            result[f"{kind}_fractional_delay"] = np.ascontiguousarray(fraction.ravel(), dtype=self.real_dtype)
         return result
 
     def _allocate_equivalent(self, record, metadata) -> None:
@@ -645,8 +609,7 @@ class _EquivalentCurrentTimeCollector:
             expected = getattr(record, counter_name)
             if iteration != expected:
                 raise ValueError(
-                    f"expected device equivalent-current {kind} iteration "
-                    f"{expected}, received {iteration}"
+                    f"expected device equivalent-current {kind} iteration " f"{expected}, received {iteration}"
                 )
             slot = iteration % 2
             current = record.device[f"{kind}_current_{slot}"]
@@ -655,9 +618,7 @@ class _EquivalentCurrentTimeCollector:
             if iteration > 0:
                 previous = record.device[f"{kind}_current_{1 - slot}"]
                 sample_index = iteration if kind == "magnetic" else iteration - 1
-                self._deposit_equivalent(
-                    record, kind, sample_index, current, previous
-                )
+                self._deposit_equivalent(record, kind, sample_index, current, previous)
             setattr(record, counter_name, expected + 1)
 
     def observe_electric(self, iteration: int) -> None:
@@ -680,6 +641,147 @@ class _EquivalentCurrentTimeCollector:
             record.monitor.finalise()
 
 
+class _LayeredEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
+    """Backend-neutral orchestration for the direct layered time transform."""
+
+    def _initialise_layered_records(self, backend: str) -> None:
+        self.records: List[_EquivalentCurrentTimeRecord] = []
+        limits = np.iinfo(np.int32)
+        for monitor in self.monitors:
+            if monitor.device_backend != backend:
+                raise ValueError(f"{backend} layered-current monitor is not configured for {backend}")
+            if monitor.real_dtype != self.real_dtype:
+                raise ValueError("layered-current monitor dtype does not match field dtype")
+            max_samples = max(
+                stencil.shape[0]
+                for component in ELECTRIC_COMPONENTS + MAGNETIC_COMPONENTS
+                for _, stencil in monitor._stencils[component]
+            )
+            record = _EquivalentCurrentTimeRecord(
+                monitor=monitor,
+                npatches=int(monitor.npatches),
+                ndirections=int(monitor.directions.shape[0]),
+                output_length=int(monitor._raw_length),
+                max_samples=int(max_samples),
+                device={},
+            )
+            sizes = (
+                record.npatches,
+                record.ndirections,
+                record.output_length,
+                record.npatches * record.ndirections,
+                record.ndirections * record.output_length,
+            )
+            if any(size > limits.max for size in sizes):
+                raise ValueError("layered-current time arrays exceed device int32 indexing")
+            metadata = self._layered_metadata(record)
+            self._allocate_layered(record, metadata)
+            self.records.append(record)
+
+    def _layered_metadata(self, record: _EquivalentCurrentTimeRecord):
+        monitor = record.monitor
+        limits = np.iinfo(np.int32)
+        result = {
+            "normals": np.ascontiguousarray(monitor.normals, dtype=self.real_dtype),
+            "local_basis": np.ascontiguousarray(monitor.local_basis, dtype=self.real_dtype),
+            "area_weights": np.ascontiguousarray(monitor.area_weights, dtype=self.real_dtype),
+            "cos_theta": np.ascontiguousarray(monitor._cos_theta, dtype=self.real_dtype),
+            "sin_theta": np.ascontiguousarray(monitor._sin_theta, dtype=self.real_dtype),
+            "cos_phi": np.ascontiguousarray(monitor._cos_phi, dtype=self.real_dtype),
+            "sin_phi": np.ascontiguousarray(monitor._sin_phi, dtype=self.real_dtype),
+            "j_common": np.ascontiguousarray(monitor._j_common, dtype=self.real_dtype),
+            "m_common": np.ascontiguousarray(monitor._m_common, dtype=self.real_dtype),
+            "inverse_eps_ratio": np.ascontiguousarray(monitor._inverse_eps_ratio.ravel(), dtype=self.real_dtype),
+            "inverse_mu_ratio": np.ascontiguousarray(monitor._inverse_mu_ratio.ravel(), dtype=self.real_dtype),
+        }
+        for kind, components in (
+            ("electric", ELECTRIC_COMPONENTS),
+            ("magnetic", MAGNETIC_COMPONENTS),
+        ):
+            for axis, component in zip("xyz", components):
+                count, stencil = self._packed_component_stencil(monitor, component, record.max_samples)
+                result[f"{kind}_count_{axis}"] = count
+                result[f"{kind}_stencil_{axis}"] = stencil
+
+        integer_metadata = {
+            "row_template": monitor._row_template,
+            "row_integer_shift": monitor._row_integer_shift,
+        }
+        for name, values in integer_metadata.items():
+            values = np.asarray(values)
+            if np.any(values < limits.min) or np.any(values > limits.max):
+                raise ValueError(f"{name} exceeds device int32 indexing")
+            result[name] = np.ascontiguousarray(values, dtype=np.int32)
+        result["row_fractional_shift"] = np.ascontiguousarray(monitor._row_fractional_shift, dtype=self.real_dtype)
+
+        response_offsets = []
+        response_bases = [0]
+        response_integer = []
+        response_fraction = []
+        response_amplitude = []
+        ntemplates = None
+        for offsets, integer, fraction, amplitude in monitor._response_csr:
+            offsets = np.asarray(offsets)
+            if ntemplates is None:
+                ntemplates = offsets.size - 1
+            elif offsets.size != ntemplates + 1:
+                raise ValueError("layered response templates have inconsistent sizes")
+            if np.any(offsets < 0) or np.any(offsets > limits.max):
+                raise ValueError("layered response offset exceeds device int32 indexing")
+            integer = np.asarray(integer)
+            if np.any(integer < limits.min) or np.any(integer > limits.max):
+                raise ValueError("layered response delay exceeds device int32 indexing")
+            response_offsets.append(offsets.astype(np.int32, copy=False))
+            response_integer.append(integer.astype(np.int32, copy=False))
+            response_fraction.append(np.asarray(fraction, dtype=self.real_dtype))
+            response_amplitude.append(np.asarray(amplitude, dtype=self.real_dtype))
+            response_bases.append(response_bases[-1] + integer.size)
+        if response_bases[-1] > limits.max:
+            raise ValueError("layered response storage exceeds device int32 indexing")
+        record.ntemplates = int(ntemplates)
+        result["response_offsets"] = np.ascontiguousarray(np.concatenate(response_offsets), dtype=np.int32)
+        result["response_bases"] = np.ascontiguousarray(response_bases, dtype=np.int32)
+        result["response_integer_delay"] = np.ascontiguousarray(np.concatenate(response_integer), dtype=np.int32)
+        result["response_fraction"] = np.ascontiguousarray(np.concatenate(response_fraction), dtype=self.real_dtype)
+        result["response_amplitude"] = np.ascontiguousarray(np.concatenate(response_amplitude), dtype=self.real_dtype)
+        return result
+
+    def _allocate_layered(self, record, metadata) -> None:
+        raise NotImplementedError
+
+    def _deposit_layered_equivalent(self, record, magnetic_current, sample_index, current, previous) -> None:
+        raise NotImplementedError
+
+    def _observe_equivalent(self, iteration: int, kind: str) -> None:
+        counter_name = f"{kind}_observed"
+        for record in self.records:
+            expected = getattr(record, counter_name)
+            if iteration != expected:
+                raise ValueError(
+                    f"expected device layered-current {kind} iteration " f"{expected}, received {iteration}"
+                )
+            slot = iteration % 2
+            current = record.device[f"{kind}_current_{slot}"]
+            magnetic_current = kind == "electric"
+            self._gather_equivalent(
+                record,
+                kind,
+                current,
+                -1.0 if magnetic_current else 1.0,
+            )
+            if iteration > 0:
+                previous = record.device[f"{kind}_current_{1 - slot}"]
+                sample_index = iteration - 1 if magnetic_current else iteration
+                self._deposit_layered_equivalent(
+                    record,
+                    magnetic_current,
+                    sample_index,
+                    current,
+                    previous,
+                )
+            setattr(record, counter_name, expected + 1)
+
+
 class CUDAEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
     """Device-resident 1997 Love-current transform on CUDA."""
 
@@ -690,12 +792,8 @@ class CUDAEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
         self.real_dtype = np.dtype(self.grid.Ex.dtype)
         self.real_scalar = self.real_dtype.type
         self.gpuarray = self.grid.gpuarray
-        source = build_equivalent_current_time_kernel_source(
-            updates.ntff_c_real, "cuda"
-        )
-        module = updates.source_module(
-            source, options=getattr(updates, "ntff_compiler_options", None)
-        )
+        source = build_equivalent_current_time_kernel_source(updates.ntff_c_real, "cuda")
+        module = updates.source_module(source, options=getattr(updates, "ntff_compiler_options", None))
         self.gather_kernel = module.get_function("gather_equivalent_current_time")
         self.deposit_kernel = module.get_function("deposit_equivalent_current_time")
         self._initialise_equivalent_records("cuda")
@@ -705,43 +803,54 @@ class CUDAEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
             record.device[name] = self.gpuarray.to_gpu(values)
         for kind in ("electric", "magnetic"):
             for slot in range(2):
-                record.device[f"{kind}_current_{slot}"] = self.gpuarray.empty(
-                    record.npatches * 3, self.real_dtype
-                )
+                record.device[f"{kind}_current_{slot}"] = self.gpuarray.empty(record.npatches * 3, self.real_dtype)
         for name in ("output_theta", "output_phi"):
-            record.device[name] = self.gpuarray.zeros(
-                record.ndirections * record.output_length, self.real_dtype
-            )
+            record.device[name] = self.gpuarray.zeros(record.ndirections * record.output_length, self.real_dtype)
 
     def _gather_equivalent(self, record, kind, target, scale) -> None:
         d = record.device
-        fields = tuple(getattr(self.grid, f"{component}_dev") for component in (
-            ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS
-        ))
+        fields = tuple(
+            getattr(self.grid, f"{component}_dev")
+            for component in (ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS)
+        )
         self.gather_kernel(
-            np.int32(record.npatches), np.int32(record.max_samples),
-            d[f"{kind}_count_x"].gpudata, d[f"{kind}_count_y"].gpudata,
-            d[f"{kind}_count_z"].gpudata, d[f"{kind}_stencil_x"].gpudata,
-            d[f"{kind}_stencil_y"].gpudata, d[f"{kind}_stencil_z"].gpudata,
-            d["normals"].gpudata, self.real_scalar(scale),
-            fields[0].gpudata, fields[1].gpudata, fields[2].gpudata,
-            target.gpudata, block=(self._threads, 1, 1),
+            np.int32(record.npatches),
+            np.int32(record.max_samples),
+            d[f"{kind}_count_x"].gpudata,
+            d[f"{kind}_count_y"].gpudata,
+            d[f"{kind}_count_z"].gpudata,
+            d[f"{kind}_stencil_x"].gpudata,
+            d[f"{kind}_stencil_y"].gpudata,
+            d[f"{kind}_stencil_z"].gpudata,
+            d["normals"].gpudata,
+            self.real_scalar(scale),
+            fields[0].gpudata,
+            fields[1].gpudata,
+            fields[2].gpudata,
+            target.gpudata,
+            block=(self._threads, 1, 1),
             grid=((record.npatches + self._threads - 1) // self._threads, 1, 1),
         )
 
     def _deposit_equivalent(self, record, kind, sample_index, current, previous) -> None:
         d = record.device
         self.deposit_kernel(
-            np.int32(record.ndirections), np.int32(record.npatches),
-            np.int32(record.output_length), np.int32(sample_index),
+            np.int32(record.ndirections),
+            np.int32(record.npatches),
+            np.int32(record.output_length),
+            np.int32(sample_index),
             np.int32(record.monitor._time_origin_step),
-            self.real_scalar(1 / record.monitor.dt), current.gpudata,
-            previous.gpudata, d[f"{kind}_theta_basis"].gpudata,
+            self.real_scalar(1 / record.monitor.dt),
+            current.gpudata,
+            previous.gpudata,
+            d[f"{kind}_theta_basis"].gpudata,
             d[f"{kind}_phi_basis"].gpudata,
             d[f"{kind}_integer_delay"].gpudata,
             d[f"{kind}_fractional_delay"].gpudata,
-            d["area_weights"].gpudata, d["output_theta"].gpudata,
-            d["output_phi"].gpudata, block=(self._threads, 1, 1),
+            d["area_weights"].gpudata,
+            d["output_theta"].gpudata,
+            d["output_phi"].gpudata,
+            block=(self._threads, 1, 1),
             grid=((record.ndirections + self._threads - 1) // self._threads, 1, 1),
         )
 
@@ -749,33 +858,95 @@ class CUDAEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
         return record.device[name].get()
 
 
+class CUDALayeredEquivalentCurrentTimeCollector(
+    _LayeredEquivalentCurrentTimeCollector, CUDAEquivalentCurrentTimeCollector
+):
+    """Device-resident direct layered time transform on CUDA."""
+
+    def __init__(self, updates, monitors):
+        self.updates = updates
+        self.grid = updates.grid
+        self.monitors = list(monitors)
+        self.real_dtype = np.dtype(self.grid.Ex.dtype)
+        self.real_scalar = self.real_dtype.type
+        self.gpuarray = self.grid.gpuarray
+        source = build_layered_equivalent_current_time_kernel_source(updates.ntff_c_real, "cuda")
+        module = updates.source_module(source, options=getattr(updates, "ntff_compiler_options", None))
+        self.gather_kernel = module.get_function("gather_equivalent_current_time")
+        self.deposit_kernel = module.get_function("deposit_layered_equivalent_current_time")
+        self._initialise_layered_records("cuda")
+
+    def _allocate_layered(self, record, metadata) -> None:
+        for name, values in metadata.items():
+            record.device[name] = self.gpuarray.to_gpu(values)
+        for kind in ("electric", "magnetic"):
+            for slot in range(2):
+                record.device[f"{kind}_current_{slot}"] = self.gpuarray.empty(record.npatches * 3, self.real_dtype)
+        for name in ("output_theta", "output_phi"):
+            record.device[name] = self.gpuarray.zeros(record.ndirections * record.output_length, self.real_dtype)
+
+    def _deposit_layered_equivalent(self, record, magnetic_current, sample_index, current, previous) -> None:
+        d = record.device
+        total = record.ndirections * record.npatches
+        self.deposit_kernel(
+            np.int32(record.ndirections),
+            np.int32(record.npatches),
+            np.int32(record.ntemplates),
+            np.int32(record.output_length),
+            np.int32(sample_index),
+            np.int32(record.monitor._time_origin_step),
+            np.int32(magnetic_current),
+            self.real_scalar(1 / record.monitor.dt),
+            current.gpudata,
+            previous.gpudata,
+            d["local_basis"].gpudata,
+            d["cos_theta"].gpudata,
+            d["sin_theta"].gpudata,
+            d["cos_phi"].gpudata,
+            d["sin_phi"].gpudata,
+            d["area_weights"].gpudata,
+            d["j_common"].gpudata,
+            d["m_common"].gpudata,
+            d["inverse_eps_ratio"].gpudata,
+            d["inverse_mu_ratio"].gpudata,
+            d["row_template"].gpudata,
+            d["row_integer_shift"].gpudata,
+            d["row_fractional_shift"].gpudata,
+            d["response_offsets"].gpudata,
+            d["response_bases"].gpudata,
+            d["response_integer_delay"].gpudata,
+            d["response_fraction"].gpudata,
+            d["response_amplitude"].gpudata,
+            d["output_theta"].gpudata,
+            d["output_phi"].gpudata,
+            block=(self._threads, 1, 1),
+            grid=((total + self._threads - 1) // self._threads, 1, 1),
+        )
+
+
 class CUDACombinedKSIRCollector:
     """Dispatch all NTFF monitors on CUDA."""
 
     def __init__(self, updates):
         configure_ntff_monitors(updates.grid, allow_time_domain=True)
-        frequency_monitors = [
-            monitor for monitor in updates.grid.ntff_monitors if _is_frequency_monitor(monitor)
-        ]
-        time_monitors = [
-            monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)
+        frequency_monitors = [monitor for monitor in updates.grid.ntff_monitors if _is_frequency_monitor(monitor)]
+        time_monitors = [monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)]
+        layered_equivalent_time_monitors = [
+            monitor for monitor in updates.grid.ntff_monitors if _is_layered_equivalent_current_time_monitor(monitor)
         ]
         equivalent_time_monitors = [
             monitor
             for monitor in updates.grid.ntff_monitors
-            if _is_equivalent_current_time_monitor(monitor)
+            if _is_equivalent_current_time_monitor(monitor) and not _is_layered_equivalent_current_time_monitor(monitor)
         ]
-        self.frequency = (
-            CUDAKSIRCollector(updates, frequency_monitors, configure=False)
-            if frequency_monitors
-            else None
-        )
-        self.time_domain = (
-            CUDATimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
-        )
+        self.frequency = CUDAKSIRCollector(updates, frequency_monitors, configure=False) if frequency_monitors else None
+        self.time_domain = CUDATimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
         self.equivalent_time = (
-            CUDAEquivalentCurrentTimeCollector(updates, equivalent_time_monitors)
-            if equivalent_time_monitors
+            CUDAEquivalentCurrentTimeCollector(updates, equivalent_time_monitors) if equivalent_time_monitors else None
+        )
+        self.layered_equivalent_time = (
+            CUDALayeredEquivalentCurrentTimeCollector(updates, layered_equivalent_time_monitors)
+            if layered_equivalent_time_monitors
             else None
         )
 
@@ -786,6 +957,8 @@ class CUDACombinedKSIRCollector:
             self.time_domain.observe_electric(iteration)
         if self.equivalent_time is not None:
             self.equivalent_time.observe_electric(iteration)
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.observe_electric(iteration)
 
     def observe_magnetic(self, iteration: int) -> None:
         if self.frequency is not None:
@@ -794,6 +967,8 @@ class CUDACombinedKSIRCollector:
             self.time_domain.observe_magnetic(iteration)
         if self.equivalent_time is not None:
             self.equivalent_time.observe_magnetic(iteration)
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.observe_magnetic(iteration)
 
     def finalise(self) -> None:
         if self.frequency is not None:
@@ -802,6 +977,8 @@ class CUDACombinedKSIRCollector:
             self.time_domain.finalise()
         if self.equivalent_time is not None:
             self.equivalent_time.finalise()
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.finalise()
 
 
 class OpenCLKSIRCollector(_DeviceKSIRCollector):
@@ -820,12 +997,8 @@ class OpenCLKSIRCollector(_DeviceKSIRCollector):
     def _allocate(self, record: _ComponentRecord) -> None:
         record.device["inside_index"] = self.clarray.to_device(self.queue, record.inside_index)
         record.device["outside_index"] = self.clarray.to_device(self.queue, record.outside_index)
-        record.device["multiplier_real"] = self.clarray.empty(
-            self.queue, record.nfrequencies, self.real_dtype
-        )
-        record.device["multiplier_imag"] = self.clarray.empty(
-            self.queue, record.nfrequencies, self.real_dtype
-        )
+        record.device["multiplier_real"] = self.clarray.empty(self.queue, record.nfrequencies, self.real_dtype)
+        record.device["multiplier_imag"] = self.clarray.empty(self.queue, record.nfrequencies, self.real_dtype)
         for name in ("inside_real", "inside_imag", "outside_real", "outside_imag"):
             record.device[name] = self.clarray.zeros(self.queue, record.total, self.real_dtype)
 
@@ -988,9 +1161,7 @@ class OpenCLEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
         self.real_scalar = self.real_dtype.type
         self.clarray = self.grid.clarray
         self.queue = updates.queue
-        source = build_equivalent_current_time_kernel_source(
-            updates.ntff_c_real, "opencl"
-        )
+        source = build_equivalent_current_time_kernel_source(updates.ntff_c_real, "opencl")
         options = getattr(updates, "ntff_compiler_options", None)
         program = updates.cl.Program(updates.ctx, source).build(options=options)
         self.gather_kernel = program.gather_equivalent_current_time
@@ -1014,35 +1185,129 @@ class OpenCLEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
 
     def _gather_equivalent(self, record, kind, target, scale) -> None:
         d = record.device
-        fields = tuple(getattr(self.grid, f"{component}_dev") for component in (
-            ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS
-        ))
+        fields = tuple(
+            getattr(self.grid, f"{component}_dev")
+            for component in (ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS)
+        )
         self.gather_kernel(
-            self.queue, (record.npatches,), None,
-            np.int32(record.npatches), np.int32(record.max_samples),
-            d[f"{kind}_count_x"].data, d[f"{kind}_count_y"].data,
-            d[f"{kind}_count_z"].data, d[f"{kind}_stencil_x"].data,
-            d[f"{kind}_stencil_y"].data, d[f"{kind}_stencil_z"].data,
-            d["normals"].data, self.real_scalar(scale), fields[0].data,
-            fields[1].data, fields[2].data, target.data,
+            self.queue,
+            (record.npatches,),
+            None,
+            np.int32(record.npatches),
+            np.int32(record.max_samples),
+            d[f"{kind}_count_x"].data,
+            d[f"{kind}_count_y"].data,
+            d[f"{kind}_count_z"].data,
+            d[f"{kind}_stencil_x"].data,
+            d[f"{kind}_stencil_y"].data,
+            d[f"{kind}_stencil_z"].data,
+            d["normals"].data,
+            self.real_scalar(scale),
+            fields[0].data,
+            fields[1].data,
+            fields[2].data,
+            target.data,
         )
 
     def _deposit_equivalent(self, record, kind, sample_index, current, previous) -> None:
         d = record.device
         self.deposit_kernel(
-            self.queue, (record.ndirections,), None,
-            np.int32(record.ndirections), np.int32(record.npatches),
-            np.int32(record.output_length), np.int32(sample_index),
+            self.queue,
+            (record.ndirections,),
+            None,
+            np.int32(record.ndirections),
+            np.int32(record.npatches),
+            np.int32(record.output_length),
+            np.int32(sample_index),
             np.int32(record.monitor._time_origin_step),
-            self.real_scalar(1 / record.monitor.dt), current.data, previous.data,
-            d[f"{kind}_theta_basis"].data, d[f"{kind}_phi_basis"].data,
+            self.real_scalar(1 / record.monitor.dt),
+            current.data,
+            previous.data,
+            d[f"{kind}_theta_basis"].data,
+            d[f"{kind}_phi_basis"].data,
             d[f"{kind}_integer_delay"].data,
-            d[f"{kind}_fractional_delay"].data, d["area_weights"].data,
-            d["output_theta"].data, d["output_phi"].data,
+            d[f"{kind}_fractional_delay"].data,
+            d["area_weights"].data,
+            d["output_theta"].data,
+            d["output_phi"].data,
         )
 
     def _download_equivalent(self, record, name):
         return record.device[name].get(queue=self.queue)
+
+
+class OpenCLLayeredEquivalentCurrentTimeCollector(
+    _LayeredEquivalentCurrentTimeCollector, OpenCLEquivalentCurrentTimeCollector
+):
+    """Device-resident direct layered time transform on OpenCL."""
+
+    def __init__(self, updates, monitors):
+        self.updates = updates
+        self.grid = updates.grid
+        self.monitors = list(monitors)
+        self.real_dtype = np.dtype(self.grid.Ex.dtype)
+        self.real_scalar = self.real_dtype.type
+        self.clarray = self.grid.clarray
+        self.queue = updates.queue
+        source = build_layered_equivalent_current_time_kernel_source(updates.ntff_c_real, "opencl")
+        options = getattr(updates, "ntff_compiler_options", None)
+        program = updates.cl.Program(updates.ctx, source).build(options=options)
+        self.gather_kernel = program.gather_equivalent_current_time
+        self.deposit_kernel = program.deposit_layered_equivalent_current_time
+        self._initialise_layered_records("opencl")
+
+    def _allocate_layered(self, record, metadata) -> None:
+        for name, values in metadata.items():
+            record.device[name] = self.clarray.to_device(self.queue, values)
+        for kind in ("electric", "magnetic"):
+            for slot in range(2):
+                record.device[f"{kind}_current_{slot}"] = self.clarray.empty(
+                    self.queue, record.npatches * 3, self.real_dtype
+                )
+        for name in ("output_theta", "output_phi"):
+            record.device[name] = self.clarray.zeros(
+                self.queue,
+                record.ndirections * record.output_length,
+                self.real_dtype,
+            )
+
+    def _deposit_layered_equivalent(self, record, magnetic_current, sample_index, current, previous) -> None:
+        d = record.device
+        self.deposit_kernel(
+            self.queue,
+            (record.ndirections,),
+            None,
+            np.int32(record.ndirections),
+            np.int32(record.npatches),
+            np.int32(record.ntemplates),
+            np.int32(record.output_length),
+            np.int32(sample_index),
+            np.int32(record.monitor._time_origin_step),
+            np.int32(magnetic_current),
+            self.real_scalar(1 / record.monitor.dt),
+            current.data,
+            previous.data,
+            d["local_basis"].data,
+            d["cos_theta"].data,
+            d["sin_theta"].data,
+            d["cos_phi"].data,
+            d["sin_phi"].data,
+            d["area_weights"].data,
+            d["j_common"].data,
+            d["m_common"].data,
+            d["inverse_eps_ratio"].data,
+            d["inverse_mu_ratio"].data,
+            d["row_template"].data,
+            d["row_integer_shift"].data,
+            d["row_fractional_shift"].data,
+            d["response_offsets"].data,
+            d["response_bases"].data,
+            d["response_integer_delay"].data,
+            d["response_fraction"].data,
+            d["response_amplitude"].data,
+            d["output_theta"].data,
+            d["output_phi"].data,
+        )
 
 
 class OpenCLCombinedKSIRCollector:
@@ -1050,28 +1315,28 @@ class OpenCLCombinedKSIRCollector:
 
     def __init__(self, updates):
         configure_ntff_monitors(updates.grid, allow_time_domain=True)
-        frequency_monitors = [
-            monitor for monitor in updates.grid.ntff_monitors if _is_frequency_monitor(monitor)
-        ]
-        time_monitors = [
-            monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)
+        frequency_monitors = [monitor for monitor in updates.grid.ntff_monitors if _is_frequency_monitor(monitor)]
+        time_monitors = [monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)]
+        layered_equivalent_time_monitors = [
+            monitor for monitor in updates.grid.ntff_monitors if _is_layered_equivalent_current_time_monitor(monitor)
         ]
         equivalent_time_monitors = [
             monitor
             for monitor in updates.grid.ntff_monitors
-            if _is_equivalent_current_time_monitor(monitor)
+            if _is_equivalent_current_time_monitor(monitor) and not _is_layered_equivalent_current_time_monitor(monitor)
         ]
         self.frequency = (
-            OpenCLKSIRCollector(updates, frequency_monitors, configure=False)
-            if frequency_monitors
-            else None
+            OpenCLKSIRCollector(updates, frequency_monitors, configure=False) if frequency_monitors else None
         )
-        self.time_domain = (
-            OpenCLTimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
-        )
+        self.time_domain = OpenCLTimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
         self.equivalent_time = (
             OpenCLEquivalentCurrentTimeCollector(updates, equivalent_time_monitors)
             if equivalent_time_monitors
+            else None
+        )
+        self.layered_equivalent_time = (
+            OpenCLLayeredEquivalentCurrentTimeCollector(updates, layered_equivalent_time_monitors)
+            if layered_equivalent_time_monitors
             else None
         )
 
@@ -1082,6 +1347,8 @@ class OpenCLCombinedKSIRCollector:
             self.time_domain.observe_electric(iteration)
         if self.equivalent_time is not None:
             self.equivalent_time.observe_electric(iteration)
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.observe_electric(iteration)
 
     def observe_magnetic(self, iteration: int) -> None:
         if self.frequency is not None:
@@ -1090,6 +1357,8 @@ class OpenCLCombinedKSIRCollector:
             self.time_domain.observe_magnetic(iteration)
         if self.equivalent_time is not None:
             self.equivalent_time.observe_magnetic(iteration)
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.observe_magnetic(iteration)
 
     def finalise(self) -> None:
         if self.frequency is not None:
@@ -1098,6 +1367,8 @@ class OpenCLCombinedKSIRCollector:
             self.time_domain.finalise()
         if self.equivalent_time is not None:
             self.equivalent_time.finalise()
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.finalise()
 
 
 class MetalKSIRCollector(_DeviceKSIRCollector):
@@ -1120,9 +1391,7 @@ class MetalKSIRCollector(_DeviceKSIRCollector):
 
     def _buffer(self, values: npt.NDArray):
         contiguous = np.ascontiguousarray(values)
-        return self.dev.newBufferWithBytes_length_options_(
-            contiguous, contiguous.nbytes, self.storage
-        )
+        return self.dev.newBufferWithBytes_length_options_(contiguous, contiguous.nbytes, self.storage)
 
     def _allocate(self, record: _ComponentRecord) -> None:
         record.device["inside_index"] = self._buffer(record.inside_index)
@@ -1202,16 +1471,12 @@ class MetalTimeDomainKSIRCollector(CUDATimeDomainKSIRCollector):
         gather = library.newFunctionWithName_("gather_time_domain_ntff")
         deposit = library.newFunctionWithName_("deposit_time_domain_ntff")
         self.gather_pipeline = self.dev.newComputePipelineStateWithFunction_error_(gather, None)[0]
-        self.deposit_pipeline = self.dev.newComputePipelineStateWithFunction_error_(deposit, None)[
-            0
-        ]
+        self.deposit_pipeline = self.dev.newComputePipelineStateWithFunction_error_(deposit, None)[0]
         self._initialise_records("metal")
 
     def _buffer(self, values: npt.NDArray):
         contiguous = np.ascontiguousarray(values)
-        return self.dev.newBufferWithBytes_length_options_(
-            contiguous, contiguous.nbytes, self.storage
-        )
+        return self.dev.newBufferWithBytes_length_options_(contiguous, contiguous.nbytes, self.storage)
 
     @staticmethod
     def _set_scalar(encoder, index: int, value) -> None:
@@ -1349,29 +1614,19 @@ class MetalEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
         self.queue = updates.cmdqueue
         self.metal = updates.metal
         self.storage = getattr(self.grid, "storage", 0)
-        source = build_equivalent_current_time_kernel_source(
-            updates.ntff_c_real, "metal"
-        )
-        library, error = self.dev.newLibraryWithSource_options_error_(
-            source, updates.opts, None
-        )
+        source = build_equivalent_current_time_kernel_source(updates.ntff_c_real, "metal")
+        library, error = self.dev.newLibraryWithSource_options_error_(source, updates.opts, None)
         if library is None:
             raise RuntimeError(f"Failed to compile Metal equivalent-current NTFF: {error}")
         gather = library.newFunctionWithName_("gather_equivalent_current_time")
         deposit = library.newFunctionWithName_("deposit_equivalent_current_time")
-        self.gather_pipeline = self.dev.newComputePipelineStateWithFunction_error_(
-            gather, None
-        )[0]
-        self.deposit_pipeline = self.dev.newComputePipelineStateWithFunction_error_(
-            deposit, None
-        )[0]
+        self.gather_pipeline = self.dev.newComputePipelineStateWithFunction_error_(gather, None)[0]
+        self.deposit_pipeline = self.dev.newComputePipelineStateWithFunction_error_(deposit, None)[0]
         self._initialise_equivalent_records("metal")
 
     def _buffer(self, values):
         contiguous = np.ascontiguousarray(values)
-        return self.dev.newBufferWithBytes_length_options_(
-            contiguous, contiguous.nbytes, self.storage
-        )
+        return self.dev.newBufferWithBytes_length_options_(contiguous, contiguous.nbytes, self.storage)
 
     @staticmethod
     def _set_scalar(encoder, index, value):
@@ -1381,9 +1636,7 @@ class MetalEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
     def _finish(self, command, encoder, pipeline, count):
         encoder.dispatchThreads_threadsPerThreadgroup_(
             self.metal.MTLSizeMake(int(count), 1, 1),
-            self.metal.MTLSizeMake(
-                min(int(count), pipeline.maxTotalThreadsPerThreadgroup()), 1, 1
-            ),
+            self.metal.MTLSizeMake(min(int(count), pipeline.maxTotalThreadsPerThreadgroup()), 1, 1),
         )
         encoder.endEncoding()
         command.commit()
@@ -1396,17 +1649,16 @@ class MetalEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
         for kind in ("electric", "magnetic"):
             for slot in range(2):
                 record.device[f"{kind}_current_{slot}"] = self._buffer(empty)
-        zeros = np.zeros(
-            record.ndirections * record.output_length, dtype=self.real_dtype
-        )
+        zeros = np.zeros(record.ndirections * record.output_length, dtype=self.real_dtype)
         record.device["output_theta"] = self._buffer(zeros)
         record.device["output_phi"] = self._buffer(zeros)
 
     def _gather_equivalent(self, record, kind, target, scale) -> None:
         d = record.device
-        fields = tuple(getattr(self.grid, f"{component}_dev") for component in (
-            ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS
-        ))
+        fields = tuple(
+            getattr(self.grid, f"{component}_dev")
+            for component in (ELECTRIC_COMPONENTS if kind == "electric" else MAGNETIC_COMPONENTS)
+        )
         command = self.queue.commandBuffer()
         encoder = command.computeCommandEncoder()
         encoder.setComputePipelineState_(self.gather_pipeline)
@@ -1414,9 +1666,13 @@ class MetalEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
         self._set_scalar(encoder, 1, np.int32(record.max_samples))
         for index, buffer in enumerate(
             (
-                d[f"{kind}_count_x"], d[f"{kind}_count_y"],
-                d[f"{kind}_count_z"], d[f"{kind}_stencil_x"],
-                d[f"{kind}_stencil_y"], d[f"{kind}_stencil_z"], d["normals"],
+                d[f"{kind}_count_x"],
+                d[f"{kind}_count_y"],
+                d[f"{kind}_count_z"],
+                d[f"{kind}_stencil_x"],
+                d[f"{kind}_stencil_y"],
+                d[f"{kind}_stencil_z"],
+                d["normals"],
             ),
             start=2,
         ):
@@ -1432,18 +1688,25 @@ class MetalEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
         encoder = command.computeCommandEncoder()
         encoder.setComputePipelineState_(self.deposit_pipeline)
         scalars = (
-            np.int32(record.ndirections), np.int32(record.npatches),
-            np.int32(record.output_length), np.int32(sample_index),
+            np.int32(record.ndirections),
+            np.int32(record.npatches),
+            np.int32(record.output_length),
+            np.int32(sample_index),
             np.int32(record.monitor._time_origin_step),
             self.real_scalar(1 / record.monitor.dt),
         )
         for index, value in enumerate(scalars):
             self._set_scalar(encoder, index, value)
         buffers = (
-            current, previous, d[f"{kind}_theta_basis"],
-            d[f"{kind}_phi_basis"], d[f"{kind}_integer_delay"],
-            d[f"{kind}_fractional_delay"], d["area_weights"],
-            d["output_theta"], d["output_phi"],
+            current,
+            previous,
+            d[f"{kind}_theta_basis"],
+            d[f"{kind}_phi_basis"],
+            d[f"{kind}_integer_delay"],
+            d[f"{kind}_fractional_delay"],
+            d["area_weights"],
+            d["output_theta"],
+            d["output_phi"],
         )
         for index, buffer in enumerate(buffers, start=6):
             encoder.setBuffer_offset_atIndex_(buffer, 0, index)
@@ -1452,9 +1715,89 @@ class MetalEquivalentCurrentTimeCollector(_EquivalentCurrentTimeCollector):
     def _download_equivalent(self, record, name):
         count = record.ndirections * record.output_length
         nbytes = count * self.real_dtype.itemsize
-        return np.frombuffer(
-            record.device[name].contents().as_buffer(nbytes), dtype=self.real_dtype
-        ).copy()
+        return np.frombuffer(record.device[name].contents().as_buffer(nbytes), dtype=self.real_dtype).copy()
+
+
+class MetalLayeredEquivalentCurrentTimeCollector(
+    _LayeredEquivalentCurrentTimeCollector, MetalEquivalentCurrentTimeCollector
+):
+    """Device-resident direct layered time transform on Apple Metal."""
+
+    def __init__(self, updates, monitors):
+        self.updates = updates
+        self.grid = updates.grid
+        self.monitors = list(monitors)
+        self.real_dtype = np.dtype(self.grid.Ex.dtype)
+        self.real_scalar = self.real_dtype.type
+        self.dev = updates.dev
+        self.queue = updates.cmdqueue
+        self.metal = updates.metal
+        self.storage = getattr(self.grid, "storage", 0)
+        source = build_layered_equivalent_current_time_kernel_source(updates.ntff_c_real, "metal")
+        library, error = self.dev.newLibraryWithSource_options_error_(source, updates.opts, None)
+        if library is None:
+            raise RuntimeError(f"Failed to compile Metal layered-current NTFF: {error}")
+        gather = library.newFunctionWithName_("gather_equivalent_current_time")
+        deposit = library.newFunctionWithName_("deposit_layered_equivalent_current_time")
+        self.gather_pipeline = self.dev.newComputePipelineStateWithFunction_error_(gather, None)[0]
+        self.deposit_pipeline = self.dev.newComputePipelineStateWithFunction_error_(deposit, None)[0]
+        self._initialise_layered_records("metal")
+
+    def _allocate_layered(self, record, metadata) -> None:
+        for name, values in metadata.items():
+            record.device[name] = self._buffer(values)
+        empty = np.empty(record.npatches * 3, dtype=self.real_dtype)
+        for kind in ("electric", "magnetic"):
+            for slot in range(2):
+                record.device[f"{kind}_current_{slot}"] = self._buffer(empty)
+        zeros = np.zeros(record.ndirections * record.output_length, dtype=self.real_dtype)
+        record.device["output_theta"] = self._buffer(zeros)
+        record.device["output_phi"] = self._buffer(zeros)
+
+    def _deposit_layered_equivalent(self, record, magnetic_current, sample_index, current, previous) -> None:
+        d = record.device
+        command = self.queue.commandBuffer()
+        encoder = command.computeCommandEncoder()
+        encoder.setComputePipelineState_(self.deposit_pipeline)
+        scalars = (
+            np.int32(record.ndirections),
+            np.int32(record.npatches),
+            np.int32(record.ntemplates),
+            np.int32(record.output_length),
+            np.int32(sample_index),
+            np.int32(record.monitor._time_origin_step),
+            np.int32(magnetic_current),
+            self.real_scalar(1 / record.monitor.dt),
+        )
+        for index, value in enumerate(scalars):
+            self._set_scalar(encoder, index, value)
+        buffers = (
+            current,
+            previous,
+            d["local_basis"],
+            d["cos_theta"],
+            d["sin_theta"],
+            d["cos_phi"],
+            d["sin_phi"],
+            d["area_weights"],
+            d["j_common"],
+            d["m_common"],
+            d["inverse_eps_ratio"],
+            d["inverse_mu_ratio"],
+            d["row_template"],
+            d["row_integer_shift"],
+            d["row_fractional_shift"],
+            d["response_offsets"],
+            d["response_bases"],
+            d["response_integer_delay"],
+            d["response_fraction"],
+            d["response_amplitude"],
+            d["output_theta"],
+            d["output_phi"],
+        )
+        for index, buffer in enumerate(buffers, start=8):
+            encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+        self._finish(command, encoder, self.deposit_pipeline, record.ndirections)
 
 
 class MetalCombinedKSIRCollector:
@@ -1462,28 +1805,26 @@ class MetalCombinedKSIRCollector:
 
     def __init__(self, updates):
         configure_ntff_monitors(updates.grid, allow_time_domain=True)
-        frequency_monitors = [
-            monitor for monitor in updates.grid.ntff_monitors if _is_frequency_monitor(monitor)
-        ]
-        time_monitors = [
-            monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)
+        frequency_monitors = [monitor for monitor in updates.grid.ntff_monitors if _is_frequency_monitor(monitor)]
+        time_monitors = [monitor for monitor in updates.grid.ntff_monitors if _is_time_domain_monitor(monitor)]
+        layered_equivalent_time_monitors = [
+            monitor for monitor in updates.grid.ntff_monitors if _is_layered_equivalent_current_time_monitor(monitor)
         ]
         equivalent_time_monitors = [
             monitor
             for monitor in updates.grid.ntff_monitors
-            if _is_equivalent_current_time_monitor(monitor)
+            if _is_equivalent_current_time_monitor(monitor) and not _is_layered_equivalent_current_time_monitor(monitor)
         ]
         self.frequency = (
-            MetalKSIRCollector(updates, frequency_monitors, configure=False)
-            if frequency_monitors
-            else None
+            MetalKSIRCollector(updates, frequency_monitors, configure=False) if frequency_monitors else None
         )
-        self.time_domain = (
-            MetalTimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
-        )
+        self.time_domain = MetalTimeDomainKSIRCollector(updates, time_monitors) if time_monitors else None
         self.equivalent_time = (
-            MetalEquivalentCurrentTimeCollector(updates, equivalent_time_monitors)
-            if equivalent_time_monitors
+            MetalEquivalentCurrentTimeCollector(updates, equivalent_time_monitors) if equivalent_time_monitors else None
+        )
+        self.layered_equivalent_time = (
+            MetalLayeredEquivalentCurrentTimeCollector(updates, layered_equivalent_time_monitors)
+            if layered_equivalent_time_monitors
             else None
         )
 
@@ -1494,6 +1835,8 @@ class MetalCombinedKSIRCollector:
             self.time_domain.observe_electric(iteration)
         if self.equivalent_time is not None:
             self.equivalent_time.observe_electric(iteration)
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.observe_electric(iteration)
 
     def observe_magnetic(self, iteration: int) -> None:
         if self.frequency is not None:
@@ -1502,6 +1845,8 @@ class MetalCombinedKSIRCollector:
             self.time_domain.observe_magnetic(iteration)
         if self.equivalent_time is not None:
             self.equivalent_time.observe_magnetic(iteration)
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.observe_magnetic(iteration)
 
     def finalise(self) -> None:
         if self.frequency is not None:
@@ -1510,3 +1855,5 @@ class MetalCombinedKSIRCollector:
             self.time_domain.finalise()
         if self.equivalent_time is not None:
             self.equivalent_time.finalise()
+        if self.layered_equivalent_time is not None:
+            self.layered_equivalent_time.finalise()

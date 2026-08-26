@@ -26,6 +26,9 @@ from gprMax.user_objects.cmds_output import (
     NTFFFrequencyTransform,
     NTFFLayeredBackground,
     NTFFLayeredFrequencyTransform,
+    NTFFLayeredTimeFarField,
+    NTFFLayeredTimeFarFieldArray,
+    NTFFLayeredTimeTransform,
     NTFFSurface,
     NTFFTimeFarField,
     NTFFTimeFarFieldArray,
@@ -110,8 +113,7 @@ def test_layered_positional_hash_commands_are_unambiguous():
         "#ntff_surface: 0.02 0.02 0.02 0.08 0.08 0.08 s",
         "#ntff_layered_background: ground z free_space 0.04 soil 0.01 rock",
         "#ntff_layered_frequency: s spectrum ground 1e8 2e8 hann",
-        "#ntff_far_field: 45 0 spectrum pattern Etheta Ephi exterior_power "
-        "exterior_efficiency exterior_maximum",
+        "#ntff_far_field: 45 0 spectrum pattern Etheta Ephi exterior_power " "exterior_efficiency exterior_maximum",
     )
 
     assert [type(item) for item in objects] == [
@@ -132,6 +134,75 @@ def test_layered_positional_hash_commands_are_unambiguous():
         "exterior_maximum",
     )
     assert str(objects[1]) == ("#ntff_layered_background: ground z free_space 0.04 soil 0.01 rock")
+
+
+def test_layered_time_hash_commands_are_unambiguous():
+    objects = _parse(
+        "#ntff_surface: 0.02 0.02 0.02 0.08 0.08 0.08 s",
+        "#ntff_layered_background: ground z free_space 0.04 soil",
+        "#ntff_layered_time: s transient ground 1e-9 25000",
+        "#ntff_layered_time_far_field: 45 20 transient cut Etheta Ephi",
+        "#ntff_layered_time_far_field_array: 0 180 30 0 0 1 transient pattern Ex Hphi",
+    )
+
+    assert [type(item) for item in objects] == [
+        NTFFSurface,
+        NTFFLayeredBackground,
+        NTFFLayeredTimeTransform,
+        NTFFLayeredTimeFarField,
+        NTFFLayeredTimeFarFieldArray,
+    ]
+    assert objects[2].background_id == "ground"
+    assert objects[2].impulse_tolerance == 1e-9
+    assert objects[2].max_impulses == 25000
+    assert objects[3].transform_id == "transient"
+    assert objects[3].outputs == ("Etheta", "Ephi")
+
+
+def test_terminal_pec_uses_existing_alternating_hash_syntax():
+    objects = _parse(
+        "#ntff_layered_background: grounded z free_space 0.04 substrate 0.01 pec",
+    )
+    assert len(objects) == 1
+    assert isinstance(objects[0], NTFFLayeredBackground)
+    assert objects[0].material_ids == ("free_space", "substrate", "pec")
+    assert objects[0].interfaces == (0.04, 0.01)
+    assert str(objects[0]) == ("#ntff_layered_background: grounded z free_space 0.04 substrate 0.01 pec")
+
+
+@pytest.mark.parametrize(
+    "material_line,dispersion_line",
+    (
+        ("#material: 4 0.01 1 0 soil", ""),
+        ("#material: 4 0 1 0 soil", "#add_dispersion_debye: 1 2 1e-10 soil\n"),
+    ),
+)
+def test_layered_time_public_interface_rejects_loss_or_dispersion(tmp_path, material_line, dispersion_line):
+    inputfile = tmp_path / "invalid_layered_time.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 3e-10\n"
+        "#pml_cells: 3\n"
+        f"{material_line}\n"
+        f"{dispersion_line}"
+        "#box: 0 0 0 0.08 0.08 0.04 soil\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.04 0.04 0.05 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ntff_layered_background: ground z free_space 0.04 soil\n"
+        "#ntff_layered_time: surf transient ground\n"
+        "#ntff_layered_time_far_field: 30 0 transient cut Etheta\n"
+    )
+
+    with pytest.raises(ValueError, match="requires lossless, nondispersive materials"):
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            outputfile=tmp_path / "invalid_layered_time",
+            hide_progress_bars=True,
+            cpu_precision="double",
+        )
 
 
 def test_ntff_surface_accepts_multiple_omitted_huygens_faces():
@@ -579,6 +650,157 @@ def test_1997_time_far_field_stores_only_complete_retarded_window(tmp_path):
             assert np.isfinite(values).all()
 
 
+def test_layered_time_transform_reduces_to_homogeneous_time_ntff(tmp_path):
+    inputfile = tmp_path / "layered_time_homogeneous.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 3e-10\n"
+        "#pml_cells: 3\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: z 0.04 0.04 0.04 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.028 0.052 0.052 0.052 surf\n"
+        "#ntff_layered_background: split z free_space 0.04 free_space\n"
+        "#ntff_layered_time: surf layered_time split 1e-12 10000\n"
+        "#ntff_time_far_field_array: 30 150 40 20 20 1 surf homogeneous "
+        "Etheta Ephi Ex Hphi\n"
+        "#ntff_layered_time_far_field_array: 30 150 40 20 20 1 layered_time layered "
+        "Etheta Ephi Ex Hphi\n"
+    )
+    outputfile = tmp_path / "layered_time_homogeneous"
+
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        homogeneous = output["ntff/surf/time_far_field/homogeneous"]
+        layered = output["ntff/surf/time_far_field/layered"]
+        assert layered.attrs["formulation"] == "planar_layered_equivalent_current_time"
+        assert layered.attrs["transform_id"] == "layered_time"
+        assert layered["layered_background"].attrs["axis"] == "z"
+        assert tuple(layered["impulse_counts"].attrs["response_order"].astype(str)) == (
+            "Vi_e",
+            "Vv_e",
+            "Vi_h",
+            "Vv_h",
+        )
+        assert tuple(layered["discarded_path_amplitude_sums"].attrs["response_order"].astype(str)) == (
+            "Vi_e",
+            "Vv_e",
+            "Vi_h",
+            "Vv_h",
+        )
+        assert np.all(layered["discarded_path_amplitude_sums"][...] >= 0)
+        np.testing.assert_allclose(layered["times"][...], homogeneous["times"][...])
+        for component in ("Etheta", "Ephi", "Ex", "Hphi"):
+            np.testing.assert_allclose(
+                layered[f"fields/{component}"][...],
+                homogeneous[f"fields/{component}"][...],
+                rtol=4e-12,
+                atol=1e-14,
+            )
+
+
+def test_grounded_layered_time_and_frequency_outputs_share_pec_metadata(tmp_path):
+    inputfile = tmp_path / "grounded_layered.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 1e-9\n"
+        "#pml_cells: 3\n"
+        "#material: 2.5 0 1 0 substrate\n"
+        "#box: 0 0 0 0.08 0.08 0.04 substrate\n"
+        "#box: 0 0 0 0.08 0.08 0.032 pec\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: x 0.04 0.04 0.036 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.032 0.052 0.052 0.052 surf z0\n"
+        "#ntff_layered_background: grounded z free_space 0.04 substrate 0.032 pec\n"
+        "#ntff_layered_frequency: surf spectrum grounded 5e9 rectangular\n"
+        "#ntff_far_field: 30 20 spectrum frequency Etheta Ephi directivity\n"
+        "#ntff_layered_time: surf transient grounded 1e-4 1000\n"
+        "#ntff_layered_time_far_field: 30 20 transient time Etheta Ephi\n"
+    )
+    outputfile = tmp_path / "grounded_layered"
+    gprMax.run(
+        inputfile=str(inputfile),
+        n=1,
+        outputfile=outputfile,
+        hide_progress_bars=True,
+        cpu_precision="double",
+    )
+
+    with h5py.File(str(outputfile) + ".h5", "r") as output:
+        assert output["ntff/surf"].attrs["omitted_faces"].tolist() == [b"z0"]
+        frequency = output["ntff/surf/frequency/spectrum"]
+        transient = output["ntff/surf/time_far_field/time"]
+        for group in (frequency, transient):
+            background = group["layered_background"]
+            assert background["material_ids"].asstr()[...].tolist() == [
+                "free_space",
+                "substrate",
+            ]
+            assert background["termination"].attrs["kind"] == "pec"
+            assert background["termination"].attrs["side"] == "negative"
+            assert background["termination"].attrs["position"] == pytest.approx(0.032)
+        directivity = frequency["far_field/frequency/fields/directivity"][...]
+        assert np.isfinite(directivity).all()
+
+
+def test_grounded_layered_time_rejects_terminal_face_at_wrong_position(tmp_path):
+    inputfile = tmp_path / "grounded_wrong_surface.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#material: 2.5 0 1 0 substrate\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: x 0.04 0.04 0.036 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.036 0.052 0.052 0.052 surf z0\n"
+        "#ntff_layered_background: grounded z free_space 0.04 substrate 0.032 pec\n"
+        "#ntff_layered_time: surf transient grounded\n"
+        "#ntff_layered_time_far_field: 30 20 transient time Etheta\n"
+    )
+    with pytest.raises(ValueError, match="may omit exactly its 'z0' face at 0.032 m"):
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            outputfile=tmp_path / "grounded_wrong_surface",
+            hide_progress_bars=True,
+            cpu_precision="double",
+        )
+
+
+def test_grounded_layered_background_rejects_observation_through_pec(tmp_path):
+    inputfile = tmp_path / "grounded_invalid_direction.in"
+    inputfile.write_text(
+        "#domain: 0.08 0.08 0.08\n"
+        "#dx_dy_dz: 0.004 0.004 0.004\n"
+        "#time_window: 2e-10\n"
+        "#pml_cells: 3\n"
+        "#material: 2.5 0 1 0 substrate\n"
+        "#waveform: ricker 1 5e9 pulse\n"
+        "#hertzian_dipole: x 0.04 0.04 0.032 pulse\n"
+        "#ntff_surface: 0.028 0.028 0.016 0.052 0.052 0.052 surf\n"
+        "#ntff_layered_background: grounded z free_space 0.04 substrate 0.012 pec\n"
+        "#ntff_layered_time: surf transient grounded\n"
+        "#ntff_layered_time_far_field: 150 20 transient invalid Etheta\n"
+    )
+    with pytest.raises(ValueError, match="cannot observe through.*PEC termination"):
+        gprMax.run(
+            inputfile=str(inputfile),
+            n=1,
+            outputfile=tmp_path / "grounded_invalid_direction",
+            hide_progress_bars=True,
+            cpu_precision="double",
+        )
+
+
 def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
     inputfile = tmp_path / "antenna_metrics.in"
     inputfile.write_text(
@@ -609,10 +831,7 @@ def test_antenna_metrics_run_from_single_voltage_port(tmp_path):
         group = output["ntff/surf/frequency/band/far_field/broadside"]
         assert group.attrs["radiation_quadrature_theta_order"] >= 12
         assert group.attrs["radiation_quadrature_phi_order"] >= 24
-        assert (
-            group.attrs["maximum_directivity_sampling"]
-            == "full-sphere quadrature plus requested directions"
-        )
+        assert group.attrs["maximum_directivity_sampling"] == "full-sphere quadrature plus requested directions"
         assert group["port_power/port_ids"].asstr()[...].tolist() == ["feed"]
         assert group["port_power/incident_voltage_per_port"].shape == (1, 1)
         assert group["port_power/terminal_voltage_per_port"].shape == (1, 1)
