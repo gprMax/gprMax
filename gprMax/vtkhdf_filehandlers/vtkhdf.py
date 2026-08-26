@@ -84,14 +84,21 @@ class VtkHdfFile(AbstractContextManager):
                 want to write to the file.
 
         """
-        # Ensure the filename uses the correct extension
+        # Replace a known output extension, but preserve ordinary dots in a
+        # basename (for example a version or snapshot time). ``with_suffix``
+        # alone would turn ``model_1.5`` into ``model_1.vtkhdf`` and allow
+        # distinct outputs to overwrite one another.
         self.filename = Path(filename)
         if self.filename.suffix != "" and self.filename.suffix != self.FILE_EXTENSION:
             logger.warning(
-                f"Invalid file extension '{self.filename.suffix}' for VTKHDF file. Changing to '{self.FILE_EXTENSION}'."
+                f"Invalid file extension {self.filename.suffix!r}; applying "
+                f"'{self.FILE_EXTENSION}' for VTKHDF output."
             )
-
-        self.filename = self.filename.with_suffix(self.FILE_EXTENSION)
+        if self.filename.suffix != self.FILE_EXTENSION:
+            if self.filename.suffix.lower() in {".h5", ".vtk"}:
+                self.filename = self.filename.with_suffix(self.FILE_EXTENSION)
+            else:
+                self.filename = self.filename.with_name(self.filename.name + self.FILE_EXTENSION)
 
         self.comm = comm
 
@@ -255,7 +262,7 @@ class VtkHdfFile(AbstractContextManager):
                 points to some other object, e.g. a Group not a Dataset.
         """
         cls = self.file_handler.get(path, getclass=True)
-        if cls == "default":
+        if cls is None:
             raise KeyError("Path does not exist")
         elif cls != h5py.Dataset:
             raise KeyError(f"Dataset not found. Found '{cls}' instead")
@@ -489,6 +496,7 @@ class VtkHdfFile(AbstractContextManager):
         data: npt.NDArray,
         shape: Optional[Union[npt.NDArray[np.int32], Tuple[int, ...]]] = None,
         offset: Optional[npt.NDArray[np.int32]] = None,
+        xyz_data_ordering: bool = True,
     ):
         """Add point data to the VTKHDF file.
 
@@ -501,7 +509,13 @@ class VtkHdfFile(AbstractContextManager):
                 be omitted if data provides the full dataset.
         """
         dataset_path = self._build_dataset_path("PointData", name)
-        self._write_dataset(dataset_path, data, shape=shape, offset=offset)
+        self._write_dataset(
+            dataset_path,
+            data,
+            shape=shape,
+            offset=offset,
+            xyz_data_ordering=xyz_data_ordering,
+        )
 
     def _add_cell_data(
         self,
@@ -509,6 +523,7 @@ class VtkHdfFile(AbstractContextManager):
         data: npt.NDArray,
         shape: Optional[Union[npt.NDArray[np.int32], Tuple[int, ...]]] = None,
         offset: Optional[npt.NDArray[np.int32]] = None,
+        xyz_data_ordering: bool = True,
     ):
         """Add cell data to the VTKHDF file.
 
@@ -521,7 +536,13 @@ class VtkHdfFile(AbstractContextManager):
                 be omitted if data provides the full dataset.
         """
         dataset_path = self._build_dataset_path("CellData", name)
-        self._write_dataset(dataset_path, data, shape=shape, offset=offset)
+        self._write_dataset(
+            dataset_path,
+            data,
+            shape=shape,
+            offset=offset,
+            xyz_data_ordering=xyz_data_ordering,
+        )
 
     def add_field_data(
         self,

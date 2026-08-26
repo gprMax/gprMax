@@ -413,6 +413,25 @@ class TestUpdateFromMainGrid:
         c.precursors.update_magnetic()
         assert np.allclose(c.precursors.hx_front_1, 4.0)
 
+    def test_refining_ratio_rejects_bypassed_magnetic_interpolation(
+        self, coupled_grids, monkeypatch
+    ):
+        c = coupled_grids(ratio=3)
+        monkeypatch.setattr(c.precursors, "interpolate_to_sub_grid", lambda field, coords: field)
+
+        with pytest.raises(RuntimeError, match="did not refine"):
+            c.precursors.update_magnetic()
+
+    def test_unity_ratio_allows_identity_magnetic_interpolation(self, coupled_grids):
+        c = coupled_grids(ratio=1)
+        c.main.Hx[:] = 2.0
+        c.main.Hy[:] = 2.0
+        c.main.Hz[:] = 2.0
+
+        c.precursors.update_magnetic()
+
+        assert np.allclose(c.precursors.hx_front_1, 2.0)
+
     def test_zero_main_grid_gives_zero_precursors(self, coupled_grids):
         c = coupled_grids()
         c.precursors.update_electric()

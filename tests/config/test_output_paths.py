@@ -19,10 +19,8 @@ solving; it is consumed when the last timestep has already been computed. A
 wrong path does not crash a simulation, it loses one — or, worse, silently
 overwrites the previous model's results because the model number was dropped.
 
-Two of the tests below pin behaviour that is a known defect rather than a
-contract, and say so in their docstrings. They exist because the current
-behaviour is surprising and undocumented, and a reader hitting it needs to
-find something in the suite that explains it.
+The edge cases below also protect dotted basenames and recursively-created
+output directories, both of which have caused late output-path failures.
 """
 
 from pathlib import Path
@@ -121,20 +119,15 @@ class TestTheOutputDirectory:
 
         assert model_config.output_file_path.parent == outputdir
 
-    def test_a_missing_parent_directory_is_not_created(self, make_model_config, tmp_path):
-        """``mkdir`` is called without ``parents=True``.
-
-        ``#output_dir: results/2026/run_a`` therefore raises
-        ``FileNotFoundError`` from deep inside configuration rather than
-        reporting a bad path, even though the value came straight from user
-        input. Pinned as the current behaviour, with the defect written up in
-        ``notes/bugs/config-output-dir-no-parents.md``.
-        """
+    def test_a_missing_parent_directory_is_created(self, make_model_config, tmp_path):
+        """Nested output paths supplied by users are created recursively."""
         model_config = make_model_config(inputfile="model.in")
         nested = tmp_path / "missing" / "leaf"
 
-        with pytest.raises(FileNotFoundError):
-            model_config.set_output_file_path(str(nested))
+        model_config.set_output_file_path(str(nested))
+
+        assert nested.is_dir()
+        assert model_config.output_file_path.parent == nested
 
 
 class TestTheModelNumberSuffix:
@@ -199,18 +192,11 @@ class TestTheExtendedPath:
 
         assert model_config.output_file_path_ext == tmp_path / "model.h5"
 
-    def test_a_dot_in_the_file_name_truncates_it(self, make_model_config):
-        """``with_suffix`` treats everything after the last dot as an extension.
-
-        ``v1.2_model.in`` becomes ``v1.h5``: ``.2_model`` is read as a suffix
-        and replaced. Dots in file names are ordinary — version numbers,
-        dimensions, dates — so this quietly writes two different models to the
-        same file. Pinned as the current behaviour, with the defect written up
-        in ``notes/bugs/config-output-path-with-suffix.md``.
-        """
+    def test_a_dot_in_the_file_name_is_preserved(self, make_model_config):
+        """Version-like dots in a basename must not create output collisions."""
         model_config = make_model_config(inputfile="v1.2_model.in")
 
-        assert model_config.output_file_path_ext == Path("v1.h5")
+        assert model_config.output_file_path_ext == Path("v1.2_model.h5")
 
 
 class TestTheSnapshotDirectory:

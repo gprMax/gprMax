@@ -5,6 +5,8 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1109/TAP.2014.2308549
 
+import warnings
+
 import numpy as np
 import scipy.optimize
 from matplotlib import pylab as plt
@@ -88,7 +90,10 @@ class Optimizer(object):
             cost (float): Sum of mean absolute errors for real and
                           imaginary parts.
         """
-        cost_i, cost_r, _, _, _, _ = DLS(x, rl, im, freq)
+        # The optimizer explores deliberately poor trial points. Report the
+        # physical lower-bound constraint only for the accepted final fit,
+        # not for every objective-function evaluation.
+        cost_i, cost_r, _, _, _, _ = DLS(x, rl, im, freq, warn_on_bound=False)
         return cost_i + cost_r
 
 
@@ -443,7 +448,7 @@ class DE_DLS(Optimizer):
         return result.x, result.fun
 
 
-def DLS(logt, rl, im, freq):
+def DLS(logt, rl, im, freq, *, warn_on_bound=True):
     """
     Find the weights using a non-linear least squares (LS) method,
     the Levenberg–Marquardt algorithm (LMA or just LM),
@@ -459,6 +464,10 @@ def DLS(logt, rl, im, freq):
         im (ndarray): Imaginary parts of chosen relaxation function
                       for given frequency points.
         freq (ndarray): The frequencies vector for defined grid.
+        warn_on_bound (bool): Emit a warning when the unconstrained fit is
+                              clamped to the physical lower bound. Optimizer
+                              trial evaluations disable this; accepted fits
+                              retain the default warning.
 
     Returns:
         cost_i (float): Mean absolute error between the actual and
@@ -491,7 +500,17 @@ def DLS(logt, rl, im, freq):
         np.matmul(d.imag, x[np.newaxis].T).T[0],
     )
     cost_i = np.sum(np.abs(ip - im)) / len(im)
-    ee = np.mean(rl - rp)
-    ee = max(ee, 1)
+    unconstrained_ee = float(np.mean(rl - rp))
+    if not np.isfinite(unconstrained_ee):
+        raise ValueError("DLS produced a non-finite infinite-frequency permittivity")
+    if unconstrained_ee < 1 and warn_on_bound:
+        warnings.warn(
+            "The unconstrained Debye fit produced an infinite-frequency relative "
+            f"permittivity of {unconstrained_ee:g}; applying the physical lower "
+            "bound of 1. Inspect the fitted residuals before using this material.",
+            UserWarning,
+            stacklevel=2,
+        )
+    ee = max(unconstrained_ee, 1)
     cost_r = np.sum(np.abs(rp + ee - rl)) / len(im)
     return cost_i, cost_r, x, ee, rp, ip

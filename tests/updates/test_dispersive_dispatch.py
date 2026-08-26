@@ -24,9 +24,9 @@ time, for the one combination of user settings nobody tried.
 **real compiled module**, so a mismatch fails here rather than in a user's
 simulation.
 
-The remaining classes pin the switch logic itself, including the two silent
-fallbacks — an unrecognised precision string yields ``"double"``, and a
-``dispersivedtype`` that does not match yields ``"real"``.
+The remaining classes pin the switch logic itself and require invalid or
+uninitialised configuration to fail explicitly rather than silently selecting
+an incompatible kernel.
 """
 
 import itertools
@@ -170,20 +170,12 @@ class TestPoleSwitch:
 
         assert "_multipole_" in updates.dispersive_update_a.__name__
 
-    def test_zero_poles_still_binds_the_single_pole_kernel(self, configure, make_wiring_grid):
-        """``maxpoles == 0`` is not rejected — it selects ``1pole``.
-
-        ``create_solver`` guards the call with ``maxpoles != 0``, so this
-        never happens in production. Called directly it succeeds silently,
-        binding a kernel that ``update_electric_a`` will never reach because
-        that method sends ``maxpoles == 0`` to the plain update instead.
-        """
+    def test_zero_poles_is_rejected(self, configure, make_wiring_grid):
         configure(maxpoles=0)
         updates = CPUUpdates(make_wiring_grid())
 
-        updates.set_dispersive_updates()
-
-        assert "_1pole_" in updates.dispersive_update_a.__name__
+        with pytest.raises(RuntimeError, match="at least one pole"):
+            updates.set_dispersive_updates()
 
     def test_the_boundary_is_between_one_and_two(self, configure, make_wiring_grid):
         """``> 1``, so one pole is single and two are multi."""
@@ -219,26 +211,14 @@ class TestPrecisionSwitch:
         assert updates.dispersive_update_a.__name__.endswith("_double_real")
 
     @pytest.mark.parametrize("precision", ["Single", "SINGLE", "float", "", "half"])
-    def test_an_unrecognised_precision_silently_selects_double(
+    def test_an_unrecognised_precision_is_rejected(
         self, configure, make_wiring_grid, precision
     ):
-        """The ternary tests equality with ``"single"`` and falls through.
-
-        Any other string — including a capitalisation slip or the plausible
-        ``"float"`` — silently produces the double-precision kernel. Since
-        the grid's arrays were allocated from the same ``precision`` value
-        elsewhere, this surfaces as a Cython buffer dtype mismatch rather
-        than a message about the setting being wrong.
-
-        Recorded in ``notes/bugs/config-precision-no-terminal-else.md``,
-        which covers the same string's other silent failure.
-        """
         configure(precision=precision)
         updates = CPUUpdates(make_wiring_grid())
 
-        updates.set_dispersive_updates()
-
-        assert "_double_" in updates.dispersive_update_a.__name__
+        with pytest.raises(RuntimeError, match="invalid precision"):
+            updates.set_dispersive_updates()
 
 
 class TestDispersionSwitch:
@@ -260,42 +240,25 @@ class TestDispersionSwitch:
 
         assert updates.dispersive_update_a.__name__.endswith("_real")
 
-    def test_the_comparison_is_against_the_configured_complex_dtype(
+    def test_a_mismatched_complex_dtype_is_rejected(
         self, updates_config, make_wiring_grid
     ):
-        """Not against ``np.complexfloating`` in general.
-
-        A single-precision run compares against ``np.complex64``; handing it
-        ``np.complex128`` — a complex type, but the wrong one — takes the
-        *real* branch.
-        """
         updates_config.sim_config.dtypes["complex"] = np.complex64
+        updates_config.sim_config.dtypes["float_or_double"] = np.float32
         updates_config.model_config.materials["dispersivedtype"] = np.complex128
         updates_config.model_config.materials["maxpoles"] = 1
 
         updates = CPUUpdates(make_wiring_grid())
-        updates.set_dispersive_updates()
+        with pytest.raises(RuntimeError, match="does not match"):
+            updates.set_dispersive_updates()
 
-        assert updates.dispersive_update_a.__name__.endswith("_real")
-
-    def test_unset_dispersive_dtype_silently_selects_real(self, updates_config, make_wiring_grid):
-        """``dispersivedtype`` defaults to ``None`` until it is derived.
-
-        ``ModelConfig`` initialises the key to ``None``, and only
-        ``set_dispersive_material_types()`` fills it in. ``None == np.complex64``
-        is ``False``, so calling ``set_dispersive_updates`` first binds the
-        **real** kernel for what may be a complex-pole model — a wrong answer
-        with no warning, produced purely by call order.
-
-        Written up in ``notes/bugs/dispersive-dtype-default-none.md``.
-        """
+    def test_unset_dispersive_dtype_is_rejected(self, updates_config, make_wiring_grid):
         updates_config.model_config.materials["maxpoles"] = 2
         updates_config.model_config.materials["dispersivedtype"] = None
 
         updates = CPUUpdates(make_wiring_grid())
-        updates.set_dispersive_updates()
-
-        assert updates.dispersive_update_a.__name__.endswith("_real")
+        with pytest.raises(RuntimeError, match="has not been initialised"):
+            updates.set_dispersive_updates()
 
 
 class TestBinding:
@@ -404,12 +367,7 @@ class TestModulePath:
 
         assert set(seen) == {DISPERSIVE_MODULE}
 
-    def test_the_module_is_imported_once_per_half(self, configure, make_wiring_grid, monkeypatch):
-        """Two calls, one per half — the result is not reused.
-
-        Harmless because ``import_module`` hits ``sys.modules``, but worth
-        pinning so a future refactor does not assume a single import.
-        """
+    def test_the_module_is_imported_once(self, configure, make_wiring_grid, monkeypatch):
         seen = []
         real_import = import_module
 
@@ -424,7 +382,7 @@ class TestModulePath:
 
         CPUUpdates(make_wiring_grid()).set_dispersive_updates()
 
-        assert len(seen) == 2
+        assert len(seen) == 1
 
     def test_a_missing_kernel_raises_attribute_error(
         self, configure, make_wiring_grid, monkeypatch
@@ -443,7 +401,7 @@ class TestModulePath:
         monkeypatch.setattr(module, "import_module", lambda name: types.ModuleType("empty"))
         configure()
 
-        with pytest.raises(AttributeError, match="update_electric_dispersive"):
+        with pytest.raises(RuntimeError, match="compiled dispersive-field kernels"):
             CPUUpdates(make_wiring_grid()).set_dispersive_updates()
 
 

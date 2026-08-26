@@ -169,7 +169,11 @@ class Snapshot(Generic[GridType]):
         """
 
         self.fileext = fileext
-        self.filename = Path(filename).with_suffix(fileext)
+        self.filename = Path(filename)
+        if self.filename.suffix in self.fileexts:
+            self.filename = self.filename.with_suffix(fileext)
+        else:
+            self.filename = self.filename.with_name(self.filename.name + fileext)
         self.time = time
         self.outputs = outputs
         self.grid_view = self.GRID_VIEW_TYPE(grid, xs, ys, zs, xf, yf, zf, dx, dy, dz)

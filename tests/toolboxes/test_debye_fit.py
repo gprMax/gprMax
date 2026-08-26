@@ -58,7 +58,22 @@ def test_dls_constrains_infinite_frequency_permittivity_to_unity_or_greater():
     rl = np.full_like(freq, 0.5)
     im = np.zeros_like(freq)
 
-    _, _, _, ee, _, _ = DLS(tt, rl, im, freq)
+    with pytest.warns(UserWarning, match="physical lower bound of 1"):
+        _, _, _, ee, _, _ = DLS(tt, rl, im, freq)
+
+    assert ee == pytest.approx(1.0)
+
+
+def test_dls_reports_severely_invalid_unconstrained_fit():
+    freq = np.logspace(6, 9, 20)
+
+    with pytest.warns(UserWarning, match=r"-100.*physical lower bound"):
+        _, _, _, ee, _, _ = DLS(
+            np.array([-10.0]),
+            np.full_like(freq, -100.0),
+            np.zeros_like(freq),
+            freq,
+        )
 
     assert ee == pytest.approx(1.0)
 

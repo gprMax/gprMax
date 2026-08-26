@@ -61,5 +61,5 @@ def test_voltage_source_hash_keeps_reference_impedance_last_with_port_options():
 
 
 def test_removed_rx_port_hash_command_is_rejected():
-    with pytest.raises(SyntaxError):
+    with pytest.raises(SyntaxError, match="Every 3-D #voltage_source now owns its port monitor"):
         _parse("#rx_port: 0.1 0.2 0.3")

@@ -2049,8 +2049,9 @@ material are reported when the model is built.
     * MPI, subgrids, 2D modes, geometry-fixed runs, grouped sources, sources
       inside a PML, and dispersive material on the source edge are currently
       rejected. Dispersive materials elsewhere in the model are supported.
-      A hard-source current loop cannot lie on a domain-minimum transverse
-      boundary.
+      A hard source at a domain-minimum transverse boundary remains a valid
+      excitation, but gprMax warns and omits its automatic port output because
+      the complete current loop cannot be sampled there.
     * ``S11`` remains the primary result. ``Zin`` is singular near an open
       circuit (:math:`S_{11}=1`), so gprMax also stores ``Yin`` and separate
       validity masks.

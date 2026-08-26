@@ -108,17 +108,21 @@ class Cone(GeometryUserObject):
             logger.error(message)
             raise ValueError(message)
 
-        if r1 < 0:
-            logger.exception(
-                f"{self.__str__()} the radius of the first face {r1:g} should be a positive value."
+        if not np.isfinite(r1) or r1 < 0:
+            message = (
+                f"{self.__str__()} the radius of the first face {r1:g} "
+                "should be a positive value."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
 
-        if r2 < 0:
-            logger.exception(
-                f"{self.__str__()} the radius of the second face {r2:g} should be a positive value."
+        if not np.isfinite(r2) or r2 < 0:
+            message = (
+                f"{self.__str__()} the radius of the second face {r2:g} "
+                "should be a positive value."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
 
         if r1 == 0 and r2 == 0:
             logger.exception(f"{self.__str__()} both radii cannot be zero.")

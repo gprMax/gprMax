@@ -10,7 +10,7 @@ import gprMax
 from gprMax import config
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.hash_cmds_file import get_user_objects
-from gprMax.materials import DispersiveMaterial
+from gprMax.materials import DispersiveMaterial, Material
 from gprMax.ports import PortPowerSpectrum
 from gprMax.sar import (
     EDGE_OFFSETS,
@@ -378,6 +378,39 @@ def test_sar_debye_loss_conductivity_matches_closed_form(monkeypatch):
     np.testing.assert_allclose(actual, expected, rtol=1e-14)
 
 
+def test_sar_perfect_conductors_have_zero_finite_volume_loss(monkeypatch):
+    """Ideal conductors must not create the indeterminate product inf * 0."""
+
+    pec = Material(0, "pec")
+    pec.se = float("inf")
+    pmc = Material(1, "pmc")
+    pmc.sm = float("inf")
+    frequencies = np.asarray((0.5e9, 1.0e9, 2.0e9))
+    monkeypatch.setattr(config, "sim_config", SimpleNamespace(em_consts={"e0": config.e0}))
+
+    actual = _material_loss_conductivity(
+        SimpleNamespace(materials=[pec, pmc]),
+        np.asarray((pec.numID, pmc.numID)),
+        frequencies,
+    )
+
+    np.testing.assert_array_equal(actual, np.zeros((3, 2)))
+    assert np.all(np.isfinite(actual))
+
+
+def test_sar_rejects_non_finite_non_pec_material_loss(monkeypatch):
+    material = Material(2, "invalid")
+    material.se = float("nan")
+    monkeypatch.setattr(config, "sim_config", SimpleNamespace(em_consts={"e0": config.e0}))
+
+    with pytest.raises(ValueError, match="non-finite electric loss"):
+        _material_loss_conductivity(
+            SimpleNamespace(materials=[material]),
+            np.asarray((material.numID,)),
+            np.asarray((1e9,)),
+        )
+
+
 def test_sar_incident_power_normalisation_scales_quadratically(monkeypatch):
     monitor = SARMonitor.__new__(SARMonitor)
     monitor._next_iteration = monitor.grid_iterations = 1
@@ -639,6 +672,26 @@ def test_sar_supports_dispersive_material_loss(tmp_path):
         absorbed = data["sar/target_sar/absorbed_power_density"][...]
         assert np.all(np.isfinite(absorbed))
         assert np.all(absorbed >= 0)
+
+
+def test_sar_tagged_pec_integration_is_finite_and_zero(tmp_path):
+    scene, output = _scene(spectrum_limit="nyquist")
+    box = next(item for item in scene.geometry_objects if isinstance(item, gprMax.Box))
+    box.kwargs["material_id"] = "pec"
+    box.kwargs["p2"] = (0.008, 0.008, 0.008)
+    scene.add(gprMax.MaterialDensity(density=7800, material_ids="pec"))
+
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        outputfile=tmp_path / "sar_pec",
+        hide_progress_bars=True,
+    )
+
+    assert np.all(np.isfinite(output.result.absorbed_power_density))
+    assert np.all(np.isfinite(output.result.sar))
+    np.testing.assert_array_equal(output.result.absorbed_power_density, 0)
+    np.testing.assert_array_equal(output.result.sar, 0)
 
 
 def test_sar_rejects_selected_material_without_density(tmp_path):

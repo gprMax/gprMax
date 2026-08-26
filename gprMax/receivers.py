@@ -239,12 +239,13 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G, rxcurrents_dev=None):
                     f"Successfully copied {rxs_np.size} elements from Metal GPU buffer to CPU"
                 )
             else:
-                logger.debug(
-                    f"Metal rxs buffer size mismatch: expected {expected_rxs_bytes}, got {rxs_dev.length()}"
+                raise RuntimeError(
+                    "Metal receiver buffer size mismatch: "
+                    f"expected {expected_rxs_bytes} bytes, got {rxs_dev.length()}"
                 )
 
         except Exception as e:
-            logger.exception(f"Error copying Metal buffer data: {e}, using zero-filled arrays as fallback")
+            raise RuntimeError("Failed to copy Metal receiver data to host") from e
 
         # Use the numpy arrays
         rxcoords_dev = rxcoords_np
@@ -270,10 +271,7 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G, rxcurrents_dev=None):
                 else:
                     raise RuntimeError("Metal current-output buffer size mismatch")
             except Exception as e:
-                logger.exception(
-                    f"Error copying Metal current-output data: {e}, "
-                    "using zero-filled arrays as fallback"
-                )
+                raise RuntimeError("Failed to copy Metal current-output data to host") from e
             rxcurrents_dev = current_np
 
     # For CUDA/OpenCL, rxs_dev/rxcoords_dev are already host numpy arrays by

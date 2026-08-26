@@ -7,9 +7,19 @@ from gprMax.ntff.equivalent_currents import EquivalentCurrentPhasors, _evaluate_
 from gprMax.ntff.layered import (
     LayeredMedium,
     _responses_at_positions,
+    _safe_ratio,
     _voltage_coefficients,
     evaluate_layered_currents,
 )
+
+
+def test_layered_recursion_rejects_numerically_singular_denominator():
+    with pytest.raises(FloatingPointError, match="singular planar-layered recursion"):
+        _safe_ratio(1.0 + 0j, 1e-16 + 0j, "test interface")
+
+
+def test_layered_recursion_preserves_large_but_finite_physical_response():
+    assert _safe_ratio(1.0 + 0j, 1e-10 + 0j, "test interface") == pytest.approx(1e10)
 
 
 def _currents(seed=7, nfrequencies=2, npatches=11):

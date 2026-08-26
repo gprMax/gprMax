@@ -105,6 +105,11 @@ class TestDiscretisationAnyBug:
         with pytest.raises(ValueError):
             Discretisation((0.0, 0.0, 0.0)).build(stub_model)
 
+    @pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf])
+    def test_nonfinite_step_raises(self, stub_model, bad):
+        with pytest.raises(ValueError, match="finite"):
+            Discretisation((0.001, bad, 0.001)).build(stub_model)
+
 
 # ---------------------------------------------------------------------------
 # Domain
@@ -180,7 +185,7 @@ class TestTimeStepStabilityFactor:
         assert stub_model.dt_mod == 0.5
         assert stub_model.dt == 0.5 * before_dt
 
-    @pytest.mark.parametrize("bad", [0.0, -0.1, 1.01, 2.0])
+    @pytest.mark.parametrize("bad", [0.0, -0.1, 1.01, 2.0, np.nan, np.inf, -np.inf])
     def test_build_rejects_out_of_range(self, stub_model, bad):
         with pytest.raises(ValueError):
             TimeStepStabilityFactor(bad).build(stub_model)
@@ -217,6 +222,16 @@ class TestTimeWindow:
         TimeWindow(time=1e-9).build(stub_model)
         assert stub_model.timewindow == 1e-9
         assert stub_model.iterations == int(np.ceil(1e-9 / stub_model.dt)) + 1
+
+    @pytest.mark.parametrize("bad", [np.nan, np.inf, -np.inf, 0.0, -1.0])
+    def test_build_rejects_invalid_time(self, stub_model, bad):
+        with pytest.raises(ValueError, match="finite|greater"):
+            TimeWindow(time=bad).build(stub_model)
+
+    @pytest.mark.parametrize("bad", [1.5, np.nan, True, 0, -1])
+    def test_build_rejects_invalid_iterations(self, stub_model, bad):
+        with pytest.raises(ValueError, match="positive integer"):
+            TimeWindow(iterations=bad).build(stub_model)
 
     def test_build_iterations_mode_sets_timewindow(self, stub_model):
         TimeWindow(iterations=100).build(stub_model)
@@ -264,6 +279,11 @@ class TestOMPThreads:
     def test_build_rejects_zero_threads(self, stub_model):
         with pytest.raises(ValueError):
             OMPThreads(0).build(stub_model)
+
+    @pytest.mark.parametrize("bad", [1.5, np.nan, True, "4"])
+    def test_build_rejects_non_integer_threads(self, stub_model, bad):
+        with pytest.raises(ValueError, match="integer"):
+            OMPThreads(bad).build(stub_model)
 
 
 class TestOMPThreadsHash:
@@ -330,6 +350,10 @@ class TestPMLThickness:
         PMLThickness((10, 10, 10, 10, 10, 10)).build(stub_model)
         stub_model.G.set_pml_thickness.assert_called_once_with((10, 10, 10, 10, 10, 10))
 
+    def test_build_one_item_tuple_is_canonicalised_to_scalar(self, stub_model):
+        PMLThickness((10,)).build(stub_model)
+        stub_model.G.set_pml_thickness.assert_called_once_with(10)
+
     @pytest.mark.parametrize("bad_len", [2, 3, 4, 5, 7])
     def test_build_rejects_wrong_tuple_length(self, stub_model, bad_len):
         with pytest.raises(ValueError):
@@ -340,6 +364,11 @@ class TestPMLThickness:
         stub_model.G.pmls["thickness"]["x0"] = 30
         with pytest.raises(ValueError):
             PMLThickness(10).build(stub_model)
+
+    @pytest.mark.parametrize("bad", [1.5, np.nan, True, "10"])
+    def test_build_rejects_non_integer_thickness(self, stub_model, bad):
+        with pytest.raises(ValueError, match="integer"):
+            PMLThickness(bad).build(stub_model)
 
 
 # ---------------------------------------------------------------------------

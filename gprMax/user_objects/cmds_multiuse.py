@@ -104,6 +104,25 @@ def _reserve_voltage_port_output_id(
     return output_id
 
 
+def _hard_source_current_loop_available(
+    polarisation: str, resistance: float, coord: npt.NDArray[np.int32]
+) -> bool:
+    """Return whether the complete transverse Ampere loop is in the grid."""
+
+    polarisation = str(polarisation).lower()
+    if resistance != 0 or polarisation not in ("x", "y", "z"):
+        # Parameter validation reports an invalid polarisation later. Avoid
+        # replacing that useful public error with an internal dictionary key
+        # failure while deciding whether to reserve an MPI port ID.
+        return True
+    transverse_axes = {
+        "x": (1, 2),
+        "y": (0, 2),
+        "z": (0, 1),
+    }[polarisation]
+    return not any(coord[axis] == 0 for axis in transverse_axes)
+
+
 def _require_complete_source_time_window(user_object, start, stop):
     """Require conventional source start/stop limits to be supplied together."""
 
@@ -111,6 +130,39 @@ def _require_complete_source_time_window(user_object, start, stop):
         raise ValueError(
             f"{user_object.params_str()} start and stop times must be supplied together"
         )
+    if start is not None and (not np.isfinite(start) or not np.isfinite(stop)):
+        raise ValueError(f"{user_object.params_str()} start and stop times must be finite")
+
+
+def _validate_dpw_precompute(user_object, precompute):
+    """Reject the non-functional on-the-fly DPW source option explicitly."""
+
+    if not isinstance(precompute, (bool, np.bool_)):
+        raise ValueError(f"{user_object.params_str()} precompute must be a boolean")
+    if not precompute:
+        raise ValueError(
+            f"{user_object.params_str()} precompute=False is not currently supported; "
+            "plane-wave source histories must be precomputed"
+        )
+
+
+def _configure_dpw_time_window(user_object, source, grid):
+    """Validate and apply an optional DPW start/stop pair."""
+
+    start = user_object.kwargs.get("start")
+    stop = user_object.kwargs.get("stop")
+    _require_complete_source_time_window(user_object, start, stop)
+    if start is None:
+        source.start = 0
+        source.stop = grid.timewindow
+        return " "
+    if start < 0 or stop < 0:
+        raise ValueError(f"{user_object.params_str()} start and stop times must not be negative")
+    if stop <= start:
+        raise ValueError(f"{user_object.params_str()} source stop time must exceed its start time")
+    source.start = start
+    source.stop = min(stop, grid.timewindow)
+    return f" start time {start:g} secs, finish time {stop:g} secs "
 
 
 class ExcitationFile(GridUserObject):
@@ -160,25 +212,46 @@ class ExcitationFile(GridUserObject):
         excitationfile = Path(self.filepath)
         if not excitationfile.exists():
             excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
+        if not excitationfile.is_file():
+            raise FileNotFoundError(f"Excitation file {excitationfile} does not exist")
+
+        if (self.kind is None) != (self.fill_value is None):
+            raise ValueError(f"{self} requires either one or three parameter(s)")
 
         logger.info(self.grid_name(grid) + f"Excitation file: {excitationfile}")
 
         # Get waveform names
-        waveformIDs = np.loadtxt(excitationfile, max_rows=1, dtype=str)
+        waveformIDs = np.loadtxt(excitationfile, max_rows=1, dtype=str, ndmin=1)
 
         # Read all waveform values into an array
         waveformvalues = np.loadtxt(
-            excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"]
+            excitationfile,
+            skiprows=1,
+            dtype=config.sim_config.dtypes["float_or_double"],
+            ndmin=2,
         )
+        if waveformvalues.shape[0] < 2:
+            raise ValueError(f"{self} requires at least two waveform samples")
+        if waveformvalues.shape[1] != waveformIDs.size:
+            raise ValueError(
+                f"{self} header declares {waveformIDs.size} columns but the data has "
+                f"{waveformvalues.shape[1]}"
+            )
+        if not np.all(np.isfinite(waveformvalues)):
+            raise ValueError(f"{self} waveform data must contain only finite values")
 
         # Time array (if specified) for interpolation, otherwise use simulation time
         if waveformIDs[0].lower() == "time":
+            if waveformIDs.size < 2:
+                raise ValueError(f"{self} must define at least one waveform after the time column")
             waveformIDs = waveformIDs[1:]
             waveformtime = waveformvalues[:, 0]
             waveformvalues = waveformvalues[:, 1:]
+            if np.any(np.diff(waveformtime) <= 0):
+                raise ValueError(f"{self} time values must be strictly increasing")
             timestr = "user-defined time array"
         else:
-            waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
+            waveformtime = np.arange(grid.iterations, dtype=np.float64) * grid.dt
             timestr = "simulation time array"
 
         for i, waveformID in enumerate(waveformIDs):
@@ -189,9 +262,7 @@ class ExcitationFile(GridUserObject):
             w.type = "user"
 
             # Select correct column of waveform values depending on array shape
-            singlewaveformvalues = (
-                waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, i]
-            )
+            singlewaveformvalues = waveformvalues[:, i]
 
             # Truncate waveform array if it is longer than time array
             if len(singlewaveformvalues) > len(waveformtime):
@@ -208,12 +279,10 @@ class ExcitationFile(GridUserObject):
             # Interpolate waveform values
             if self.kind is None and self.fill_value is None:
                 w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues)
-            elif self.kind is not None and self.fill_value is not None:
+            else:
                 w.userfunc = interpolate.interp1d(
                     waveformtime, singlewaveformvalues, kind=self.kind, fill_value=self.fill_value
                 )
-            else:
-                raise ValueError(f"{self} requires either one or three parameter(s)")
 
             logger.info(
                 self.grid_name(grid) + f"User waveform {w.ID} created using {timestr} and, if "
@@ -284,12 +353,15 @@ class Waveform(GridUserObject):
                     self.params_str() + (" builtin waveforms require exactly four parameters.")
                 )
                 raise
-            if freq <= 0:
-                logger.exception(
+            if not np.isfinite(amp):
+                raise ValueError(f"{self.params_str()} amplitude scaling must be finite.")
+            if not np.isfinite(freq) or freq <= 0:
+                message = (
                     self.params_str()
-                    + (" requires an excitation " "frequency value of greater than zero.")
+                    + " requires a finite excitation frequency greater than zero."
                 )
-                raise ValueError
+                logger.error(message)
+                raise ValueError(message)
             if any(x.ID == ID for x in grid.waveforms):
                 logger.exception(self.params_str() + (f" with ID {ID} already exists."))
                 raise ValueError
@@ -349,7 +421,7 @@ class Waveform(GridUserObject):
                 # build work runs, rather than deep inside the per-source
                 # waveform precompute loop.
                 try:
-                    float(userfunc(0.0))
+                    sample = float(userfunc(0.0))
                 except Exception as err:
                     msg = (
                         self.params_str() + " 'user_func' must accept a single float (time in "
@@ -357,6 +429,10 @@ class Waveform(GridUserObject):
                     )
                     logger.exception(msg)
                     raise ValueError(msg) from err
+                if not np.isfinite(sample):
+                    raise ValueError(
+                        self.params_str() + " 'user_func' must return finite numeric values."
+                    )
                 w.userfunc = userfunc
 
                 logger.info(
@@ -365,14 +441,44 @@ class Waveform(GridUserObject):
                 )
 
             elif "user_values" in self.kwargs:
-                uservalues = self.kwargs["user_values"]
+                try:
+                    uservalues = np.asarray(self.kwargs["user_values"], dtype=float)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        self.params_str() + " 'user_values' must be a real numeric array."
+                    ) from exc
+                if uservalues.ndim != 1 or uservalues.size < 2:
+                    raise ValueError(
+                        self.params_str() + " 'user_values' must be a one-dimensional "
+                        "array containing at least two samples."
+                    )
+                if not np.all(np.isfinite(uservalues)):
+                    raise ValueError(
+                        self.params_str() + " 'user_values' must contain only finite values."
+                    )
                 fullargspec = inspect.getfullargspec(interpolate.interp1d)
                 kwargs = dict(zip(reversed(fullargspec.args), reversed(fullargspec.defaults)))
 
                 if "user_time" in self.kwargs:
-                    waveformtime = self.kwargs["user_time"]
+                    try:
+                        waveformtime = np.asarray(self.kwargs["user_time"], dtype=float)
+                    except (TypeError, ValueError) as exc:
+                        raise ValueError(
+                            self.params_str() + " 'user_time' must be a real numeric array."
+                        ) from exc
                 else:
                     waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
+
+                if waveformtime.ndim != 1 or waveformtime.size != uservalues.size:
+                    raise ValueError(
+                        self.params_str() + " 'user_time' and 'user_values' must be "
+                        "one-dimensional arrays of the same length."
+                    )
+                if not np.all(np.isfinite(waveformtime)) or np.any(np.diff(waveformtime) <= 0):
+                    raise ValueError(
+                        self.params_str() + " 'user_time' must contain finite, strictly "
+                        "increasing values."
+                    )
 
                 # Set args for interpolation if given by user
                 if "kind" in self.kwargs:
@@ -607,6 +713,11 @@ class NetworkExcitation(GridUserObject):
 class VoltageSource(RotatableMixin, GridUserObject):
     """Specifies a voltage source at an electric field location.
 
+    In a 3-D model the source also owns an automatic terminal monitor. A hard
+    source on a domain-minimum transverse boundary remains a valid source, but
+    cannot provide that port output because its complete Ampere loop lies
+    partly outside the grid.
+
     Attributes:
         polarisation: string required for polarisation of the source x, y, z.
         p1: tuple required for position of source x, y, z.
@@ -673,6 +784,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
         self.reference_impedance = reference_impedance
         self._source = None
         self._monitor = None
+        self._port_output_id = None
 
     @property
     def result(self):
@@ -749,9 +861,9 @@ class VoltageSource(RotatableMixin, GridUserObject):
                     )
 
         # Check resistance
-        if self.resistance < 0:
+        if not np.isfinite(self.resistance) or self.resistance < 0:
             raise ValueError(
-                f"{self.params_str()} requires a source resistance of zero or greater."
+                f"{self.params_str()} requires a finite source resistance of zero or greater."
             )
         if self.reference_impedance is not None:
             self.reference_impedance = float(self.reference_impedance)
@@ -843,6 +955,16 @@ class VoltageSource(RotatableMixin, GridUserObject):
 
         if grid.within_pml(coord):
             raise ValueError(f"{self.params_str()} cannot be placed inside a PML.")
+        loop_coordinate = (
+            grid.local_to_global_coordinate(coord) if isinstance(grid, MPIGrid) else coord
+        )
+        if not _hard_source_current_loop_available(
+            voltage_source.polarisation, voltage_source.resistance, loop_coordinate
+        ):
+            raise RuntimeError(
+                "internal error: attempted to create a hard-source port without "
+                "a complete transverse Ampere loop"
+            )
 
         receiver = RxUser()
         receiver.ID = f"_voltage_port_{output_id}"
@@ -858,16 +980,6 @@ class VoltageSource(RotatableMixin, GridUserObject):
         grid.add_receiver(receiver)
 
         if voltage_source.resistance == 0:
-            transverse_axes = {
-                "x": (1, 2),
-                "y": (0, 2),
-                "z": (0, 1),
-            }[voltage_source.polarisation]
-            if any(coord[axis] == 0 for axis in transverse_axes):
-                raise ValueError(
-                    f"{self.params_str()} cannot calculate a hard-source current "
-                    "loop on a domain-minimum transverse boundary"
-                )
             receiver.outputs[f"I{voltage_source.polarisation}"] = np.zeros(
                 grid.iterations, dtype=real_dtype
             )
@@ -898,6 +1010,12 @@ class VoltageSource(RotatableMixin, GridUserObject):
         )
 
     def build(self, grid: FDTDGrid):
+        # A Scene may be built again against a new grid. Do not carry runtime
+        # source/monitor ownership or a previously assigned automatic ID into
+        # the new build.
+        self._source = None
+        self._monitor = None
+        self._port_output_id = None
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -909,7 +1027,11 @@ class VoltageSource(RotatableMixin, GridUserObject):
         # Every MPI rank parses the same scene. Reserve the public ID before
         # reducing the point object to its owning rank so automatic IDs remain
         # globally deterministic.
-        if config.sim_config.mpi and config.get_model_config().mode == "3D":
+        global_discretised_point = uip.discretise_static_point(self.point)
+        mpi_port_supported = _hard_source_current_loop_available(
+            self.polarisation, self.resistance, global_discretised_point
+        )
+        if config.sim_config.mpi and config.get_model_config().mode == "3D" and mpi_port_supported:
             self._port_output_id = _reserve_voltage_port_output_id(grid, self.id, self)
 
         if point_within_grid:
@@ -918,15 +1040,30 @@ class VoltageSource(RotatableMixin, GridUserObject):
             grid.add_source(voltage_source)
             self._source = voltage_source
             if config.get_model_config().mode == "3D":
-                if not config.sim_config.mpi:
-                    self._port_output_id = _reserve_voltage_port_output_id(grid, self.id, self)
-                    voltage_source.port_id = self._port_output_id
-                self._create_port_monitor(
-                    grid,
-                    voltage_source,
-                    discretised_point,
-                    self._port_output_id,
+                # A local coordinate of zero on an internal MPI rank boundary
+                # is not the global domain minimum: its negative halo carries
+                # the magnetic samples required by the current loop.
+                port_supported = _hard_source_current_loop_available(
+                    voltage_source.polarisation,
+                    voltage_source.resistance,
+                    global_discretised_point,
                 )
+                if not port_supported:
+                    logger.warning(
+                        f"{self.params_str()} is a valid hard voltage source, but its "
+                        "automatic port output is disabled because a complete transverse "
+                        "Ampere loop does not fit at the domain-minimum boundary."
+                    )
+                else:
+                    if not config.sim_config.mpi:
+                        self._port_output_id = _reserve_voltage_port_output_id(grid, self.id, self)
+                        voltage_source.port_id = self._port_output_id
+                    self._create_port_monitor(
+                        grid,
+                        voltage_source,
+                        discretised_point,
+                        self._port_output_id,
+                    )
             position = uip.round_to_grid_static_point(self.point)
             self._log(grid, voltage_source, *position)
 
@@ -1385,9 +1522,13 @@ class TransmissionLine(RotatableMixin, GridUserObject):
             raise ValueError(f"{self.params_str()} polarisation must be x, y, or z.")
 
         # Check resistance
-        if self.resistance <= 0 or self.resistance >= config.sim_config.em_consts["z0"]:
+        if (
+            not np.isfinite(self.resistance)
+            or self.resistance <= 0
+            or self.resistance >= config.sim_config.em_consts["z0"]
+        ):
             raise ValueError(
-                f"{self.params_str()} requires a resistance "
+                f"{self.params_str()} requires a finite resistance "
                 "greater than zero and less than the impedance "
                 "of free space, i.e. 376.73 Ohms."
             )
@@ -1749,6 +1890,8 @@ class DiscretePlaneWaveAngles(GridUserObject):
         stop: float optional to time (secs) to remove source.
         precompute: boolean optional. If ``True`` (default), precompute the
             auxiliary plane-wave source history before time stepping.
+            ``False`` is reserved for a future on-the-fly implementation and
+            is currently rejected.
     """
 
     @property
@@ -1803,6 +1946,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
             precompute = self.kwargs["precompute"]
         except KeyError:
             precompute = True
+        _validate_dpw_precompute(self, precompute)
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
@@ -1819,23 +1963,25 @@ class DiscretePlaneWaveAngles(GridUserObject):
             raise ValueError
 
         # Check angles
-        if theta < 0 or theta > 180:
+        if not np.isfinite(theta) or theta < 0 or theta > 180:
             logger.exception(
                 f"{self.params_str()} Polar angle theta must be between 0 and 180 degrees."
             )
             raise ValueError
 
-        if phi < 0 or phi > 360:
+        if not np.isfinite(phi) or phi < 0 or phi > 360:
             logger.exception(
                 f"{self.params_str()} Azimuthal angle phi must be between 0 and 360 degrees."
             )
             raise ValueError
 
-        if psi < 0 or psi > 360:
+        if not np.isfinite(psi) or psi < 0 or psi > 360:
             logger.exception(
                 f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
             )
             raise ValueError
+        if not np.isfinite(max_angle_diff) or max_angle_diff <= 0:
+            raise ValueError(f"{self.params_str()} max_angle_diff must be finite and positive")
 
         uip = self._create_uip(grid)
         start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
@@ -1851,37 +1997,10 @@ class DiscretePlaneWaveAngles(GridUserObject):
         DPW.m = np.zeros(3 + 1, dtype=np.int32)
         DPW.axial = 0
 
-        try:
-            # Check source start & source remove time parameters
-            start = self.kwargs["start"]
-            stop = self.kwargs["stop"]
-            if start < 0:
-                logger.exception(
-                    self.params_str()
-                    + (" delay of the initiation " "of the source should not " "be less than zero.")
-                )
-                raise ValueError
-            if stop < 0:
-                logger.exception(
-                    self.params_str() + (" time to remove the source should not be less than zero.")
-                )
-                raise ValueError
-            if stop - start <= 0:
-                logger.exception(
-                    self.params_str() + (" duration of the source should not be zero or less.")
-                )
-                raise ValueError
-            DPW.start = start
-            DPW.stop = min(stop, grid.timewindow)
-            startstop = f" start time {start:g} secs, finish time {stop:g} secs "
-        except KeyError:
-            DPW.start = 0
-            DPW.stop = grid.timewindow
-            startstop = " "
+        startstop = _configure_dpw_time_window(self, DPW, grid)
 
         DPW.initializeDiscretePlaneWave(grid)
 
-        precompute = True
         if precompute:
             DPW.calculate_waveform_values(grid)
 
@@ -1936,6 +2055,8 @@ class DiscretePlaneWaveVector(GridUserObject):
         stop: float optional to time (secs) to remove source.
         precompute: boolean optional. If ``True`` (default), precompute the
             auxiliary plane-wave source history before time stepping.
+            ``False`` is reserved for a future on-the-fly implementation and
+            is currently rejected.
     """
 
     @property
@@ -1970,6 +2091,7 @@ class DiscretePlaneWaveVector(GridUserObject):
             precompute = self.kwargs["precompute"]
         except KeyError:
             precompute = True
+        _validate_dpw_precompute(self, precompute)
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
@@ -1987,11 +2109,23 @@ class DiscretePlaneWaveVector(GridUserObject):
 
         # Check angle
 
-        if psi < 0 or psi > 360:
+        if not np.isfinite(psi) or psi < 0 or psi > 360:
             logger.exception(
                 f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
             )
             raise ValueError
+
+        m_values = np.asarray(m_vec)
+        if (
+            m_values.shape != (3,)
+            or not np.all(np.isfinite(m_values))
+            or not np.all(m_values == np.rint(m_values))
+            or not np.any(m_values)
+        ):
+            raise ValueError(
+                f"{self.params_str()} m_vec must contain three finite integers and not be zero"
+            )
+        m_vec = tuple(int(value) for value in m_values)
 
         uip = self._create_uip(grid)
         start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
@@ -2016,37 +2150,10 @@ class DiscretePlaneWaveVector(GridUserObject):
         DPW.m[:3] = np.array(m_vec, dtype=np.int32)
         DPW.axial = 0
 
-        try:
-            # Check source start & source remove time parameters
-            start = self.kwargs["start"]
-            stop = self.kwargs["stop"]
-            if start < 0:
-                logger.exception(
-                    self.params_str()
-                    + (" delay of the initiation " "of the source should not " "be less than zero.")
-                )
-                raise ValueError
-            if stop < 0:
-                logger.exception(
-                    self.params_str() + (" time to remove the source should not be less than zero.")
-                )
-                raise ValueError
-            if stop - start <= 0:
-                logger.exception(
-                    self.params_str() + (" duration of the source should not be zero or less.")
-                )
-                raise ValueError
-            DPW.start = start
-            DPW.stop = min(stop, grid.timewindow)
-            startstop = f" start time {start:g} secs, finish time {stop:g} secs "
-        except KeyError:
-            DPW.start = 0
-            DPW.stop = grid.timewindow
-            startstop = " "
+        startstop = _configure_dpw_time_window(self, DPW, grid)
 
         DPW.initializeDiscretePlaneWave(grid)
 
-        precompute = True
         if precompute:
             DPW.calculate_waveform_values(grid)
 
@@ -2097,6 +2204,8 @@ class DiscretePlaneWaveAxial(GridUserObject):
         stop: float optional to time (secs) to remove source.
         precompute: boolean optional. If ``True`` (default), precompute the
             auxiliary plane-wave source history before time stepping.
+            ``False`` is reserved for a future on-the-fly implementation and
+            is currently rejected.
     """
 
     @property
@@ -2125,6 +2234,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
             precompute = self.kwargs["precompute"]
         except KeyError:
             precompute = True
+        _validate_dpw_precompute(self, precompute)
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
@@ -2134,7 +2244,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
             raise ValueError
 
         # Check polarisation angle
-        if psi < 0 or psi > 360:
+        if not np.isfinite(psi) or psi < 0 or psi > 360:
             logger.exception(
                 f"{self.params_str()} Polarisation angle psi must be between 0 and 360 degrees."
             )
@@ -2183,37 +2293,10 @@ class DiscretePlaneWaveAxial(GridUserObject):
             )
             raise ValueError
 
-        try:
-            # Check source start & source remove time parameters
-            start = self.kwargs["start"]
-            stop = self.kwargs["stop"]
-            if start < 0:
-                logger.exception(
-                    self.params_str()
-                    + (" delay of the initiation " "of the source should not " "be less than zero.")
-                )
-                raise ValueError
-            if stop < 0:
-                logger.exception(
-                    self.params_str() + (" time to remove the source should not be less than zero.")
-                )
-                raise ValueError
-            if stop - start <= 0:
-                logger.exception(
-                    self.params_str() + (" duration of the source should not be zero or less.")
-                )
-                raise ValueError
-            DPW.start = start
-            DPW.stop = min(stop, grid.timewindow)
-            startstop = f" start time {start:g} secs, finish time {stop:g} secs "
-        except KeyError:
-            DPW.start = 0
-            DPW.stop = grid.timewindow
-            startstop = " "
+        startstop = _configure_dpw_time_window(self, DPW, grid)
 
         DPW.initializeDiscretePlaneWave(grid)
 
-        precompute = True
         if precompute:
             DPW.calculate_waveform_values(grid)
 
@@ -3586,27 +3669,35 @@ class Material(GridUserObject):
             logger.exception(f"{self.params_str()} requires exactly five parameters.")
             raise
 
-        if er < 1:
-            logger.exception(
-                f"{self.params_str()} requires a positive value of one or greater for static (DC) permittivity."
-            )
-            raise ValueError
-        if se != "inf":
+        try:
+            er = float(er)
             se = float(se)
-            if se < 0:
-                logger.exception(
-                    f"{self.params_str()} requires a positive value for electric conductivity."
-                )
-                raise ValueError
-        else:
-            se = float("inf")
-        if mr < 1:
+            mr = float(mr)
+            sm = float(sm)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"{self.params_str()} electromagnetic properties must be numeric."
+            ) from exc
+
+        if not np.isfinite(er) or er < 1:
             logger.exception(
-                f"{self.params_str()} requires a positive value of one or greater for magnetic permeability."
+                f"{self.params_str()} requires a finite value of one or greater for static (DC) permittivity."
             )
             raise ValueError
-        if sm < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for magnetic loss.")
+        # Positive infinity is the documented representation of a PEC.
+        if np.isnan(se) or se < 0:
+            logger.exception(
+                f"{self.params_str()} requires a non-negative value for electric conductivity."
+            )
+            raise ValueError
+        if not np.isfinite(mr) or mr < 1:
+            logger.exception(
+                f"{self.params_str()} requires a finite value of one or greater for magnetic permeability."
+            )
+            raise ValueError
+        # Positive infinity is the documented representation of a PMC.
+        if np.isnan(sm) or sm < 0:
+            logger.exception(f"{self.params_str()} requires a non-negative value for magnetic loss.")
             raise ValueError
 
         if any(x.ID == material_id for x in grid.materials):
@@ -3866,15 +3957,19 @@ class AddDebyeDispersion(GridUserObject):
             disp_material.poles = poles
             disp_material.averagable = config.get_model_config().dispersive_averaging
             for i in range(poles):
-                if tau[i] > 0:
-                    logger.debug("Not checking if relaxation times are " "greater than time-step.")
-                    disp_material.deltaer.append(er_delta[i])
-                    disp_material.tau.append(tau[i])
-                else:
-                    logger.exception(
-                        f"{self.params_str()} requires positive values for the permittivity difference."
+                if not np.isfinite(er_delta[i]) or er_delta[i] <= 0:
+                    raise ValueError(
+                        f"{self.params_str()} requires finite, positive "
+                        f"relative-permittivity differences (invalid pole {i + 1})"
                     )
-                    raise ValueError
+                if not np.isfinite(tau[i]) or tau[i] <= 0:
+                    raise ValueError(
+                        f"{self.params_str()} requires finite, positive relaxation times "
+                        f"(invalid pole {i + 1})"
+                    )
+                logger.debug("Not checking if relaxation times are greater than time-step.")
+                disp_material.deltaer.append(er_delta[i])
+                disp_material.tau.append(tau[i])
             if disp_material.poles > config.get_model_config().materials["maxpoles"]:
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
@@ -3963,9 +4058,10 @@ class AddLorentzDispersion(GridUserObject):
             disp_material.poles = poles
             disp_material.averagable = config.get_model_config().dispersive_averaging
             for i in range(poles):
-                if er_delta[i] <= 0:
+                if not np.isfinite(er_delta[i]) or er_delta[i] <= 0:
                     raise ValueError(
-                        f"{self.params_str()} requires positive relative-permittivity differences"
+                        f"{self.params_str()} requires finite, positive "
+                        f"relative-permittivity differences (invalid pole {i + 1})"
                     )
                 try:
                     validate_lorentz_pole(omega[i], delta[i], grid.dt)
@@ -4119,6 +4215,17 @@ class SoilPeplinski(GridUserObject):
             logger.exception(f"{self.params_str()} requires at exactly seven parameters.")
             raise
 
+        values = (
+            sand_fraction,
+            clay_fraction,
+            bulk_density,
+            sand_density,
+            water_fraction_lower,
+            water_fraction_upper,
+        )
+        if not np.all(np.isfinite(values)):
+            raise ValueError(f"{self.params_str()} soil parameters must all be finite")
+
         # sand_fraction/clay_fraction are physical fractions - values
         # above 1 were previously unvalidated.
         if not (0 <= sand_fraction <= 1):
@@ -4232,6 +4339,19 @@ class MaterialRange(GridUserObject):
             logger.exception(f"{self.params_str()} requires at exactly nine parameters.")
             raise
 
+        values = (
+            er_lower,
+            er_upper,
+            sigma_lower,
+            sigma_upper,
+            mr_lower,
+            mr_upper,
+            ro_lower,
+            ro_upper,
+        )
+        if not np.all(np.isfinite(values)):
+            raise ValueError(f"{self.params_str()} material-range limits must all be finite")
+
         if er_lower < 1:
             logger.exception(
                 f"{self.params_str()} requires a value greater or equal to 1 "
@@ -4275,6 +4395,18 @@ class MaterialRange(GridUserObject):
             logger.exception(
                 f"{self.params_str()} requires a positive value for the upper range of magnetic loss."
             )
+            raise ValueError
+        ranges = (
+            ("relative permittivity", er_lower, er_upper),
+            ("electric conductivity", sigma_lower, sigma_upper),
+            ("relative magnetic permeability", mr_lower, mr_upper),
+            ("magnetic loss", ro_lower, ro_upper),
+        )
+        for label, lower, upper in ranges:
+            if lower > upper:
+                raise ValueError(
+                    f"{self.params_str()} lower {label} limit must not exceed its upper limit"
+                )
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError

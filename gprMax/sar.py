@@ -287,8 +287,18 @@ def _material_loss_conductivity(grid: "FDTDGrid", numeric_ids, frequencies):
     epsilon_0 = float(config.sim_config.em_consts["e0"])
     for material_id in np.unique(numeric_ids):
         material = material_by_id[int(material_id)]
-        epsilon_r = _material_relative_permittivity(material, frequencies)
-        effective = -omega * epsilon_0 * np.imag(epsilon_r)
+        # An ideal PEC has no finite volume in which Joule heating can be
+        # defined. Its loss is represented by a surface current, not by
+        # ``sigma * |E|**2`` in the cell volume. Evaluating that expression
+        # with se=+inf would otherwise create the indeterminate product
+        # inf * 0 and contaminate a valid SAR result with NaNs.
+        if material.is_pec:
+            effective = np.zeros(frequencies.shape, dtype=np.float64)
+        else:
+            epsilon_r = _material_relative_permittivity(material, frequencies)
+            effective = -omega * epsilon_0 * np.imag(epsilon_r)
+            if not np.all(np.isfinite(effective)):
+                raise ValueError(f"SAR material {material.ID!r} has non-finite electric loss")
         tolerance = 128 * np.finfo(np.float64).eps * np.maximum(1.0, np.abs(effective))
         if np.any(effective < -tolerance):
             raise ValueError(

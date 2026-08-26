@@ -116,18 +116,10 @@ class TestFileNaming:
 
         assert (tmp_path / "model.vtkhdf").is_file()
 
-    def test_a_dot_in_the_name_truncates_it(self, make_vtkhdf_file):
-        """``with_suffix`` replaces everything after the last dot.
-
-        A snapshot called ``model_1.5`` — a perfectly ordinary name for a
-        1.5 ns time point — is written as ``model_1.vtkhdf``, and the next
-        snapshot at ``model_1.7`` overwrites it. The warning that fires says
-        the extension ``'.5'`` was invalid, which is technically true and
-        entirely unhelpful. Pinned as the current behaviour; written up in
-        ``notes/bugs/vtkhdf-filename-suffix-truncation.md``.
-        """
+    def test_a_dot_in_the_name_is_preserved(self, make_vtkhdf_file):
+        """A version/time-like dot is part of the basename, not an extension."""
         with make_vtkhdf_file("model_1.5") as handler:
-            assert handler.filename.name == "model_1.vtkhdf"
+            assert handler.filename.name == "model_1.5.vtkhdf"
 
     def test_the_filename_is_stored_as_a_path(self, make_vtkhdf_file):
         """Callers read ``handler.filename`` to log where output went."""
@@ -420,18 +412,9 @@ class TestDatasetPaths:
             with pytest.raises(KeyError):
                 handler._get_dataset("VTKHDF/Absent")
 
-    def test_the_missing_path_message_is_never_the_one_reported(self, make_vtkhdf_file):
-        """``h5py`` returns ``None`` for an absent path, not ``"default"``.
-
-        So the ``cls == "default"`` branch — and its clear "Path does not
-        exist" message — is unreachable, and a simple typo in a dataset name
-        surfaces as ``Dataset not found. Found 'None' instead``, which reads
-        like a type problem rather than a missing key. Pinned as the current
-        behaviour; written up in
-        ``notes/bugs/vtkhdf-unreachable-missing-path-branch.md``.
-        """
+    def test_a_missing_path_has_a_clear_message(self, make_vtkhdf_file):
         with make_vtkhdf_file() as handler:
-            with pytest.raises(KeyError, match="Found 'None' instead"):
+            with pytest.raises(KeyError, match="Path does not exist"):
                 handler._get_dataset("VTKHDF/Absent")
 
     def test_a_path_pointing_at_a_group_raises(self, make_vtkhdf_file):

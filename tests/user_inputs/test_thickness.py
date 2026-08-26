@@ -16,7 +16,7 @@ class _BoundsGrid(SimpleNamespace):
         return True
 
 
-def _subgrid_input():
+def _subgrid_input(origin=(5, 7, 11)):
     grid = _BoundsGrid(
         dl=np.full(3, 1e-3),
         size=np.full(3, 20, dtype=np.int32),
@@ -24,9 +24,9 @@ def _subgrid_input():
         ny=20,
         nz=20,
         ratio=3,
-        i0=5,
-        j0=7,
-        k0=11,
+        i0=origin[0],
+        j0=origin[1],
+        k0=origin[2],
         n_boundary_cells_x=4,
         n_boundary_cells_y=4,
         n_boundary_cells_z=4,
@@ -84,6 +84,25 @@ def test_subgrid_thickness_still_rejects_requested_axis_overflow(dimension, axis
             3e-3,
             "#test_object",
         )
+
+
+@pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
+def test_subgrid_thickness_is_stable_at_large_absolute_offset(dimension, axis):
+    """Carrier-coordinate cancellation must not depend on proximity to zero."""
+
+    user_input = _subgrid_input(origin=(500_003, 700_007, 1_100_009))
+    lower_extent = _global_extent(user_input, axis, local_index=8)
+
+    within_grid, local_lower, local_thickness = user_input.check_thickness(
+        dimension,
+        lower_extent,
+        3e-3,
+        "#test_object",
+    )
+
+    assert within_grid
+    assert local_lower == pytest.approx(8e-3)
+    assert local_thickness == pytest.approx(3e-3)
 
 
 class _MPIGrid(SimpleNamespace):

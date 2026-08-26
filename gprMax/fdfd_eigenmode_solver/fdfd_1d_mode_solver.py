@@ -180,15 +180,32 @@ class FDFD_1D_mode_solver:
             values = values[order]
             vectors = vectors[:, order]
         else:
+            # ARPACK otherwise creates an implicit random starting vector.
+            # That makes an identical port solve depend on unrelated prior
+            # uses of the process-wide random-number generator and can lead
+            # to small run/restart differences after modal normalisation.
+            # Use a local deterministic vector without mutating NumPy's
+            # global random state.
+            v0 = np.random.default_rng(0).standard_normal(size)
             try:
-                values, vectors = eigs(reduced, k=self.num_modes, sigma=self.guess)
+                values, vectors = eigs(
+                    reduced,
+                    k=self.num_modes,
+                    sigma=self.guess,
+                    v0=v0,
+                )
             except RuntimeError:
                 # A homogeneous fundamental mode can lie exactly at the
                 # material-derived default shift (for example sigma=-1).
                 # Move the shift by roundoff rather than failing LU
                 # factorisation of A - sigma I.
                 shifted_guess = self.guess * (1.0 + 1e-9) - 1e-12
-                values, vectors = eigs(reduced, k=self.num_modes, sigma=shifted_guess)
+                values, vectors = eigs(
+                    reduced,
+                    k=self.num_modes,
+                    sigma=shifted_guess,
+                    v0=v0,
+                )
 
         order = np.argsort(np.real(values))
         values = values[order]

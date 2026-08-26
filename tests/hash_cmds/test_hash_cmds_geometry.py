@@ -382,24 +382,11 @@ class TestFractalBox:
             process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix"])
 
 
-class TestFractalBoxSeedTypeBug:
-    """Bug tripwire: ``hash_cmds_geometry.py:393``.
-
-    The 15-token ``#fractal_box`` branch passes ``seed=tmp[14]`` —
-    *unconverted string*. Sibling commands convert: ``#add_surface_roughness``
-    line 453 and ``#add_grass`` line 517 both pass ``seed=int(tmp[N])``.
-    This inconsistency means a fractal-box ``seed`` lands in ``kwargs`` as
-    a ``str`` while modifier seeds land as ``int``.
-
-    Pin the current behaviour. If the dispatcher is later fixed to cast
-    consistently (``seed=int(tmp[14])``), this assertion fails — flip to
-    ``isinstance(..., int)``.
-    """
-
-    def test_fractal_box_seed_stored_as_string(self):
+class TestFractalBoxSeedType:
+    def test_fractal_box_seed_stored_as_integer(self):
         objs = process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1 42"])
-        assert isinstance(objs[0].kwargs["seed"], str)
-        assert objs[0].kwargs["seed"] == "42"
+        assert isinstance(objs[0].kwargs["seed"], int)
+        assert objs[0].kwargs["seed"] == 42
 
 
 class TestFractalBoxModifiers:

@@ -36,6 +36,66 @@ def test_hard_voltage_source_defaults_to_50_ohm_reference_impedance(tmp_path):
     assert source._monitor.output_id == "port1"
 
 
+def test_uppercase_hard_source_polarisation_still_builds(tmp_path):
+    scene = _base_scene()
+    source = gprMax.VoltageSource((0.01, 0.01, 0.01), "Z", 0, "pulse")
+    scene.add(source)
+
+    _run_geometry(scene, tmp_path, "uppercase_hard_source")
+
+    assert source._source.polarisation == "z"
+    assert source._monitor.output_id == "port1"
+
+
+def test_finite_resistance_source_at_domain_minimum_retains_port(tmp_path):
+    scene = _base_scene()
+    source = gprMax.VoltageSource((0.0, 0.0, 0.01), "z", 50, "pulse")
+    scene.add(source)
+
+    _run_geometry(scene, tmp_path, "finite_boundary_source")
+
+    assert source._source is not None
+    assert source._monitor.output_id == "port1"
+
+
+@pytest.mark.parametrize(
+    ("polarisation", "point"),
+    (
+        ("x", (0.01, 0.0, 0.0)),
+        ("y", (0.0, 0.01, 0.0)),
+        ("z", (0.0, 0.0, 0.01)),
+    ),
+)
+def test_hard_source_at_domain_minimum_remains_valid_without_port(
+    tmp_path, capsys, polarisation, point
+):
+    scene = _base_scene()
+    source = gprMax.VoltageSource(point, polarisation, 0, "pulse")
+    scene.add(source)
+
+    _run_geometry(scene, tmp_path, f"hard_{polarisation}_boundary")
+
+    assert source._source is not None
+    assert source._monitor is None
+    assert source._source.port_id is None
+    assert "automatic port output is disabled" in capsys.readouterr().out
+    with pytest.raises(RuntimeError, match="port result is not available"):
+        _ = source.result
+
+
+def test_boundary_hard_source_does_not_consume_an_automatic_port_id(tmp_path):
+    scene = _base_scene()
+    boundary = gprMax.VoltageSource((0.0, 0.0, 0.01), "z", 0, "pulse")
+    monitored = gprMax.VoltageSource((0.01, 0.01, 0.01), "z", 50, "pulse")
+    scene.add(boundary)
+    scene.add(monitored)
+
+    _run_geometry(scene, tmp_path, "boundary_then_monitored")
+
+    assert boundary._monitor is None
+    assert monitored._monitor.output_id == "port1"
+
+
 def test_port_rejects_reference_impedance_different_from_finite_resistance(tmp_path):
     scene = _base_scene()
     scene.add(

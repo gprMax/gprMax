@@ -208,6 +208,16 @@ def check_cmd_names(processedlines, checkessential=True):
         geometry: list of geometry commands in the model.
     """
 
+    # Retired commands whose replacement is specific enough to give users a
+    # useful migration path instead of the generic "invalid command" error.
+    retired_commands = {
+        "#rx_port": (
+            "#rx_port has been removed. Every 3-D #voltage_source now owns "
+            "its port monitor; use the optional voltage-source ID and spectrum "
+            "arguments to name and configure that output."
+        )
+    }
+
     # Dictionaries of available commands
     # Essential commands neccessary to run a gprMax model
     essentialcmds = ["#domain", "#dx_dy_dz", "#time_window"]
@@ -355,6 +365,10 @@ def check_cmd_names(processedlines, checkessential=True):
             raise SyntaxError
 
         # Check if command name is valid
+        if cmdname in retired_commands:
+            message = retired_commands[cmdname]
+            logger.error(message)
+            raise SyntaxError(message)
         if (
             cmdname not in essentialcmds
             and cmdname not in singlecmds

@@ -7,6 +7,7 @@ import pytest
 
 import gprMax
 import gprMax.config as config
+from gprMax.user_objects.cmds_multiuse import _configure_dpw_time_window
 
 
 @pytest.fixture(autouse=True)
@@ -58,3 +59,25 @@ def _grid():
 def test_lone_start_or_stop_is_rejected_instead_of_silently_ignored(source):
     with pytest.raises(ValueError, match="start and stop times must be supplied together"):
         source._validate_parameters(_grid())
+
+
+@pytest.mark.parametrize(
+    "source",
+    (
+        gprMax.DiscretePlaneWaveAngles(start=0),
+        gprMax.DiscretePlaneWaveVector(stop=1e-9),
+        gprMax.DiscretePlaneWaveAxial(start=0),
+    ),
+)
+def test_plane_wave_lone_start_or_stop_is_rejected(source):
+    runtime_source = SimpleNamespace()
+    grid = SimpleNamespace(timewindow=2e-9)
+    with pytest.raises(ValueError, match="start and stop times must be supplied together"):
+        _configure_dpw_time_window(source, runtime_source, grid)
+
+
+@pytest.mark.parametrize("value", [np.nan, np.inf])
+def test_plane_wave_non_finite_time_is_rejected(value):
+    source = gprMax.DiscretePlaneWaveAxial(start=0, stop=value)
+    with pytest.raises(ValueError, match="must be finite"):
+        _configure_dpw_time_window(source, SimpleNamespace(), SimpleNamespace(timewindow=2e-9))

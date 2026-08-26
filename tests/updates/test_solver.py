@@ -547,7 +547,9 @@ class TestCreateSolver:
         constructing ``CPUUpdates`` any other way leaves those attributes
         missing.
         """
-        updates_config.model_config.materials["dispersivedtype"] = None
+        updates_config.model_config.materials["dispersivedtype"] = (
+            updates_config.sim_config.dtypes["float_or_double"]
+        )
 
         solver = create_solver(make_model(FDTDGrid(), maxpoles=2))
 

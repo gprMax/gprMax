@@ -58,7 +58,7 @@ class Sphere(GeometryUserObject):
             logger.exception(f"{self.__str__()} please specify a point and a radius.")
             raise
 
-        if r <= 0:
+        if not np.isfinite(r) or r <= 0:
             message = f"{self.__str__()} the radius {r:g} should be a positive value."
             logger.error(message)
             raise ValueError(message)

@@ -323,7 +323,10 @@ class TestConsistencyWithTheKernelDispatch:
         model_cfg = SimpleNamespace(
             mode="3D",
             ompthreads=1,
-            materials={"maxpoles": 1, "dispersivedtype": None},
+            materials={
+                "maxpoles": 1,
+                "dispersivedtype": sim_config.dtypes["float_or_double"],
+            },
         )
         monkeypatch.setattr(config, "get_model_config", lambda: model_cfg)
 

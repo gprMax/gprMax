@@ -890,9 +890,11 @@ and space increments.
 Voltage-source S11 and impedance output
 ---------------------------------------
 
-Every 3-D ``#voltage_source`` or ``VoltageSource`` Python object writes one
-source-owned group per main-grid port at ``/ports/<port ID>``. A source added
-to a Python API subgrid is
+Every 3-D ``#voltage_source`` or ``VoltageSource`` Python object normally
+writes one source-owned group per main-grid port at ``/ports/<port ID>``. A
+zero-resistance hard source at a domain-minimum transverse boundary remains a
+valid excitation but has no automatic port group because its complete Ampere
+loop is outside the model. A source added to a Python API subgrid is
 stored at ``/subgrids/<subgrid ID>/ports/<port ID>`` and uses the owning
 subgrid's spatial step, time step, iteration count, material edge, and field
 histories. For a finite-resistance source, its resistance is the reference

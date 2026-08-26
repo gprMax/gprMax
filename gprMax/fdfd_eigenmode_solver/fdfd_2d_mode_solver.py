@@ -280,11 +280,17 @@ class FDFD_2D_mode_solver:
             eigenvalues = eigenvalues[selection]
             eigenvectors = eigenvectors[:, selection]
         else:
+            # Keep the ARPACK solve independent of process-global random
+            # state.  This is important when a geometry-fixed eigenmode
+            # study is restarted in a process that has already performed
+            # other randomised work.
+            v0 = np.random.default_rng(0).standard_normal(size)
             try:
                 eigenvalues, eigenvectors = eigs(
                     operator,
                     k=self.num_modes,
                     sigma=self.guess,
+                    v0=v0,
                 )
             except RuntimeError:
                 shifted_guess = self.guess * (1.0 + 1e-9) - 1e-12
@@ -292,6 +298,7 @@ class FDFD_2D_mode_solver:
                     operator,
                     k=self.num_modes,
                     sigma=shifted_guess,
+                    v0=v0,
                 )
 
         order = np.argsort(np.real(eigenvalues))

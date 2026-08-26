@@ -37,6 +37,7 @@ from gprMax.sources import (
     VoltageSource,
     htod_src_arrays,
 )
+from gprMax.waveforms import Waveform as RuntimeWaveform
 
 # ---------------------------------------------------------------------------
 # Helpers shared across tests
@@ -785,46 +786,55 @@ class TestDpwCalculateWaveformValuesNonCython:
         assert np.all(dpw.waveformvalues_wholedt[1] == 0)
 
 
-class TestDpwNonCythonTypoBug:
-    """Pin the suspicious ``np.abs(self.m[(dimension)]) + np.abs(self.m[(dimension)])``
-    expression at ``sources.py:1221``. The ``time1`` calculation immediately
-    above uses ``m[(dim+1)%3]`` and ``m[(dim+2)%3]`` — for ``time2`` the
-    code repeats ``m[dim]`` twice, making the spatial-step offset reduce
-    to ``|m[dim]|`` instead of the cross-axis sum.
+class TestDpwWaveformPrecomputation:
+    def test_whole_step_uses_own_component_half_cell_offset(self, fake_grid):
+        class TimeWaveform:
+            type = "user"
+            freq = 1.0
 
-    Today this matches the formula
-        time2 = G.dt*iteration - (r + |m[dim]|*0.5)*ds/speed
-    The test pins that. If the source is fixed (replace the duplicated
-    index with ``dim+1`` and ``dim+2``), this assertion must flip.
-    """
+            @staticmethod
+            def calculate_value(time, dt):
+                return time
 
-    def test_time2_offset_uses_doubled_same_index(self, fake_grid, make_constant_waveform):
-        # Use a sparse waveform: returns 1.0 only at a specific t-window.
-        # We pick m, ds, speed so the cross-axis-sum formula would land
-        # OUTSIDE the window but the duplicated-index formula lands INSIDE.
-        # m[0]=2, m[1]=10, m[2]=10 → cross-axis sum for dim=0 is m[1]+m[2]=20;
-        # duplicated for dim=0 is m[0]+m[0]=4. Big difference → easy to
-        # distinguish.
         dpw = DiscretePlaneWave(G=None)
         dpw.m = np.array([2, 10, 10, 10], dtype=np.int32)
         dpw.ds = 1.0
         dpw.speed = 1.0
-        dpw.start = -1e9
-        dpw.stop = 1e9  # accept everything
-        dpw.waveform = make_constant_waveform(value=1.0)
+        dpw.start = 0.0
+        dpw.stop = 1e9
+        dpw.waveform = TimeWaveform()
 
         G = fake_grid(iterations=1, dt=100.0)
-
         dpw.calculate_waveform_values(G, cythonize=False)
 
-        # iteration=1, dim=0, r=0, the *current* (buggy) formula:
-        #   time2 = 100*1 - (0 + (|m[0]|+|m[0]|)*0.5)*1/1 = 100 - 2 = 98
-        # If the formula were fixed to m[(dim+1)%3] + m[(dim+2)%3]:
-        #   time2 = 100 - (10+10)*0.5 = 100 - 10 = 90
-        # Both are inside the wide window — but we can still verify the
-        # *array index* was set to 1.0 (the constant waveform value).
-        # Pin the fact that the value lands at iteration=1, dim=0, r=0.
-        assert dpw.waveformvalues_wholedt[1, 0, 0] == 1.0
+        # Ex is collocated half an x-projection cell from the auxiliary-grid
+        # origin: 100 - |m_x|/2 = 99, not 98 (a full-cell offset) and not
+        # 90 (the transverse Hy/Hz staggering).
+        assert dpw.waveformvalues_wholedt[1, 0, 0] == pytest.approx(99.0)
+
+    def test_cython_and_reference_histories_match_including_amplitude(self, fake_grid):
+        waveform = RuntimeWaveform()
+        waveform.ID = "pulse"
+        waveform.type = "gaussian"
+        waveform.freq = 1e9
+        waveform.amp = 2.5
+
+        dpw = DiscretePlaneWave(G=None)
+        dpw.m = np.array([1, 2, 3, 3], dtype=np.int32)
+        dpw.ds = 1e-4
+        dpw.speed = c
+        dpw.start = 0.0
+        dpw.stop = 20e-12
+        dpw.waveform = waveform
+        grid = fake_grid(iterations=12, dt=1e-12)
+
+        dpw.calculate_waveform_values(grid, cythonize=False)
+        expected_whole = dpw.waveformvalues_wholedt.copy()
+        expected_half = dpw.waveformvalues_halfdt.copy()
+        dpw.calculate_waveform_values(grid, cythonize=True)
+
+        np.testing.assert_allclose(dpw.waveformvalues_wholedt, expected_whole, rtol=1e-13)
+        np.testing.assert_allclose(dpw.waveformvalues_halfdt, expected_half, rtol=1e-13)
 
 
 pytestmark = pytest.mark.unit

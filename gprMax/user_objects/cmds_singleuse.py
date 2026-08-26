@@ -19,6 +19,7 @@
 
 import logging
 import math
+from numbers import Integral
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -87,10 +88,12 @@ class Discretisation(ModelUserObject):
         self.discretisation = p1
 
     def build(self, model: Model):
-        if any(d <= 0 for d in self.discretisation):
+        if not np.all(np.isfinite(self.discretisation)) or any(
+            d <= 0 for d in self.discretisation
+        ):
             raise ValueError(
-                f"{self} discretisation requires the spatial step to be"
-                " greater than zero in all dimensions"
+                f"{self} discretisation requires a finite spatial step greater than zero "
+                "in all dimensions"
             )
 
         model.dl = np.array(self.discretisation, dtype=np.float64)
@@ -444,10 +447,13 @@ class TimeStepStabilityFactor(ModelUserObject):
         self.stability_factor = f
 
     def build(self, model: Model):
-        if self.stability_factor <= 0 or self.stability_factor > 1:
+        if (
+            not np.isfinite(self.stability_factor)
+            or self.stability_factor <= 0
+            or self.stability_factor > 1
+        ):
             raise ValueError(
-                f"{self} requires the value of the time step stability"
-                " factor to be between zero and one"
+                f"{self} requires a finite time step stability factor between zero and one"
             )
 
         model.dt_mod = self.stability_factor
@@ -488,20 +494,24 @@ class TimeWindow(ModelUserObject):
 
     def build(self, model: Model):
         if self.time is not None:
-            if self.time > 0:
+            if np.isfinite(self.time) and self.time > 0:
                 model.timewindow = self.time
                 model.iterations = int(np.ceil(self.time / model.dt)) + 1
             else:
-                raise ValueError(f"{self} must have a value greater than zero")
+                raise ValueError(f"{self} time must be finite and greater than zero")
         elif self.iterations is not None:
-            if self.iterations <= 0:
-                raise ValueError(f"{self} must have a value greater than zero")
+            if (
+                isinstance(self.iterations, bool)
+                or not isinstance(self.iterations, Integral)
+                or self.iterations <= 0
+            ):
+                raise ValueError(f"{self} iterations must be a positive integer")
 
             # The +/- 1 used in calculating the number of iterations is
             # to account for the fact that the solver (iterations) loop
             # runs from 0 to < G.iterations
-            model.timewindow = (self.iterations - 1) * model.dt
-            model.iterations = self.iterations
+            model.timewindow = (int(self.iterations) - 1) * model.dt
+            model.iterations = int(self.iterations)
         else:
             raise ValueError(f"{self} specify a time or number of iterations")
 
@@ -541,10 +551,14 @@ class OMPThreads(ModelUserObject):
         self.omp_threads = n
 
     def build(self, model: Model):
-        if self.omp_threads < 1:
+        if (
+            isinstance(self.omp_threads, bool)
+            or not isinstance(self.omp_threads, Integral)
+            or self.omp_threads < 1
+        ):
             raise ValueError(f"{self} requires the value to be an integer not less than one")
 
-        config.get_model_config().ompthreads = set_omp_threads(self.omp_threads)
+        config.get_model_config().ompthreads = set_omp_threads(int(self.omp_threads))
 
         logger.info(f"Simulation will use {config.get_model_config().ompthreads} OpenMP threads")
 
@@ -636,23 +650,36 @@ class PMLThickness(ModelUserObject):
     def build(self, model: Model):
         grid = model.G
 
-        if not (
-            isinstance(self.thickness, int) or len(self.thickness) == 1 or len(self.thickness) == 6
-        ):
+        if isinstance(self.thickness, (bool, str, bytes)):
+            raise ValueError(f"{self} requires integer PML cell counts")
+        if isinstance(self.thickness, Integral):
+            thickness_values = (int(self.thickness),)
+        else:
+            try:
+                thickness_values = tuple(self.thickness)
+            except TypeError as exc:
+                raise ValueError(
+                    f"{self} requires either one or six integer PML cell counts"
+                ) from exc
+
+        if len(thickness_values) not in (1, 6):
             raise ValueError(f"{self} requires either one or six parameter(s)")
+        if any(isinstance(t, bool) or not isinstance(t, Integral) for t in thickness_values):
+            raise ValueError(f"{self} requires integer PML cell counts")
+        thickness_values = tuple(int(t) for t in thickness_values)
 
         # A negative thickness isn't rejected here without this check -
         # FDTDGrid._build_pmls() only constructs a slab when
         # `thickness > 0`, so a negative value would silently behave
         # like 0 (no PML on that face) instead of raising an error for a
         # nonsensical request.
-        thickness_values = (
-            (self.thickness,) if isinstance(self.thickness, int) else tuple(self.thickness)
-        )
         if any(t < 0 for t in thickness_values):
             raise ValueError(f"{self} requires the PML thickness to be zero or greater")
 
-        model.G.set_pml_thickness(self.thickness)
+        canonical_thickness = (
+            thickness_values[0] if len(thickness_values) == 1 else thickness_values
+        )
+        model.G.set_pml_thickness(canonical_thickness)
 
         # Check each PML does not take up more than half the grid
         # TODO: MPI ranks not containing a PML will not throw an error

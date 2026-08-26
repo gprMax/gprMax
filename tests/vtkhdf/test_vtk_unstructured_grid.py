@@ -278,6 +278,29 @@ class TestValidation:
         with pytest.raises(ValueError, match="sorted in ascending order"):
             make_unstructured_grid(**line_grid_arrays)
 
+    def test_points_must_be_n_by_three(self, make_unstructured_grid, line_grid_arrays):
+        line_grid_arrays["points"] = np.zeros((3, 2))
+        with pytest.raises(ValueError, match=r"shape \(N, 3\)"):
+            make_unstructured_grid(**line_grid_arrays)
+
+    def test_offsets_must_start_at_zero(self, make_unstructured_grid, line_grid_arrays):
+        line_grid_arrays["cell_offsets"] = np.array([1, 2, 4], dtype=np.int32)
+        with pytest.raises(ValueError, match="start at zero"):
+            make_unstructured_grid(**line_grid_arrays)
+
+    @pytest.mark.parametrize("bad_id", [-1, 3])
+    def test_connectivity_ids_must_address_a_point(
+        self, make_unstructured_grid, line_grid_arrays, bad_id
+    ):
+        line_grid_arrays["connectivity"] = np.array([0, 1, 1, bad_id], dtype=np.int32)
+        with pytest.raises(ValueError, match="outside points"):
+            make_unstructured_grid(**line_grid_arrays)
+
+    def test_connectivity_ids_must_be_integers(self, make_unstructured_grid, line_grid_arrays):
+        line_grid_arrays["connectivity"] = np.array([0.0, 1.0, 1.0, 2.0])
+        with pytest.raises(ValueError, match="integer point IDs"):
+            make_unstructured_grid(**line_grid_arrays)
+
     def test_equal_consecutive_offsets_are_allowed(self, make_unstructured_grid, line_grid_arrays):
         """A zero-length cell is degenerate but not out of order."""
         line_grid_arrays["cell_offsets"] = np.array([0, 2, 2], dtype=np.int32)
@@ -322,22 +345,16 @@ class TestValidation:
 
         assert caplog.records == []
 
-    def test_a_failed_construction_still_leaves_a_file(
+    def test_a_failed_construction_does_not_create_or_truncate_a_file(
         self, make_unstructured_grid, line_grid_arrays, tmp_path
     ):
-        """The file is opened — and truncated — before validation runs.
-
-        So a rejected grid destroys any earlier file of the same name and
-        leaves an empty one in its place, with the handle never closed. Pinned
-        as the current behaviour; written up in
-        ``notes/bugs/vtkhdf-truncates-before-validating.md``.
-        """
+        """Input validation happens before the output is opened in write mode."""
         line_grid_arrays["cell_offsets"] = np.array([0, 2], dtype=np.int32)
 
         with pytest.raises(ValueError):
             make_unstructured_grid(**line_grid_arrays)
 
-        assert (tmp_path / "grid.vtkhdf").is_file()
+        assert not (tmp_path / "grid.vtkhdf").exists()
 
 
 class TestAddCellData:
@@ -387,24 +404,25 @@ class TestAddCellData:
             with pytest.raises(ValueError, match="shape 1 or 3"):
                 handler.add_cell_data("Material", np.zeros((2, 2)))
 
-    def test_two_dimensional_cell_data_is_stored_transposed(
+    def test_two_dimensional_cell_data_keeps_vtk_tuple_component_order(
         self, make_unstructured_grid, line_grid_arrays, tmp_path
     ):
-        """``(C, 3)`` goes in as ``(3, C)`` — the opposite of VTK's layout.
-
-        ``Points`` is written with ``xyz_data_ordering=False`` for exactly
-        this reason, but ``add_cell_data`` and ``add_point_data`` are not, so
-        vector-valued cell data comes out with components and tuples swapped.
-        gprMax only ever writes scalar cell data, where a 1-D transpose is a
-        no-op, which is why it has never been noticed. Pinned as the current
-        behaviour; written up in
-        ``notes/bugs/vtkhdf-unstructured-vector-data-transposed.md``.
-        """
+        """VTK vector arrays are stored as (tuples, 3 components)."""
         with make_unstructured_grid(**line_grid_arrays) as handler:
             handler.add_cell_data("Vectors", np.zeros((2, 3)))
 
         with h5py.File(tmp_path / "grid.vtkhdf", "r") as f:
-            assert f["VTKHDF/CellData/Vectors"].shape == (3, 2)
+            assert f["VTKHDF/CellData/Vectors"].shape == (2, 3)
+
+    def test_vector_values_are_not_transposed(
+        self, make_unstructured_grid, line_grid_arrays, tmp_path
+    ):
+        vectors = np.array([[1, 2, 3], [4, 5, 6]])
+        with make_unstructured_grid(**line_grid_arrays) as handler:
+            handler.add_cell_data("Vectors", vectors)
+
+        with h5py.File(tmp_path / "grid.vtkhdf", "r") as f:
+            np.testing.assert_array_equal(f["VTKHDF/CellData/Vectors"][...], vectors)
 
 
 class TestAddPointData:

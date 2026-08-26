@@ -1516,10 +1516,13 @@ Receiver Array
 
 Voltage-source S11 and input impedance
 --------------------------------------
-Every 3-D single-Yee-edge :class:`gprMax.VoltageSource` owns the necessary
-hidden field monitor and calculates corrected complex ``S11``, ``Zin``, and
-``Yin`` after the solve. A finite-resistance source uses its physical
-resistance as the reference impedance:
+Every 3-D single-Yee-edge :class:`gprMax.VoltageSource` normally owns the
+necessary hidden field monitor and calculates corrected complex ``S11``,
+``Zin``, and ``Yin`` after the solve. The exception is a zero-resistance hard
+source on a domain-minimum transverse boundary: the source remains valid, but
+gprMax warns and omits its automatic port because the complete Ampere current
+loop lies partly outside the grid. A finite-resistance source uses its
+physical resistance as the reference impedance:
 
 .. code-block:: python
 

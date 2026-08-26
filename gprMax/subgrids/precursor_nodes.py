@@ -271,6 +271,15 @@ class PrecursorNodesBase:
             # interpolate over a fine grid
             f_i = self.interpolate_to_sub_grid(f_t, obj[1])
 
+            # A unity-ratio subgrid is intentionally used as an identity
+            # interface for validation. At every refining ratio, however,
+            # interpolation must change the sampling lattice; equality here
+            # indicates that the refinement/interpolation path was bypassed.
+            if self.ratio > 1 and np.array_equal(f_i, f_t):
+                raise RuntimeError(
+                    "Subgrid magnetic interpolation did not refine the precursor lattice."
+                )
+
             # discard the outer nodes only required for interpolation
             # f = f_i[self.ratio:-self.ratio, self.ratio:-self.ratio]
             f = f_i

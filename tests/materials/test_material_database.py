@@ -65,6 +65,19 @@ def test_local_filename_and_database_id_must_match(tmp_path):
         load_material_spec("laboratory", "dielectric", search_directory=tmp_path)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (("schema", "wrong-schema"), ("schema_version", 2)),
+)
+def test_local_database_rejects_unsupported_schema(tmp_path, field, value):
+    document = _database({"dielectric": _constant()})
+    document[field] = value
+    (tmp_path / "local.json").write_text(json.dumps(document))
+
+    with pytest.raises(ValueError, match="must use.*schema version 1"):
+        load_material_spec("local", "dielectric", search_directory=tmp_path)
+
+
 def test_official_catalogues_validate_and_reserve_empty_subject_namespaces():
     fundamental = dict(validate_material_database("fundamental"))
     assert set(fundamental) == {"vacuum", "pec", "pmc"}
