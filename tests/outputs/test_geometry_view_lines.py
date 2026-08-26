@@ -28,7 +28,11 @@ import numpy as np
 import pytest
 
 from gprMax.cython.geometry_outputs import get_line_properties
-from gprMax.geometry_outputs.geometry_view_lines import GeometryViewLines, MPIGeometryViewLines
+from gprMax.geometry_outputs.geometry_view_lines import (
+    GeometryViewLines,
+    MPIGeometryViewLines,
+    _remove_duplicate_partition_edges,
+)
 from gprMax.geometry_outputs.geometry_views import GeometryView
 
 from .conftest import DL, DL_ANISO
@@ -441,6 +445,48 @@ class TestMpiVariant:
         view.set_filename()
         view.prep_vtk()
         assert view.points.min() == pytest.approx(10 * DL)
+
+    @pytest.mark.parametrize(
+        "axis, expected_removed",
+        [(0, 4), (1, 4), (2, 4)],
+        ids=["x-face", "y-face", "z-face"],
+    )
+    def test_upper_partition_face_has_one_owner(self, axis, expected_removed):
+        """A one-cell cube has four edges tangential to each upper face.
+
+        The negative-side MPI rank drops its four upper-face copies while
+        retaining the four normal edges that end on the same face.
+        """
+        nx = ny = nz = 1
+        n_lines = _total_lines(nx, ny, nz)
+        ID = np.zeros((6, 2, 2, 2), dtype=np.uint32)
+        connectivity, material_data = get_line_properties(n_lines, nx, ny, nz, ID)
+        neighbours = np.zeros(3, dtype=bool)
+        neighbours[axis] = True
+
+        filtered_connectivity, filtered_materials = _remove_duplicate_partition_edges(
+            connectivity, material_data, np.asarray((nx, ny, nz)), neighbours
+        )
+
+        assert len(filtered_materials) == n_lines - expected_removed
+        assert len(filtered_connectivity) == 2 * len(filtered_materials)
+
+    def test_partition_corner_drops_each_shared_edge_only_once(self):
+        nx = ny = nz = 1
+        n_lines = _total_lines(nx, ny, nz)
+        ID = np.zeros((6, 2, 2, 2), dtype=np.uint32)
+        connectivity, material_data = get_line_properties(n_lines, nx, ny, nz, ID)
+
+        _, filtered_materials = _remove_duplicate_partition_edges(
+            connectivity,
+            material_data,
+            np.asarray((nx, ny, nz)),
+            np.asarray((True, True, True)),
+        )
+
+        # Three edges emerge from the opposite lower corner; the other nine
+        # lie on at least one shared upper partition face.
+        assert len(filtered_materials) == 3
 
 
 pytestmark = pytest.mark.unit

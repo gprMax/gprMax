@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -19,7 +19,7 @@
 
 import logging
 from itertools import chain
-from typing import Generic, List, Tuple
+from typing import Generic, Tuple
 
 import numpy as np
 import numpy.typing as npt
@@ -33,6 +33,23 @@ from gprMax.materials import Material
 logger = logging.getLogger(__name__)
 
 GridType = TypeVar("GridType", bound=FDTDGrid)
+
+
+def _merge_rank_materials(
+    materials_by_rank: list[npt.NDArray[np.object_]],
+) -> tuple[npt.NDArray[np.object_], list[npt.NDArray[np.int32]]]:
+    """Create one global material table and an ordered map for each rank."""
+    all_materials = np.fromiter(chain.from_iterable(materials_by_rank), dtype=Material)
+    materials = np.unique(all_materials)
+    global_index_by_id = {material.ID: index for index, material in enumerate(materials)}
+    material_ids_by_rank = [
+        np.asarray(
+            [global_index_by_id[material.ID] for material in rank_materials],
+            dtype=np.int32,
+        )
+        for rank_materials in materials_by_rank
+    ]
+    return materials, material_ids_by_rank
 
 
 class GridView(Generic[GridType]):
@@ -116,7 +133,7 @@ class GridView(Generic[GridType]):
     @property
     def nz(self) -> int:
         return self.size[2]
-    
+
     @property
     def dx(self) -> int:
         return self.step[0]
@@ -294,9 +311,7 @@ class GridView(Generic[GridType]):
             self.get_read_slice(2, upper_bound_exclusive),
         )
 
-    def get_array_slice(
-        self, array: npt.NDArray, upper_bound_exclusive: bool = True
-    ) -> npt.NDArray:
+    def get_array_slice(self, array: npt.NDArray, upper_bound_exclusive: bool = True) -> npt.NDArray:
         """Slice an array according to the dimensions of the grid view.
 
         It is assumed the last 3 dimensions of the provided array
@@ -325,9 +340,7 @@ class GridView(Generic[GridType]):
             ]
         )
 
-    def set_array_slice(
-        self, array: npt.NDArray, value: npt.NDArray, upper_bound_exclusive: bool = True
-    ):
+    def set_array_slice(self, array: npt.NDArray, value: npt.NDArray, upper_bound_exclusive: bool = True):
         """Set value of an array according to the dimensions of the grid view.
 
         It is assumed the last 3 dimensions of the array represent the
@@ -593,8 +606,7 @@ class MPIGridView(GridView[MPIGrid]):
         # start must still be aligned with the provided step.
         self.start = np.where(
             self.has_negative_neighbour,
-            self.grid.negative_halo_offset
-            + ((self.start - self.grid.negative_halo_offset) % self.step),
+            self.grid.negative_halo_offset + ((self.start - self.grid.negative_halo_offset) % self.step),
             self.start,
         )
 
@@ -615,9 +627,7 @@ class MPIGridView(GridView[MPIGrid]):
         )
 
         # Calculate offset for the local grid view
-        self.offset = (
-            self.grid.local_to_global_coordinate(self.start) - self.global_start
-        ) // self.step
+        self.offset = (self.grid.local_to_global_coordinate(self.start) - self.global_start) // self.step
 
         # Update local size
         self.size = np.ceil((self.stop - self.start) / self.step).astype(np.int32)
@@ -805,39 +815,21 @@ class MPIGridView(GridView[MPIGrid]):
         # Send all materials to the coordinating rank
         materials_by_rank = self.comm.gather(local_materials, root=0)
 
-        requests: List[MPI.Request] = []
-
         if materials_by_rank is not None:
-            # Filter out duplicate materials and sort by material ID
-            all_materials = np.fromiter(chain.from_iterable(materials_by_rank), dtype=Material)
-            self.materials = np.unique(all_materials)
-
-            # The new material IDs corespond to each material's index in
-            # the sorted self.materials array. For each rank, get the
-            # new IDs of each material it sent to send back
-            for rank in range(1, self.comm.size):
-                new_material_ids = np.where(np.isin(self.materials, materials_by_rank[rank]))[0]
-
-                # astype() always returns a copy, so it should be safe to use Isend here
-                request = self.comm.Isend([new_material_ids.astype(np.int32), MPI.INT], rank)
-                requests.append(request)
-
-            new_material_ids = np.where(np.isin(self.materials, materials_by_rank[0]))[0]
-            new_material_ids = new_material_ids.astype(np.int32)
+            # Preserve each rank's local material ordering. np.isin returns
+            # indices in global order and, if a local material ID occurs more
+            # than once, can also return fewer entries than the receiving
+            # rank allocated. Build one index for every local Material and
+            # scatter the variable-length maps as Python objects instead.
+            self.materials, material_ids_by_rank = _merge_rank_materials(materials_by_rank)
         else:
             self.materials = None
+            material_ids_by_rank = None
 
-            # Get list of global IDs for this rank's local materials
-            new_material_ids = np.empty(len(local_materials), dtype=np.int32)
-            self.comm.Recv([new_material_ids, MPI.INT], 0)
+        new_material_ids = self.comm.scatter(material_ids_by_rank, root=0)
 
         # Create map from local material ID to global material ID
-        materials_map = {
-            local_material_ids[index]: new_id for index, new_id in enumerate(new_material_ids)
-        }
+        materials_map = {local_material_ids[index]: new_id for index, new_id in enumerate(new_material_ids)}
 
         # Create map from material ID to 0 - number of materials
         self.map_materials_func = np.vectorize(lambda id: materials_map[id])
-
-        if len(requests) > 0:
-            requests[0].Waitall(requests)

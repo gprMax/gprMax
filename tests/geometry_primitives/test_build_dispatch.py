@@ -115,12 +115,8 @@ class TestPlateBuild:
         plate = Plate(p1=(1 * DL, 1 * DL, 2 * DL), p2=(4 * DL, 3 * DL, 2 * DL), material_id="metal")
         plate.build(g)
 
-        expected_id0 = {(i, j, 2) for (i, j) in self.CELLS} | {
-            (i, j + 1, 2) for (i, j) in self.CELLS
-        }
-        expected_id1 = {(i, j, 2) for (i, j) in self.CELLS} | {
-            (i + 1, j, 2) for (i, j) in self.CELLS
-        }
+        expected_id0 = {(i, j, 2) for (i, j) in self.CELLS} | {(i, j + 1, 2) for (i, j) in self.CELLS}
+        expected_id1 = {(i, j, 2) for (i, j) in self.CELLS} | {(i + 1, j, 2) for (i, j) in self.CELLS}
         assert nonzero_set(g.ID[0]) == expected_id0
         assert nonzero_set(g.ID[1]) == expected_id1
         assert not g.ID[2].any()
@@ -195,6 +191,22 @@ class TestTriangleBuild:
         assert g.ID[0].any()
         assert g.ID[1].any()
 
+    def test_anisotropic_zero_thickness_uses_directional_materials(self, dispatch_grid):
+        g = dispatch_grid()
+        Triangle(
+            p1=self.KWARGS["p1"],
+            p2=self.KWARGS["p2"],
+            p3=self.KWARGS["p3"],
+            thickness=0.0,
+            material_ids=["mat_a", "mat_b", "metal"],
+        ).build(g)
+
+        # The triangle lies in the xy plane, so only its x- and y-directed
+        # electric edges are written with the corresponding material IDs.
+        assert all(g.ID[0][slot] == 3 for slot in nonzero_set(g.ID[0]))
+        assert all(g.ID[1][slot] == 4 for slot in nonzero_set(g.ID[1]))
+        assert not g.ID[2].any()
+
     def test_non_coplanar_vertices_raise(self, dispatch_grid):
         g = dispatch_grid()
         triangle = Triangle(
@@ -254,9 +266,7 @@ class TestCylinderBuild:
 
     def test_non_positive_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(
-            p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), r=0.0, material_id="metal"
-        )
+        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), r=0.0, material_id="metal")
         with pytest.raises(ValueError):
             cylinder.build(g)
 
@@ -273,9 +283,7 @@ class TestCylinderBuild:
 
     def test_missing_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(
-            p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), material_id="metal"
-        )
+        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), material_id="metal")
         with pytest.raises(KeyError):
             cylinder.build(g)
 
