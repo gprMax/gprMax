@@ -314,7 +314,11 @@ class ReadGeometryObject(AbstractContextManager):
         raw_data = self.file_handler["/data"]
         assert isinstance(raw_data, h5py.Dataset)
         raw_data = self._read_spatial_dataset(raw_data)
-        existing = self.grid_view.get_geometry_tags()
+        # MPI setters include the negative interface halo, matching the
+        # rank-local read slice above. ``get_geometry_tags()`` deliberately
+        # excludes that halo because it is intended for output, so use the
+        # exact assignment region here just as ``read_data()`` does.
+        existing = self._get_assignment_region(self.grid_view.grid.geometry_tag_map.data)
 
         if self.has_tag_data():
             tag_data = self.file_handler["/tag_data"]

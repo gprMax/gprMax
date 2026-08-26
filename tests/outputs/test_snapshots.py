@@ -164,11 +164,10 @@ class TestFilename:
         snap = make_snapshot(filename="snap.vtkhdf", fileext=".h5")
         assert snap.filename == Path("snap.h5")
 
-    def test_a_dotted_name_loses_everything_after_the_dot(self, make_snapshot):
-        """Expects ``run.2.field`` to become ``run.2.h5`` — only the final
-        component is treated as a suffix."""
+    def test_a_dotted_name_is_preserved(self, make_snapshot):
+        """Unknown dotted basename components are preserved."""
         snap = make_snapshot(filename="run.2.field", fileext=".h5")
-        assert snap.filename == Path("run.2.h5")
+        assert snap.filename == Path("run.2.field.h5")
 
     def test_directory_components_are_preserved(self, make_snapshot):
         """Expects only the final path component to be re-suffixed."""

@@ -18,6 +18,7 @@ code path with a fake MTLBuffer-like stand-in exposing the same
 than constructing a real Metal buffer.
 """
 import numpy as np
+import pytest
 
 import gprMax.config as config
 from gprMax.receivers import Rx, dtoh_rx_array
@@ -95,6 +96,40 @@ def test_metal_dtoh_rx_array_populates_packed_current_outputs(monkeypatch):
     )
 
     np.testing.assert_array_equal(rx.outputs["Iz"], (1, 2, 3, 4))
+
+
+def test_metal_dtoh_rejects_field_buffer_size_mismatch(monkeypatch):
+    monkeypatch.setattr(config, "sim_config", type("_SC", (), {})())
+    config.sim_config.general = {"solver": "metal"}
+    config.sim_config.dtypes = {"float_or_double": np.float64}
+
+    rx = Rx()
+
+    class _DummyGrid:
+        rxs = [rx]
+        iterations = 4
+
+    with pytest.raises(RuntimeError, match="Failed to copy Metal receiver data"):
+        dtoh_rx_array(_FakeMetalBuffer(np.zeros(1)), None, _DummyGrid())
+
+
+def test_metal_dtoh_rejects_current_buffer_size_mismatch(monkeypatch):
+    monkeypatch.setattr(config, "sim_config", type("_SC", (), {})())
+    config.sim_config.general = {"solver": "metal"}
+    config.sim_config.dtypes = {"float_or_double": np.float64}
+
+    rx = Rx()
+    rx.outputs["Ix"] = np.zeros(4)
+
+    class _DummyGrid:
+        rxs = [rx]
+        iterations = 4
+
+    fields = np.zeros((len(Rx.defaultoutputs), 4, 1), dtype=np.float64)
+    with pytest.raises(RuntimeError, match="Failed to copy Metal current-output data"):
+        dtoh_rx_array(
+            _FakeMetalBuffer(fields), None, _DummyGrid(), _FakeMetalBuffer(np.zeros(1))
+        )
 
 
 def test_device_receiver_copy_uses_order_for_colocated_receivers(monkeypatch):

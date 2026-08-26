@@ -522,7 +522,7 @@ def process_geometrycmds(geometry):
                     n_materials=n_materials,
                     mixing_model_id=mixing_model_id,
                     id=ID,
-                    seed=tmp[14],
+                    seed=int(tmp[14]),
                     tag=tag,
                 )
             elif len(tmp) == 16:

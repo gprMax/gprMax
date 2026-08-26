@@ -214,16 +214,9 @@ class TestCausality:
 
 
 class TestErrors:
-    def test_unknown_type_currently_raises_unbound_local(self, make_waveform):
-        """Tripwire for the missing `else` branch in calculate_value.
-
-        Today this falls through every if/elif so `ampvalue` is never
-        assigned and the final `ampvalue *= self.amp` raises
-        UnboundLocalError. A follow-up fix should make this a clean
-        ValueError; update this test in the same PR.
-        """
+    def test_unknown_type_raises_value_error(self, make_waveform):
         w = make_waveform("notarealtype", freq=1e9)
-        with pytest.raises(UnboundLocalError):
+        with pytest.raises(ValueError, match="Unknown waveform type"):
             w.calculate_value(1e-9, dt=1e-12)
 
 

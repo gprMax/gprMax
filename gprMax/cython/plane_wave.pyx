@@ -2468,25 +2468,36 @@ cpdef void calculate1DWaveformValues(
     cdef double time2_x, time2_y, time2_z = 0.0
     cdef Py_ssize_t iteration, r = 0
 
-    for iteration in range(iterations):
+    # The arrays contain indices 0..iterations. Electric source samples are
+    # evaluated on whole time steps and use the own-component half-cell
+    # offset; magnetic source samples are evaluated on half time steps and
+    # use the two transverse component offsets. Keep this identical to the
+    # non-Cython reference path in DiscretePlaneWave.calculate_waveform_values.
+    for iteration in range(iterations + 1):
         for r in range(m[3]):
-            time1_x = dt * (iteration + 1) - (r + (abs(m[1])+abs(m[2]))*0.5) * ds/c
-            time1_y = dt * (iteration + 1) - (r + (abs(m[2])+abs(m[0]))*0.5) * ds/c
-            time1_z = dt * (iteration + 1) - (r + (abs(m[0])+abs(m[1]))*0.5) * ds/c
-            if (dt * (iteration + 1) >= start and dt * (iteration + 1) <= stop):
-            # Set the time of the waveform evaluation to account for any delay in the start
+            time1_x = dt * iteration - (r + abs(m[0])*0.5) * ds/c
+            time1_y = dt * iteration - (r + abs(m[1])*0.5) * ds/c
+            time1_z = dt * iteration - (r + abs(m[2])*0.5) * ds/c
+            # Set the time of the waveform evaluation to account for any delay
+            # in the start. Each component has a different spatial delay, so
+            # its active-window test must use that component's evaluation time.
+            if (time1_x >= start and time1_x <= stop):
                 waveformvalues_wholedt[iteration, 0, r] = getSource(time1_x-start, freq, wavetype, dt)
+            if (time1_y >= start and time1_y <= stop):
                 waveformvalues_wholedt[iteration, 1, r] = getSource(time1_y-start, freq, wavetype, dt)
+            if (time1_z >= start and time1_z <= stop):
                 waveformvalues_wholedt[iteration, 2, r] = getSource(time1_z-start, freq, wavetype, dt)
 
         for r in range(m[3]):
-            time2_x = dt * (iteration + 0.5) - (r + abs(m[0])*0.5) * ds/c
-            time2_y = dt * (iteration + 0.5) - (r + abs(m[1])*0.5) * ds/c
-            time2_z = dt * (iteration + 0.5) - (r + abs(m[2])*0.5) * ds/c
-            if (dt * (iteration + 0.5) >= start and dt * (iteration + 0.5) <= stop):
-            # Set the time of the waveform evaluation to account for any delay in the start
+            time2_x = dt * (iteration + 0.5) - (r + (abs(m[1])+abs(m[2]))*0.5) * ds/c
+            time2_y = dt * (iteration + 0.5) - (r + (abs(m[2])+abs(m[0]))*0.5) * ds/c
+            time2_z = dt * (iteration + 0.5) - (r + (abs(m[0])+abs(m[1]))*0.5) * ds/c
+            # As above, gate each spatially delayed component independently.
+            if (time2_x >= start and time2_x <= stop):
                 waveformvalues_halfdt[iteration, 0, r] = getSource(time2_x-start, freq, wavetype, dt)
+            if (time2_y >= start and time2_y <= stop):
                 waveformvalues_halfdt[iteration, 1, r] = getSource(time2_y-start, freq, wavetype, dt)
+            if (time2_z >= start and time2_z <= stop):
                 waveformvalues_halfdt[iteration, 2, r] = getSource(time2_z-start, freq, wavetype, dt)
 
 

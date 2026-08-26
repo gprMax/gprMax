@@ -72,6 +72,39 @@ class TestExcitationFile:
         assert e.order == 1
         assert e.hash == "#excitation_file"
 
+    def test_build_accepts_a_single_waveform_column(self, stub_grid, tmp_path):
+        path = tmp_path / "single.txt"
+        path.write_text("pulse\n0\n1\n0\n", encoding="utf-8")
+
+        ExcitationFile(path).build(stub_grid)
+
+        assert [waveform.ID for waveform in stub_grid.waveforms] == ["pulse"]
+        assert float(stub_grid.waveforms[0].userfunc(0.0)) == 0.0
+
+    def test_build_rejects_header_data_column_mismatch(self, stub_grid, tmp_path):
+        path = tmp_path / "mismatch.txt"
+        path.write_text("first second\n0\n1\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="header declares"):
+            ExcitationFile(path).build(stub_grid)
+
+    @pytest.mark.parametrize(
+        "content,error",
+        [
+            ("time pulse\n0 0\n0 1\n", "strictly increasing"),
+            ("pulse\n0\nnan\n", "finite"),
+            ("pulse\n0\n", "at least two"),
+        ],
+    )
+    def test_build_rejects_invalid_waveform_tables(
+        self, stub_grid, tmp_path, content, error
+    ):
+        path = tmp_path / "invalid.txt"
+        path.write_text(content, encoding="utf-8")
+
+        with pytest.raises(ValueError, match=error):
+            ExcitationFile(path).build(stub_grid)
+
 
 # ---------------------------------------------------------------------------
 # Waveform
@@ -117,6 +150,13 @@ class TestWaveform:
         w = Waveform(wave_type="gaussian", amp=1.0, freq=0, id="wf1")
         with pytest.raises(ValueError):
             w.build(stub_grid)
+
+    @pytest.mark.parametrize("field,value", [("amp", np.nan), ("freq", np.inf)])
+    def test_build_rejects_non_finite_builtin_parameters(self, stub_grid, field, value):
+        values = {"wave_type": "gaussian", "amp": 1.0, "freq": 1e9, "id": "wf1"}
+        values[field] = value
+        with pytest.raises(ValueError, match="finite|greater than zero"):
+            Waveform(**values).build(stub_grid)
 
     def test_build_duplicate_id_raises(self, stub_grid):
         stub_grid.waveforms.append(make_waveform("wf1"))
@@ -176,6 +216,15 @@ class TestVoltageSource:
         stub_grid.waveforms.append(make_waveform("wf1"))
         v = VoltageSource(p1=(0, 0, 0), polarisation="x", resistance=-1, waveform_id="wf1")
         with pytest.raises(ValueError):
+            v._validate_parameters(stub_grid)
+
+    @pytest.mark.parametrize("resistance", [np.nan, np.inf])
+    def test_validate_rejects_non_finite_resistance(self, stub_grid, resistance):
+        stub_grid.waveforms.append(make_waveform("wf1"))
+        v = VoltageSource(
+            p1=(0, 0, 0), polarisation="x", resistance=resistance, waveform_id="wf1"
+        )
+        with pytest.raises(ValueError, match="finite source resistance"):
             v._validate_parameters(stub_grid)
 
     def test_validate_rejects_missing_waveform(self, stub_grid):
@@ -375,30 +424,18 @@ class TestDPWVectorMOverwriteBug:
         assert "DPW.m[:3] = np.array(m_vec" in src
 
 
-class TestDPWPrecomputeHardcodedBug:
-    """Bug tripwire: ``cmds_multiuse.py:1030, 1199, 1370``.
-
-    Each ``DiscretePlaneWave*`` class reads ``kwargs["precompute"]`` (with
-    a ``True`` default) then a few lines later does ``precompute = True``
-    unconditionally — so a user passing ``precompute=False`` is silently
-    overridden.
-
-    We pin the bug by checking the literal source of each ``build``
-    method. When fixed (remove the hardcoded reassignment), the asserts
-    flip.
-    """
+class TestDPWPrecomputeValidation:
 
     @pytest.mark.parametrize(
         "cls",
         [DiscretePlaneWaveAngles, DiscretePlaneWaveVector, DiscretePlaneWaveAxial],
     )
-    def test_build_unconditionally_sets_precompute_true(self, cls):
+    def test_build_does_not_silently_override_precompute(self, cls):
         import inspect
 
         src = inspect.getsource(cls.build)
-        # Two ``precompute = True`` lines: the kwargs-default and the
-        # post-kwargs unconditional override
-        assert src.count("precompute = True") == 2
+        assert src.count("precompute = True") == 1
+        assert "_validate_dpw_precompute(self, precompute)" in src
 
 
 # ---------------------------------------------------------------------------
@@ -523,6 +560,17 @@ class TestMaterial:
         with pytest.raises(ValueError):
             m.build(stub_grid)
 
+    @pytest.mark.parametrize(
+        "field,value",
+        [("er", np.nan), ("er", np.inf), ("mr", np.nan), ("mr", np.inf),
+         ("se", np.nan), ("sm", np.nan)],
+    )
+    def test_build_rejects_non_finite_non_pec_parameters(self, stub_grid, field, value):
+        values = {"er": 2.0, "se": 0.0, "mr": 1.0, "sm": 0.0, "id": "bad"}
+        values[field] = value
+        with pytest.raises(ValueError):
+            Material(**values).build(stub_grid)
+
     def test_build_accepts_infinite_conductivity_string(self, stub_grid):
         # ``se="inf"`` is a documented sentinel for PEC-like materials
         m = Material(er=1.0, se="inf", mr=1.0, sm=0.0, id="pec_like")
@@ -570,6 +618,36 @@ class TestAddDebyeDispersion:
         with pytest.raises(ValueError):
             d.build(stub_grid)
 
+    @pytest.mark.parametrize("er_delta", (0.0, -1.0, float("inf"), float("nan")))
+    def test_build_rejects_invalid_permittivity_difference(
+        self, stub_grid, user_object_config, er_delta
+    ):
+        user_object_config.model_config.dispersive_averaging = True
+        stub_grid.materials.append(RuntimeMaterial(2, "sample"))
+        dispersion = AddDebyeDispersion(
+            poles=1,
+            er_delta=(er_delta,),
+            tau=(1e-9,),
+            material_ids=["sample"],
+        )
+
+        with pytest.raises(ValueError, match="finite, positive relative-permittivity"):
+            dispersion.build(stub_grid)
+
+    @pytest.mark.parametrize("tau", (0.0, -1e-9, float("inf"), float("nan")))
+    def test_build_rejects_invalid_relaxation_time(self, stub_grid, user_object_config, tau):
+        user_object_config.model_config.dispersive_averaging = True
+        stub_grid.materials.append(RuntimeMaterial(2, "sample"))
+        dispersion = AddDebyeDispersion(
+            poles=1,
+            er_delta=(1.0,),
+            tau=(tau,),
+            material_ids=["sample"],
+        )
+
+        with pytest.raises(ValueError, match="finite, positive relaxation times"):
+            dispersion.build(stub_grid)
+
 
 class TestAddLorentzDispersion:
     def test_constructor_stores_kwargs(self):
@@ -612,6 +690,21 @@ class TestAddLorentzDispersion:
         with pytest.raises(ValueError, match=r"frequency must be below 1 / dt"):
             dispersion.build(stub_grid)
 
+    @pytest.mark.parametrize(("omega", "delta"), ((float("nan"), 1e8), (1e9, float("inf"))))
+    def test_build_rejects_non_finite_pole(self, stub_grid, user_object_config, omega, delta):
+        user_object_config.model_config.dispersive_averaging = True
+        stub_grid.materials.append(RuntimeMaterial(2, "sample"))
+        dispersion = AddLorentzDispersion(
+            poles=1,
+            er_delta=(1.0,),
+            omega=(omega,),
+            delta=(delta,),
+            material_ids=["sample"],
+        )
+
+        with pytest.raises(ValueError, match="must be finite"):
+            dispersion.build(stub_grid)
+
 
 class TestAddDrudeDispersion:
     def test_constructor_stores_kwargs(self):
@@ -622,6 +715,20 @@ class TestAddDrudeDispersion:
         d = AddDrudeDispersion()
         assert d.order == 13
         assert d.hash == "#add_dispersion_drude"
+
+    @pytest.mark.parametrize(("omega", "alpha"), ((float("nan"), 1e8), (1e9, float("inf"))))
+    def test_build_rejects_non_finite_pole(self, stub_grid, user_object_config, omega, alpha):
+        user_object_config.model_config.dispersive_averaging = True
+        stub_grid.materials.append(RuntimeMaterial(2, "sample"))
+        dispersion = AddDrudeDispersion(
+            poles=1,
+            omega=(omega,),
+            alpha=(alpha,),
+            material_ids=["sample"],
+        )
+
+        with pytest.raises(ValueError, match="must be finite"):
+            dispersion.build(stub_grid)
 
     def test_build_rejects_frequency_at_timestep_limit(self, stub_grid, user_object_config):
         user_object_config.model_config.dispersive_averaging = True
@@ -661,6 +768,20 @@ class TestSoilPeplinski:
         assert s.order == 14
         assert s.hash == "#soil_peplinski"
 
+    @pytest.mark.parametrize("value", [np.nan, np.inf])
+    def test_build_rejects_non_finite_parameters(self, stub_grid, value):
+        soil = SoilPeplinski(
+            sand_fraction=value,
+            clay_fraction=0.3,
+            bulk_density=2.0,
+            sand_density=2.66,
+            water_fraction_lower=0.001,
+            water_fraction_upper=0.25,
+            id="soil1",
+        )
+        with pytest.raises(ValueError, match="must all be finite"):
+            soil.build(stub_grid)
+
 
 # ---------------------------------------------------------------------------
 # MaterialRange / MaterialList
@@ -686,6 +807,42 @@ class TestMaterialRange:
         m = MaterialRange()
         assert m.order == 15
         assert m.hash == "#material_range"
+
+    def _make(self, **overrides):
+        values = dict(
+            er_lower=1.0,
+            er_upper=2.0,
+            sigma_lower=0.0,
+            sigma_upper=0.1,
+            mr_lower=1.0,
+            mr_upper=2.0,
+            ro_lower=0.0,
+            ro_upper=0.1,
+            id="rng",
+        )
+        values.update(overrides)
+        return MaterialRange(**values)
+
+    def test_build_rejects_negative_upper_magnetic_loss(self, stub_grid):
+        with pytest.raises(ValueError):
+            self._make(ro_upper=-0.1).build(stub_grid)
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            {"er_lower": 3.0, "er_upper": 2.0},
+            {"sigma_lower": 0.2, "sigma_upper": 0.1},
+            {"mr_lower": 3.0, "mr_upper": 2.0},
+            {"ro_lower": 0.2, "ro_upper": 0.1},
+        ],
+    )
+    def test_build_rejects_reversed_ranges(self, stub_grid, overrides):
+        with pytest.raises(ValueError, match="must not exceed"):
+            self._make(**overrides).build(stub_grid)
+
+    def test_build_rejects_nan_limit(self, stub_grid):
+        with pytest.raises(ValueError, match="must all be finite"):
+            self._make(sigma_upper=np.nan).build(stub_grid)
 
 
 class TestMaterialList:

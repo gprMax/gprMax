@@ -4886,7 +4886,7 @@ class DiscretePlaneWave(Source):
         )
 
         # waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        if cythonize:
+        if cythonize and self.waveform.type != "user":
             calculate1DWaveformValues(
                 self.waveformvalues_wholedt,
                 self.waveformvalues_halfdt,
@@ -4900,6 +4900,8 @@ class DiscretePlaneWave(Source):
                 self.waveform.freq,
                 self.waveform.type.encode("UTF-8"),
             )
+            self.waveformvalues_wholedt *= self.waveform.amp
+            self.waveformvalues_halfdt *= self.waveform.amp
         else:
             for dimension in range(3):
                 for iteration in range(G.iterations + 1):
@@ -4929,10 +4931,7 @@ class DiscretePlaneWave(Source):
                     for r in range(self.m[3]):
                         time2 = (
                             G.dt * (iteration)
-                            - (
-                                r
-                                + (np.abs(self.m[(dimension)]) + np.abs(self.m[(dimension)])) * 0.5
-                            )
+                            - (r + np.abs(self.m[dimension]) * 0.5)
                             * self.ds
                             / self.speed
                         )

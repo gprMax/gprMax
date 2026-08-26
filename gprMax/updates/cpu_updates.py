@@ -19,6 +19,7 @@
 
 from importlib import import_module
 
+import numpy as np
 from typing_extensions import TypeVar
 
 from gprMax import config
@@ -317,21 +318,53 @@ class CPUUpdates(Updates[GridType]):
     def set_dispersive_updates(self):
         """Sets dispersive update functions."""
 
-        poles = "multi" if config.get_model_config().materials["maxpoles"] > 1 else "1"
-        precision = "float" if config.sim_config.general["precision"] == "single" else "double"
-        dispersion = (
-            "complex"
-            if config.get_model_config().materials["dispersivedtype"]
-            == config.sim_config.dtypes["complex"]
-            else "real"
-        )
+        maxpoles = config.get_model_config().materials["maxpoles"]
+        if maxpoles < 1:
+            raise RuntimeError(
+                "Dispersive update kernels cannot be selected without at least one pole."
+            )
+        poles = "multi" if maxpoles > 1 else "1"
+
+        configured_precision = config.sim_config.general["precision"]
+        try:
+            precision = {"single": "float", "double": "double"}[configured_precision]
+        except KeyError as exc:
+            raise RuntimeError(
+                f"Cannot select dispersive kernels for invalid precision "
+                f"{configured_precision!r}."
+            ) from exc
+
+        dispersive_dtype = config.get_model_config().materials["dispersivedtype"]
+        if dispersive_dtype is None:
+            raise RuntimeError(
+                "Dispersive material dtype has not been initialised before solver creation."
+            )
+        dispersive_dtype = np.dtype(dispersive_dtype)
+        real_dtype = np.dtype(config.sim_config.dtypes["float_or_double"])
+        complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
+        if dispersive_dtype == complex_dtype:
+            dispersion = "complex"
+        elif dispersive_dtype == real_dtype:
+            dispersion = "real"
+        else:
+            raise RuntimeError(
+                f"Dispersive material dtype {dispersive_dtype} does not match the configured "
+                f"real ({real_dtype}) or complex ({complex_dtype}) precision."
+            )
 
         update_f = "update_electric_dispersive_{}pole_{}_{}_{}"
         disp_a = update_f.format(poles, "A", precision, dispersion)
         disp_b = update_f.format(poles, "B", precision, dispersion)
 
-        disp_a_f = getattr(import_module("gprMax.cython.fields_updates_dispersive"), disp_a)
-        disp_b_f = getattr(import_module("gprMax.cython.fields_updates_dispersive"), disp_b)
+        module = import_module("gprMax.cython.fields_updates_dispersive")
+        try:
+            disp_a_f = getattr(module, disp_a)
+            disp_b_f = getattr(module, disp_b)
+        except AttributeError as exc:
+            raise RuntimeError(
+                "The compiled dispersive-field kernels do not match the requested "
+                f"configuration ({poles} pole, {precision}, {dispersion})."
+            ) from exc
 
         self.dispersive_update_a = disp_a_f
         self.dispersive_update_b = disp_b_f

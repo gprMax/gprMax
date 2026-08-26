@@ -91,7 +91,7 @@ class Cylinder(GeometryUserObject):
         x1, y1, z1 = uip.round_to_grid(p1)
         x2, y2, z2 = uip.round_to_grid(p2)
 
-        if r <= 0:
+        if not np.isfinite(r) or r <= 0:
             message = f"{self.__str__()} the radius {r:g} should be a positive value."
             logger.error(message)
             raise ValueError(message)

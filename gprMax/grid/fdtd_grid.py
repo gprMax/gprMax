@@ -276,9 +276,12 @@ class FDTDGrid:
         self.dl[2] = value
 
     def set_pml_thickness(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
-        if isinstance(thickness, int) or len(thickness) == 1:
+        if isinstance(thickness, int):
             for key in PML.boundaryIDs:
                 self.pmls["thickness"][key] = int(thickness)
+        elif len(thickness) == 1:
+            for key in PML.boundaryIDs:
+                self.pmls["thickness"][key] = int(thickness[0])
         elif len(thickness) == 6:
             self.pmls["thickness"]["x0"] = int(thickness[0])
             self.pmls["thickness"]["y0"] = int(thickness[1])

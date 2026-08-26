@@ -80,6 +80,58 @@ def _scene():
             ),
             "non-degenerate triangle",
         ),
+        (
+            "sphere_nan",
+            gprMax.Sphere(p1=(0.01, 0.01, 0.01), r=float("nan"), material_id="pec"),
+            "positive value",
+        ),
+        (
+            "ellipsoid_inf",
+            gprMax.Ellipsoid(
+                p1=(0.01, 0.01, 0.01),
+                xr=0.003,
+                yr=float("inf"),
+                zr=0.003,
+                material_id="pec",
+            ),
+            "semiaxes",
+        ),
+        (
+            "cylinder_nan",
+            gprMax.Cylinder(
+                p1=(0.008, 0.008, 0.008),
+                p2=(0.012, 0.008, 0.008),
+                r=float("nan"),
+                material_id="pec",
+            ),
+            "positive value",
+        ),
+        (
+            "cone_inf",
+            gprMax.Cone(
+                p1=(0.008, 0.008, 0.008),
+                p2=(0.012, 0.008, 0.008),
+                r1=0.001,
+                r2=float("inf"),
+                material_id="pec",
+            ),
+            "positive value",
+        ),
+        (
+            "sector_nan",
+            gprMax.CylindricalSector(
+                normal="z",
+                ctr1=0.01,
+                ctr2=0.01,
+                extent1=0.007,
+                extent2=0.012,
+                r=0.002,
+                start=float("nan"),
+                end=90,
+                material_id="pec",
+            ),
+            "finite",
+        ),
     ],
 )
 def test_degenerate_geometry_is_rejected(name, geometry, error, tmp_path):

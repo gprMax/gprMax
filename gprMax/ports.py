@@ -242,9 +242,8 @@ def frequency_subset_indices(available_frequencies, requested_frequencies):
     insertion = np.searchsorted(available, requested)
     right_indices = np.minimum(insertion, available.size - 1)
     left_indices = np.maximum(insertion - 1, 0)
-    choose_left = (
-        np.abs(available[left_indices] - requested)
-        <= np.abs(available[right_indices] - requested)
+    choose_left = np.abs(available[left_indices] - requested) <= np.abs(
+        available[right_indices] - requested
     )
     safe_indices = np.where(choose_left, left_indices, right_indices)
     real_dtype = np.asarray(available.real).dtype
@@ -362,9 +361,7 @@ def evaluate_port_power_spectrum(
             power_wave_valid_value = output.mode_power_valid
         power_wave_valid = np.asarray(power_wave_valid_value, dtype=bool)[frequency_indices]
         result_valid = np.asarray(output.result.valid, dtype=bool)[:, frequency_indices]
-        power_matrix_valid = np.asarray(output.power_matrix_valid, dtype=bool)[
-            frequency_indices
-        ]
+        power_matrix_valid = np.asarray(output.power_matrix_valid, dtype=bool)[frequency_indices]
         modal_valid = result_valid & power_wave_valid.T & power_matrix_valid[np.newaxis, :]
         physical_power_valid = np.zeros(frequency.shape, dtype=bool)
         for frequency_index in range(frequency.size):
@@ -1683,12 +1680,6 @@ class VoltageSourcePortMonitor:
             tail_relative_db = float("-inf")
         else:
             tail_relative_db = float("nan")
-        if np.isfinite(tail_relative_db) and tail_relative_db > -40:
-            logger.warning(
-                f"Voltage-source port {self.output_id!r}: the final 5% of the voltage trace "
-                f"reaches {tail_relative_db:.1f} dB relative to its peak; spectral "
-                "leakage may be significant."
-            )
         if np.isfinite(tail_relative_db) and tail_relative_db > -40:
             logger.warning(
                 f"Voltage-source port {self.output_id!r}: the final 5% of the voltage trace "

@@ -152,7 +152,14 @@ class Waveform:
                 ampvalue = 0
 
         elif self.type == "user":
-            ampvalue = self.userfunc(time)
+            ampvalue = float(self.userfunc(time))
+            if not np.isfinite(ampvalue):
+                raise ValueError(
+                    f"User waveform {self.ID!r} returned a non-finite value at time {time:g} s"
+                )
+
+        else:
+            raise ValueError(f"Unknown waveform type {self.type!r}")
 
         ampvalue *= self.amp
 

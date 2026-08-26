@@ -255,16 +255,20 @@ class ModelConfig:
         """
 
         if outputdir is not None:
-            Path(outputdir).mkdir(exist_ok=True)
+            Path(outputdir).mkdir(parents=True, exist_ok=True)
             self.output_file_path = Path(outputdir, sim_config.input_file_path.stem)
         elif sim_config.args.outputfile is not None:
-            self.output_file_path = Path(sim_config.args.outputfile).with_suffix("")
+            self.output_file_path = Path(sim_config.args.outputfile)
+            if self.output_file_path.suffix.lower() == ".h5":
+                self.output_file_path = self.output_file_path.with_suffix("")
         else:
             self.output_file_path = sim_config.input_file_path.with_suffix("")
 
         parts = self.output_file_path.parts
         self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
-        self.output_file_path_ext = self.output_file_path.with_suffix(".h5")
+        self.output_file_path_ext = self.output_file_path.with_name(
+            self.output_file_path.name + ".h5"
+        )
 
     def set_snapshots_dir(self):
         """Sets directory to store any snapshots.
@@ -272,8 +276,7 @@ class ModelConfig:
         Returns:
             snapshot_dir: Path to directory to store snapshot files in.
         """
-        parts = self.output_file_path.with_suffix("").parts
-        snapshot_dir = Path(*parts[:-1], parts[-1] + "_snaps")
+        snapshot_dir = self.output_file_path.with_name(self.output_file_path.name + "_snaps")
 
         return snapshot_dir
 

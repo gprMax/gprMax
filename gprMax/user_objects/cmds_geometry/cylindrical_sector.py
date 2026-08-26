@@ -120,6 +120,9 @@ class CylindricalSector(GeometryUserObject):
         extent1 = uip.resolve_inf_point(tuple(lower_point), role="lower")[axis_index]
         extent2 = uip.resolve_inf_point(tuple(upper_point), role="upper")[axis_index]
 
+        if not np.all(np.isfinite((ctr1, ctr2, extent1, extent2, start, end, r))):
+            raise ValueError(f"{self.__str__()} dimensions and angles must all be finite.")
+
         thickness = extent2 - extent1
 
         # Check thickness of the object first as may be able to exit

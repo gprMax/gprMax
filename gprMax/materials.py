@@ -35,6 +35,10 @@ def validate_lorentz_pole(frequency_hz: float, damping_per_s: float, dt: float) 
     an underdamped pole.
     """
 
+    if not np.isfinite(frequency_hz):
+        raise ValueError("Lorentz resonance frequency must be finite")
+    if not np.isfinite(damping_per_s):
+        raise ValueError("Lorentz damping coefficient must be finite")
     if frequency_hz <= 0:
         raise ValueError("Lorentz resonance frequency must be positive")
     if damping_per_s < 0:
@@ -57,6 +61,10 @@ def validate_lorentz_pole(frequency_hz: float, damping_per_s: float, dt: float) 
 def validate_drude_pole(frequency_hz: float, collision_per_s: float, dt: float) -> None:
     """Validate a Drude pole for the recursive material formulation."""
 
+    if not np.isfinite(frequency_hz):
+        raise ValueError("Drude plasma frequency must be finite")
+    if not np.isfinite(collision_per_s):
+        raise ValueError("Drude collision frequency must be finite")
     if frequency_hz <= 0:
         raise ValueError("Drude plasma frequency must be positive")
     if collision_per_s <= 0:

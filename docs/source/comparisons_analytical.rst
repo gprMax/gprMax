@@ -255,6 +255,14 @@ error below one percent. Across all complex vector samples, the retained
 maximum and RMS errors normalised to the analytical vector peak are 0.378
 and 0.271 percent, respectively.
 
+.. note::
+
+    The numerator sign printed in Eq. (38) of [CAP2012]_ is opposite to the
+    interface-reflection convention implied by Eqs. (18)--(30). gprMax uses
+    the latter convention because it also recovers the required homogeneous-
+    medium limit. The three-layer closed-form regression test records this
+    choice explicitly.
+
 Interfacial electric-dipole patterns
 ------------------------------------
 

@@ -63,7 +63,7 @@ class Ellipsoid(GeometryUserObject):
             logger.exception(f"{self.__str__()} please specify a point and the three semiaxes.")
             raise
 
-        if xr <= 0 or yr <= 0 or zr <= 0:
+        if not np.all(np.isfinite((xr, yr, zr))) or xr <= 0 or yr <= 0 or zr <= 0:
             message = (
                 f"{self.__str__()} the semiaxes ({xr:g}, {yr:g}, {zr:g}) "
                 "should all be positive values."

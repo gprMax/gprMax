@@ -86,13 +86,33 @@ class VtkUnstructuredGrid(VtkHdfFile):
         Raises:
             Value Error: Raised if argument dimensions are invalid.
         """
-        super().__init__(filename, self.TYPE, "w", comm)
+        points = np.asarray(points)
+        cell_types = np.asarray(cell_types)
+        connectivity = np.asarray(connectivity)
+        cell_offsets = np.asarray(cell_offsets)
+
+        if points.ndim != 2 or points.shape[1] != 3:
+            raise ValueError("points must have shape (N, 3)")
+        for name, values in (
+            ("cell_types", cell_types),
+            ("connectivity", connectivity),
+            ("cell_offsets", cell_offsets),
+        ):
+            if values.ndim != 1:
+                raise ValueError(f"{name} must be one-dimensional")
+        if not np.issubdtype(connectivity.dtype, np.integer):
+            raise ValueError("connectivity must contain integer point IDs")
+        if not np.issubdtype(cell_offsets.dtype, np.integer):
+            raise ValueError("cell_offsets must contain integer offsets")
 
         if len(cell_offsets) != len(cell_types) + 1:
             raise ValueError(
                 "cell_offsets should be one longer than cell_types."
                 " I.e. one longer than the number of cells"
             )
+
+        if cell_offsets[0] != 0:
+            raise ValueError("cell_offsets must start at zero")
 
         is_sorted = lambda a: np.all(a[:-1] <= a[1:])
         if not is_sorted(cell_offsets):
@@ -106,6 +126,20 @@ class VtkUnstructuredGrid(VtkHdfFile):
                 "Connectivity array longer than final cell_offsets value."
                 " Some connectivity data will be ignored"
             )
+
+        # In serial every referenced connectivity ID addresses this points
+        # array directly. Under MPI IDs may be global, so their bounds are
+        # validated by the collective writer instead.
+        referenced_connectivity = connectivity[: cell_offsets[-1]]
+        if comm is None and referenced_connectivity.size:
+            if np.any(referenced_connectivity < 0) or np.any(
+                referenced_connectivity >= len(points)
+            ):
+                raise ValueError("connectivity contains a point ID outside points")
+
+        # Validate before opening in truncating mode. A malformed geometry
+        # must not destroy an existing output file or leak an HDF5 handle.
+        super().__init__(filename, self.TYPE, "w", comm)
 
         self._number_of_cells = len(cell_types)
         self._number_of_connectivity_ids = len(connectivity)
@@ -260,7 +294,13 @@ class VtkUnstructuredGrid(VtkHdfFile):
 
         shape[0] = self.global_number_of_points
 
-        return super()._add_point_data(name, data, shape, self.points_offset)
+        return super()._add_point_data(
+            name,
+            data,
+            shape,
+            self.points_offset,
+            xyz_data_ordering=False,
+        )
 
     def add_cell_data(self, name: str, data: npt.NDArray):
         """Add cell data to the VTKHDF file.
@@ -288,4 +328,10 @@ class VtkUnstructuredGrid(VtkHdfFile):
 
         shape[0] = self.global_number_of_cells
 
-        return super()._add_cell_data(name, data, shape, self.cells_offset)
+        return super()._add_cell_data(
+            name,
+            data,
+            shape,
+            self.cells_offset,
+            xyz_data_ordering=False,
+        )

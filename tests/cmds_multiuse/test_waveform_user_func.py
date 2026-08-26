@@ -166,6 +166,53 @@ def test_user_func_non_numeric_return_rejected_at_build_time(monkeypatch, tmp_pa
         _run(monkeypatch, tmp_path, "user_func_bad_return", scene)
 
 
+def test_user_func_non_finite_return_rejected_at_build_time(monkeypatch, tmp_path):
+    scene = _scene()
+    scene.add(gprMax.Waveform(wave_type="user", user_func=lambda time: np.nan, id="mywave"))
+
+    with pytest.raises(ValueError, match="finite numeric"):
+        _run(monkeypatch, tmp_path, "user_func_nan", scene)
+
+
+def test_user_func_later_non_finite_return_is_rejected(monkeypatch, tmp_path):
+    def waveform(time):
+        return 0.0 if time == 0 else np.inf
+
+    scene = _scene()
+    scene.add(gprMax.Waveform(wave_type="user", user_func=waveform, id="mywave"))
+    grid = _run(monkeypatch, tmp_path, "user_func_later_inf", scene)
+    built = next(w for w in grid.waveforms if w.ID == "mywave")
+
+    with pytest.raises(ValueError, match="non-finite value"):
+        built.calculate_value(grid.dt, grid.dt)
+
+
+@pytest.mark.parametrize(
+    "user_values,user_time,error",
+    [
+        ([0.0, np.nan], [0.0, 1.0], "finite values"),
+        ([[0.0, 1.0]], [0.0, 1.0], "one-dimensional"),
+        ([0.0, 1.0], [0.0], "same length"),
+        ([0.0, 1.0], [0.0, 0.0], "strictly increasing"),
+    ],
+)
+def test_user_value_arrays_are_validated(
+    monkeypatch, tmp_path, user_values, user_time, error
+):
+    scene = _scene()
+    scene.add(
+        gprMax.Waveform(
+            wave_type="user",
+            user_values=user_values,
+            user_time=user_time,
+            id="mywave",
+        )
+    )
+
+    with pytest.raises(ValueError, match=error):
+        _run(monkeypatch, tmp_path, "bad_user_values", scene)
+
+
 def test_user_values_path_still_works_unchanged(monkeypatch, tmp_path):
     """Regression check: refactoring the user_values branch to sit alongside
     user_func must not change its existing behaviour."""
