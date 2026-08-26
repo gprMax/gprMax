@@ -20,6 +20,8 @@ real numpy arrays, through the real ``MainGridUserInput`` — no mocked
 discretisation.
 """
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -223,6 +225,14 @@ class TestPreBuildValidation:
         with pytest.raises(ValueError):
             make_box(mixing_model_id="nonexistent").build(g)
 
+    def test_mixing_model_and_surface_impedance_id_ambiguity_raises(self, fractal_grid):
+        g = fractal_grid()
+        add_mixing_model(g, ID="wall")
+        g.surface_impedance_models = {"wall": SimpleNamespace(ID="wall")}
+        g.impedance_marker_models = {}
+        with pytest.raises(ValueError, match="ambiguous"):
+            make_box(mixing_model_id="wall").build(g)
+
     def test_a_mixing_model_with_one_bin_raises(self, fractal_grid):
         g = fractal_grid()
         add_mixing_model(g)
@@ -330,6 +340,21 @@ class TestBuildWithoutSurfaces:
 
 
 class TestBuildWithASurface:
+    def test_surface_impedance_material_builds_a_rough_volume(self, fractal_grid):
+        g = fractal_grid()
+        g.surface_impedance_models = {"wall": SimpleNamespace(ID="wall")}
+        g.impedance_marker_models = {}
+        box = make_box(n_materials=1, mixing_model_id="wall")
+
+        box.build(g)
+        roughen_zplus(g)
+        box.build(g)
+
+        marker_id = next(iter(g.impedance_marker_models))
+        assert g.impedance_marker_models[marker_id] == "wall"
+        assert np.count_nonzero(g.solid == marker_id) > 0
+        assert g.materials[marker_id].averagable is False
+
     def test_the_volume_is_extended_to_cover_the_surface(self, fractal_grid):
         # The roughness may push the top face out to cell 13, so the box
         # must grow to hold it before it generates anything.

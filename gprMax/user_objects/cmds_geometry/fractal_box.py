@@ -28,6 +28,7 @@ from gprMax.materials import ListMaterial
 from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     check_averaging,
     geometry_tag_args,
+    resolve_geometry_materials,
     rotate_2point_object,
 )
 from gprMax.user_objects.rotatable import RotatableMixin
@@ -146,6 +147,18 @@ class FractalBox(RotatableMixin, GeometryUserObject):
         # models or normal materials.
         mixingmodel = next((x for x in grid.mixingmodels if x.ID == mixing_model_id), None)
         material = next((x for x in grid.materials if x.ID == mixing_model_id), None)
+        surface_impedance = getattr(grid, "surface_impedance_models", {}).get(mixing_model_id)
+        if surface_impedance is not None and mixingmodel is not None:
+            raise ValueError(
+                f"{self.params_str()} ID {mixing_model_id!r} is ambiguous between "
+                "a mixing model and a surface impedance"
+            )
+        if mixingmodel is None and material is None and surface_impedance is not None:
+            material = resolve_geometry_materials(
+                grid,
+                [mixing_model_id],
+                geometry=self.params_str(),
+            )[0]
         nbins = n_materials
 
         if mixingmodel:
@@ -167,6 +180,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 f"{self.__str__()} mixing model or material with "
                 + "ID {mixing_model_id} does not exist"
             )
+        elif hasattr(material, "surface_impedance_id"):
+            if nbins != 1:
+                raise ValueError(f"{self.params_str()} a surface impedance requires n_materials=1")
+            averagefractalbox = False
 
         if any(volume.ID == ID for volume in grid.fractalvolumes):
             raise ValueError(f"{self.__str__()} FractalBox ID {ID!r} is already in use")
@@ -240,7 +257,10 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                         dtype=config.sim_config.dtypes["float_or_double"],
                     )
                     materialnumID = next(
-                        x.numID for x in grid.materials if x.ID == self.volume.operatingonID
+                        x.numID
+                        for x in grid.materials
+                        if x.ID == self.volume.operatingonID
+                        or getattr(x, "surface_impedance_id", None) == self.volume.operatingonID
                     )
                     self.volume.fractalvolume *= materialnumID
                 else:

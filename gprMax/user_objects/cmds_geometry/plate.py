@@ -27,7 +27,7 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import rotate_2point_object
+from .cmds_geometry import resolve_geometry_materials, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
@@ -131,15 +131,13 @@ class Plate(RotatableMixin, GeometryUserObject):
                     "normal to one of the other two axes instead."
                 )
 
-        # Look up requested materials in existing list of material instances
-        materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
-
-        if len(materials) != len(materialsrequested):
-            found_ids = {material.ID for material in materials}
-            notfound = [material_id for material_id in materialsrequested if material_id not in found_ids]
-            message = f"{self.__str__()} material(s) {notfound} do not exist"
-            logger.error(message)
-            raise ValueError(message)
+        materials = resolve_geometry_materials(
+            grid,
+            materialsrequested,
+            geometry=self.params_str(),
+            cell_volume=False,
+            directional="material_id" not in self.kwargs,
+        )
 
         # yz-plane plate
         if xs == xf:

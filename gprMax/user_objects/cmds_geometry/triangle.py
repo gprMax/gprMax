@@ -28,7 +28,12 @@ from gprMax.materials import Material
 from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import check_averaging, geometry_tag_args, rotate_point
+from .cmds_geometry import (
+    check_averaging,
+    geometry_tag_args,
+    resolve_geometry_materials,
+    rotate_point,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -169,17 +174,13 @@ class Triangle(RotatableMixin, GeometryUserObject):
         elif normal == "z":
             z1 = z2 = z3 = lower_extent
 
-        # Look up requested materials in existing list of material instances
-        materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
-
-        if len(materials) != len(materialsrequested):
-            found_ids = {material.ID for material in materials}
-            notfound = [
-                material_id for material_id in materialsrequested if material_id not in found_ids
-            ]
-            message = f"{self.__str__()} material(s) {notfound} do not exist"
-            logger.error(message)
-            raise ValueError(message)
+        materials = resolve_geometry_materials(
+            grid,
+            materialsrequested,
+            geometry=self.params_str(),
+            cell_volume=thickness > 0,
+            directional="material_id" not in self.kwargs,
+        )
 
         if thickness > 0:
             # Isotropic case

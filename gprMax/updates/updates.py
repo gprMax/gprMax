@@ -137,6 +137,11 @@ class Updates(Generic[GridType], ABC):
 
         pass
 
+    def update_impedance_surfaces(self) -> None:
+        """Apply sparse surface-impedance corrections to boundary E edges."""
+
+        pass
+
     @abstractmethod
     def update_electric_b(self) -> None:
         """If there are any dispersive materials do 2nd part of dispersive

@@ -1,5 +1,6 @@
 """Shared pytest configuration for the gprMax test suite."""
 
+import logging
 import os
 import sys
 from types import SimpleNamespace
@@ -14,6 +15,32 @@ import pytest
 
 from gprMax.materials import DispersiveMaterial, Material
 from gprMax.waveforms import Waveform
+
+
+@pytest.fixture(autouse=True)
+def isolate_gprmax_logger():
+    """Reset application logging state around each test.
+
+    ``gprMax.run`` installs a package-level stdout handler and disables
+    propagation. Without restoring that process-global state, later tests that
+    use pytest's ``caplog`` fixture depend on collection order.
+    """
+
+    package_logger = logging.getLogger("gprMax")
+
+    def reset():
+        for handler in package_logger.handlers[:]:
+            package_logger.removeHandler(handler)
+            handler.close()
+        package_logger.setLevel(logging.NOTSET)
+        package_logger.propagate = True
+        package_logger.disabled = False
+
+    reset()
+    try:
+        yield
+    finally:
+        reset()
 
 
 def pytest_addoption(parser):

@@ -28,6 +28,13 @@ import gprMax.config as config
 from gprMax.eigenmode_plotting import plot_eigenmode_excitation, plot_eigenmode_port_fields
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
+from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
+    BoundaryAmpereRow,
+    BoundaryMagneticTerm,
+    FDFDSurfaceBoundary,
+    boundary_edge_relative_permittivity,
+    evaluate_surface_ade,
+)
 from gprMax.waveforms import Waveform
 
 from .cython.eigenmode_source import update_eigenmode_electric as updateEigenmode_electric
@@ -308,6 +315,8 @@ class EigenmodeSource(Source):
         self.complex_mu_r_uu = None
         self.complex_mu_r_vv = None
         self.complex_mu_r_ww = None
+        self.surface_impedance_fdfd_edges = 0
+        self.fdfd_surface_boundary = None
         self.modal_e = None
         self.modal_h = None
         self.modal_e_real = None
@@ -706,6 +715,197 @@ class EigenmodeSource(Source):
             self.complex_mu_r_vv,
             self.complex_mu_r_ww,
         ) = self._extract_local_complex_property_tensors(G, electric=False)
+        self.fdfd_surface_boundary = self._build_surface_impedance_fdfd_boundary(G)
+
+    def _build_surface_impedance_fdfd_boundary(self, G):
+        """Map compiled integral impedance rows onto the modal cross-section."""
+
+        system = getattr(G, "impedance_surfaces", None)
+        if system is None:
+            self.surface_impedance_fdfd_edges = 0
+            return None
+        if hasattr(G, "global_size"):
+            raise ValueError("surface-impedance FDFD modes do not yet support MPI grids")
+
+        local_to_global = (*self.transverse_axes, self.normal_axis)
+        global_to_local = {axis: local for local, axis in enumerate(local_to_global)}
+        electric_retained = self._impedance_component_retained_masks(G, electric=True)
+        magnetic_retained = self._impedance_component_retained_masks(G, electric=False)
+        electric_shapes = tuple(mask.shape for mask in electric_retained)
+        magnetic_shapes = tuple(mask.shape for mask in magnetic_retained)
+        if not system.model_ids:
+            raise RuntimeError("compiled impedance boundary has no surface models")
+        responses = {}
+
+        def response_for(model_index):
+            model_index = int(model_index)
+            if model_index not in responses:
+                model_id = system.model_ids[model_index]
+                model = G.surface_impedance_models[model_id]
+                frequency = float(self.frequency)
+                if frequency >= 0.5 / float(G.dt):
+                    raise ValueError(
+                        "surface-impedance eigenmode frequency must lie below temporal Nyquist"
+                    )
+                model.require_fit_frequency(
+                    frequency,
+                    purpose="surface-impedance eigenmode",
+                )
+                warped_frequency = np.tan(np.pi * frequency * G.dt) / (np.pi * G.dt)
+                model.require_fit_frequency(
+                    warped_frequency,
+                    purpose="surface-impedance eigenmode",
+                    frequency_kind="bilinear-warped",
+                )
+                discrete = model.discretise(G.dt)
+                responses[model_index] = evaluate_surface_ade(
+                    frequency_hz=frequency,
+                    dt=G.dt,
+                    F=discrete.F,
+                    G=discrete.G,
+                    L=discrete.L,
+                    Z0=discrete.Z0,
+                )
+            return responses[model_index]
+
+        rows = []
+        for edge_index, edge in enumerate(system.edge_info):
+            component = int(edge[0])
+            coordinate = np.asarray(edge[1:4], dtype=np.int32)
+            if coordinate[self.normal_axis] != self.plane_index:
+                continue
+            local_axis = global_to_local[component]
+            local_index = self._surface_local_index(coordinate)
+            if not self._index_in_shape(local_index, electric_shapes[local_axis]):
+                continue
+
+            port_start = int(edge[6])
+            port_stop = port_start + int(edge[7])
+            if port_stop <= port_start:
+                raise RuntimeError("compiled surface Ampere row has no current port")
+            port_indices = tuple(range(port_start, port_stop))
+            if any(int(system.port_normal[index, 0]) == self.normal_axis for index in port_indices):
+                raise ValueError(
+                    "surface-impedance eigenmodes require the volume boundary to be "
+                    "propagation-invariant through the modal plane"
+                )
+            lengths = -np.asarray(system.port_g[port_start:port_stop], dtype=np.float64)
+            port_responses = tuple(
+                response_for(system.port_info[index, 0]) for index in port_indices
+            )
+            admittances = np.asarray(
+                [response.admittance for response in port_responses],
+                dtype=np.complex128,
+            )
+
+            transverse_dual_axes = [axis for axis in range(3) if axis != component]
+            full_dual_area = float(np.prod(G.dl[transverse_dual_axes]))
+            retained_dual_area = float(system.edge_fraction[edge_index]) * full_dual_area
+            a_plus, a_minus = system.edge_params[edge_index]
+            electric_mass = 0.5 * (float(a_plus) + float(a_minus)) * G.dt
+            conductive_mass = float(a_plus) - float(a_minus)
+            relative_permittivity = boundary_edge_relative_permittivity(
+                response=port_responses[0],
+                epsilon0=config.sim_config.em_consts["e0"],
+                retained_dual_area=retained_dual_area,
+                electric_mass=electric_mass,
+                conductive_mass=conductive_mass,
+                port_lengths=lengths,
+                port_admittances=admittances,
+            )
+            magnetic_terms = self._surface_boundary_magnetic_terms(
+                G,
+                system,
+                edge,
+                local_axis,
+                retained_dual_area,
+                global_to_local,
+                magnetic_shapes,
+            )
+            rows.append(
+                BoundaryAmpereRow(
+                    electric_axis=local_axis,
+                    electric_index=local_index,
+                    retained_dual_area=retained_dual_area,
+                    relative_permittivity=relative_permittivity,
+                    magnetic_terms=magnetic_terms,
+                )
+            )
+
+        self.surface_impedance_fdfd_edges = len(rows)
+        return FDFDSurfaceBoundary.create(
+            electric_retained=electric_retained,
+            magnetic_retained=magnetic_retained,
+            rows=rows,
+        )
+
+    def _surface_boundary_magnetic_terms(
+        self,
+        G,
+        system,
+        edge,
+        electric_axis,
+        retained_dual_area,
+        global_to_local,
+        magnetic_shapes,
+    ):
+        """Return clipped transverse-curl terms and validate beta invariance."""
+
+        derivative_terms = []
+        longitudinal_weights = {}
+        handedness = self._modal_basis_handedness()
+        h_start = int(edge[4])
+        h_stop = h_start + int(edge[5])
+        for h_index in range(h_start, h_stop):
+            h_record = system.h_info[h_index]
+            global_axis = int(h_record[0])
+            local_axis = global_to_local[global_axis]
+            coordinate = np.asarray(h_record[1:4], dtype=np.int32)
+            weight = handedness * float(system.h_weight[h_index])
+            if electric_axis < 2 and local_axis != 2:
+                expected_axis = 1 - electric_axis
+                if local_axis != expected_axis:
+                    raise ValueError("surface boundary has an invalid longitudinal curl term")
+                normal_index = int(coordinate[self.normal_axis])
+                longitudinal_weights[normal_index] = (
+                    longitudinal_weights.get(normal_index, 0.0) + weight
+                )
+                continue
+            if electric_axis == 2 and local_axis == 2:
+                raise ValueError("longitudinal surface E row cannot reference longitudinal H")
+            local_index = self._surface_local_index(coordinate)
+            if not self._index_in_shape(local_index, magnetic_shapes[local_axis]):
+                raise ValueError(
+                    "surface-impedance modal window does not contain a required magnetic DOF"
+                )
+            derivative_terms.append(BoundaryMagneticTerm(local_axis, local_index, weight))
+
+        if electric_axis < 2:
+            expected_weight = retained_dual_area / float(G.dl[self.normal_axis])
+            values = np.asarray(tuple(longitudinal_weights.values()), dtype=np.float64)
+            tolerance = 1e-10 * max(expected_weight, 1e-300)
+            if (
+                len(longitudinal_weights) != 2
+                or abs(float(np.sum(values))) > tolerance
+                or not np.allclose(np.abs(values), expected_weight, rtol=1e-10, atol=tolerance)
+            ):
+                raise ValueError(
+                    "surface-impedance eigenmodes require a propagation-invariant "
+                    "boundary through both cells adjacent to the modal plane"
+                )
+        if not derivative_terms:
+            raise ValueError("surface boundary row has no transverse magnetic circulation")
+        return tuple(derivative_terms)
+
+    def _surface_local_index(self, coordinate):
+        return (
+            int(coordinate[self.transverse_axes[0]] - self.transverse_start[0]),
+            int(coordinate[self.transverse_axes[1]] - self.transverse_start[1]),
+        )
+
+    @staticmethod
+    def _index_in_shape(index, shape):
+        return 0 <= index[0] < shape[0] and 0 <= index[1] < shape[1]
 
     def _automatic_anchor_policy(self):
         """Return whether this port was configured for automatic anchors."""
@@ -1237,6 +1437,7 @@ class EigenmodeSource(Source):
             pmc_u_mask=pmc_u_mask,
             pmc_v_mask=pmc_v_mask,
             pmc_w_mask=pmc_w_mask,
+            surface_boundary=self.fdfd_surface_boundary,
         )
         solver.solve()
 
@@ -2006,6 +2207,21 @@ class EigenmodeSource(Source):
         grid_slices[self.transverse_axes[0]] = u_slice
         grid_slices[self.transverse_axes[1]] = v_slice
         return G.ID[(component, *grid_slices)]
+
+    def _impedance_component_retained_masks(self, G, electric):
+        """Return component masks retaining exterior and impedance-boundary DOFs."""
+
+        field_kind = "E" if electric else "H"
+        is_void = np.zeros(len(G.materials), dtype=bool)
+        for material in G.materials:
+            is_void[material.numID] = getattr(material, "impedance_role", None) == "volume-void"
+        masks = []
+        local_to_global = (*self.transverse_axes, self.normal_axis)
+        for local_axis, global_axis in enumerate(local_to_global):
+            component = global_axis if electric else global_axis + 3
+            ids = self._slice_local_component_ids(G, component, local_axis, field_kind)
+            masks.append(~is_void[ids])
+        return tuple(masks)
 
     def _cell_pec_electric_component_masks(self, G):
         """Build local Yee electric PEC masks from cell-centred PEC geometry.

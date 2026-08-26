@@ -268,6 +268,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#add_dispersion_drude",
             "#waveform",
             "#rational_network",
+            "#surface_impedance",
             "#network_terminal",
             "#network_excitation",
             "#voltage_source",

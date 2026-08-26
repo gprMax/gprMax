@@ -116,6 +116,9 @@ def _simultaneous_two_port_scene():
 def _two_aperture_array_scene():
     dl = 2.5e-3
     scene = gprMax.Scene()
+    # Keep the restart comparison independent of platform-specific OpenMP
+    # reduction order while retaining its strict far-field tolerance.
+    scene.add(gprMax.OMPThreads(1))
     scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
     scene.add(gprMax.Domain(p1=(0.10, 0.065, 0.05)))
     scene.add(gprMax.PMLThickness(thickness=3))
@@ -129,8 +132,12 @@ def _two_aperture_array_scene():
         # within that two-dimensional eigenspace. That ambiguity can look like
         # a cross-polar error when independent embedded fields are compared
         # with a separately solved simultaneous excitation.
-        scene.add(gprMax.Box(p1=(x0, 0.0200, 0.0125), p2=(x0 + dl, 0.0400, 0.025), material_id="pec"))
-        scene.add(gprMax.Box(p1=(x1 - dl, 0.0200, 0.0125), p2=(x1, 0.0400, 0.025), material_id="pec"))
+        scene.add(
+            gprMax.Box(p1=(x0, 0.0200, 0.0125), p2=(x0 + dl, 0.0400, 0.025), material_id="pec")
+        )
+        scene.add(
+            gprMax.Box(p1=(x1 - dl, 0.0200, 0.0125), p2=(x1, 0.0400, 0.025), material_id="pec")
+        )
         scene.add(gprMax.Box(p1=(x0, 0.0200, 0.0125), p2=(x1, 0.0225, 0.025), material_id="pec"))
         scene.add(gprMax.Box(p1=(x0, 0.0375, 0.0125), p2=(x1, 0.0400, 0.025), material_id="pec"))
         scene.add(
@@ -258,7 +265,9 @@ def test_cuda_simultaneous_modal_drives_match_cpu(tmp_path, gpu_device):
         log_level=30,
     )
 
-    with h5py.File(cpu_output.with_suffix(".h5")) as cpu, h5py.File(cuda_output.with_suffix(".h5")) as cuda:
+    with h5py.File(cpu_output.with_suffix(".h5")) as cpu, h5py.File(
+        cuda_output.with_suffix(".h5")
+    ) as cuda:
         np.testing.assert_allclose(
             cuda["rxs/rx1/Ez"][...],
             cpu["rxs/rx1/Ez"][...],
@@ -294,7 +303,9 @@ def test_opencl_simultaneous_modal_drives_match_cpu(tmp_path, opencl_device):
         log_level=30,
     )
 
-    with h5py.File(cpu_output.with_suffix(".h5")) as cpu, h5py.File(opencl_output.with_suffix(".h5")) as opencl:
+    with h5py.File(cpu_output.with_suffix(".h5")) as cpu, h5py.File(
+        opencl_output.with_suffix(".h5")
+    ) as opencl:
         np.testing.assert_allclose(
             opencl["rxs/rx1/Ez"][...],
             cpu["rxs/rx1/Ez"][...],
@@ -408,7 +419,10 @@ def test_eigenmode_study_matches_fresh_builds_without_resolving_modes(tmp_path, 
     incident_matrix = np.stack(incident_columns, axis=-1)
     outgoing_matrix = np.stack(outgoing_columns, axis=-1)
     expected_s = np.asarray(
-        [np.linalg.solve(incident.T, outgoing.T).T for incident, outgoing in zip(incident_matrix, outgoing_matrix)]
+        [
+            np.linalg.solve(incident.T, outgoing.T).T
+            for incident, outgoing in zip(incident_matrix, outgoing_matrix)
+        ]
     )
     np.testing.assert_allclose(study.result.s, expected_s, rtol=2e-12, atol=2e-12)
     np.testing.assert_array_equal(study.result.incident_matrix, incident_matrix)
@@ -428,14 +442,18 @@ def test_eigenmode_study_matches_fresh_builds_without_resolving_modes(tmp_path, 
 def test_eigenmode_study_csv_factory_and_complete_channel_validation(tmp_path):
     cases = tmp_path / "eigenmode.csv"
     cases.write_text(
-        "case_id,object_id,port,mode\n" "p1m1,eigenmode_excitation_1,1,1\n" "p2m1,eigenmode_excitation_1,2,1\n"
+        "case_id,object_id,port,mode\n"
+        "p1m1,eigenmode_excitation_1,1,1\n"
+        "p2m1,eigenmode_excitation_1,2,1\n"
     )
     study = gprMax.Study.from_csv("eigenmode", cases)
     assert isinstance(study, gprMax.EigenmodeStudy)
     assert study.cases[1].states[0].parameters == {"port": 2, "mode": 1}
 
     scene, excitation = _two_port_waveguide_scene()
-    incomplete = gprMax.EigenmodeStudy([gprMax.StudyCase("only", [gprMax.ObjectState(excitation, port=1, mode=1)])])
+    incomplete = gprMax.EigenmodeStudy(
+        [gprMax.StudyCase("only", [gprMax.ObjectState(excitation, port=1, mode=1)])]
+    )
     with pytest.raises(ValueError, match="one case for every declared modal channel"):
         incomplete.bind_scene(scene)
 
@@ -444,7 +462,9 @@ def test_eigenmode_study_csv_factory_and_complete_channel_validation(tmp_path):
 def test_hash_eigenmode_study_runs_and_writes_complete_smatrix(tmp_path):
     cases = tmp_path / "eigenmode.csv"
     cases.write_text(
-        "case_id,object_id,port,mode\n" "p1m1,eigenmode_excitation_1,1,1\n" "p2m1,eigenmode_excitation_1,2,1\n"
+        "case_id,object_id,port,mode\n"
+        "p1m1,eigenmode_excitation_1,1,1\n"
+        "p2m1,eigenmode_excitation_1,2,1\n"
     )
     codebook = tmp_path / "array.json"
     codebook.write_text(
@@ -485,9 +505,7 @@ def test_hash_eigenmode_study_runs_and_writes_complete_smatrix(tmp_path):
         np.testing.assert_array_equal(output["channel_modes"], (1, 1))
         assert output["S"].shape[1:] == (2, 2)
         np.testing.assert_array_equal(output["power_wave_valid_S"], output["valid_S"])
-        np.testing.assert_array_equal(
-            output["coefficient_valid_S"], output["generalized_valid_S"]
-        )
+        np.testing.assert_array_equal(output["coefficient_valid_S"], output["generalized_valid_S"])
         np.testing.assert_array_equal(
             output["power_wave_valid_matrix"], output["valid_wave_matrix"]
         )
@@ -953,13 +971,17 @@ def test_array_state_excludes_evanescent_output_from_power_accounting(tmp_path):
         output_file=tmp_path / "unused.h5",
     )
 
-    propagating = result.evaluate_array_state(gprMax.ArrayState("mode1", (gprMax.ModalWeight(1, 1),)))
+    propagating = result.evaluate_array_state(
+        gprMax.ArrayState("mode1", (gprMax.ModalWeight(1, 1),))
+    )
     assert propagating.valid[0]
     np.testing.assert_allclose(propagating.outgoing, ((0.5, 2.0),))
     np.testing.assert_allclose(propagating.reflected_power, (0.25,))
     np.testing.assert_allclose(propagating.tarc, (0.5,))
 
-    evanescent = result.evaluate_array_state(gprMax.ArrayState("mode2", (gprMax.ModalWeight(1, 2),)))
+    evanescent = result.evaluate_array_state(
+        gprMax.ArrayState("mode2", (gprMax.ModalWeight(1, 2),))
+    )
     assert not evanescent.valid[0]
     assert np.isnan(evanescent.reflected_power[0])
 
@@ -1000,9 +1022,7 @@ def test_embedded_far_fields_reconstruct_each_independent_case(tmp_path):
     with h5py.File(tmp_path / "embedded_study.h5") as output:
         assert output["embedded_far_fields/ff/cut/Etheta"].shape[-1] == 2
         assert output["embedded_far_fields/ff/cut/raw_runs/Etheta"].shape[-1] == 2
-        retained_raw_case = output[
-            "embedded_far_fields/ff/cut/raw_runs/Etheta"
-        ][..., 0].copy()
+        retained_raw_case = output["embedded_far_fields/ff/cut/raw_runs/Etheta"][..., 0].copy()
         retained_incident_case = output["incident_matrix"][..., 0].copy()
         definition = json.loads(output["array_codebook/definition"][()].decode())
         assert definition == codebook.to_definition()
@@ -1186,7 +1206,9 @@ def _two_virtual_port_broadband_scene(active_port=1, *, simultaneous=False):
     """Matched, lossless TE10 guide used for analytical multi-drive validation."""
 
     scene, excitation = _two_virtual_port_scene(active_port)
-    time_window = next(item for item in scene.single_use_objects if isinstance(item, gprMax.TimeWindow))
+    time_window = next(
+        item for item in scene.single_use_objects if isinstance(item, gprMax.TimeWindow)
+    )
     time_window.time = 1.2e-9
     band = next(item for item in scene.grid_objects if isinstance(item, gprMax.EigenmodeBand))
     band.kwargs.update(fmin=20e9, fmax=24e9, points=17)
@@ -1270,7 +1292,10 @@ def test_simultaneous_drives_match_lossless_rectangular_waveguide_solution(tmp_p
     incident_matrix = np.stack(incident_columns, axis=-1)
     outgoing_matrix = np.stack(outgoing_columns, axis=-1)
     scattering = np.asarray(
-        [np.linalg.solve(incident_matrix[index].T, outgoing_matrix[index].T).T for index in range(frequency.size)]
+        [
+            np.linalg.solve(incident_matrix[index].T, outgoing_matrix[index].T).T
+            for index in range(frequency.size)
+        ]
     )
 
     with h5py.File(simultaneous_path.with_suffix(".h5")) as output:
@@ -1296,7 +1321,9 @@ def test_simultaneous_drives_match_lossless_rectangular_waveguide_solution(tmp_p
         atol=1e-8,
     )
     identity = np.eye(2)
-    unitarity_error = max(np.linalg.norm(matrix.conj().T @ matrix - identity, ord=2) for matrix in scattering)
+    unitarity_error = max(
+        np.linalg.norm(matrix.conj().T @ matrix - identity, ord=2) for matrix in scattering
+    )
     assert unitarity_error < 3e-4
 
     wave_speed = 299_792_458.0
@@ -1304,7 +1331,9 @@ def test_simultaneous_drives_match_lossless_rectangular_waveguide_solution(tmp_p
     reference_plane_spacing = 0.020
     cutoff = wave_speed / (2 * broad_wall)
     assert np.all(frequency > cutoff)
-    propagation_constant = np.sqrt((2 * np.pi * frequency / wave_speed) ** 2 - (np.pi / broad_wall) ** 2)
+    propagation_constant = np.sqrt(
+        (2 * np.pi * frequency / wave_speed) ** 2 - (np.pi / broad_wall) ** 2
+    )
     analytical_transmission = np.exp(-1j * propagation_constant * reference_plane_spacing)
     measured_transmission = scattering[:, 1, 0]
     assert np.max(np.abs(np.abs(measured_transmission) - 1)) < 2.5e-3
@@ -1409,7 +1438,9 @@ def test_eigenmode_study_reuses_broadband_anchor_banks(tmp_path, monkeypatch):
         log_level=30,
     )
     assert len(solve_models) > reused_solve_count
-    with h5py.File(tmp_path / "broadband_reused2.h5") as reused, h5py.File(tmp_path / "broadband_fresh2.h5") as fresh:
+    with h5py.File(tmp_path / "broadband_reused2.h5") as reused, h5py.File(
+        tmp_path / "broadband_fresh2.h5"
+    ) as fresh:
         for port_index in (1, 2):
             for dataset in ("incident", "outgoing", "S"):
                 np.testing.assert_allclose(
@@ -1420,7 +1451,9 @@ def test_eigenmode_study_reuses_broadband_anchor_banks(tmp_path, monkeypatch):
                 )
 
 
-def _assert_device_eigenmode_study_matches_cpu(tmp_path, name, *, virtual=False, broadband=False, **device_options):
+def _assert_device_eigenmode_study_matches_cpu(
+    tmp_path, name, *, virtual=False, broadband=False, **device_options
+):
     if virtual:
         scene_factory = _two_virtual_port_scene
     elif broadband:

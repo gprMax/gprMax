@@ -24,7 +24,11 @@ import numpy as np
 from gprMax.cython.geometry_primitives import build_sphere
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
-from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging, geometry_tag_args
+from gprMax.user_objects.cmds_geometry.cmds_geometry import (
+    check_averaging,
+    geometry_tag_args,
+    resolve_geometry_materials,
+)
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
@@ -88,17 +92,12 @@ class Sphere(GeometryUserObject):
         p2 = uip.round_to_grid_static_point(p1)
         xc, yc, zc = uip.discretise_point(p1)
 
-        # Look up requested materials in existing list of material instances
-        materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
-
-        if len(materials) != len(materialsrequested):
-            found_ids = {material.ID for material in materials}
-            notfound = [
-                material_id for material_id in materialsrequested if material_id not in found_ids
-            ]
-            message = f"{self.__str__()} material(s) {notfound} do not exist"
-            logger.error(message)
-            raise ValueError(message)
+        materials = resolve_geometry_materials(
+            grid,
+            materialsrequested,
+            geometry=self.params_str(),
+            directional="material_id" not in self.kwargs,
+        )
 
         # Isotropic case
         if len(materials) == 1:

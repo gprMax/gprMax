@@ -315,6 +315,13 @@ class CPUUpdates(Updates[GridType]):
         for terminal in getattr(self.grid, "networkterminals", ()):
             terminal.update(iteration, self.grid)
 
+    def update_impedance_surfaces(self):
+        """Apply locally implicit surface-impedance edge corrections."""
+
+        system = getattr(self.grid, "impedance_surfaces", None)
+        if system is not None:
+            system.update(self.grid)
+
     def set_dispersive_updates(self):
         """Sets dispersive update functions."""
 

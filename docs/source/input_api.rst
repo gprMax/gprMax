@@ -599,6 +599,48 @@ Material
 --------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.Material
 
+Surface impedance
+-----------------
+.. autoclass:: gprMax.user_objects.cmds_multiuse.SurfaceImpedance
+
+Use the resulting ID directly as the ``material_id`` of an ordinary closed,
+cell-occupying geometry object. Surface-impedance IDs and bulk-material IDs
+share one geometry namespace and therefore must be unique. Directional
+``material_ids`` assignments are not supported for a scalar surface
+impedance. IDs beginning with ``__impedance_`` are reserved for private
+runtime materials.
+
+Select exactly one of ``resistance``, a named ``preset``, or a positive bulk
+``conductivity``. Preset and conductivity models require
+``fit_frequency_range=(fmin, fmax)``. ``fit_order='auto'`` tests actual
+runtime pole counts from 1 through 64 and selects the first whose
+deterministic local fit is independently certified to meet
+``fit_tolerance``; an integer requests exactly that many Foster poles, in
+which case a tolerance miss produces a warning rather than changing the
+requested order. The resulting surface exposes the actual count as
+``fit_pole_count``.
+
+The constant ``resistance`` form is a frequency-independent, purely real
+idealization and generates a build warning because it does not represent the
+causal, dispersive surface impedance of a physical conductor. Use a fitted
+metal preset or bulk conductivity for physically representative conductor
+loss.
+
+``plot_fit=False`` writes the fit
+plot only for geometry-only runs, while ``True`` also writes it for full
+runs. Presets are available for aluminium, copper, gold, molybdenum,
+palladium, silver, tungsten, and zinc, with element-symbol aliases. These are
+293 K thick-bulk good-conductor models, not optical or thin-film data. Fitted
+bands are capped at 300 GHz and must satisfy the good-conductor criterion
+:math:`\sigma/(\omega\epsilon_0)\geq100` at their upper edge.
+Output HDF5 files preserve each model's continuous ``A, B, C, D`` data,
+fit/provenance/hash metadata, and the exact local ``f, q, Z0`` recurrence
+coefficients used at the run's FDTD time step under
+``surface_impedance_models``.
+The complete geometry semantics, ADE derivation, sparse FDTD update, FDFD
+reduction, modal workflow, and validation procedure are described in
+:doc:`impedance_surfaces`.
+
 Material from database
 ----------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.MaterialFromDatabase
@@ -776,6 +818,83 @@ not part of the FDTD field update and are not transferred to accelerators.
 Tags are flat rather than hierarchical. Larger groups such as ``head`` can be
 formed later by selecting several leaf tags such as ``brain``, ``eyes``, and
 ``cranial_bone``.
+
+Closed impedance volumes
+------------------------
+
+Assign a :class:`gprMax.SurfaceImpedance` ID directly as the ``material_id``
+of a supported ordinary geometry object. No separate conversion object is
+needed.
+
+.. code-block:: python
+
+    scene.add(gprMax.SurfaceImpedance(
+        id='metal',
+        preset='copper',
+        fit_frequency_range=(8e9, 12e9),
+    ))
+    scene.add(gprMax.Sphere(
+        p1=(0.15, 0.10, 0.08), r=0.025,
+        material_id='metal', averaging='n',
+    ))
+
+Supported inputs are boxes, spheres, ellipsoids, cylinders, cones,
+finite-thickness cylindrical sectors, and finite-thickness triangular prisms.
+A ``FractalBox`` accepts a surface-impedance ID as ``mixing_model_id`` only
+with ``n_materials=1`` and a roughness, grass, or water modifier. An
+unmodified one-material ``FractalBox`` continues to require ``Box`` instead.
+The assignment must be scalar: use ``material_id``, not directional
+``material_ids``. Surface-impedance geometry is excluded from dielectric
+smoothing.
+
+Plates, electric and magnetic edges, zero-thickness triangles and cylindrical
+sectors, and boxes with zero rasterized extent on any axis are rejected.
+These sheet and line shapes require a future two-sided transition condition,
+not the present one-sided opaque-volume boundary.
+
+Object construction still follows normal scene order. Overlapping impedance
+primitives with the same ID form a union, a later bulk-material object can
+carve a cavity, and any later geometry replaces earlier cells under the usual
+last-object-wins rule. Geometry ``tag`` remains optional metadata and has no
+role in assigning the surface impedance.
+
+The final rasterized geometry is checked after these ordered overwrites.
+Ordinary face-connected staircases are valid, but impedance cells that touch
+only diagonally across a Yee edge or only at a grid vertex are rejected. In
+every local ``2 x 2 x 2`` vertex neighbourhood, both the impedance cells and
+the retained cells must be connected through voxel faces when non-empty. All
+surface-impedance IDs count as the same occupied class for this test. Connect
+the offending regions through a full voxel face, or separate them so they
+share neither an edge nor a vertex; refining, thickening, or repositioning the
+geometry can also repair the rasterized topology. See
+:ref:`impedance-surfaces` for the complete rule and error guidance.
+
+``GeometryObjectsWrite``/``GeometryObjectsRead`` round trips are not yet
+supported for impedance geometry; recreate the ``SurfaceImpedance`` and
+native geometry in the destination scene.
+
+This first version is restricted to three-dimensional CPU models without MPI
+domain decomposition or subgrids. An impedance volume cannot coexist with a
+thin wire or any symmetry boundary, and its boundary cannot intersect a PML.
+An axial discrete plane wave is unsupported; a homogeneous vector/angle plane
+wave may be used only when the complete impedance boundary lies strictly
+inside its TFSF box. The retained dielectric immediately outside the boundary
+must be non-dispersive.
+
+Direct three-dimensional ``EigenmodePort`` planes may cross a
+propagation-invariant impedance volume. The FDFD solve uses the same
+time-discrete ADE transfer as FDTD, retains the independent boundary E/H
+degrees of freedom, and inserts the clipped integral Ampere rows. The modal
+window must contain the complete guide aperture and its impedance boundary.
+``VirtualWaveguide`` termination is not yet supported for impedance volumes.
+Every eigenmode anchor and its trapezoidal bilinear-warped evaluation
+frequency must lie inside each intersected dispersive surface model's declared
+fit band; gprMax rejects extrapolation. The surface ADE reduction is exact for
+the FDTD time step; the surrounding legacy P/Q eigensolver retains its
+physical-frequency normalization, so this is not a fully time-discrete bulk
+Yee eigenproblem near temporal Nyquist.
+See :doc:`impedance_surfaces` for the discrete equations and implementation
+limits.
 
 Box
 ---

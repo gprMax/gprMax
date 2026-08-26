@@ -170,6 +170,13 @@ class FDTDGrid:
         # owns only the states associated with its selected electric edge.
         self.rationalnetworkmodels = {}
         self.networkterminals = []
+        # Surface impedances are sparse boundary devices. Geometry objects
+        # write private marker material IDs into ``solid``; the final grid
+        # build compiles those markers into boundary E edges and void volume
+        # components after all ordinary geometry has been resolved.
+        self.surface_impedance_models = {}
+        self.impedance_marker_models = {}
+        self.impedance_surfaces = None
         # MPI ranks parse the same scene but instantiate a point terminal only
         # on its owning rank. These replicated definitions let later
         # excitation/output commands validate and bind by terminal ID on every
@@ -362,6 +369,7 @@ class FDTDGrid:
         self._validate_internal_pmls()
         self._build_symmetry_boundaries()
         self._create_voltage_source_materials()
+        self._build_impedance_surfaces()
         self.initialise_field_arrays()
         self.initialise_std_update_coeff_arrays()
         if config.get_model_config().materials["maxpoles"] > 0:
@@ -372,6 +380,15 @@ class FDTDGrid:
         self._apply_thin_wire_update_coefficients()
         self._DPW__source_grid_init()
         self._eigenmode_port_grid_init()
+
+    def _build_impedance_surfaces(self) -> None:
+        """Compile private impedance-volume markers into sparse Yee records."""
+
+        if not self.impedance_marker_models:
+            return
+        from gprMax.impedance_surfaces import compile_impedance_surfaces
+
+        compile_impedance_surfaces(self)
 
     def _validate_pml_thickness(self) -> None:
         """Check that no PML reaches or crosses the domain midpoint.
@@ -1614,6 +1631,8 @@ class FDTDGrid:
 
         for terminal in self.networkterminals:
             terminal.reset()
+        if self.impedance_surfaces is not None:
+            self.impedance_surfaces.reset()
         for monitor in self.sar_monitors:
             monitor.reset_run_state()
 
@@ -1659,7 +1678,73 @@ class FDTDGrid:
                     pmlarrays += (self.nx + 1) * self.ny * v
                     pmlarrays += self.nx * (self.ny + 1) * v
 
-        mem_use = fieldarrays + solidarray + tagarray + rigidarrays + pmlarrays
+        # Conservative sparse surface-impedance estimate from the final voxel
+        # ownership. This naturally includes every material-bearing geometry
+        # object and honours normal last-object-wins overwrite semantics.
+        impedancearrays = 0
+        real_size = np.dtype(config.sim_config.dtypes["float_or_double"]).itemsize
+        marker_cell_counts = {}
+        if self.impedance_marker_models:
+            material_cell_counts = np.bincount(
+                self.solid.reshape(-1),
+                minlength=len(self.materials),
+            )
+            marker_cell_counts = {
+                marker_numid: int(material_cell_counts[marker_numid])
+                for marker_numid in self.impedance_marker_models
+                if marker_numid < material_cell_counts.size
+            }
+        marker_cell_counts = {
+            marker_numid: count for marker_numid, count in marker_cell_counts.items() if count
+        }
+        if marker_cell_counts:
+            impedancearrays += self.nx * self.ny * self.nz * np.dtype(np.int32).itemsize
+            estimated_state_values = 0
+            for marker_numid, cell_count in marker_cell_counts.items():
+                # Twelve E edges and 24 surface ports per cell are the
+                # isolated-voxel upper bounds for arbitrary unions, cavities,
+                # roughness, and disconnected bodies.
+                edges = 12 * cell_count
+                ports = 24 * cell_count
+                model_id = self.impedance_marker_models[marker_numid]
+                order = self.surface_impedance_models[model_id].order
+                # Per boundary edge: edge_info (8 int32), edge_params,
+                # edge_runtime, and edge_fraction (5 real), plus at most four
+                # clipped H records (4 int32 + 1 real each). This is the
+                # isolated/rough-voxel upper bound; smooth faces merge several
+                # circulation terms.
+                impedancearrays += edges * (24 * np.dtype(np.int32).itemsize + 9 * real_size)
+                # Each port stores its model/state indices, normal, area,
+                # geometric weight, and two precomputed Z0 ratios. Foster
+                # history has one in-place scalar per port and retained pole;
+                # there is no second ADE state buffer.
+                impedancearrays += ports * (
+                    2 * np.dtype(np.int32).itemsize
+                    + 2 * np.dtype(np.int8).itemsize
+                    + (4 + order) * real_size
+                )
+                estimated_state_values += ports * order
+
+            # Per-model packed runtime tables are shared by all ports. Include
+            # the diagonal decay/source vectors, one Z0 per model, and the
+            # two-int model_info row. Each empty packed pole vector retains a
+            # one-real sentinel.
+            referenced_ids = tuple(
+                dict.fromkeys(
+                    self.impedance_marker_models[marker_numid]
+                    for marker_numid in marker_cell_counts
+                )
+            )
+            orders = [self.surface_impedance_models[ID].order for ID in referenced_ids]
+            impedancearrays += 2 * len(orders) * np.dtype(np.int32).itemsize
+            impedancearrays += (2 * max(1, sum(orders)) + len(orders)) * real_size
+            # The per-port term above counts every dynamic state. A purely
+            # resistive boundary still has a one-real state_y sentinel so the
+            # compiled Cython memoryview remains valid.
+            if estimated_state_values == 0:
+                impedancearrays += real_size
+
+        mem_use = fieldarrays + solidarray + tagarray + rigidarrays + pmlarrays + impedancearrays
 
         return mem_use
 

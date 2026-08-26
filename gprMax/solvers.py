@@ -110,6 +110,7 @@ class Solver:
             self.updates.update_symmetry_boundaries_electric_b()
 
             self.updates.update_electric_b()
+            self.updates.update_impedance_surfaces()
             self.updates.update_network_terminals(iteration)
 
             if isinstance(self.updates, MPIUpdates):

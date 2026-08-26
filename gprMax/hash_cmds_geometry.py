@@ -233,8 +233,7 @@ def process_geometrycmds(geometry):
             # Isotropic case with no user specified averaging
             if len(tmp) == 12:
                 triangle = Triangle(
-                    p1=p1, p2=p2, p3=p3, thickness=thickness,
-                    material_id=tmp[11], tag=tag
+                    p1=p1, p2=p2, p3=p3, thickness=thickness, material_id=tmp[11], tag=tag
                 )
 
             # Isotropic case with user specified averaging
@@ -252,8 +251,7 @@ def process_geometrycmds(geometry):
             # Uniaxial anisotropic case
             elif len(tmp) == 14:
                 triangle = Triangle(
-                    p1=p1, p2=p2, p3=p3, thickness=thickness,
-                    material_ids=tmp[11:], tag=tag
+                    p1=p1, p2=p2, p3=p3, thickness=thickness, material_ids=tmp[11:], tag=tag
                 )
 
             else:
@@ -457,9 +455,7 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 8:
-                ellipsoid = Ellipsoid(
-                    p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], tag=tag
-                )
+                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], tag=tag)
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
@@ -475,9 +471,7 @@ def process_geometrycmds(geometry):
 
             # Uniaxial anisotropic case
             elif len(tmp) == 10:
-                ellipsoid = Ellipsoid(
-                    p1=p1, xr=xr, yr=yr, zr=zr, material_ids=tmp[7:], tag=tag
-                )
+                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_ids=tmp[7:], tag=tag)
 
             else:
                 logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")

@@ -11,6 +11,11 @@ The main validations are:
   reflection for dielectric, multipole Debye, Lorentz, and Drude materials;
 * ``validate_plane_wave_realistic_materials.py`` -- Fresnel reflection for
   fresh water and Puerto Rico clay over their dispersive bands;
+* ``impedance_surface/validate_copper_wall_waveguide.py`` -- a TE10 validation
+  sequence for a copper-preset rectangular guide at 130--150 GHz,
+  using a 120--150 GHz excitation, automatic three-pole fit, and a causally
+  isolated 500 ps record; its FDFD and FDTD attenuation gates are 1% and 2%
+  relative L2 error;
 * ``validate_hertzian_dipole.py`` -- Hertzian-dipole far-field pattern and
   directivity, plus one analytical near-field time-domain component;
 * ``planar_layered_ntff/validate_point_dipole.py`` -- the frequency-domain
@@ -78,6 +83,14 @@ The ``dispersive_averaging`` subdirectory adds mixed-family validations for
 half spaces, finite multilayers, construction-order sensitivity, and a
 Debye-core/Lorentz-shell sphere evaluated with the Aden--Kerker series.
 
+The ``impedance_surface`` subdirectory contains the copper-wall waveguide
+validation. The driver writes CSV data, a PNG comparison figure, and a
+machine-readable ``summary.json`` to its results directory. It uses dense
+source-port anchors for exact FDFD validation and modal launch, but guarded
+sparse anchor sets on passive propagation ports to avoid redundant mode solves.
+The copper preset explicitly requests automatic fit order rather than fixing a
+pole count.
+
 ``mie_pec.py`` and ``mie_dielectric.py`` supply the independent sphere series
 used by both manual validation and automated tests. Behavioural and
 backend-consistency suites without analytical reference solutions are kept
@@ -116,6 +129,7 @@ Run modules from the repository root, for example::
     python -m testing.validation.planar_layered_ntff.validate_smith_dipole_height --gpu 0
     python -m testing.validation.planar_layered_ntff.validate_gssi_energy_convergence --gpu 0
     python -m testing.validation.validate_fdfd_eigenmodes
+    python -m testing.validation.impedance_surface.validate_copper_wall_waveguide --threads 4
     python -m testing.validation.validate_rational_network_literature
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
     python -m testing.validation.validate_debye_sphere_averaging --gpu 0

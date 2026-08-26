@@ -22,6 +22,7 @@ import logging
 import numpy as np
 
 import gprMax.config as config
+from gprMax.surface_impedance_presets import DEFAULT_METAL_FIT_ORDER, DEFAULT_METAL_FIT_TOLERANCE
 
 from .user_objects.cmds_multiuse import (
     PMLCFS,
@@ -51,6 +52,7 @@ from .user_objects.cmds_multiuse import (
     Rx,
     RxArray,
     SoilPeplinski,
+    SurfaceImpedance,
     SymmetryBoundary,
     TransmissionLine,
     VirtualWaveguide,
@@ -154,6 +156,53 @@ def process_multicmds(multicmds):
                     allow_active=allow_active,
                 )
             )
+
+    cmdname = "#surface_impedance"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tokens = cmdinstance.split()
+            if len(tokens) < 2:
+                raise ValueError(f"'{cmdname}: {cmdinstance}' requires an ID and source kind")
+            source_kind = tokens[1].lower()
+            if source_kind == "resistance":
+                if len(tokens) != 3:
+                    raise ValueError(
+                        f"'{cmdname}: {cmdinstance}' resistance form requires "
+                        "ID, the 'resistance' source kind, and resistance in Ohms"
+                    )
+                scene_objects.append(SurfaceImpedance(id=tokens[0], resistance=float(tokens[2])))
+                continue
+
+            if source_kind not in ("preset", "conductivity") or not 5 <= len(tokens) <= 8:
+                raise ValueError(
+                    f"'{cmdname}: {cmdinstance}' fitted form requires ID, preset and "
+                    "metal name, or ID, conductivity and S/m; both forms then require "
+                    "fmin and fmax, optionally followed by auto/integer fit order, "
+                    "tolerance, and y/n plot flag"
+                )
+
+            fit_order = DEFAULT_METAL_FIT_ORDER
+            if len(tokens) >= 6:
+                fit_order = "auto" if tokens[5].lower() == "auto" else int(tokens[5])
+            fit_tolerance = float(tokens[6]) if len(tokens) >= 7 else DEFAULT_METAL_FIT_TOLERANCE
+            plot_fit = False
+            if len(tokens) == 8:
+                if tokens[7].lower() not in ("y", "n"):
+                    raise ValueError(f"{cmdname} plot-fit flag must be 'y' or 'n'")
+                plot_fit = tokens[7].lower() == "y"
+
+            fitted_options = {
+                "id": tokens[0],
+                "fit_frequency_range": (float(tokens[3]), float(tokens[4])),
+                "fit_order": fit_order,
+                "fit_tolerance": fit_tolerance,
+                "plot_fit": plot_fit,
+            }
+            if source_kind == "preset":
+                fitted_options["preset"] = tokens[2]
+            else:
+                fitted_options["conductivity"] = float(tokens[2])
+            scene_objects.append(SurfaceImpedance(**fitted_options))
 
     cmdname = "#network_terminal"
     if multicmds[cmdname] is not None:
@@ -449,10 +498,7 @@ def process_multicmds(multicmds):
     for cmdinstance in eigenmode_band_cmds:
         tmp = cmdinstance.split()
         if len(tmp) < 4:
-            raise ValueError(
-                "#eigenmode_band requires id fmin fmax points "
-                "[frequency ...]."
-            )
+            raise ValueError("#eigenmode_band requires id fmin fmax points " "[frequency ...].")
         kwargs = {
             "id": tmp[0],
             "fmin": float(tmp[1]),

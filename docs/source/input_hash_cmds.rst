@@ -269,6 +269,104 @@ Allows you to introduce a material into the model described by a set of constitu
 
 For example ``#material: 3 0.01 1 0 my_sand`` creates a material called ``my_sand`` which has a relative permittivity (frequency independent) of :math:`\epsilon_r = 3`, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
 
+#surface_impedance:
+-------------------
+
+Defines a reusable scalar surface-impedance material for closed,
+cell-occupying geometry. Use its identifier directly as the geometry's sole
+material identifier. The command accepts either a constant real resistance
+or a fitted microwave-metal target from a named preset or bulk conductivity:
+
+.. code-block:: none
+
+    #surface_impedance: str1 resistance f1
+    #surface_impedance: str1 preset str2 f2 f3 [auto|i1] [f4] [c1]
+    #surface_impedance: str1 conductivity f1 f2 f3 [auto|i1] [f4] [c1]
+
+* ``str1`` is the surface-impedance identifier.
+* ``f1`` is the positive surface resistance in Ohms.
+  In the conductivity form it is instead the positive bulk conductivity in
+  S/m.
+* ``str2`` is ``aluminium``, ``copper``, ``gold``, ``molybdenum``,
+  ``palladium``, ``silver``, ``tungsten``, or ``zinc``. Element symbols and
+  ``aluminum`` are also accepted.
+* ``f2`` and ``f3`` are the mandatory positive fit-band limits in Hertz.
+* ``auto`` tests actual runtime pole counts from 1 through 64 and selects the
+  first whose deterministic local fit is independently certified to meet the
+  tolerance. ``i1`` instead requests exactly that many Foster poles in the
+  same range. The default is ``auto``.
+* ``f4`` is the positive maximum relative fit-error tolerance; the default is
+  ``2e-3``. It controls order selection for ``auto``. With an explicit
+  integer order it is a diagnostic threshold, and a miss produces a warning
+  without changing the requested order.
+* ``c1`` controls full-run fit plotting. ``n`` (the default) writes the plot
+  only for ``--geometry-only``; ``y`` writes it for geometry-only and full
+  runs. To specify a later optional field, include those before it.
+
+Surface-impedance and bulk-material identifiers must be unique. The
+``__impedance_`` prefix is reserved for private runtime materials.
+
+.. warning::
+
+    The ``resistance`` form is a frequency-independent, purely real idealized
+    boundary condition; it does not represent the causal, dispersive response
+    of a physical conductor. gprMax emits a warning when it is built. Use a
+    fitted metal preset or bulk conductivity over the intended frequency band
+    for physically representative conductor loss.
+
+For example, ``#surface_impedance: resistive_wall resistance 50`` defines a
+50 Ohm surface. A copper fit over X band is
+``#surface_impedance: copper_wall preset copper 8e9 12e9 auto 2e-3 n``.
+An explicit conductivity and order can use
+``#surface_impedance: alloy_wall conductivity 3.2e7 8e9 12e9 12``.
+
+The metal presets use recommended bulk-pure-metal resistivity at 293 K from
+Matula and Desai et al.; exact per-metal provenance is stored in the output.
+gprMax fits the
+good-conductor surface impedance with a non-negative Foster expansion. This
+makes the resulting realization passive over the complete frequency axis;
+its advertised accuracy applies only inside the selected fit band. Output
+HDF5 files store the internal continuous model, fit/provenance/hash
+metadata, and the exact local runtime ``f, q, Z0`` recurrence coefficients
+under ``surface_impedance_models``.
+
+This microwave-only implementation requires ``f3 <= 300e9`` and checks
+:math:`\sigma/(\omega\epsilon_0)\geq100` at the upper band edge. It rejects
+optical/terahertz bands and targets for which the good-conductor law is not a
+valid approximation.
+
+See :doc:`impedance_surfaces` for the surface-current convention, ADE and
+FDFD equations, geometry compilation rules, metal applicability, validation,
+and troubleshooting guidance.
+
+.. note::
+
+    This first implementation is limited to the 3-D CPU solver and closed,
+    cell-occupying geometry. Pass the ``#surface_impedance`` ID directly as
+    the sole material identifier of ``#box``, ``#sphere``, ``#ellipsoid``,
+    ``#cylinder``, ``#cone``, or a finite-thickness ``#triangle`` or
+    ``#cylindrical_sector``. Sheets, lines, zero-thickness patches, and
+    directional material assignments are rejected. The implementation does
+    not yet support MPI, subgrids, accelerator backends, any symmetry
+    boundary, thin wires, a PML intersection, or a dispersive dielectric
+    immediately outside the impedance boundary. Axial discrete plane waves
+    are unsupported. A homogeneous vector/angle plane wave is allowed only
+    when the complete impedance boundary lies strictly inside its TFSF box.
+    The common-metal presets describe thick, homogeneous bulk metal in the
+    local good-conductor regime. They are not optical Drude--Lorentz data and
+    are not valid for thin films, rough surfaces, nanoscale conductors, or
+    thicknesses comparable with the skin depth.
+
+    Direct 3-D ``#eigenmode_port`` planes are supported when the impedance
+    boundary is propagation-invariant through the modal plane and the modal
+    window contains its required boundary field components. The FDFD operator
+    uses the exact time-discrete ADE response and clipped Yee Ampere rows.
+    Keep every eigenmode anchor and its trapezoidal bilinear-warped evaluation
+    frequency inside the surface model's declared fit band; extrapolation is
+    rejected. The surrounding P/Q bulk operator retains physical-frequency
+    normalization; only the surface ADE reduction is exactly time-discrete.
+    ``#virtual_waveguide`` remains unsupported for impedance volumes.
+
 #material_from_database:
 ------------------------
 
@@ -543,6 +641,36 @@ Object construction commands
 ============================
 
 Object construction commands are processed in the order they appear in the input file. Therefore space in the model allocated to a specific material using for example the ``#box`` command can be reallocated to another material using the same or any other object construction command. Space in the model can be regarded as a canvas in which objects are introduced and one can be overlaid on top of the other overwriting its properties in order to produce the desired geometry. The object construction commands can therefore be used to create complex shapes and configurations.
+
+A ``#surface_impedance`` ID can be used directly wherever these commands take
+one isotropic material identifier for a closed, cell-occupying volume. For
+example:
+
+.. code-block:: none
+
+    #surface_impedance: resistive_wall resistance 50
+    #box: 0.1 0.1 0.1 0.3 0.3 0.2 resistive_wall n
+
+Normal ordered overwrite semantics apply. Several objects with the same
+surface-impedance ID can form a union; a later ordinary material object can
+carve a cavity; and any later geometry can replace earlier cells. Plates,
+edges, zero-thickness triangles and cylindrical sectors, and boxes that
+occupy zero cells on any axis reject surface-impedance IDs. A scalar surface
+impedance also cannot be used as one member of a directional anisotropic
+material assignment. ``#fractal_box`` accepts a surface-impedance ID only as
+its sole material with one material bin and a roughness, grass, or water
+modifier; an unmodified one-material fractal box must use ``#box`` instead.
+
+The final rasterized geometry is checked after all ordered overwrites.
+Face-connected staircases are valid. Impedance cells that touch only
+diagonally across a Yee edge or only at a grid vertex are non-manifold and are
+rejected, including contacts between different surface-impedance IDs. Within
+each local ``2 x 2 x 2`` vertex neighbourhood, both the impedance and retained
+cell sets must be face-connected when non-empty. Connect the regions through a
+full voxel face, or separate them so they share neither an edge nor a vertex;
+mesh refinement, increased feature thickness, or a small position change can
+also repair the final voxel topology. See :doc:`impedance_surfaces` for the
+complete rule and troubleshooting guidance.
 
 Anisotropy
 ----------

@@ -357,9 +357,7 @@ class EigenmodePortMonitor:
         self.dft_stop = float(dft_stop)
         self.dft_points = int(dft_points)
         self.dft_frequencies = (
-            None
-            if dft_frequencies is None
-            else np.asarray(dft_frequencies, dtype=np.float64)
+            None if dft_frequencies is None else np.asarray(dft_frequencies, dtype=np.float64)
         )
         self.result = None
         self.s_parameters = None
@@ -426,11 +424,10 @@ class EigenmodePortMonitor:
             raise ValueError("A multi-point eigenmode DFT requires stop greater than start.")
         if self.dft_frequencies is not None:
             if self.dft_frequencies.ndim != 1 or self.dft_frequencies.size == 0:
-                raise ValueError("Eigenmode port DFT frequencies must be one-dimensional and non-empty.")
-            if (
-                not np.all(np.isfinite(self.dft_frequencies))
-                or np.any(self.dft_frequencies <= 0)
-            ):
+                raise ValueError(
+                    "Eigenmode port DFT frequencies must be one-dimensional and non-empty."
+                )
+            if not np.all(np.isfinite(self.dft_frequencies)) or np.any(self.dft_frequencies <= 0):
                 raise ValueError("Eigenmode port DFT frequencies must be finite and positive.")
             if np.any(np.diff(self.dft_frequencies) <= 0):
                 raise ValueError(
@@ -1130,6 +1127,12 @@ class EigenmodePortMonitor:
         group["anchor_mode_reference_valid"] = self.anchor_mode_reference_valid.astype(np.uint8)
         group["anchor_mode_propagating"] = self.anchor_mode_propagating.astype(np.uint8)
         group["anchor_balanced_power"] = self.anchor_balanced_power
+        # Persist the propagation constants that define both broadband modal
+        # interpolation and forward/backward de-embedding.  This makes an
+        # FDTD launch reproducible and lets validation distinguish an FDFD-to-
+        # FDTD mismatch from the cross-section discretisation error relative
+        # to a continuum guide formula.
+        group["anchor_complex_neff"] = self.anchor_neff
         group["power_matrix_valid"] = self.power_matrix_valid.astype(np.uint8)
         if self.s_parameters is not None:
             group["S"] = self.s_parameters
@@ -1140,9 +1143,7 @@ class EigenmodePortMonitor:
         if getattr(self, "active_s_parameters", None) is not None:
             group["active_S"] = self.active_s_parameters
             group["active_S_driven"] = self.active_s_driven.astype(np.uint8)
-            group["coefficient_valid_active_S"] = self.active_s_coefficient_valid.astype(
-                np.uint8
-            )
+            group["coefficient_valid_active_S"] = self.active_s_coefficient_valid.astype(np.uint8)
             group["power_wave_valid_active_S"] = self.active_s_valid.astype(np.uint8)
 
 
@@ -1206,8 +1207,7 @@ def _write_active_sparameters(grid, sources, excitation_modes):
         port_power_wave_valid = np.asarray(port_power_wave_valid_value, dtype=bool)
         result_coefficient_valid = _generalized_result_valid(port.result)
         drive_by_mode = {
-            int(metadata["mode"]): metadata
-            for metadata in getattr(port, "drive_metadata", ())
+            int(metadata["mode"]): metadata for metadata in getattr(port, "drive_metadata", ())
         }
         for mode_index in excitation_modes(port):
             mode_position = port.mode_indices.index(mode_index)
