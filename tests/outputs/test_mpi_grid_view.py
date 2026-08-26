@@ -29,7 +29,8 @@ import numpy as np
 import pytest
 from mpi4py import MPI
 
-from gprMax.geometry_outputs.grid_view import GridView, MPIGridView
+from gprMax.geometry_outputs.grid_view import GridView, MPIGridView, _merge_rank_materials
+from gprMax.materials import Material
 
 
 @pytest.fixture
@@ -418,9 +419,7 @@ class TestDegeneratesToTheSerialClass:
         (3 parameter sets)"""
         serial = make_grid_view(start=(0, 0, 0), stop=(10, 10, 10), nx=10, ny=10, nz=10)
         for exclusive in (True, False):
-            assert edge_view.getter_slice(dimension, exclusive) == serial.getter_slice(
-                dimension, exclusive
-            )
+            assert edge_view.getter_slice(dimension, exclusive) == serial.getter_slice(dimension, exclusive)
 
     @pytest.mark.parametrize("dimension", [0, 1, 2])
     def test_setter_slices_match(self, edge_view, make_grid_view, dimension):
@@ -484,6 +483,34 @@ class TestMaterialsAcrossRanks:
         material_view.initialise_materials(filter_materials=False)
         numids = [m.numID for m in material_view.materials]
         assert numids == sorted(set(numids))
+
+    def test_variable_rank_material_lists_keep_one_map_entry_per_local_material(self):
+        """Compound material IDs are stable even when their local numIDs differ.
+
+        This reproduces the variable-length condition that previously made a
+        receiving MPI rank allocate more IDs than the coordinator sent.
+        """
+        free0 = Material(2, "free_space")
+        mix0 = Material(8, "free_space+sand")
+        free1 = Material(2, "free_space")
+        sand1 = Material(3, "sand")
+        mix1 = Material(15, "free_space+sand")
+
+        materials, maps = _merge_rank_materials(
+            [
+                np.asarray([free0, mix0], dtype=Material),
+                np.asarray([free1, sand1, mix1], dtype=Material),
+            ]
+        )
+
+        assert [material.ID for material in materials] == [
+            "free_space",
+            "sand",
+            "free_space+sand",
+        ]
+        assert [len(mapping) for mapping in maps] == [2, 3]
+        assert maps[0].tolist() == [0, 2]
+        assert maps[1].tolist() == [0, 1, 2]
 
 
 pytestmark = pytest.mark.unit

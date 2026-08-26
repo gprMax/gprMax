@@ -126,10 +126,7 @@ class Triangle(RotatableMixin, GeometryUserObject):
         # modelling error.
         normal_vector = np.cross(dp2 - dp1, dp3 - dp1)
         if not np.any(normal_vector):
-            message = (
-                f"{self.__str__()} the vertices must define a non-degenerate "
-                "triangle after discretisation."
-            )
+            message = f"{self.__str__()} the vertices must define a non-degenerate " "triangle after discretisation."
             logger.error(message)
             raise ValueError(message)
         # Convert points to metres
@@ -223,8 +220,11 @@ class Triangle(RotatableMixin, GeometryUserObject):
 
             # Uniaxial anisotropic case
             elif len(materials) == 3:
-                # numID requires a value but it will not be used
-                numID = None
+                # build_triangle has a typed integer argument for the
+                # volumetric material ID. Surface triangles do not use that
+                # value, but still need a valid integer at the Python/Cython
+                # boundary.
+                numID = materials[0].numID
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID

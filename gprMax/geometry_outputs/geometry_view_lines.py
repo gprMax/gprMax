@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley, 
+#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
 #                          and Nathan Mannall
 #
 # This file is part of gprMax.
@@ -32,6 +32,45 @@ from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import VtkUnstructuredGrid
 from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType, VtkHdfFile
 
 logger = logging.getLogger(__name__)
+
+
+def _remove_duplicate_partition_edges(
+    connectivity: np.ndarray,
+    material_data: np.ndarray,
+    size: np.ndarray,
+    has_positive_neighbour: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Remove Yee edges duplicated on upper MPI partition faces.
+
+    An edge normal to a partition face spans a unique interval and remains
+    owned by the rank. Edges tangential to the face are present in both
+    adjoining rank-local point lattices; the rank on the negative side drops
+    its upper-face copy so the positive-side rank is the single owner. This
+    matches the side containing the canonical local Yee-edge material IDs.
+    """
+    if not np.any(has_positive_neighbour):
+        return connectivity, material_data
+
+    nx, ny, nz = (int(value) for value in size)
+    y_step = nz + 1
+    x_step = (ny + 1) * y_step
+    segments = connectivity.reshape(-1, 2)
+
+    def point_coordinate(point_ids: np.ndarray, axis: int) -> np.ndarray:
+        if axis == 0:
+            return point_ids // x_step
+        if axis == 1:
+            return (point_ids % x_step) // y_step
+        return point_ids % y_step
+
+    keep = np.ones(len(segments), dtype=bool)
+    for axis in np.flatnonzero(has_positive_neighbour):
+        first = point_coordinate(segments[:, 0], int(axis))
+        second = point_coordinate(segments[:, 1], int(axis))
+        boundary = int(size[int(axis)])
+        keep &= ~((first == boundary) & (second == boundary))
+
+    return segments[keep].reshape(-1), material_data[keep]
 
 
 class GeometryViewLines(GeometryView[GridType]):
@@ -70,18 +109,12 @@ class GeometryViewLines(GeometryView[GridType]):
             self.points += self.grid.local_to_global(np.zeros(3, dtype=np.int32))
 
         nx, ny, nz = self.grid_view.size
-        n_lines = (
-            nx * (ny + 1) * (nz + 1)
-            + ny * (nx + 1) * (nz + 1)
-            + nz * (nx + 1) * (ny + 1)
-        )
+        n_lines = nx * (ny + 1) * (nz + 1) + ny * (nx + 1) * (nz + 1) + nz * (nx + 1) * (ny + 1)
 
         self.cell_types = np.full(n_lines, VtkCellType.LINE)
         self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)
 
-        self.connectivity, self.material_data = get_line_properties(
-            n_lines, *self.grid_view.size, ID
-        )
+        self.connectivity, self.material_data = get_line_properties(n_lines, *self.grid_view.size, ID)
 
         assert isinstance(self.connectivity, np.ndarray)
         assert isinstance(self.material_data, np.ndarray)
@@ -141,21 +174,22 @@ class MPIGeometryViewLines(GeometryViewLines[MPIGrid]):
         self.points *= self.grid_view.step * self.grid.dl
 
         nx, ny, nz = self.grid_view.size
-        n_lines = (
-            nx * (ny + 1) * (nz + 1)
-            + ny * (nx + 1) * (nz + 1)
-            + nz * (nx + 1) * (ny + 1)
-        )
+        n_lines = nx * (ny + 1) * (nz + 1) + ny * (nx + 1) * (nz + 1) + nz * (nx + 1) * (ny + 1)
 
-        self.cell_types = np.full(n_lines, VtkCellType.LINE)
-        self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)
-
-        self.connectivity, self.material_data = get_line_properties(
-            n_lines, *self.grid_view.size, ID
-        )
+        self.connectivity, self.material_data = get_line_properties(n_lines, *self.grid_view.size, ID)
 
         assert isinstance(self.connectivity, np.ndarray)
         assert isinstance(self.material_data, np.ndarray)
+
+        self.connectivity, self.material_data = _remove_duplicate_partition_edges(
+            self.connectivity,
+            self.material_data,
+            self.grid_view.size,
+            self.grid_view.has_positive_neighbour,
+        )
+        n_lines = len(self.material_data)
+        self.cell_types = np.full(n_lines, VtkCellType.LINE)
+        self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)
 
         # Write information about any PMLs, sources, receivers
         self.metadata = MPIMetadata(self.grid_view, averaged_materials=True, materials_only=True)
