@@ -20,10 +20,13 @@ def _mpi_launcher():
 
 def _run(command, directory):
     environment = os.environ.copy()
+    # These subprocesses are complete MPI applications, so allow mpi4py to
+    # finalise MPI normally. An inherited MPI4PY_RC_FINALIZE=0 makes Open MPI
+    # report an otherwise successful run as an abnormal rank exit.
+    environment.pop("MPI4PY_RC_FINALIZE", None)
     environment.update(
         {
             "FI_PROVIDER": "shm",
-            "MPI4PY_RC_FINALIZE": "0",
             "OMP_NUM_THREADS": "1",
             "PYTHONUNBUFFERED": "1",
         }
