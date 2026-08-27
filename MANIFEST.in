@@ -2,6 +2,7 @@ include README.rst
 include setup.py
 include build_config.py
 include packaging_config.py
+include packaging/build_macos_libomp.sh
 include LICENSE
 include MANIFEST.in
 

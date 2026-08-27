@@ -29,5 +29,5 @@ audit-requires = ["twine"]
 audit-command = "twine check {wheel}"
 
 [tool.cibuildwheel.macos]
-before-all = "brew install libomp"
-environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
+before-all = "bash packaging/build_macos_libomp.sh"
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0", GPRMAX_LIBOMP_PREFIX = "/tmp/gprmax-libomp" }

@@ -10,6 +10,7 @@ on:
       - ".github/workflows/wheels.yml"
       - "build_config.py"
       - "MANIFEST.in"
+      - "packaging/**"
       - "packaging_config.py"
       - "pyproject.toml"
       - "setup.py"
