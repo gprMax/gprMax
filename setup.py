@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import glob
+import importlib.util
 import os
 import platform
 import re
@@ -28,31 +29,32 @@ from pathlib import Path
 import numpy as np
 from Cython.Build import cythonize
 from jinja2 import Environment, FileSystemLoader
-from setuptools import Extension, find_packages, setup
+from setuptools import Extension, setup
 
 
-EXAMPLES_PACKAGE = "gprMax._examples"
-EXAMPLES_SOURCE = Path("examples")
+_packaging_config_spec = importlib.util.spec_from_file_location(
+    "gprmax_packaging_config", Path(__file__).resolve().parent / "packaging_config.py"
+)
+if _packaging_config_spec is None or _packaging_config_spec.loader is None:
+    raise RuntimeError("Could not load the gprMax packaging configuration")
+_packaging_config = importlib.util.module_from_spec(_packaging_config_spec)
+_packaging_config_spec.loader.exec_module(_packaging_config)
+
+EXAMPLES_PACKAGE = _packaging_config.EXAMPLES_PACKAGE
+EXAMPLES_SOURCE = _packaging_config.EXAMPLES_SOURCE
+EXCLUDED_PACKAGE_DATA = _packaging_config.EXCLUDED_PACKAGE_DATA
+distribution_packages = _packaging_config.distribution_packages
+packaged_example_files = _packaging_config.packaged_example_files
 
 
-def packaged_example_files():
-    """Return example resources, excluding local interpreter artefacts."""
-
-    return [
-        path.relative_to(EXAMPLES_SOURCE).as_posix()
-        for path in EXAMPLES_SOURCE.rglob("*")
-        if path.is_file()
-        and "__pycache__" not in path.parts
-        and path.suffix not in {".pyc", ".pyo"}
-        and path.name != "__init__.py"
-    ]
-
-
-# Check Python version
-MIN_PYTHON_VERSION = (3, 7)
-if sys.version_info[:2] < MIN_PYTHON_VERSION:
+# Check Python version. Keep this consistent with ``python_requires`` below
+# and the compatibility matrix in ``.github/workflows/tests.yml``.
+MIN_PYTHON_VERSION = (3, 11)
+MAX_PYTHON_VERSION = (3, 14)
+if not MIN_PYTHON_VERSION <= sys.version_info[:2] < MAX_PYTHON_VERSION:
     sys.exit(
-        "\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or newer!\n"
+        f"\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} through "
+        f"{MAX_PYTHON_VERSION[0]}.{MAX_PYTHON_VERSION[1] - 1}!\n"
     )
 
 # Importing gprMax _version__.py before building can cause issues.
@@ -296,7 +298,10 @@ else:
         long_description=long_description,
         long_description_content_type="text/x-rst",
         license="GPLv3+",
-        python_requires=f">{str(MIN_PYTHON_VERSION[0])}.{str(MIN_PYTHON_VERSION[1])}",
+        python_requires=(
+            f">={MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]},"
+            f"<{MAX_PYTHON_VERSION[0]}.{MAX_PYTHON_VERSION[1]}"
+        ),
         install_requires=[
             "colorama",
             "cython",
@@ -325,9 +330,10 @@ else:
             "mpi-fractals": ["mpi4py", "mpi4py-fft"],
         },
         ext_modules=extensions,
-        packages=find_packages(exclude=("examples", "examples.*")) + [EXAMPLES_PACKAGE],
+        packages=distribution_packages(),
         package_dir={EXAMPLES_PACKAGE: str(EXAMPLES_SOURCE)},
         package_data={EXAMPLES_PACKAGE: packaged_example_files()},
+        exclude_package_data=EXCLUDED_PACKAGE_DATA,
         include_package_data=True,
         include_dirs=[np.get_include()],
         zip_safe=False,
@@ -339,6 +345,9 @@ else:
             "Operating System :: POSIX :: Linux",
             "Programming Language :: Cython",
             "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.11",
+            "Programming Language :: Python :: 3.12",
+            "Programming Language :: Python :: 3.13",
             "Topic :: Scientific/Engineering",
         ],
     )

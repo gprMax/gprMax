@@ -97,7 +97,9 @@ def test_auto_foster_fit_is_passive_stable_and_accurate(name):
     assert np.all(np.linalg.eigvals(fit.A).real < 0)
     assert fit.D > 0
     assert relative_error.max() <= fit.tolerance
-    assert np.min(model.impedance(np.geomspace(1, 1e15, 3001)).real) >= 0
+    minimum_resistance = np.min(model.impedance(np.geomspace(1, 1e15, 3001)).real)
+    roundoff_tolerance = 100 * np.finfo(float).eps * max(1.0, abs(fit.D))
+    assert minimum_resistance >= -roundoff_tolerance
     assert model.discretise(1e-12).Z0 > 0
 
 

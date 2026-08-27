@@ -1,9 +1,12 @@
 """Tests for installed, version-matched example resources."""
 
+from pathlib import Path
+
 import pytest
 
 from gprMax import examples
 from gprMax._version import __version__
+from packaging_config import EXCLUDED_PACKAGE_DATA, distribution_packages
 
 
 @pytest.mark.unit
@@ -61,3 +64,47 @@ def test_examples_cli_lists_and_copies(tmp_path, capsys):
     output = capsys.readouterr().out
     assert str(destination / "examples") in output
     assert "python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in" in output
+
+
+@pytest.mark.unit
+def test_wheel_packages_exclude_developer_archives_but_keep_toolboxes_and_examples():
+    packages = set(distribution_packages())
+
+    assert "gprMax" in packages
+    assert "gprMax._examples" in packages
+    assert "toolboxes" in packages
+    assert not any(name == "testing" or name.startswith("testing.") for name in packages)
+    assert not any(name == "reframe_tests" or name.startswith("reframe_tests.") for name in packages)
+
+
+@pytest.mark.unit
+def test_large_generated_toolbox_assets_are_excluded_from_wheels():
+    cython_exclusions = EXCLUDED_PACKAGE_DATA["gprMax.cython"]
+    step_exclusions = EXCLUDED_PACKAGE_DATA["toolboxes.STEPtoVoxel"]
+    stl_exclusions = EXCLUDED_PACKAGE_DATA["toolboxes.STLtoVoxel"]
+
+    assert {"*.c", "*.pyx", "*.pxd", "*.jinja"} <= set(cython_exclusions)
+    assert "examples/patch_antenna/output/*" in step_exclusions
+    assert "examples/stl/Trinity_Alps.stl" in stl_exclusions
+    assert "examples/stl/Stanford_Bunny.h5" in stl_exclusions
+    assert "examples/stl/Stanford_Bunny.stl" not in stl_exclusions
+
+
+@pytest.mark.unit
+def test_source_distribution_uses_the_same_large_asset_exclusions():
+    manifest = Path(__file__).resolve().parents[2] / "MANIFEST.in"
+    directives = {
+        line.strip()
+        for line in manifest.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+
+    assert "prune testing" in directives
+    assert "prune reframe_tests" in directives
+    assert "prune toolboxes/STEPtoVoxel/examples/patch_antenna/output" in directives
+    assert "prune toolboxes/STLtoVoxel/examples/stl/point_cloud" in directives
+    assert "global-exclude *.so *.pyd" in directives
+
+    for path in EXCLUDED_PACKAGE_DATA["toolboxes.STLtoVoxel"]:
+        if "*" not in path:
+            assert f"exclude toolboxes/STLtoVoxel/{path}" in directives

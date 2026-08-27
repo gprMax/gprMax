@@ -16,6 +16,7 @@ pre-commit
 psutil
 pytest>=7
 scipy
+setuptools>=64
 terminaltables
 tqdm
 typing_extensions

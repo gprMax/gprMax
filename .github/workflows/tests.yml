@@ -20,13 +20,17 @@ concurrency:
 
 jobs:
   serial-without-mpi:
-    name: Serial install (core only)
+    name: Core install (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       OMP_NUM_THREADS: "1"
       PYTHONFAULTHANDLER: "1"
       PYTHONUNBUFFERED: "1"
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
 
     steps:
       - name: Checkout
@@ -35,7 +39,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: setup.py
 
@@ -51,6 +55,40 @@ jobs:
 
       - name: Run core-install regression tests
         run: python -u -m pytest -q tests/utilities/test_mpi_support.py tests/utilities/test_packaging_extras.py
+
+  mpi-fractals:
+    name: MPI fractals (Python 3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: "1"
+      PYTHONFAULTHANDLER: "1"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Python 3.12 MPI/FFTW environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: gprmax-mpi-fractals
+          cache-environment: true
+          create-args: >-
+            python=3.12
+            pip
+            mpi4py
+            mpi4py-fft
+
+      - name: Install gprMax with distributed-fractal support
+        shell: bash -el {0}
+        run: |
+          python -m pip install --editable ".[mpi-fractals]" pytest
+
+      - name: Run distributed-FFT compatibility check
+        shell: bash -el {0}
+        run: |
+          python -u -m pytest -q tests/fractals/test_mpi4py_fft_compatibility.py tests/utilities/test_packaging_extras.py
 
   unit:
     name: Unit tests (${{ matrix.os }})
@@ -79,7 +117,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
           cache-dependency-path: requirements.txt
 
