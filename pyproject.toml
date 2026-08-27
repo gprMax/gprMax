@@ -18,3 +18,16 @@ markers = [
     "gpu: requires execution on a real GPU device",
     "slow: normally takes more than 10 seconds on a development machine",
 ]
+
+[tool.cibuildwheel]
+build = ["cp311-*", "cp312-*", "cp313-*"]
+skip = ["*-musllinux_*", "*-win32"]
+build-verbosity = 1
+test-command = "python {project}/tests/wheel_smoke.py"
+test-environment = { MPLBACKEND = "Agg", OMP_NUM_THREADS = "1", PYTHONFAULTHANDLER = "1" }
+audit-requires = ["twine"]
+audit-command = "twine check {wheel}"
+
+[tool.cibuildwheel.macos]
+before-all = "brew install libomp"
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }

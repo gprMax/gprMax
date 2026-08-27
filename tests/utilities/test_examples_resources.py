@@ -74,15 +74,19 @@ def test_wheel_packages_exclude_developer_archives_but_keep_toolboxes_and_exampl
     assert "gprMax._examples" in packages
     assert "toolboxes" in packages
     assert not any(name == "testing" or name.startswith("testing.") for name in packages)
-    assert not any(name == "reframe_tests" or name.startswith("reframe_tests.") for name in packages)
+    assert not any(
+        name == "reframe_tests" or name.startswith("reframe_tests.") for name in packages
+    )
 
 
 @pytest.mark.unit
 def test_large_generated_toolbox_assets_are_excluded_from_wheels():
+    package_exclusions = EXCLUDED_PACKAGE_DATA["gprMax"]
     cython_exclusions = EXCLUDED_PACKAGE_DATA["gprMax.cython"]
     step_exclusions = EXCLUDED_PACKAGE_DATA["toolboxes.STEPtoVoxel"]
     stl_exclusions = EXCLUDED_PACKAGE_DATA["toolboxes.STLtoVoxel"]
 
+    assert {"config.pxd", "*.pxd"} <= set(package_exclusions)
     assert {"*.c", "*.pyx", "*.pxd", "*.jinja"} <= set(cython_exclusions)
     assert "examples/patch_antenna/output/*" in step_exclusions
     assert "examples/stl/Trinity_Alps.stl" in stl_exclusions

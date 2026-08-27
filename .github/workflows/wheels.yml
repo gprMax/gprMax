@@ -1,0 +1,96 @@
+name: Binary distributions
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - devel
+      - master
+    paths:
+      - ".github/workflows/wheels.yml"
+      - "build_config.py"
+      - "MANIFEST.in"
+      - "packaging_config.py"
+      - "pyproject.toml"
+      - "setup.py"
+      - "gprMax/**"
+      - "examples/**"
+      - "toolboxes/**"
+      - "tests/wheel_smoke.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wheels-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wheels:
+    name: Wheels (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-latest
+            arch: x86_64
+          - name: windows-amd64
+            runner: windows-latest
+            arch: AMD64
+          - name: macos-x86_64
+            runner: macos-15-intel
+            arch: x86_64
+          - name: macos-arm64
+            runner: macos-latest
+            arch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Build and test wheels
+        uses: pypa/cibuildwheel@v4.2.0
+        env:
+          CIBW_ARCHS: ${{ matrix.arch }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v7
+        with:
+          name: gprmax-wheels-${{ matrix.name }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Build source distribution
+        run: pipx run build --sdist
+
+      - name: Check source distribution metadata
+        run: pipx run twine check dist/*.tar.gz
+
+      - name: Install and test source distribution
+        run: |
+          python -m venv /tmp/gprmax-sdist-test
+          /tmp/gprmax-sdist-test/bin/python -m pip install dist/*.tar.gz
+          MPLBACKEND=Agg OMP_NUM_THREADS=1 /tmp/gprmax-sdist-test/bin/python tests/wheel_smoke.py
+
+      - name: Upload source distribution
+        uses: actions/upload-artifact@v7
+        with:
+          name: gprmax-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
