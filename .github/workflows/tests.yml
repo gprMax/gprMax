@@ -134,6 +134,10 @@ jobs:
           python -m pip install openmpi==5.0.10
           mpiexec --version
 
+      - name: Install OpenMP runtime on macOS
+        if: runner.os == 'macOS'
+        run: brew install libomp
+
       - name: Install gprMax and test dependencies
         run: |
           python -m pip install --upgrade pip
