@@ -1,8 +1,6 @@
-# Copyright (C) 2015-2025: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, John Hartley,
-#                          and Nathan Mannall
+# Copyright (C) 2015-2026: The University of Edinburgh, United Kingdom
 #
-# This file is part of gprMax.
+# This file is part of the gprMax source code base.
 #
 # gprMax is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,11 +9,11 @@
 #
 # gprMax is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+# along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 from abc import ABC, abstractmethod

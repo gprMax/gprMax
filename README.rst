@@ -49,7 +49,7 @@ Package overview
         CODE_OF_CONDUCT.md
         conda_env.yml
         CONTRIBUTING.md
-        CREDITS
+        AUTHORS.rst
         LICENSE
         MANIFEST.in
         pyproject.toml
@@ -67,7 +67,8 @@ Package overview
 * ``CITATION.cff`` is a plain text file with human- and machine-readable citation information for gprMax.
 * ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
 * ``CONTRIBUTING.md`` is guide on how to contribute to gprMax.
-* ``CREDITS`` contains a list of names of people who have contributed to the gprMax codebase.
+* ``AUTHORS.rst`` records the people and organisations that have created,
+  developed, contributed to, and supported gprMax.
 * ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 * ``MANIFEST.in`` consists of commands, one per line, instructing setuptools to add or remove files from the source distribution.
 * ``pyproject.toml`` contains build system requirements.

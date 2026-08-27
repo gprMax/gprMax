@@ -1,3 +1,20 @@
+# Copyright (C) 2015-2026: The University of Edinburgh, United Kingdom
+#
+# This file is part of the gprMax source code base.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax. If not, see <https://www.gnu.org/licenses/>.
+
 """Rounding, sorting and the small helpers everything else is built on.
 
 Nothing in this file is more than a dozen lines of source, and that is
@@ -483,8 +500,8 @@ class TestLogo:
     def test_the_project_url_appears(self):
         assert "www.gprmax.com" in logo("4.0.0")
 
-    def test_the_authors_appear(self):
-        assert "Craig Warren" in logo("4.0.0")
+    def test_authors_are_not_listed_in_the_banner(self):
+        assert "Authors:" not in logo("4.0.0")
 
     def test_the_licence_is_named(self):
         assert "GNU General Public License" in logo("4.0.0")
