@@ -15,13 +15,28 @@ def _():
 @app.cell
 def _(mo):
     permittivity = mo.ui.slider(
-        start=1.0, stop=20.0, step=0.5, value=7.0, label="Soil Relative Permittivity (εr)", debounce=True
+        start=1.0,
+        stop=20.0,
+        step=0.5,
+        value=7.0,
+        label="Soil Relative Permittivity (εr)",
+        debounce=True,
     )
     frequency = mo.ui.slider(
-        start=0.5, stop=3.0, step=0.1, value=1.0, label="Antenna Centre Frequency (GHz)", debounce=True
+        start=0.5,
+        stop=3.0,
+        step=0.1,
+        value=1.0,
+        label="Antenna Centre Frequency (GHz)",
+        debounce=True,
     )
     src_x = mo.ui.slider(
-        start=0.010, stop=0.220, step=0.002, value=0.060, label="Source X-Position (m)", debounce=True
+        start=0.010,
+        stop=0.220,
+        step=0.002,
+        value=0.060,
+        label="Source X-Position (m)",
+        debounce=True,
     )
     target_depth = mo.ui.slider(
         start=0.020,
@@ -55,17 +70,18 @@ def _(frequency, mo, permittivity, src_x, target_depth):
     cyl_y = round(surface_y - target_depth.value, 3)
     in_text = "\n".join(
         [
-            "#domain: 0.240 0.210 0.002",
+            "#domain_mode: TM",
+            "#domain: 0.240 0.210 inf",
             "#dx_dy_dz: 0.002 0.002 0.002",
             "#time_window: 3e-9",
             "",
             f"#material: {permittivity.value} 0 1 0 half_space",
-            f"#box: 0 0 0 0.240 {surface_y} 0.002 half_space",
-            f"#cylinder: 0.120 {cyl_y:.3f} 0.000 0.120 {cyl_y:.3f} 0.002 0.010 pec",
+            f"#box: 0 0 0 0.240 {surface_y} inf half_space",
+            f"#cylinder: 0.120 {cyl_y:.3f} 0 0.120 {cyl_y:.3f} inf 0.010 pec",
             "",
             f"#waveform: ricker 1 {frequency.value:.1f}e9 my_pulse",
-            f"#hertzian_dipole: z {src_x.value:.3f} {surface_y} 0 my_pulse",
-            f"#rx: {rx_x:.3f} {surface_y} 0",
+            f"#hertzian_dipole: z {src_x.value:.3f} {surface_y} inf my_pulse",
+            f"#rx: {rx_x:.3f} {surface_y} inf",
         ]
     )
     mo.output.replace(
@@ -182,7 +198,7 @@ def _(go, in_text, mo, rx_x, src_x, surface_y):
         ]
     )
     fig.update_layout(
-        title="2D Geometry Preview (x-y plane, z = 0.002 m)",
+        title="2D Geometry Preview (x-y invariant plane)",
         xaxis=dict(
             title="x (m)",
             range=[-0.01, domain_x + 0.01],

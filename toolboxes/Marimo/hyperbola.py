@@ -61,10 +61,9 @@ def ricker_delay(freq_hz: float) -> float:
     The same chi applies to the gaussiandotdot and gaussiandotdotnorm
     waveforms. The plain gaussian family uses 1 / freq instead.
 
-    This cannot be read back from a gprMax .h5 file: the output stores dt,
-    iterations, grid and source position, but not the source waveform or its
-    centre frequency. It has to come from the input file, or be estimated from
-    the peak of the received spectrum.
+    Current gprMax HDF5 files store the source waveform type, centre frequency,
+    timing offsets, and exact sampled excitation under ``/srcs``. Legacy files
+    may still require the input file or an estimate from the received spectrum.
     """
     freq_hz = float(freq_hz)
     if freq_hz <= 0:
@@ -90,10 +89,10 @@ def travel_time(
     survey.
 
     `depth` is measured from the surface to the target CENTRE. For a cylinder,
-    `radius` shortens each ray to the nearest point on its surface, which is
-    where the reflection actually comes from. Leaving radius at 0 treats the
-    target as a point scatterer and predicts an arrival about 0.08 ns late for
-    the 10 mm cylinder in the standard example.
+    `radius` applies a simple ``2*radius`` path correction. It is exact for a
+    monostatic circular target and an approximation for a bistatic pair. Leaving
+    radius at 0 treats the target as a point scatterer and predicts an arrival
+    about 0.08 ns late for the 10 mm cylinder in the standard example.
 
     `delay_ns` is the source waveform offset, from ricker_delay().
     """
@@ -136,9 +135,7 @@ def apex_time(
     """Travel time at the apex, ns. Independent of where the target sits
     laterally, so x_target is not needed."""
     return float(
-        travel_time(
-            apex_source_x(0.0, offset), 0.0, depth, eps_r, offset, radius, delay_ns
-        )
+        travel_time(apex_source_x(0.0, offset), 0.0, depth, eps_r, offset, radius, delay_ns)
     )
 
 
@@ -167,9 +164,7 @@ def permittivity_from_apex(
     elapsed = float(t_apex_ns) - float(delay_ns)
 
     if elapsed <= 0:
-        raise ValueError(
-            f"apex at {t_apex_ns} ns arrives before the source delay of {delay_ns} ns"
-        )
+        raise ValueError(f"apex at {t_apex_ns} ns arrives before the source delay of {delay_ns} ns")
 
     v = path / elapsed
     if v > C_M_PER_NS:

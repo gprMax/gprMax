@@ -179,7 +179,20 @@ def _():
         )
         return fig
 
-    def build_bscan_figure(matrix, x, y, x_title, unit, colourscale, bg, font_size, view_mode, title_text, time_range=None, normalize=False):
+    def build_bscan_figure(
+        matrix,
+        x,
+        y,
+        x_title,
+        unit,
+        colourscale,
+        bg,
+        font_size,
+        view_mode,
+        title_text,
+        time_range=None,
+        normalize=False,
+    ):
         """Heatmap or 3D Surface from an assembled (time x position) matrix."""
         if normalize:
             peak = np.max(np.abs(matrix), axis=0)
@@ -208,7 +221,9 @@ def _():
                     colorscale=colourscale,
                     cmin=-amp,
                     cmax=amp,
-                    colorbar=dict(title=dict(text=unit, font=dict(color=fc)), tickfont=dict(color=fc)),
+                    colorbar=dict(
+                        title=dict(text=unit, font=dict(color=fc)), tickfont=dict(color=fc)
+                    ),
                 )
             )
             fig.update_layout(
@@ -229,7 +244,9 @@ def _():
                     zmid=0,
                     zmin=-amp,
                     zmax=amp,
-                    colorbar=dict(title=dict(text=unit, font=dict(color=fc)), tickfont=dict(color=fc)),
+                    colorbar=dict(
+                        title=dict(text=unit, font=dict(color=fc)), tickfont=dict(color=fc)
+                    ),
                 )
             )
             fig.update_layout(
@@ -253,13 +270,32 @@ def _():
             )
 
         fig.update_layout(
-            title=dict(text=title_text, font=dict(size=font_size + 1, color=fc), x=0.0, xanchor="left"),
+            title=dict(
+                text=title_text, font=dict(size=font_size + 1, color=fc), x=0.0, xanchor="left"
+            ),
             paper_bgcolor=bg,
             plot_bgcolor=bg,
         )
         return fig
 
-    def render_bscan_section(matrix, positions_x, time_ns, component, all_positions_physical, index_label, colourscale, bg, font_size, view_mode, normalize, title_text, csv_filename, time_range=None, sample_file=None, processing=None):
+    def render_bscan_section(
+        matrix,
+        positions_x,
+        time_ns,
+        component,
+        all_positions_physical,
+        index_label,
+        colourscale,
+        bg,
+        font_size,
+        view_mode,
+        normalize,
+        title_text,
+        csv_filename,
+        time_range=None,
+        sample_file=None,
+        processing=None,
+    ):
         """Metadata banner + plot + CSV/SVG/PDF export. Shared by both the
         live and load-files renderer cells so the two don't drift apart.
 
@@ -286,9 +322,18 @@ def _():
             else f"{index_label} (source position unavailable in one or more files)"
         )
         fig = build_bscan_figure(
-            display, positions_x, time_ns, x_title, unit,
-            colourscale, bg, font_size, view_mode, title_text,
-            time_range=time_range, normalize=normalize,
+            display,
+            positions_x,
+            time_ns,
+            x_title,
+            unit,
+            colourscale,
+            bg,
+            font_size,
+            view_mode,
+            title_text,
+            time_range=time_range,
+            normalize=normalize,
         )
 
         # CSV always exports the full, unzoomed, un-normalized, unprocessed
@@ -305,10 +350,14 @@ def _():
             writer = csv.writer(buf)
             writer.writerow(["time_ns"] + [f"x={p:.4f}" for p in positions_x])
             for i in range(len(time_ns)):
-                writer.writerow([f"{time_ns[i]:.8g}"] + [f"{matrix[i, j]:.10g}" for j in range(matrix.shape[1])])
+                writer.writerow(
+                    [f"{time_ns[i]:.8g}"] + [f"{matrix[i, j]:.10g}" for j in range(matrix.shape[1])]
+                )
             csv_btn = mo.download(
-                data=buf.getvalue().encode("utf-8"), filename=csv_filename,
-                label="Download CSV (full raw matrix)", mimetype="text/csv",
+                data=buf.getvalue().encode("utf-8"),
+                filename=csv_filename,
+                label="Download CSV (full raw matrix)",
+                mimetype="text/csv",
             )
         except Exception as e:
             csv_btn = mo.md(f"_CSV export error: `{e}`_")
@@ -323,14 +372,20 @@ def _():
         # actual cause of the "reloads every couple seconds" slowness.
         def _make_svg():
             import plotly.io as pio
+
             return pio.to_image(fig, format="svg", width=1200, height=600, scale=2)
 
         def _make_pdf():
             import plotly.io as pio
+
             return pio.to_image(fig, format="pdf", width=1200, height=600, scale=2)
 
-        svg_btn = mo.download(data=_make_svg, filename=f"{stem}.svg", label="Download SVG", mimetype="image/svg+xml")
-        pdf_btn = mo.download(data=_make_pdf, filename=f"{stem}.pdf", label="Download PDF", mimetype="application/pdf")
+        svg_btn = mo.download(
+            data=_make_svg, filename=f"{stem}.svg", label="Download SVG", mimetype="image/svg+xml"
+        )
+        pdf_btn = mo.download(
+            data=_make_pdf, filename=f"{stem}.pdf", label="Download PDF", mimetype="application/pdf"
+        )
 
         elements = []
         if sample_file is not None:
@@ -340,7 +395,13 @@ def _():
             mo.ui.plotly(
                 fig,
                 config={
-                    "toImageButtonOptions": {"format": "svg", "filename": stem, "height": 600, "width": 1200, "scale": 2},
+                    "toImageButtonOptions": {
+                        "format": "svg",
+                        "filename": stem,
+                        "height": 600,
+                        "width": 1200,
+                        "scale": 2,
+                    },
                     "displaylogo": False,
                 },
             ),
@@ -450,8 +511,7 @@ def _(Path, directory_input, discover_bases, mo):
         base_selector = mo.ui.dropdown(options=["—"], value="—", label="Base filename")
     else:
         _options = {
-            f"{b}   ({n} file{'s' if n != 1 else ''} so far)": b
-            for b, n in sorted(_bases.items())
+            f"{b}   ({n} file{'s' if n != 1 else ''} so far)": b for b, n in sorted(_bases.items())
         }
         base_selector = mo.ui.dropdown(
             options=_options, value=list(_options.keys())[0], label="Base filename"
@@ -501,7 +561,11 @@ def _(mo):
         mo.vstack(
             [
                 mo.md("### Step 3 — Polling"),
-                mo.hstack([live_toggle, refresh, poll_now_button, reset_button], gap="1.5rem", justify="start"),
+                mo.hstack(
+                    [live_toggle, refresh, poll_now_button, reset_button],
+                    gap="1.5rem",
+                    justify="start",
+                ),
                 mo.md(
                     "_Each tick only reads unseen files and appends them — "
                     "never rebuilds from scratch. Changing base filename, "
@@ -522,7 +586,9 @@ def _(mo):
 # widgets -> poll reruns -> ...). Peeking at the file directly instead
 # means this only reruns when directory/base actually change.
 @app.cell
-def _(base_selector, directory_input, find_trace_files, list_components, list_receivers, load_file, mo):
+def _(
+    base_selector, directory_input, find_trace_files, list_components, list_receivers, load_file, mo
+):
     _known_comps = ["Ez"]
     _known_rx = ["rx1"]
     _files = find_trace_files(directory_input.value, base_selector.value)
@@ -536,7 +602,9 @@ def _(base_selector, directory_input, find_trace_files, list_components, list_re
             pass  # file may still be mid-write — the poll cell retries it
 
     _default_comp = "Ez" if "Ez" in _known_comps else _known_comps[0]
-    component_selector = mo.ui.dropdown(options=_known_comps, value=_default_comp, label="Field component")
+    component_selector = mo.ui.dropdown(
+        options=_known_comps, value=_default_comp, label="Field component"
+    )
     receiver_selector = mo.ui.dropdown(options=_known_rx, value=_known_rx[0], label="Receiver")
 
     mo.output.replace(
@@ -626,7 +694,9 @@ def _(
             except (FileNotFoundError, OSError, KeyError):
                 continue  # still being written — retry next tick, don't mark seen
 
-            _result = process_trace(_fdata, _current_component, len(_cols[0]) if _cols else None, _current_receiver)
+            _result = process_trace(
+                _fdata, _current_component, len(_cols[0]) if _cols else None, _current_receiver
+            )
             if _result["known_components"]:
                 _known_components = _result["known_components"]
 
@@ -705,8 +775,13 @@ def _(get_bscan_state, mo):
 
     _max_ns = float(_state["time_ns"][-1])
     live_time_range = mo.ui.range_slider(
-        start=0.0, stop=_max_ns, step=round(_max_ns / 600, 4),
-        value=[0.0, _max_ns], label="Time window (ns)", full_width=True, debounce=True,
+        start=0.0,
+        stop=_max_ns,
+        step=round(_max_ns / 600, 4),
+        value=[0.0, _max_ns],
+        label="Time window (ns)",
+        full_width=True,
+        debounce=True,
     )
     mo.output.replace(
         mo.vstack(
@@ -724,7 +799,9 @@ def _(get_bscan_state, mo):
 # ── Step 6: Appearance ───────────────────────────────────────────────────
 @app.cell
 def _(mo):
-    live_view_mode = mo.ui.dropdown(options=["Heatmap", "3D Surface"], value="Heatmap", label="View")
+    live_view_mode = mo.ui.dropdown(
+        options=["Heatmap", "3D Surface"], value="Heatmap", label="View"
+    )
     live_colourscale = mo.ui.dropdown(
         options=["RdBu", "Viridis", "Greys", "Turbo"], value="RdBu", label="Colourscale"
     )
@@ -733,14 +810,22 @@ def _(mo):
         value="Light",
         label="Background",
     )
-    live_font_size = mo.ui.slider(start=10, stop=22, step=1, value=13, label="Font size", debounce=True)
-    live_normalize = mo.ui.checkbox(label="Normalize each trace (view only — CSV stays raw)", value=False)
+    live_font_size = mo.ui.slider(
+        start=10, stop=22, step=1, value=13, label="Font size", debounce=True
+    )
+    live_normalize = mo.ui.checkbox(
+        label="Normalize each trace (view only — CSV stays raw)", value=False
+    )
 
     mo.output.replace(
         mo.vstack(
             [
                 mo.md("### Step 6 — Appearance"),
-                mo.hstack([live_view_mode, live_colourscale, live_bg, live_font_size], gap="1.5rem", justify="start"),
+                mo.hstack(
+                    [live_view_mode, live_colourscale, live_bg, live_font_size],
+                    gap="1.5rem",
+                    justify="start",
+                ),
                 live_normalize,
             ],
             gap="0.5rem",
@@ -761,8 +846,12 @@ def _(GAIN_KINDS, mo):
     )
     live_remove_bg = mo.ui.checkbox(label="Remove background (mean trace)", value=False)
     live_bg_window = mo.ui.slider(
-        start=0, stop=51, step=1, value=0,
-        label="Background window (traces, 0 = all)", debounce=True,
+        start=0,
+        stop=51,
+        step=1,
+        value=0,
+        label="Background window (traces, 0 = all)",
+        debounce=True,
     )
     live_show_curve = mo.ui.checkbox(label="Show gain curve", value=True)
 
@@ -812,13 +901,19 @@ def _(GAIN_KINDS, live_gain_kind, mo):
         _cfg = _FACTOR_SLIDERS.get(_kind)
         live_gain_factor = mo.ui.slider(**_cfg, debounce=True) if _cfg else None
         live_gain_power = (
-            mo.ui.slider(start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True)
+            mo.ui.slider(
+                start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True
+            )
             if GAIN_KINDS[_kind]["uses_power"]
             else None
         )
         live_gain_start = mo.ui.slider(
-            start=0.0, stop=100.0, step=0.5, value=0.0,
-            label="Gain start (% of window)", debounce=True,
+            start=0.0,
+            stop=100.0,
+            step=0.5,
+            value=0.0,
+            label="Gain start (% of window)",
+            debounce=True,
         )
         live_gain_clamp = mo.ui.checkbox(label="Limit maximum gain", value=True)
         live_gain_max = mo.ui.slider(
@@ -867,7 +962,9 @@ def _(
         mo.stop(
             True,
             mo.callout(
-                mo.md("No traces loaded yet. Point Step 1 at a directory containing gprMax B-scan output."),
+                mo.md(
+                    "No traces loaded yet. Point Step 1 at a directory containing gprMax B-scan output."
+                ),
                 kind="neutral",
             ),
         )
@@ -955,7 +1052,9 @@ def _(file_picker, list_components, list_receivers, load_file, mo):
             pass
 
     _default_comp = "Ez" if "Ez" in _known_comps else _known_comps[0]
-    load_component_selector = mo.ui.dropdown(options=_known_comps, value=_default_comp, label="Field component")
+    load_component_selector = mo.ui.dropdown(
+        options=_known_comps, value=_default_comp, label="Field component"
+    )
     load_receiver_selector = mo.ui.dropdown(options=_known_rx, value=_known_rx[0], label="Receiver")
 
     mo.output.replace(
@@ -963,7 +1062,9 @@ def _(file_picker, list_components, list_receivers, load_file, mo):
             [
                 mo.md("### Step 8 — Field component & receiver"),
                 mo.md("_Read from the first selected file, not assumed._"),
-                mo.hstack([load_component_selector, load_receiver_selector], gap="2rem", justify="start"),
+                mo.hstack(
+                    [load_component_selector, load_receiver_selector], gap="2rem", justify="start"
+                ),
             ],
             gap="0.4rem",
         )
@@ -993,7 +1094,9 @@ def _(file_picker, load_component_selector, load_file, load_receiver_selector, m
         return (1, _idx)  # no position: keep original selection order, after positioned ones
 
     _ordered = [fdata for _, fdata in sorted(_loaded, key=_sort_key)]
-    load_result = stack_traces(_ordered, load_component_selector.value, load_receiver_selector.value)
+    load_result = stack_traces(
+        _ordered, load_component_selector.value, load_receiver_selector.value
+    )
     load_result["warnings"] = _load_warnings + load_result["warnings"]
     load_result["sample_file"] = _ordered[0] if _ordered else None
 
@@ -1022,8 +1125,13 @@ def _(load_result, mo):
 
     _max_ns = float(load_result["time_ns"][-1])
     load_time_range = mo.ui.range_slider(
-        start=0.0, stop=_max_ns, step=round(_max_ns / 600, 4),
-        value=[0.0, _max_ns], label="Time window (ns)", full_width=True, debounce=True,
+        start=0.0,
+        stop=_max_ns,
+        step=round(_max_ns / 600, 4),
+        value=[0.0, _max_ns],
+        label="Time window (ns)",
+        full_width=True,
+        debounce=True,
     )
     mo.output.replace(
         mo.vstack(
@@ -1041,7 +1149,9 @@ def _(load_result, mo):
 # ── Step 10: Appearance ──────────────────────────────────────────────────
 @app.cell
 def _(mo):
-    load_view_mode = mo.ui.dropdown(options=["Heatmap", "3D Surface"], value="Heatmap", label="View")
+    load_view_mode = mo.ui.dropdown(
+        options=["Heatmap", "3D Surface"], value="Heatmap", label="View"
+    )
     load_colourscale = mo.ui.dropdown(
         options=["RdBu", "Viridis", "Greys", "Turbo"], value="RdBu", label="Colourscale"
     )
@@ -1050,14 +1160,22 @@ def _(mo):
         value="Light",
         label="Background",
     )
-    load_font_size = mo.ui.slider(start=10, stop=22, step=1, value=13, label="Font size", debounce=True)
-    load_normalize = mo.ui.checkbox(label="Normalize each trace (view only — CSV stays raw)", value=False)
+    load_font_size = mo.ui.slider(
+        start=10, stop=22, step=1, value=13, label="Font size", debounce=True
+    )
+    load_normalize = mo.ui.checkbox(
+        label="Normalize each trace (view only — CSV stays raw)", value=False
+    )
 
     mo.output.replace(
         mo.vstack(
             [
                 mo.md("### Step 10 — Appearance"),
-                mo.hstack([load_view_mode, load_colourscale, load_bg, load_font_size], gap="1.5rem", justify="start"),
+                mo.hstack(
+                    [load_view_mode, load_colourscale, load_bg, load_font_size],
+                    gap="1.5rem",
+                    justify="start",
+                ),
                 load_normalize,
             ],
             gap="0.5rem",
@@ -1078,8 +1196,12 @@ def _(GAIN_KINDS, mo):
     )
     load_remove_bg = mo.ui.checkbox(label="Remove background (mean trace)", value=False)
     load_bg_window = mo.ui.slider(
-        start=0, stop=51, step=1, value=0,
-        label="Background window (traces, 0 = all)", debounce=True,
+        start=0,
+        stop=51,
+        step=1,
+        value=0,
+        label="Background window (traces, 0 = all)",
+        debounce=True,
     )
     load_show_curve = mo.ui.checkbox(label="Show gain curve", value=True)
 
@@ -1129,13 +1251,19 @@ def _(GAIN_KINDS, load_gain_kind, mo):
         _cfg = _FACTOR_SLIDERS.get(_kind)
         load_gain_factor = mo.ui.slider(**_cfg, debounce=True) if _cfg else None
         load_gain_power = (
-            mo.ui.slider(start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True)
+            mo.ui.slider(
+                start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True
+            )
             if GAIN_KINDS[_kind]["uses_power"]
             else None
         )
         load_gain_start = mo.ui.slider(
-            start=0.0, stop=100.0, step=0.5, value=0.0,
-            label="Gain start (% of window)", debounce=True,
+            start=0.0,
+            stop=100.0,
+            step=0.5,
+            value=0.0,
+            label="Gain start (% of window)",
+            debounce=True,
         )
         load_gain_clamp = mo.ui.checkbox(label="Limit maximum gain", value=True)
         load_gain_max = mo.ui.slider(
@@ -1233,7 +1361,7 @@ def _(mo):
             "without that metadata fall back to selection order, which "
             "may not reflect physical position.\n"
             "- No invert-polarity or time-shift controls. Antonis's "
-            "\"manipulate\" scope wasn't fully pinned down — zoom, "
+            '"manipulate" scope wasn\'t fully pinned down — zoom, '
             "normalize, gain and background removal are built, the rest "
             "is worth clarifying before guessing further.\n"
             "- No AGC. It equalises amplitudes over a local window and "

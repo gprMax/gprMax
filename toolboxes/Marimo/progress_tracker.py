@@ -34,6 +34,7 @@ def _(deque, threading):
         "current": 0,
         "total": 0,
         "running": False,
+        "stop_requested": False,
         "returncode": None,
         "last_lines": deque(maxlen=5),
     }
@@ -113,6 +114,9 @@ def _(
 
         with run_lock:
             run_state["proc"] = proc
+            stop_requested = run_state["stop_requested"]
+        if stop_requested:
+            proc.terminate()
 
         for line in proc.stdout:  # not communicate() — that blocks until exit
             line = line.rstrip("\n")
@@ -134,20 +138,17 @@ def _(
 
     if run_button.value and not run_state["running"]:
         if not input_browser.value:
-            mo.output.replace(
-                mo.callout(mo.md("Select a `.in` file first."), kind="warn")
-            )
+            mo.output.replace(mo.callout(mo.md("Select a `.in` file first."), kind="warn"))
         else:
             selected = input_browser.value[0].path
             if not Path(selected).exists():
-                mo.output.replace(
-                    mo.callout(mo.md(f"File not found: `{selected}`"), kind="danger")
-                )
+                mo.output.replace(mo.callout(mo.md(f"File not found: `{selected}`"), kind="danger"))
             else:
                 with run_lock:
                     run_state["current"] = 0
                     run_state["total"] = 0
                     run_state["running"] = True
+                    run_state["stop_requested"] = False
                     run_state["returncode"] = None
                     run_state["proc"] = None
                     run_state["last_lines"].clear()
@@ -155,6 +156,7 @@ def _(
 
     if stop_button.value and run_state["running"]:
         with run_lock:
+            run_state["stop_requested"] = True
             proc = run_state["proc"]
         if proc is not None:
             proc.terminate()
@@ -216,9 +218,7 @@ def _(get_progress, mo, refresh, run_lock, run_state, set_progress):
     elif p["returncode"] == 0:
         mo.output.replace(
             mo.callout(
-                mo.md(
-                    f"**Done.** {p['current']} / {p['total']} iterations completed."
-                ),
+                mo.md(f"**Done.** {p['current']} / {p['total']} iterations completed."),
                 kind="success",
             )
         )
@@ -229,8 +229,7 @@ def _(get_progress, mo, refresh, run_lock, run_state, set_progress):
         mo.output.replace(
             mo.callout(
                 mo.md(
-                    f"**gprMax exited with code {p['returncode']}.**\n\n"
-                    f"Last output:\n\n{tail}"
+                    f"**gprMax exited with code {p['returncode']}.**\n\n" f"Last output:\n\n{tail}"
                 ),
                 kind="danger",
             )

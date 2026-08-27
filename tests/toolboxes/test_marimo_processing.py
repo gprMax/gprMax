@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 
 from toolboxes.Marimo.processing import (
-    fft_spectrum,
-    spectrum_view_limit,
     GAIN_KINDS,
     apply_gain,
+    fft_spectrum,
     gain_curve,
     gain_label,
     remove_mean_trace,
+    spectrum_view_limit,
     subtract_traces,
 )
 
@@ -330,7 +330,7 @@ class TestFFTSpectrum:
         pytest.importorskip("gprMax.utilities.utilities")
         freqs, power, _ = fft_spectrum(self._ricker(), DT)
         assert np.all(freqs >= 0)
-        assert freqs.size == self.N_FFT // 2
+        assert freqs.size == (self.N_FFT + 1) // 2
         assert power.size == freqs.size
 
     def test_full_axis_includes_negative_frequencies(self):
@@ -365,13 +365,18 @@ class TestFFTSpectrum:
         assert peak_loud - peak_quiet == pytest.approx(60.0, abs=0.01)
 
     def test_flat_trace_reports_none_instead_of_a_fake_spectrum(self):
-        # Ex in a 2D TMz model. fft_power turns this into a flat 0 dB line
-        # that looks like real data.
+        # Ex in a 2D TMz model has no finite normalised spectrum.
         pytest.importorskip("gprMax.utilities.utilities")
         freqs, power, peak_db = fft_spectrum(np.zeros(self.N_FFT), DT)
         assert peak_db is None
-        assert freqs.size == self.N_FFT // 2
+        assert freqs.size == (self.N_FFT + 1) // 2
         assert np.all(power == 0.0)
+
+    def test_positive_half_keeps_all_nonnegative_bins_for_odd_length(self):
+        pytest.importorskip("gprMax.utilities.utilities")
+        freqs, _, _ = fft_spectrum(np.arange(9, dtype=float), DT)
+        assert freqs.size == 5
+        assert np.all(freqs >= 0.0)
 
     def test_two_dimensional_input_rejected(self):
         with pytest.raises(ValueError, match="must be 1D"):
@@ -414,11 +419,11 @@ class TestSubtractTraces:
         assert subtract_traces(t, t, DT, DT) == pytest.approx(np.zeros_like(t))
 
     def test_isolates_the_difference(self):
-        # A target run is the free-space run plus the target's response.
-        free = _trace()
+        # A target run is the target-free background run plus the target response.
+        background = _trace()
         target_response = np.zeros(ITERATIONS)
         target_response[60] = 5.0
-        result = subtract_traces(free + target_response, free, DT, DT)
+        result = subtract_traces(background + target_response, background, DT, DT)
         assert result == pytest.approx(target_response)
 
     def test_works_on_matrices(self):

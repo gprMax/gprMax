@@ -63,7 +63,7 @@ def _(mo):
                 mo.md("### Step 1 — Load the B-scan trace files"),
                 mo.md(
                     "_Select the per-trace `.h5` files from a B-scan run, for example "
-                    "the output of `python -m gprMax examples/cylinder_Bscan_2D.in -n 60`. "
+                    "the output of `python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60`. "
                     "Traces are ordered by source position._"
                 ),
                 file_picker,
@@ -88,9 +88,7 @@ def _(file_picker, load_file, mo, stack_traces):
         except (FileNotFoundError, OSError, KeyError) as _e:
             _skipped.append(f"{_f.path}: {type(_e).__name__}")
 
-    _loaded.sort(
-        key=lambda fd: fd.get("sources", {}).get("src1", {}).get("position", [0.0])[0]
-    )
+    _loaded.sort(key=lambda fd: fd.get("sources", {}).get("src1", {}).get("position", [0.0])[0])
     bscan = stack_traces(_loaded)
 
     if bscan["matrix"] is None:
@@ -136,24 +134,44 @@ def _(file_picker, load_file, mo, stack_traces):
 @app.cell
 def _(mo):
     target_x = mo.ui.slider(
-        start=0.0, stop=0.400, step=0.002, value=0.120,
-        label="Target x (m)", debounce=True,
+        start=0.0,
+        stop=0.400,
+        step=0.002,
+        value=0.120,
+        label="Target x (m)",
+        debounce=True,
     )
     depth = mo.ui.slider(
-        start=0.010, stop=0.300, step=0.002, value=0.090,
-        label="Depth to target centre (m)", debounce=True,
+        start=0.010,
+        stop=0.300,
+        step=0.002,
+        value=0.090,
+        label="Depth to target centre (m)",
+        debounce=True,
     )
     radius = mo.ui.slider(
-        start=0.0, stop=0.050, step=0.002, value=0.010,
-        label="Target radius (m)", debounce=True,
+        start=0.0,
+        stop=0.050,
+        step=0.002,
+        value=0.010,
+        label="Target radius (m)",
+        debounce=True,
     )
     antenna_offset = mo.ui.slider(
-        start=0.0, stop=0.200, step=0.002, value=0.040,
-        label="Tx-Rx separation (m)", debounce=True,
+        start=0.0,
+        stop=0.200,
+        step=0.002,
+        value=0.040,
+        label="Tx-Rx separation (m)",
+        debounce=True,
     )
     source_freq = mo.ui.slider(
-        start=0.1, stop=5.0, step=0.1, value=1.5,
-        label="Source centre frequency (GHz)", debounce=True,
+        start=0.1,
+        stop=5.0,
+        step=0.1,
+        value=1.5,
+        label="Source centre frequency (GHz)",
+        debounce=True,
     )
 
     mo.output.replace(
@@ -161,7 +179,7 @@ def _(mo):
             [
                 mo.md("### Step 2 — Model geometry"),
                 mo.md(
-                    "_Defaults match `examples/cylinder_Bscan_2D.in`: a 10 mm PEC "
+                    "_Defaults match `examples/gpr/basic/cylinder_Bscan_2D.in`: a 10 mm PEC "
                     "cylinder centred at x = 0.120 m, 0.090 m below a surface at "
                     "y = 0.170 m, with a 1.5 GHz ricker and the receiver 0.040 m "
                     "behind the source._"
@@ -179,8 +197,12 @@ def _(mo):
 @app.cell
 def _(mo):
     eps_r = mo.ui.slider(
-        start=1.0, stop=20.0, step=0.1, value=6.0,
-        label="Relative permittivity of the half-space", debounce=True,
+        start=1.0,
+        stop=20.0,
+        step=0.1,
+        value=6.0,
+        label="Relative permittivity of the half-space",
+        debounce=True,
     )
     show_curve = mo.ui.checkbox(label="Draw the predicted hyperbola", value=True)
     remove_background = mo.ui.checkbox(
@@ -260,8 +282,13 @@ def _(
         _steps.append("background removed")
     if use_gain.value:
         _display, _ = apply_gain(
-            _display, _time_ns, "sec", factor=0.5, power=1.0,
-            start_ns=0.15 * float(_time_ns[-1]), max_gain=50,
+            _display,
+            _time_ns,
+            "sec",
+            factor=0.5,
+            power=1.0,
+            start_ns=0.15 * float(_time_ns[-1]),
+            max_gain=50,
         )
         _steps.append("SEC gain")
 
@@ -287,9 +314,7 @@ def _(
 
     if show_curve.value:
         _curve_x = np.linspace(float(_xpos.min()), float(_xpos.max()), 400)
-        _curve_t = travel_time(
-            _curve_x, target_x.value, _depth, _eps, _offset, _radius, _delay
-        )
+        _curve_t = travel_time(_curve_x, target_x.value, _depth, _eps, _offset, _radius, _delay)
         _fig.add_trace(
             go.Scatter(
                 x=_curve_x,
@@ -360,9 +385,7 @@ def _(
         _j = int(np.argmin(np.abs(_xpos - _apex_x)))
         _t_pick = float(_time_ns[_mask][int(np.argmax(np.abs(_matrix[_mask, _j])))])
         try:
-            _eps_pick, _v_pick = permittivity_from_apex(
-                _t_pick, _depth, _offset, _radius, _delay
-            )
+            _eps_pick, _v_pick = permittivity_from_apex(_t_pick, _depth, _offset, _radius, _delay)
             _pick = (_xpos[_j], _t_pick, _eps_pick, _v_pick)
         except ValueError as _e:
             _pick_err = str(_e)
@@ -375,9 +398,7 @@ def _(
     if _pick is not None:
         _px, _pt, _pe, _pv = _pick
         _gap = _pt - _t_apex
-        _rows.append(
-            f"| Measured apex | {_pt:.4f} ns in the trace at x = {_px:.3f} m |"
-        )
+        _rows.append(f"| Measured apex | {_pt:.4f} ns in the trace at x = {_px:.3f} m |")
         _rows.append(
             f"| Difference | {_gap:+.4f} ns "
             f"({abs(_gap) / _t_apex * 100:.1f}% of the predicted arrival) |"
@@ -468,8 +489,8 @@ def _(mo):
             "- **The prediction is geometric, the data is not.** The curve is the "
             "arrival of an idealised impulse reflecting off the nearest point of the "
             "target. The radargram shows the peak of a finite-bandwidth wavelet that "
-            "has propagated through a dispersive FDTD grid. Against a real run of "
-            "`examples/cylinder_Bscan_2D.in` the two agree to within about 4%, with "
+            "has propagated through a numerically discretised FDTD grid. Against a real run of "
+            "`examples/gpr/basic/cylinder_Bscan_2D.in` the two agree to within about 4%, with "
             "the prediction arriving slightly late. Expect a small gap and do not "
             "tune the geometry to close it.\n"
             "- **Background removal is for looking, not for measuring.** Subtracting "

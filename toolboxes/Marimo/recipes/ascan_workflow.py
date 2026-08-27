@@ -31,16 +31,15 @@ def _():
 
     # The model is fixed apart from what the sliders control. These are the
     # dimensions of the standard 2D examples and are not worth exposing.
-    DOMAIN_X, DOMAIN_Y, DOMAIN_Z = 0.240, 0.210, 0.002
+    DOMAIN_X, DOMAIN_Y = 0.240, 0.210
     DX = 0.002
-    SURFACE_Y = 0.170          # top of the half_space box
-    TARGET_X = 0.120           # cylinder always sits mid-domain
+    SURFACE_Y = 0.170  # top of the half_space box
+    TARGET_X = 0.120  # cylinder always sits mid-domain
 
     return (
         C_M_PER_NS,
         DOMAIN_X,
         DOMAIN_Y,
-        DOMAIN_Z,
         DX,
         Path,
         SURFACE_Y,
@@ -73,32 +72,60 @@ def _():
 @app.cell
 def _(Path, mo):
     permittivity = mo.ui.slider(
-        start=1.0, stop=20.0, step=0.5, value=6.0,
-        label="Soil relative permittivity", debounce=True,
+        start=1.0,
+        stop=20.0,
+        step=0.5,
+        value=6.0,
+        label="Soil relative permittivity",
+        debounce=True,
     )
     frequency = mo.ui.slider(
-        start=0.5, stop=3.0, step=0.1, value=1.5,
-        label="Antenna centre frequency (GHz)", debounce=True,
+        start=0.5,
+        stop=3.0,
+        step=0.1,
+        value=1.5,
+        label="Antenna centre frequency (GHz)",
+        debounce=True,
     )
     src_x = mo.ui.slider(
-        start=0.020, stop=0.200, step=0.002, value=0.040,
-        label="Source x (m)", debounce=True,
+        start=0.020,
+        stop=0.200,
+        step=0.002,
+        value=0.040,
+        label="Source x (m)",
+        debounce=True,
     )
     separation = mo.ui.slider(
-        start=0.010, stop=0.100, step=0.002, value=0.040,
-        label="Tx-Rx separation (m)", debounce=True,
+        start=0.010,
+        stop=0.100,
+        step=0.002,
+        value=0.040,
+        label="Tx-Rx separation (m)",
+        debounce=True,
     )
     target_depth = mo.ui.slider(
-        start=0.020, stop=0.150, step=0.002, value=0.090,
-        label="Target depth (m)", debounce=True,
+        start=0.020,
+        stop=0.150,
+        step=0.002,
+        value=0.090,
+        label="Target depth (m)",
+        debounce=True,
     )
     target_radius = mo.ui.slider(
-        start=0.004, stop=0.030, step=0.002, value=0.010,
-        label="Target radius (m)", debounce=True,
+        start=0.004,
+        stop=0.030,
+        step=0.002,
+        value=0.010,
+        label="Target radius (m)",
+        debounce=True,
     )
     time_window = mo.ui.slider(
-        start=1.0, stop=12.0, step=0.5, value=3.0,
-        label="Time window (ns)", debounce=True,
+        start=1.0,
+        stop=12.0,
+        step=0.5,
+        value=3.0,
+        label="Time window (ns)",
+        debounce=True,
     )
 
     out_dir = mo.ui.text(
@@ -123,7 +150,7 @@ def _(Path, mo):
                 mo.md("### Step 1 — Model parameters"),
                 mo.md(
                     "_A metal cylinder buried in a dielectric half-space, the same "
-                    "arrangement as `examples/cylinder_Ascan_2D.in`. The domain is "
+                    "arrangement as `examples/gpr/basic/cylinder_Ascan_2D.in`. The domain is "
                     "0.240 x 0.210 m at 2 mm resolution with the surface at "
                     "y = 0.170 m and the target at x = 0.120 m._"
                 ),
@@ -156,7 +183,6 @@ def _(
     C_M_PER_NS,
     DOMAIN_X,
     DOMAIN_Y,
-    DOMAIN_Z,
     DX,
     SURFACE_Y,
     TARGET_X,
@@ -184,19 +210,20 @@ def _(
     in_text = "\n".join(
         [
             "#title: A-scan from a metal cylinder buried in a dielectric half-space",
-            f"#domain: {DOMAIN_X:.3f} {DOMAIN_Y:.3f} {DOMAIN_Z:.3f}",
+            "#domain_mode: TM",
+            f"#domain: {DOMAIN_X:.3f} {DOMAIN_Y:.3f} inf",
             f"#dx_dy_dz: {DX:.3f} {DX:.3f} {DX:.3f}",
             f"#time_window: {_tw:g}e-9",
             "",
             f"#material: {_eps:g} 0 1 0 half_space",
             "",
             f"#waveform: ricker 1 {_freq:g}e9 my_ricker",
-            f"#hertzian_dipole: z {_sx:.3f} {SURFACE_Y:.3f} 0 my_ricker",
-            f"#rx: {_rx:.3f} {SURFACE_Y:.3f} 0",
+            f"#hertzian_dipole: z {_sx:.3f} {SURFACE_Y:.3f} inf my_ricker",
+            f"#rx: {_rx:.3f} {SURFACE_Y:.3f} inf",
             "",
-            f"#box: 0 0 0 {DOMAIN_X:.3f} {SURFACE_Y:.3f} {DOMAIN_Z:.3f} half_space",
+            f"#box: 0 0 0 {DOMAIN_X:.3f} {SURFACE_Y:.3f} inf half_space",
             f"#cylinder: {TARGET_X:.3f} {_cyl_y:.3f} 0 {TARGET_X:.3f} {_cyl_y:.3f} "
-            f"{DOMAIN_Z:.3f} {_radius:.3f} pec",
+            f"inf {_radius:.3f} pec",
         ]
     )
 
@@ -205,9 +232,7 @@ def _(
     predicted = {
         "delay": _delay,
         "direct": _sep / C_M_PER_NS + _delay,
-        "reflection": float(
-            travel_time(_sx, TARGET_X, _depth, _eps, _sep, _radius, _delay)
-        ),
+        "reflection": float(travel_time(_sx, TARGET_X, _depth, _eps, _sep, _radius, _delay)),
         "window": _tw,
     }
 
@@ -240,11 +265,7 @@ def _(
                 mo.md(f"```text\n{in_text}\n```"),
                 mo.md("**Predicted from the geometry, before running anything**"),
                 mo.md("| | |\n|---|---|\n" + "\n".join(_rows)),
-                *(
-                    [mo.callout(mo.md("\n\n".join(_problems)), kind="warn")]
-                    if _problems
-                    else []
-                ),
+                *([mo.callout(mo.md("\n\n".join(_problems)), kind="warn")] if _problems else []),
                 mo.md("---"),
             ],
             gap="0.4rem",
@@ -264,6 +285,7 @@ def _(deque, threading):
         "current": 0,
         "total": 0,
         "running": False,
+        "stop_requested": False,
         "returncode": None,
         "last_lines": deque(maxlen=6),
         "input_path": None,
@@ -349,6 +371,9 @@ def _(
 
         with run_lock:
             run_state["proc"] = proc
+            stop_requested = run_state["stop_requested"]
+        if stop_requested:
+            proc.terminate()
 
         for line in proc.stdout:  # not communicate(), which blocks until exit
             line = line.rstrip("\n")
@@ -377,15 +402,14 @@ def _(
             _path.write_text(in_text + "\n")
         except OSError as _e:
             mo.output.replace(
-                mo.callout(
-                    mo.md(f"**Could not write the input file.** `{_e}`"), kind="danger"
-                )
+                mo.callout(mo.md(f"**Could not write the input file.** `{_e}`"), kind="danger")
             )
         else:
             with run_lock:
                 run_state["current"] = 0
                 run_state["total"] = 0
                 run_state["running"] = True
+                run_state["stop_requested"] = False
                 run_state["returncode"] = None
                 run_state["proc"] = None
                 run_state["input_path"] = str(_path)
@@ -395,6 +419,7 @@ def _(
 
     if stop_button.value and run_state["running"]:
         with run_lock:
+            run_state["stop_requested"] = True
             _proc = run_state["proc"]
         if _proc is not None:
             _proc.terminate()
@@ -536,9 +561,7 @@ def _(list_components, list_receivers, mo, result):
         value="Ez" if "Ez" in _comps else _comps[0],
         label="Component",
     )
-    mo.output.replace(
-        mo.vstack([mo.md("**Inspect the result**"), component], gap="0.3rem")
-    )
+    mo.output.replace(mo.vstack([mo.md("**Inspect the result**"), component], gap="0.3rem"))
     return component
 
 
@@ -547,9 +570,7 @@ def _(list_components, list_receivers, mo, result):
 def _(mo):
     use_gain = mo.ui.checkbox(label="Apply SEC gain", value=False)
     show_predicted = mo.ui.checkbox(label="Mark the predicted arrivals", value=True)
-    mo.output.replace(
-        mo.hstack([use_gain, show_predicted], gap="1.5rem", justify="start")
-    )
+    mo.output.replace(mo.hstack([use_gain, show_predicted], gap="1.5rem", justify="start"))
     return show_predicted, use_gain
 
 
@@ -575,7 +596,7 @@ def _(
     _rx = _rxs[0] if _rxs else "rx1"
     _comp = component.value
     _raw = get_trace(result, _comp, _rx)
-    _time = get_time_axis(result, unit="ns")
+    _time = get_time_axis(result, unit="ns", receiver=_rx, component=_comp)
     _unit = get_unit_label(_comp)
 
     if not np.any(_raw):
@@ -594,14 +615,22 @@ def _(
     _arr = _raw
     if use_gain.value:
         _arr, _ = apply_gain(
-            _raw, _time, "sec", factor=0.5, power=1.0,
-            start_ns=0.15 * float(_time[-1]), max_gain=50,
+            _raw,
+            _time,
+            "sec",
+            factor=0.5,
+            power=1.0,
+            start_ns=0.15 * float(_time[-1]),
+            max_gain=50,
         )
         _title += "  ·  " + gain_label("sec", 0.5, 1.0, 0.15 * float(_time[-1]))
 
     _fig = go.Figure(
         go.Scatter(
-            x=_time, y=_arr, mode="lines", name=_comp,
+            x=_time,
+            y=_arr,
+            mode="lines",
+            name=_comp,
             line=dict(color="#1f77b4", width=1.5),
             hovertemplate="%{x:.4f} ns<br>%{y:.5g} " + _unit + "<extra></extra>",
         )
@@ -614,7 +643,8 @@ def _(
         ):
             if _t <= float(_time[-1]):
                 _fig.add_vline(
-                    x=_t, line=dict(color=_colour, width=1, dash="dot"),
+                    x=_t,
+                    line=dict(color=_colour, width=1, dash="dot"),
                     annotation_text=f"{_label} {_t:.3f} ns",
                     annotation_position="top",
                 )
@@ -676,7 +706,7 @@ def _(
                     "fitted to this trace. They should land on the two events. A gap "
                     "of a few percent is expected: the prediction is the arrival of an "
                     "idealised impulse, the trace is a finite-bandwidth wavelet through "
-                    "a dispersive grid._"
+                    "a numerically discretised FDTD grid._"
                 ),
             ],
             gap="0.5rem",

@@ -40,6 +40,7 @@ def process_trace(
     preferred_component: str | None,
     expected_len: int | None,
     preferred_receiver: str | None = None,
+    expected_time_ns: np.ndarray | None = None,
 ) -> ProcessedTrace:
     """Validate and extract one column from a loaded single-trace file.
 
@@ -55,15 +56,27 @@ def process_trace(
     if not comps:
         return {"ok": False, "reason": "no field components found", "known_components": comps}
 
-    comp = preferred_component if preferred_component in comps else (
-        "Ez" if "Ez" in comps else comps[0]
+    comp = (
+        preferred_component
+        if preferred_component in comps
+        else ("Ez" if "Ez" in comps else comps[0])
     )
     arr = get_trace(file_data, comp, rx)
+    time_ns = get_time_axis(file_data, unit="ns", receiver=rx, component=comp)
 
     if expected_len is not None and len(arr) != expected_len:
         return {
             "ok": False,
             "reason": f"{len(arr)} samples vs expected {expected_len}",
+            "known_components": comps,
+        }
+
+    if expected_time_ns is not None and not np.allclose(
+        time_ns, expected_time_ns, rtol=1e-9, atol=1e-15
+    ):
+        return {
+            "ok": False,
+            "reason": "sample times differ from the first accepted trace",
             "known_components": comps,
         }
 
@@ -75,7 +88,7 @@ def process_trace(
         "component": comp,
         "receiver": rx,
         "array": arr,
-        "time_ns": get_time_axis(file_data, unit="ns"),
+        "time_ns": time_ns,
         "x": x,
         "known_components": comps,
     }
@@ -104,7 +117,13 @@ def stack_traces(
 
     for i, fdata in enumerate(file_datas):
         expected_len = len(cols[0]) if cols else None
-        result = process_trace(fdata, component, expected_len, preferred_receiver)
+        result = process_trace(
+            fdata,
+            component,
+            expected_len,
+            preferred_receiver,
+            expected_time_ns=time_ns,
+        )
 
         if not result["ok"]:
             warnings.append(f"trace {i}: {result['reason']} — skipped")

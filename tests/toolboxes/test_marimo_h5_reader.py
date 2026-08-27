@@ -65,12 +65,21 @@ def _write_synthetic_h5(path: Path, title: str = "Test A-scan") -> None:
         rx1.attrs["Name"] = "Rx(70,85,0)"
         rx1.attrs["Position"] = np.array([0.14, 0.17, 0.0])
         for comp, data in COMPONENTS.items():
-            rx1.create_dataset(comp, data=data)
+            dataset = rx1.create_dataset(comp, data=data)
+            dataset.attrs["SampleInterval"] = DT
+            dataset.attrs["TimeSampleOffset"] = -0.5 * DT if comp.startswith("H") else 0.0
+            dataset.attrs["Quantity"] = comp
 
         # Source
         src1 = f.require_group("srcs/src1")
         src1.attrs["Type"] = "HertzianDipole"
         src1.attrs["Position"] = np.array([0.10, 0.17, 0.0])
+        excitation = src1.create_group("excitation")
+        excitation.attrs["WaveformType"] = "ricker"
+        excitation.attrs["WaveformFrequency"] = 1.5e9
+        excitation.attrs["SampleInterval"] = DT
+        excitation.attrs["TimeSampleOffset"] = 0.5 * DT
+        excitation.create_dataset("samples", data=np.arange(ITERATIONS, dtype=float))
 
 
 @pytest.fixture
@@ -84,8 +93,8 @@ def h5_file(tmp_path: Path) -> Path:
 @pytest.fixture
 def h5_file_b(tmp_path: Path) -> Path:
     """Second synthetic HDF5 file with a different title."""
-    p = tmp_path / "test_ascan_freespace.h5"
-    _write_synthetic_h5(p, title="Free space A-scan")
+    p = tmp_path / "test_ascan_background.h5"
+    _write_synthetic_h5(p, title="Target-free background A-scan")
     return p
 
 
@@ -165,6 +174,12 @@ class TestLoadFileSources:
     def test_source_position(self, loaded):
         assert loaded["sources"]["src1"]["position"] == pytest.approx([0.10, 0.17, 0.0])
 
+    def test_source_excitation_metadata_and_samples(self, loaded):
+        excitation = loaded["sources"]["src1"]["excitation"]
+        assert excitation["attributes"]["WaveformType"] == "ricker"
+        assert excitation["attributes"]["WaveformFrequency"] == pytest.approx(1.5e9)
+        assert excitation["samples"]["samples"][-1] == pytest.approx(ITERATIONS - 1)
+
 
 # load_file — time axis
 
@@ -238,6 +253,16 @@ class TestGetTimeAxis:
     def test_iter_unit(self, loaded):
         t = get_time_axis(loaded, unit="iter")
         assert t[-1] == pytest.approx(ITERATIONS - 1)
+
+    def test_component_time_offset(self, loaded):
+        t_e = get_time_axis(loaded, receiver="rx1", component="Ez", unit="s")
+        t_h = get_time_axis(loaded, receiver="rx1", component="Hx", unit="s")
+        assert t_e[0] == pytest.approx(0.0)
+        assert t_h[0] == pytest.approx(-0.5 * DT)
+
+    def test_receiver_and_component_must_be_paired(self, loaded):
+        with pytest.raises(ValueError, match="supplied together"):
+            get_time_axis(loaded, receiver="rx1")
 
     def test_invalid_unit(self, loaded):
         with pytest.raises(ValueError, match="Unknown unit"):

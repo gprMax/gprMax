@@ -11,10 +11,17 @@ DT = 4.717308673499368e-12
 ITERATIONS = 100
 
 
-def _write_trace(path, x_pos, amplitude=1.0, iterations=ITERATIONS, components=("Ez",)):
+def _write_trace(
+    path,
+    x_pos,
+    amplitude=1.0,
+    iterations=ITERATIONS,
+    components=("Ez",),
+    dt=DT,
+):
     with h5py.File(path, "w") as f:
         f.attrs["Title"] = "synthetic"
-        f.attrs["dt"] = DT
+        f.attrs["dt"] = dt
         f.attrs["dx_dy_dz"] = [0.002, 0.002, 0.002]
         f.attrs["Iterations"] = iterations
         f.attrs["nrx"] = 1
@@ -26,7 +33,11 @@ def _write_trace(path, x_pos, amplitude=1.0, iterations=ITERATIONS, components=(
         rx.attrs["Name"] = "Rx(70,85,0)"
         rx.attrs["Position"] = [0.14, 0.17, 0.0]
         for comp in components:
-            rx.create_dataset(comp, data=np.sin(np.linspace(0, 6.28, iterations)) * amplitude)
+            dataset = rx.create_dataset(
+                comp, data=np.sin(np.linspace(0, 6.28, iterations)) * amplitude
+            )
+            dataset.attrs["SampleInterval"] = dt
+            dataset.attrs["TimeSampleOffset"] = 0.0
 
         src = f.create_group("srcs/src1")
         src.attrs["Type"] = "HertzianDipole"
@@ -95,9 +106,7 @@ class TestProcessTrace:
         assert result["component"] == "Ez"
 
     def test_falls_back_to_first_available_when_no_ez(self, tmp_path):
-        fdata = load_file(
-            _write_trace(tmp_path / "t1.h5", x_pos=0.05, components=("Hx", "Hy"))
-        )
+        fdata = load_file(_write_trace(tmp_path / "t1.h5", x_pos=0.05, components=("Hx", "Hy")))
         result = process_trace(fdata, "Ez", expected_len=None)
         assert result["ok"] is True
         assert result["component"] in ("Hx", "Hy")
@@ -169,6 +178,13 @@ class TestStackTraces:
         assert result["matrix"].shape == (ITERATIONS, 2)
         assert len(result["warnings"]) == 1
         assert "trace 1" in result["warnings"][0]
+
+    def test_equal_length_with_different_sample_times_is_skipped(self, tmp_path):
+        first = load_file(_write_trace(tmp_path / "a.h5", x_pos=0.0))
+        different_dt = load_file(_write_trace(tmp_path / "b.h5", x_pos=0.01, dt=1.1 * DT))
+        result = stack_traces([first, different_dt])
+        assert result["matrix"].shape == (ITERATIONS, 1)
+        assert "sample times differ" in result["warnings"][0]
 
     def test_missing_source_falls_back_to_index_and_flags_non_physical(self, tmp_path):
         files = [

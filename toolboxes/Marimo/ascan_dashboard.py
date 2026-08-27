@@ -162,7 +162,7 @@ def _(get_data, mo):
         subtract_ref = None
         mo.output.replace(
             mo.md(
-                "_Load a second file, a free-space run of the same model with the "
+                "_Load a second file, a target-free background run of the same model with the "
                 "target removed, to enable background subtraction._"
             )
             if _file_names
@@ -179,7 +179,7 @@ def _(get_data, mo):
                 [
                     mo.md("### Step 1b — Background subtraction"),
                     mo.md(
-                        "_Pick a free-space run of the same model. For every plotted "
+                        "_Pick a target-free background run of the same model. For every plotted "
                         "trace, the matching receiver and component from that file is "
                         "subtracted, which cancels the source pulse and the direct "
                         "coupling and leaves the target response. Display only: CSV "
@@ -553,7 +553,9 @@ def _(GAIN_KINDS, gain_kind, mo):
         _cfg = _FACTOR_SLIDERS.get(_kind)
         gain_factor = mo.ui.slider(**_cfg, debounce=True) if _cfg else None
         gain_power = (
-            mo.ui.slider(start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True)
+            mo.ui.slider(
+                start=0.0, stop=4.0, step=0.1, value=1.0, label="Exponent b", debounce=True
+            )
             if GAIN_KINDS[_kind]["uses_power"]
             else None
         )
@@ -576,7 +578,9 @@ def _(GAIN_KINDS, gain_kind, mo):
             mo.vstack(
                 [
                     mo.hstack(_params, gap="1.5rem", justify="start"),
-                    mo.hstack([gain_clamp, gain_max, show_gain_curve], gap="1.5rem", justify="start"),
+                    mo.hstack(
+                        [gain_clamp, gain_max, show_gain_curve], gap="1.5rem", justify="start"
+                    ),
                     mo.md(
                         "_Time before the gain start keeps a gain of exactly 1, so the "
                         "direct wave can be left alone rather than saturating the plot._"
@@ -698,9 +702,23 @@ def _(
         _ref_fdata = _files[_ref_name]
         try:
             _ref_arr = get_trace(_ref_fdata, trace["component"], trace["receiver"])
-            _out = subtract_traces(
-                arr, _ref_arr, fdata["meta"]["dt"], _ref_fdata["meta"]["dt"]
+            _time = get_time_axis(
+                fdata,
+                unit="s",
+                receiver=trace["receiver"],
+                component=trace["component"],
             )
+            _ref_time = get_time_axis(
+                _ref_fdata,
+                unit="s",
+                receiver=trace["receiver"],
+                component=trace["component"],
+            )
+            if _time.shape != _ref_time.shape or not np.allclose(
+                _time, _ref_time, rtol=1e-9, atol=1e-15
+            ):
+                raise ValueError("target and background sample times differ")
+            _out = subtract_traces(arr, _ref_arr)
         except (KeyError, ValueError) as _err:
             _sub_warnings.append(f"{trace['label']}: {_err}")
             return arr
@@ -715,9 +733,7 @@ def _(
     _factor = gain_factor.value if gain_factor is not None else 1.0
     _power = gain_power.value if gain_power is not None else 1.0
     _max_gain = gain_max.value if (gain_clamp is not None and gain_clamp.value) else None
-    _window_ns = max(
-        f["meta"]["iterations"] * f["meta"]["dt"] * 1e9 for f in _files.values()
-    )
+    _window_ns = max(f["meta"]["iterations"] * f["meta"]["dt"] * 1e9 for f in _files.values())
     _start = (gain_start.value / 100.0) * _window_ns if gain_start is not None else 0.0
 
     _axis_base = dict(
@@ -760,9 +776,7 @@ def _(
             _fdata = _files[_t["filename"]]
             _raw = get_trace(_fdata, _t["component"], _t["receiver"])
             _dt = _fdata["meta"]["dt"]
-            _freqs, _pdb, _peak_db = fft_spectrum(
-                _apply_subtraction(_raw, _t, _fdata), _dt
-            )
+            _freqs, _pdb, _peak_db = fft_spectrum(_apply_subtraction(_raw, _t, _fdata), _dt)
             if _peak_db is None:
                 _flat_traces.append(_t["label"])
                 continue
@@ -801,9 +815,7 @@ def _(
 
         _limit_hz = 0.0
         for _s in _spectra:
-            _offset = (
-                _s["peak_db"] - _refs[_s["unit"]] if fft_reference.value == "shared" else 0.0
-            )
+            _offset = _s["peak_db"] - _refs[_s["unit"]] if fft_reference.value == "shared" else 0.0
             _shown = _s["power"] + _offset
             _t = _s["trace"]
             _key = (len(_s["freqs"]), round(float(_s["freqs"][1] - _s["freqs"][0]), 6))
@@ -818,17 +830,11 @@ def _(
                     mode="lines",
                     name=_t["label"],
                     line=dict(color=_t["colour"], width=line_width.value),
-                    hovertemplate=(
-                        "%{x:.4g} GHz<br>%{y:.4g} dB<extra>" + _t["label"] + "</extra>"
-                    ),
+                    hovertemplate=("%{x:.4g} GHz<br>%{y:.4g} dB<extra>" + _t["label"] + "</extra>"),
                 )
             )
 
-        _x_range = (
-            None
-            if fft_full_range.value
-            else [0.0, max(_limit_hz / 1e9, 1e-6)]
-        )
+        _x_range = None if fft_full_range.value else [0.0, max(_limit_hz / 1e9, 1e-6)]
         _ref_text = (
             "shared reference per unit"
             if fft_reference.value == "shared"
@@ -893,7 +899,12 @@ def _(
         for _t in _traces:
             _fdata = _files[_t["filename"]]
             _raw = get_trace(_fdata, _t["component"], _t["receiver"])
-            _time = get_time_axis(_fdata, unit="ns")
+            _time = get_time_axis(
+                _fdata,
+                unit="ns",
+                receiver=_t["receiver"],
+                component=_t["component"],
+            )
             _unit = get_unit_label(_t["component"])
             _on_y2 = _unit == "A/m"
 
@@ -902,8 +913,11 @@ def _(
             else:
                 _has_e = True
 
-            _fmeta = _fdata["meta"]
-            _tax_key = (_fmeta["iterations"], round(_fmeta["dt"], 15))
+            _tax_key = (
+                len(_time),
+                round(float(_time[0]), 15),
+                round(float(_time[1] - _time[0]), 15) if len(_time) > 1 else 0.0,
+            )
             if _tax_key not in _csv_x:
                 _csv_x[_tax_key] = _time
             _csv_data[_t["label"]] = (_tax_key, _raw)
@@ -1076,7 +1090,9 @@ def _(
 
         if _single_axis:
             _shared_x = list(_csv_x.values())[0]
-            _writer.writerow([_csv_first_col] + [t["label"] for t in _traces if t["label"] in _csv_data])
+            _writer.writerow(
+                [_csv_first_col] + [t["label"] for t in _traces if t["label"] in _csv_data]
+            )
             _cols = [t for t in _traces if t["label"] in _csv_data]
             for _i in range(len(_shared_x)):
                 _writer.writerow(
@@ -1174,9 +1190,8 @@ def _(
                     mo.md(
                         "**Skipped, no spectrum:** "
                         + ", ".join(f"`{n}`" for n in _flat_traces)
-                        + ". These traces are all zeros, which `fft_power` would "
-                        "otherwise render as a flat 0 dB line indistinguishable "
-                        "from real data."
+                        + ". These traces are all zeros and therefore have no finite "
+                        "normalised spectrum."
                     ),
                     kind="warn",
                 )
@@ -1231,7 +1246,7 @@ def _(
                     "- `bscan_dashboard.py` assembles a radargram from multiple "
                     "A-scan files or watches one being written, with a 3D surface "
                     "view, gain, and mean-trace background removal for the case "
-                    "where no free-space run exists.\n"
+                    "where no separate target-free background run exists.\n"
                     "- `recipes/ascan_workflow.py` goes from model parameters "
                     "through a solver run to this dashboard's input in one "
                     "notebook.\n"

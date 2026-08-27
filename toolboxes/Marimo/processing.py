@@ -205,13 +205,12 @@ def remove_mean_trace(
     With the antenna stepping across a surface, the direct wave and any
     flat-layer reflection are identical in every trace, so the across-trace
     mean is almost entirely that stationary signal. Subtracting it leaves the
-    target response. This is the equivalent of target-minus-free-space
-    subtraction for the case where no separate free-space run exists.
+    target response. This is analogous to target-minus-background-reference
+    subtraction when no separate target-free background run exists.
 
     `window` selects between the two conventions in the literature:
-        None      mean over all traces. Correct for a gprMax B-scan, where
-                  every trace comes from the identical model and the
-                  background is genuinely stationary.
+        None      mean over all traces. Appropriate when the direct wave and
+                  layered background response are stationary over the scan.
         int       mean over a moving window of that many traces, the
                   convention for real survey lines where the background
                   drifts along the profile.
@@ -292,11 +291,10 @@ def fft_spectrum(
     2. It returns the whole `fftfreq`, negative frequencies included, which
        plots as a mirrored spectrum. `positive_only` slices to the first
        half.
-    3. An all-zero trace produces -inf, which its own guard rewrites to 0,
-       which the shift then turns into a flat 0 dB line indistinguishable
-       from a real spectrum. Ex in a 2D TMz model is exactly this case.
-       `peak_db` is None for such a trace so the caller can say so instead
-       of drawing a meaningless flat line.
+    3. An all-zero trace has no finite normalised spectrum: ``fft_power``
+       returns ``-inf``. Ex in a 2D TMz model is exactly this case. ``peak_db``
+       is None for such a trace so the caller can report it instead of drawing
+       a meaningless spectrum.
 
     The import is deferred so that importing this module, and testing every
     other function in it, does not require a built gprMax.
@@ -318,7 +316,7 @@ def fft_spectrum(
         peak_db = float(10.0 * np.log10(np.max(np.abs(np.fft.fft(arr)) ** 2)))
 
     if positive_only:
-        half = arr.size // 2
+        half = (arr.size + 1) // 2
         freqs, power = freqs[:half], power[:half]
 
     return freqs, power, peak_db

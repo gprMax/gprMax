@@ -12,6 +12,7 @@ OPTIONAL_REQUIREMENTS = {
     "opencl": ("pyopencl",),
     "metal": ("pyobjc-framework-metal",),
     "accelerators": ("pycuda", "pyopencl", "pyobjc-framework-metal"),
+    "marimo": ("marimo", "plotly", "kaleido"),
 }
 
 SUPPORTED_PYTHON = ">=3.11,<3.14"
@@ -23,6 +24,12 @@ def _normalised_requirements():
 
 def _has_extra(requirement, extra):
     return re.search(rf"extra\s*==\s*['\"]{re.escape(extra)}['\"]", requirement)
+
+
+def _requires_package(requirement, package):
+    """Match a package name with or without an intervening version specifier."""
+
+    return re.match(rf"{re.escape(package)}(?:\s*[<>=!~]|\s*;)", requirement)
 
 
 @pytest.mark.unit
@@ -40,10 +47,12 @@ def test_optional_extras_are_declared():
 @pytest.mark.unit
 def test_optional_packages_are_not_core_dependencies():
     requirements = _normalised_requirements()
-    optional_packages = {package for packages in OPTIONAL_REQUIREMENTS.values() for package in packages}
+    optional_packages = {
+        package for packages in OPTIONAL_REQUIREMENTS.values() for package in packages
+    }
 
     for package in optional_packages:
-        matching = [item for item in requirements if item.startswith(f"{package};")]
+        matching = [item for item in requirements if _requires_package(item, package)]
         assert matching
         assert all("extra ==" in item for item in matching)
 
@@ -54,7 +63,10 @@ def test_each_extra_selects_its_expected_packages():
 
     for extra, packages in OPTIONAL_REQUIREMENTS.items():
         for package in packages:
-            assert any(item.startswith(f"{package};") and _has_extra(item, extra) for item in requirements)
+            assert any(
+                _requires_package(item, package) and _has_extra(item, extra)
+                for item in requirements
+            )
 
 
 @pytest.mark.unit

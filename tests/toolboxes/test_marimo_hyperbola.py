@@ -1,4 +1,4 @@
-"""Tests for hyperbola.py, anchored to examples/cylinder_Bscan_2D.in."""
+"""Tests for hyperbola.py, anchored to examples/gpr/basic/cylinder_Bscan_2D.in."""
 
 import numpy as np
 import pytest
@@ -14,7 +14,7 @@ from toolboxes.Marimo.hyperbola import (
     velocity,
 )
 
-# Every constant below is read directly out of examples/cylinder_Bscan_2D.in:
+# Every constant below is read directly out of examples/gpr/basic/cylinder_Bscan_2D.in:
 #   #material: 6 0 1 0 half_space
 #   #waveform: ricker 1 1.5e9 my_ricker
 #   #hertzian_dipole: z 0.040 0.170 0 my_ricker
@@ -26,9 +26,9 @@ FREQ = 1.5e9
 X_TARGET = 0.120
 SURFACE_Y = 0.170
 TARGET_Y = 0.080
-DEPTH = SURFACE_Y - TARGET_Y      # 0.090 m to the cylinder centre
+DEPTH = SURFACE_Y - TARGET_Y  # 0.090 m to the cylinder centre
 RADIUS = 0.010
-OFFSET = 0.080 - 0.040            # 0.040 m, receiver trails the source
+OFFSET = 0.080 - 0.040  # 0.040 m, receiver trails the source
 DELAY = np.sqrt(2.0) / FREQ * 1e9
 
 
@@ -125,7 +125,7 @@ class TestAgainstMeasuredRun:
     x=0.040 and 2.227 ns at source x=0.098. The analytic model is expected to
     be close but not exact: it predicts the geometric arrival of an impulse,
     while the measurement is the peak of a finite-bandwidth wavelet after
-    propagation through a dispersive 2D FDTD grid.
+    propagation through a numerically discretised 2D FDTD grid.
     """
 
     MEASURED = {0.040: 2.486, 0.098: 2.227}

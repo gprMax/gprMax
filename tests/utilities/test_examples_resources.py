@@ -73,6 +73,9 @@ def test_wheel_packages_exclude_developer_archives_but_keep_toolboxes_and_exampl
     assert "gprMax" in packages
     assert "gprMax._examples" in packages
     assert "toolboxes" in packages
+    assert "toolboxes.Marimo" in packages
+    assert "toolboxes.Marimo.recipes" in packages
+    assert "toolboxes.Marimo.examples" in packages
     assert not any(name == "testing" or name.startswith("testing.") for name in packages)
     assert not any(
         name == "reframe_tests" or name.startswith("reframe_tests.") for name in packages

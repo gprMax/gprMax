@@ -9,8 +9,8 @@ Usage:
     from toolboxes.Marimo.h5_reader import load_files, load_file
 
     data = load_files([
-        "examples/cylinder_Ascan_2D.h5",
-        "examples/cylinder_Ascan_2D_freespace.h5",
+        "examples/gpr/basic/cylinder_Ascan_2D.h5",
+        "toolboxes/Marimo/examples/cylinder_Ascan_2D_background.h5",
     ])
 
     # Access a specific trace
@@ -35,6 +35,7 @@ ReceiverInfo = dict[str, Any]
 #   "name":       str              e.g. "Rx(70,85,0)"
 #   "position":   list[float]      e.g. [0.14, 0.17, 0.0]
 #   "components": ComponentMap
+#   "component_meta": dict[str, dict[str, float | str]]
 # }
 
 # FileMeta: root-level attributes from the HDF5 file
@@ -53,8 +54,9 @@ FileMeta = dict[str, Any]
 # SourceInfo: metadata for one source point
 SourceInfo = dict[str, Any]
 # {
-#   "type":     str   e.g. "HertzianDipole"
-#   "position": list[float]
+#   "type":       str   e.g. "HertzianDipole"
+#   "position":   list[float]
+#   "excitation": dict containing exact source samples and metadata, when present
 # }
 
 # FileData: everything read from one .h5 file
@@ -92,7 +94,7 @@ def load_file(path: str | Path) -> FileData:
 
     with h5py.File(path, "r") as f:
         meta = _read_meta(f)
-        receivers = _read_receivers(f, path)
+        receivers = _read_receivers(f)
         sources = _read_sources(f)
 
     # Build nanosecond time axis from root dt
@@ -143,23 +145,46 @@ def load_files(paths: list[str | Path]) -> dict[str, FileData]:
 # Time axis utility
 
 
-def get_time_axis(file_data: FileData, unit: str = "ns") -> np.ndarray:
+def get_time_axis(
+    file_data: FileData,
+    unit: str = "ns",
+    receiver: str | None = None,
+    component: str | None = None,
+) -> np.ndarray:
     """Return the time axis for a loaded file.
 
     Args:
         file_data: FileData dict from load_file().
         unit: "ns" (nanoseconds, default), "s" (seconds), or "iter" (iterations).
+        receiver: Optional receiver key. Supply this with ``component`` to use
+            the per-dataset sampling metadata written by current gprMax files.
+        component: Optional receiver component, e.g. ``"Hx"``. Magnetic fields
+            and currents are sampled half a time step earlier than electric
+            fields; legacy files without dataset metadata fall back to root dt.
 
     Returns:
         1D numpy array.
     """
     iterations = file_data["meta"]["iterations"]
     dt = file_data["meta"]["dt"]
+    offset = 0.0
+
+    if receiver is not None or component is not None:
+        if receiver is None or component is None:
+            raise ValueError("receiver and component must be supplied together")
+        try:
+            rx_info = file_data["receivers"][receiver]
+            iterations = len(rx_info["components"][component])
+            component_meta = rx_info.get("component_meta", {}).get(component, {})
+        except KeyError as exc:
+            raise KeyError(f"Unknown receiver component {receiver}/{component}") from exc
+        dt = float(component_meta.get("sample_interval", dt))
+        offset = float(component_meta.get("time_sample_offset", 0.0))
 
     if unit == "ns":
-        return np.arange(iterations) * dt * 1e9
+        return (np.arange(iterations) * dt + offset) * 1e9
     elif unit == "s":
-        return np.arange(iterations) * dt
+        return np.arange(iterations) * dt + offset
     elif unit == "iter":
         return np.arange(iterations, dtype=float)
     else:
@@ -222,8 +247,7 @@ def get_trace(
     except KeyError:
         available = list_components(file_data, receiver)
         raise KeyError(
-            f"Component '{component}' not found in {receiver}. "
-            f"Available: {available}"
+            f"Component '{component}' not found in {receiver}. " f"Available: {available}"
         )
 
     return arr * polarity
@@ -298,10 +322,7 @@ def format_metadata_text(file_data: FileData) -> str:
     for rx_key, rx_info in file_data["receivers"].items():
         pos = rx_info["position"]
         name = rx_info["name"]
-        lines.append(
-            f"  {rx_key}: {name} at "
-            f"({pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f}) m"
-        )
+        lines.append(f"  {rx_key}: {name} at " f"({pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f}) m")
 
     return "\n\n".join(lines[:3]) + "\n\n" + "\n".join(lines[3:])
 
@@ -324,7 +345,7 @@ def _read_meta(f: h5py.File) -> FileMeta:
     }
 
 
-def _read_receivers(f: h5py.File, path: Path) -> dict[str, ReceiverInfo]:
+def _read_receivers(f: h5py.File) -> dict[str, ReceiverInfo]:
     """Read all receiver data from the HDF5 file."""
     receivers: dict[str, ReceiverInfo] = {}
 
@@ -336,10 +357,16 @@ def _read_receivers(f: h5py.File, path: Path) -> dict[str, ReceiverInfo]:
         rx_attrs = dict(rx_group.attrs)
 
         components: ComponentMap = {}
+        component_meta: dict[str, dict[str, float | str]] = {}
         for comp_name in rx_group.keys():
             dataset = rx_group[comp_name]
             if isinstance(dataset, h5py.Dataset):
                 components[comp_name] = dataset[:]
+                component_meta[comp_name] = {
+                    "sample_interval": float(dataset.attrs.get("SampleInterval", f.attrs["dt"])),
+                    "time_sample_offset": float(dataset.attrs.get("TimeSampleOffset", 0.0)),
+                    "quantity": str(dataset.attrs.get("Quantity", comp_name)),
+                }
 
         position = list(map(float, rx_attrs.get("Position", [0.0, 0.0, 0.0])))
 
@@ -347,6 +374,7 @@ def _read_receivers(f: h5py.File, path: Path) -> dict[str, ReceiverInfo]:
             "name": str(rx_attrs.get("Name", rx_key)),
             "position": position,
             "components": components,
+            "component_meta": component_meta,
         }
 
     return receivers
@@ -360,12 +388,35 @@ def _read_sources(f: h5py.File) -> dict[str, SourceInfo]:
         return sources
 
     for src_key in f["srcs"].keys():
-        src_attrs = dict(f["srcs"][src_key].attrs)
-        sources[src_key] = {
+        src_group = f["srcs"][src_key]
+        src_attrs = dict(src_group.attrs)
+        source_info: SourceInfo = {
             "type": str(src_attrs.get("Type", "unknown")),
-            "position": list(
-                map(float, src_attrs.get("Position", [0.0, 0.0, 0.0]))
-            ),
+            "position": list(map(float, src_attrs.get("Position", [0.0, 0.0, 0.0]))),
         }
+        if "excitation" in src_group:
+            excitation_group = src_group["excitation"]
+            excitation = {
+                "attributes": {
+                    str(key): _normalise_attribute(value)
+                    for key, value in excitation_group.attrs.items()
+                },
+                "samples": {},
+            }
+            for name, dataset in excitation_group.items():
+                if isinstance(dataset, h5py.Dataset):
+                    excitation["samples"][name] = dataset[:]
+            source_info["excitation"] = excitation
+        sources[src_key] = source_info
 
     return sources
+
+
+def _normalise_attribute(value: Any) -> Any:
+    """Convert common HDF5 scalar attribute types to ordinary Python values."""
+
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
