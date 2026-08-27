@@ -33,11 +33,12 @@ from gprMax import config
 from gprMax.cython.pml_build import pml_sum_er_mr
 from gprMax.fractals.fractal_surface import MPIFractalSurface
 from gprMax.fractals.fractal_volume import MPIFractalVolume
+from gprMax.grid.axes import Dim, Dir
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.pml import MPIPML, PML, InternalPMLSpec
 from gprMax.receivers import Rx
 from gprMax.sources import Source
-from gprMax.utilities.mpi import Dim, Dir, mpi_datatype_for_dtype
+from gprMax.utilities.mpi import mpi_datatype_for_dtype
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ ObjectType = TypeVar("ObjectType")
 class MPIGrid(FDTDGrid):
     HALO_SIZE = 1
     COORDINATOR_RANK = 0
+    is_distributed = True
     pml_type = MPIPML
 
     def __init__(self, comm: MPI.Cartcomm):

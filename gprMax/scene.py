@@ -23,10 +23,8 @@ import numpy as np
 
 from gprMax.geometry_tags import GeometryTagMap, GeometryTagRegistry
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
-from gprMax.mpi_model import MPIModel
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
 from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
@@ -185,7 +183,7 @@ class Scene:
 
         limits = (
             tuple(grid.global_size)
-            if isinstance(grid, MPIGrid)
+            if getattr(grid, "is_distributed", False) is True
             else (grid.nx, grid.ny, grid.nz)
         )
         for spec in grid.pmls["internal_specs"]:

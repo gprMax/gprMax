@@ -37,7 +37,6 @@ from gprMax.eigenmode_config import (
     VirtualWaveguideSpec,
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.impedance_surfaces import SurfaceImpedanceModel, is_reserved_impedance_id
 from gprMax.material_database import build_material_from_spec, load_material_spec
 from gprMax.materials import CrimMixture as CrimMixtureUser
@@ -1220,7 +1219,9 @@ class VoltageSource(RotatableMixin, GridUserObject):
         if grid.within_pml(coord):
             raise ValueError(f"{self.params_str()} cannot be placed inside a PML.")
         loop_coordinate = (
-            grid.local_to_global_coordinate(coord) if isinstance(grid, MPIGrid) else coord
+            grid.local_to_global_coordinate(coord)
+            if getattr(grid, "is_distributed", False) is True
+            else coord
         )
         if not _hard_source_current_loop_available(
             voltage_source.polarisation, voltage_source.resistance, loop_coordinate
@@ -5090,7 +5091,7 @@ class PMLSlab(GridUserObject):
 
         uip = self._create_uip(grid)
         within_grid, lower, upper = uip.check_box_points(p1, p2, self.__str__())
-        if isinstance(grid, MPIGrid):
+        if getattr(grid, "is_distributed", False) is True:
             # Every rank retains the same immutable global declaration. Local
             # clipping is deferred until PML construction, where the global
             # CFS depth can be preserved across rank boundaries.

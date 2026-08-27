@@ -25,11 +25,9 @@ from typing import Optional
 import h5py
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
 
 from gprMax.geometry_outputs.grid_view import GridView, MPIGridView
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 
 
 class ReadGeometryObject(AbstractContextManager):
@@ -81,15 +79,18 @@ class ReadGeometryObject(AbstractContextManager):
             stop = stop.copy()
             stop[invariant_axis] = start[invariant_axis] + target_invariant_size
 
-        if isinstance(grid, MPIGrid):
+        if getattr(grid, "is_distributed", False) is True:
             if grid.local_bounds_overlap_grid(start, stop):
                 self.grid_view = MPIGridView(
                     grid, start[0], start[1], start[2], stop[0], stop[1], stop[2]
                 )
             else:
+                from gprMax.mpi_support import require_mpi
+
                 # The MPIGridView will create a new communicator using
                 # MPI_Split. Calling this here prevents deadlock if not
                 # all ranks need to read the geometry object.
+                MPI = require_mpi("distributed geometry-object input")
                 grid.comm.Split(MPI.UNDEFINED)
                 self.grid_view = None
 

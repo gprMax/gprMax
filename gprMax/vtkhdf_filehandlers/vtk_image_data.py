@@ -17,12 +17,16 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 from os import PathLike
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from mpi4py.MPI import Intracomm
+
+if TYPE_CHECKING:
+    from mpi4py.MPI import Intracomm
 
 from gprMax.vtkhdf_filehandlers.vtkhdf import VtkFileType, VtkHdfFile
 

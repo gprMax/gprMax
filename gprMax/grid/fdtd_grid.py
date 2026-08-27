@@ -80,6 +80,7 @@ class FDTDGrid:
     """
 
     IDlookup = {"Ex": 0, "Ey": 1, "Ez": 2, "Hx": 3, "Hy": 4, "Hz": 5}
+    is_distributed = False
     pml_type = PML
 
     def __init__(self):

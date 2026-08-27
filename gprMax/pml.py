@@ -17,16 +17,20 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
 from copy import deepcopy
 from dataclasses import dataclass
 from importlib import import_module
-from typing import List
+from typing import TYPE_CHECKING, List
 
 import numpy as np
-from mpi4py import MPI
 
 import gprMax.config as config
+
+if TYPE_CHECKING:
+    from mpi4py import MPI
 
 from .cython.pml_build import pml_average_er_mr, pml_sum_er_mr
 

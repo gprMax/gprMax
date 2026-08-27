@@ -1,23 +1,10 @@
-from enum import IntEnum, unique
 from typing import Union
 
 import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
 
-
-@unique
-class Dim(IntEnum):
-    X = 0
-    Y = 1
-    Z = 2
-
-
-@unique
-class Dir(IntEnum):
-    NONE = -1
-    NEG = 0
-    POS = 1
+from gprMax.grid.axes import Dim, Dir
 
 
 def mpi_datatype_for_dtype(dtype: npt.DTypeLike) -> MPI.Datatype:

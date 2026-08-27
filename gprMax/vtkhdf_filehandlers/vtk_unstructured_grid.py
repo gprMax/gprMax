@@ -17,15 +17,19 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
 from os import PathLike
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
 
 from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType, VtkFileType, VtkHdfFile
+
+if TYPE_CHECKING:
+    from mpi4py import MPI
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +165,9 @@ class VtkUnstructuredGrid(VtkHdfFile):
             self._write_root_dataset(self.Dataset.CONNECTIVITY, connectivity)
             self._write_root_dataset(self.Dataset.OFFSETS, cell_offsets)
         else:
+            from gprMax.mpi_support import require_mpi
+
+            MPI = require_mpi("parallel VTKHDF output")
             # Write partition information for each rank
             self.partition = self.comm.rank
             partition_offset = np.array([self.partition], dtype=np.int32)

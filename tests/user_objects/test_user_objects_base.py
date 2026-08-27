@@ -145,6 +145,7 @@ class TestCreateUIPDispatch:
         from gprMax.user_objects import user_objects as uo_mod
 
         grid = MagicMock(spec=MPIGrid)
+        grid.is_distributed = True
         obj = _ConcreteUserObject()
 
         with patch.object(uo_mod, "MPIUserInput") as MPIUIP:

@@ -422,17 +422,9 @@ class TestMpiPaths:
         return make_mpi_grid(size=(8, 8, 8), negative_halo_offset=(0, 0, 0), arrays=arrays)
 
     @pytest.fixture
-    def as_mpi_grid(self, monkeypatch, overlapping_grid):
-        """Make the reader treat the fake grid as an ``MPIGrid``.
-
-        The branch under test is ``isinstance(grid, MPIGrid)`` against the name
-        imported into ``geometry_objects_read``. ``MPIGrid`` is a concrete
-        class with a real constructor and no ABC registration hook, so the
-        cleanest way in is to rebind that one name.
-        """
-        import gprMax.geometry_outputs.geometry_objects_read as module
-
-        monkeypatch.setattr(module, "MPIGrid", type(overlapping_grid))
+    def as_mpi_grid(self, overlapping_grid):
+        """Mark the fake grid as distributed through the grid capability flag."""
+        overlapping_grid.is_distributed = True
         return overlapping_grid
 
     def test_an_overlapping_rank_gets_an_mpi_grid_view(self, geometry_file, as_mpi_grid):

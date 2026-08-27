@@ -542,12 +542,11 @@ def _check_supported_configuration(grid, boundary_keys: set[tuple[int, int, int,
         raise ValueError("impedance volumes currently support only 3-D models")
     if config.sim_config.general["solver"] != "cpu":
         raise ValueError("impedance volumes currently support only the CPU solver")
-    from gprMax.grid.mpi_grid import MPIGrid
     from gprMax.subgrids.grid import SubGridBaseGrid
 
     if isinstance(grid, SubGridBaseGrid):
         raise ValueError("impedance volumes are not yet supported in subgrids")
-    if isinstance(grid, MPIGrid):
+    if getattr(grid, "is_distributed", False) is True:
         raise ValueError("impedance volumes are not yet supported with MPI domain decomposition")
     if config.sim_config.general.get("subgrid", False):
         raise ValueError("impedance volumes are not yet supported in subgridded models")

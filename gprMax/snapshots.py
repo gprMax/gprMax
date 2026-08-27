@@ -17,22 +17,27 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, Generic, List
+from typing import TYPE_CHECKING, Dict, Generic, List
 
 import h5py
 import numpy as np
-from mpi4py import MPI
 from tqdm import tqdm
 
 import gprMax.config as config
 from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
-from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.grid.axes import Dim, Dir
 from gprMax.subgrids.grid import SubGridBaseGrid
-from gprMax.utilities.mpi import Dim, Dir
 from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
+
+if TYPE_CHECKING:
+    from mpi4py import MPI
+
+    from gprMax.grid.mpi_grid import MPIGrid
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
@@ -364,7 +369,7 @@ class Snapshot(Generic[GridType]):
         return origin
 
 
-class MPISnapshot(Snapshot[MPIGrid]):
+class MPISnapshot(Snapshot["MPIGrid"]):
     H_TAG = 0
     EX_TAG = 1
     EY_TAG = 2

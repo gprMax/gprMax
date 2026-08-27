@@ -29,6 +29,8 @@ GridType = TypeVar("GridType", bound=FDTDGrid)
 class Updates(Generic[GridType], ABC):
     """Defines update functions for a solver."""
 
+    is_distributed = False
+
     def __init__(self, G: GridType):
         """
         Args:

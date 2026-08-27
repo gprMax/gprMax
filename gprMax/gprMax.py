@@ -20,7 +20,7 @@ import argparse
 
 import gprMax.config as config
 
-from .contexts import Context, MPIContext, TaskfarmContext
+from .contexts import Context
 from .utilities.logging import logging_config
 
 # Arguments (used for API) and their default values (used for API and CLI)
@@ -374,9 +374,17 @@ def run_main(args):
 
     # MPI taskfarm running with (OpenMP/CUDA/OpenCL)
     if config.sim_config.args.taskfarm:
+        from gprMax.contexts import TaskfarmContext
+        from gprMax.mpi_support import require_mpi
+
+        require_mpi("MPI task farming")
         context = TaskfarmContext()
     # MPI running to divide model between ranks
     elif config.sim_config.args.mpi is not None:
+        from gprMax.contexts import MPIContext
+        from gprMax.mpi_support import require_mpi
+
+        require_mpi("MPI domain decomposition")
         context = MPIContext()
     # Standard running (OpenMP/CUDA/OpenCL/Metal)
     else:
