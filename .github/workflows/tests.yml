@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   serial-without-mpi:
-    name: Serial install (without MPI)
+    name: Serial install (core only)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -42,16 +42,15 @@ jobs:
       - name: Install core gprMax without MPI
         run: |
           python -m pip install --upgrade pip
-          python -m pip uninstall --yes mpi4py
+          python -m pip uninstall --yes mpi4py pycuda pyopencl pyobjc-framework-Metal
           python -m pip install --editable . pytest
 
       - name: Verify optional dependency metadata
         run: |
-          python -c "from importlib.metadata import requires; r = requires('gprMax') or []; assert 'mpi4py' not in r; assert any(x.startswith('mpi4py;') and 'mpi' in x for x in r)"
-          python -c "import importlib.util; import gprMax; assert importlib.util.find_spec('mpi4py') is None"
+          python -c "import importlib.util; import gprMax; assert all(importlib.util.find_spec(x) is None for x in ('mpi4py', 'pycuda', 'pyopencl', 'Metal'))"
 
-      - name: Run MPI-free serial regression tests
-        run: python -u -m pytest -q tests/utilities/test_mpi_support.py
+      - name: Run core-install regression tests
+        run: python -u -m pytest -q tests/utilities/test_mpi_support.py tests/utilities/test_packaging_extras.py
 
   unit:
     name: Unit tests (${{ matrix.os }})

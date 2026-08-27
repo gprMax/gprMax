@@ -295,6 +295,14 @@ else:
             "typing_extensions",
         ],
         extras_require={
+            "cuda": ["pycuda; sys_platform != 'darwin'"],
+            "opencl": ["pyopencl"],
+            "metal": ["pyobjc-framework-Metal; sys_platform == 'darwin'"],
+            "accelerators": [
+                "pycuda; sys_platform != 'darwin'",
+                "pyopencl",
+                "pyobjc-framework-Metal; sys_platform == 'darwin'",
+            ],
             "mpi": ["mpi4py"],
             "mpi-fractals": ["mpi4py", "mpi4py-fft"],
         },

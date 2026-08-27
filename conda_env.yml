@@ -31,8 +31,8 @@ dependencies:
   # MPI is optional. After creating this environment, use
   # pip install -e ".[mpi]" or pip install -e ".[mpi-fractals]".
   - numpy-stl
-#  - pyobjc-framework-metal
-#  - pycuda
-#  - pyopencl
+  # Accelerator bindings are optional. After creating this environment, use
+  # pip install -e ".[cuda]", ".[opencl]", or ".[metal]" as appropriate.
+  # The ".[accelerators]" extra requests all backends for this platform.
   - terminaltables
   - tqdm

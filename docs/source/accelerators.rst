@@ -17,6 +17,29 @@ Additionally, the Message Passing Interface (MPI) can be utilised to implement a
 
 Some of these accelerators and frameworks require additional software to be installed. The guidance below explains how to do that and gives examples of usage.
 
+The CPU/OpenMP solver is part of the core installation. The Python bindings
+for the other accelerators are optional package extras and can be installed
+independently from the top-level gprMax source directory:
+
+.. code-block:: console
+
+    (gprMax)$ python -m pip install -e ".[cuda]"       # Linux/Windows
+    (gprMax)$ python -m pip install -e ".[opencl]"
+    (gprMax)$ python -m pip install -e ".[metal]"      # macOS
+
+Extras can be combined, for example ``.[cuda,opencl]``. The
+``.[accelerators]`` convenience extra requests all accelerator bindings that
+apply to the current operating system. A core installation remains fully
+usable with the CPU solver when none of these extras is installed.
+
+.. warning::
+
+    Python package installers can select dependencies by operating system but
+    cannot determine whether a compatible accelerator, driver, CUDA toolkit,
+    or OpenCL runtime is installed. The ``accelerators`` convenience extra can
+    therefore fail on a machine without the necessary system software. The
+    individual backend extra is the recommended installation method.
+
 .. note::
 
     You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it with the aforementioned accelerators.
@@ -186,8 +209,20 @@ Software required
 The following steps provide guidance on how to install the extra components to allow gprMax to run on your NVIDIA GPU:
 
 1. Install the `NVIDIA CUDA Toolkit <https://developer.nvidia.com/cuda-toolkit>`_. You can follow the Installation Guides in the `NVIDIA CUDA Toolkit Documentation <http://docs.nvidia.com/cuda/index.html#installation-guides>`_ You must ensure the version of CUDA you install is compatible with the compiler you are using. This information can usually be found in a table in the CUDA Installation Guide under System Requirements.
-2. You may need to add the location of the CUDA compiler (``nvcc``) to your user path environment variable, e.g. for Windows ``C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\vX.X\bin`` or Linux/macOS ``/Developer/NVIDIA/CUDA-X.X/bin``.
-3. Install the pycuda Python module. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``. Run ``pip install pycuda``
+2. You may need to add the location of the CUDA compiler (``nvcc``) to your
+   user path environment variable, for example
+   ``C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\vX.X\bin`` on Windows
+   or the toolkit's ``bin`` directory on Linux.
+3. Install the CUDA extra. Open a Terminal (Linux) or Command Prompt
+   (Windows), navigate into the top-level gprMax directory, activate the
+   gprMax environment if necessary, and run:
+
+   .. code-block:: console
+
+       (gprMax)$ python -m pip install -e ".[cuda]"
+
+   This installs ``pycuda``. Modern macOS releases do not support NVIDIA CUDA,
+   so the dependency is guarded by a platform marker.
 
 Example
 -------
@@ -214,7 +249,16 @@ Software required
 
 The following steps provide guidance on how to install the extra components to allow gprMax to use OpenCL:
 
-1. Install the pyopencl Python module. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``. Run ``pip install pyopencl``
+1. Install a vendor OpenCL implementation/ICD for the intended CPU or GPU.
+2. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the
+   top-level gprMax directory, activate the gprMax environment if necessary,
+   and install the OpenCL extra:
+
+   .. code-block:: console
+
+       (gprMax)$ python -m pip install -e ".[opencl]"
+
+   This installs ``pyopencl``; it does not install the vendor OpenCL runtime.
 
 Example
 -------
@@ -243,8 +287,8 @@ System requirements
 
 The Apple Metal backend requires:
 
-1. **macOS 10.13 or later** - Metal is available on all modern Mac systems
-2. **Apple Silicon (M-series) based GPU** - For optimal performance
+1. **macOS 11 or later** - required by Apple Silicon Macs
+2. **Apple Silicon (M-series) based GPU**
 3. **pyobjc-framework-metal** - Python bindings for Apple Metal framework
 
 Software required
@@ -252,11 +296,20 @@ Software required
 
 The following Python package is required to use Apple Metal acceleration:
 
-1. Install the ``pyobjc-framework-metal`` Python module. Open a Terminal on macOS, navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``. Run ``pip install pyobjc-framework-metal``
+1. Open a Terminal on macOS, navigate into the top-level gprMax directory,
+   activate the gprMax environment if necessary, and install the Metal extra:
+
+   .. code-block:: console
+
+       (gprMax)$ python -m pip install -e ".[metal]"
+
+   This installs ``pyobjc-framework-Metal`` only on macOS.
 
 .. note::
 
-    The ``pyobjc-framework-metal`` package is included in the gprMax conda environment and requirements.txt file, so it should be automatically installed when setting up gprMax. The Metal backend will be automatically available on compatible macOS systems once this package is installed.
+    Metal is not installed by the core package or ``conda_env.yml``. This keeps
+    the same environment file portable across Linux, Windows, and macOS. It is
+    available on compatible Macs after installing the ``metal`` extra.
 
 Example
 -------
@@ -272,7 +325,8 @@ Run one of the test models with Metal acceleration:
 .. note::
 
     * The Metal backend automatically selects the best available GPU device on your Mac system
-    * Metal is currently available only on macOS systems; other platforms will fall back to CPU or alternative GPU backends
+    * Metal is available only on macOS; select the CPU, CUDA, or OpenCL backend
+      explicitly on other platforms
     * For debugging or development purposes, you can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to understand your hardware capabilities
 
 
