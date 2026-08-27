@@ -361,8 +361,9 @@ The interactive Marimo dashboards have their own optional dependencies:
 
     (gprMax)$ pip install -e "gprMax[marimo]"
 
-See the :doc:`Marimo toolbox <inc_Marimo>` documentation for the
-available A-scan, B-scan, progress, and introductory processing dashboards.
+See the `Marimo toolbox documentation
+<https://docs.gprmax.com/en/latest/inc_Marimo.html>`_ for the available
+A-scan, B-scan, progress, and introductory processing dashboards.
 
 **You are now ready to proceed to running gprMax.**
 
