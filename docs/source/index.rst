@@ -48,6 +48,7 @@ gprMax User Guide
     inc_ImpulseResponse
     inc_SFCW
     inc_FMCW
+    inc_Marimo
     inc_Plotting
     inc_Utilities
 

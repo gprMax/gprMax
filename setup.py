@@ -278,6 +278,7 @@ else:
             ],
             "mpi": ["mpi4py"],
             "mpi-fractals": ["mpi4py", "mpi4py-fft"],
+            "marimo": ["marimo>=0.23.8", "plotly>=6.1.1", "kaleido>=1.0"],
         },
         ext_modules=extensions,
         packages=distribution_packages(),

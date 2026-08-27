@@ -65,3 +65,6 @@ cov.xml
 # Agents
 AGENTS.md
 .codex_tmp
+
+# marimo runtime cache
+__marimo__/

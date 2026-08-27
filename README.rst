@@ -355,6 +355,16 @@ building an unavailable binding can prevent installation. The backend-specific
 system software described in the `accelerator documentation
 <https://docs.gprmax.com/en/latest/accelerators.html>`_ is still required.
 
+The interactive Marimo dashboards have their own optional dependencies:
+
+.. code-block:: console
+
+    (gprMax)$ pip install -e "gprMax[marimo]"
+
+See the `Marimo toolbox documentation
+<https://docs.gprmax.com/en/latest/inc_Marimo.html>`_ for the available
+A-scan, B-scan, progress, and introductory processing dashboards.
+
 **You are now ready to proceed to running gprMax.**
 
 Running gprMax
