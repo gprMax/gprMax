@@ -17,7 +17,10 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -26,10 +29,12 @@ from gprMax.cython.geometry_outputs import get_line_properties
 from gprMax.geometry_outputs.geometry_views import GeometryView, Metadata, MPIMetadata
 from gprMax.geometry_outputs.grid_view import GridType, MPIGridView
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import VtkUnstructuredGrid
 from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType, VtkHdfFile
+
+if TYPE_CHECKING:
+    from gprMax.grid.mpi_grid import MPIGrid
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +154,7 @@ class GeometryViewLines(GeometryView[GridType]):
             self.metadata.write_to_vtkhdf(f)
 
 
-class MPIGeometryViewLines(GeometryViewLines[MPIGrid]):
+class MPIGeometryViewLines(GeometryViewLines["MPIGrid"]):
     """Image data for a per-cell geometry view."""
 
     @property

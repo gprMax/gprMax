@@ -17,19 +17,22 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
 from scipy import fftpack
 
 from gprMax import config
 from gprMax.cython.fractals_generate import generate_fractal2D
 from gprMax.fractals.grass import Grass
-from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
-from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
+from gprMax.grid.axes import Dim, Dir
+
+if TYPE_CHECKING:
+    from mpi4py import MPI
 
 logger = logging.getLogger(__name__)
 np.seterr(divide="raise")
@@ -291,6 +294,12 @@ class MPIFractalSurface(FractalSurface):
 
     def generate_fractal_surface(self) -> bool:
         """Generate a 2D array with a fractal distribution."""
+
+        from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
+        from gprMax.mpi_support import require_mpi
+        from gprMax.utilities.mpi import get_relative_neighbour
+
+        MPI = require_mpi("distributed fractal-surface generation")
 
         # Import from mpi4py_fft
         # This is an optional dependency so only import if required

@@ -17,19 +17,23 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import datetime
 import gc
 import logging
 import sys
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import humanize
 import numpy as np
 from colorama import Fore, Style, init
 
 from gprMax.hash_cmds_file import parse_hash_commands
-from gprMax.mpi_model import MPIModel
 from gprMax.scene import Scene
+
+if TYPE_CHECKING:
+    from gprMax.mpi_model import MPIModel
 
 init()
 
@@ -194,8 +198,9 @@ class Context:
 class MPIContext(Context):
     def __init__(self):
         super().__init__()
-        from mpi4py import MPI
+        from gprMax.mpi_support import require_mpi
 
+        MPI = require_mpi("MPI domain decomposition")
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
 
@@ -216,6 +221,8 @@ class MPIContext(Context):
             exit()
 
     def _create_model(self) -> MPIModel:
+        from gprMax.mpi_model import MPIModel
+
         return MPIModel()
 
     def run(self) -> Dict:
@@ -289,10 +296,10 @@ class TaskfarmContext(Context):
 
     def __init__(self):
         super().__init__()
-        from mpi4py import MPI
-
+        from gprMax.mpi_support import require_mpi
         from gprMax.taskfarm import TaskfarmExecutor
 
+        MPI = require_mpi("MPI task farming")
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
         self.TaskfarmExecutor = TaskfarmExecutor

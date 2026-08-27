@@ -17,17 +17,22 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from gprMax._version import __version__
 from gprMax.geometry_outputs.geometry_views import GeometryView, Metadata, MPIMetadata
 from gprMax.geometry_outputs.grid_view import GridType, MPIGridView
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 from gprMax.vtkhdf_filehandlers.vtkhdf import VtkHdfFile
+
+if TYPE_CHECKING:
+    from gprMax.grid.mpi_grid import MPIGrid
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +79,7 @@ class GeometryViewVoxels(GeometryView[GridType]):
             self.metadata.write_to_vtkhdf(f)
 
 
-class MPIGeometryViewVoxels(GeometryViewVoxels[MPIGrid]):
+class MPIGeometryViewVoxels(GeometryViewVoxels["MPIGrid"]):
     """Image data for a per-cell geometry view."""
 
     @property

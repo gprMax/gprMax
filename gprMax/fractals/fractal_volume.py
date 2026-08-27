@@ -17,20 +17,23 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
 from scipy import fftpack
 
 from gprMax import config
 from gprMax.cython.fractals_generate import generate_fractal3D
 from gprMax.fractals.fractal_surface import FractalSurface
-from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
+from gprMax.grid.axes import Dim, Dir
 from gprMax.materials import CrimMixture, ListMaterial, PeplinskiSoil, RangeMaterial
-from gprMax.utilities.mpi import Dim, Dir, get_relative_neighbour
+
+if TYPE_CHECKING:
+    from mpi4py import MPI
 
 logger = logging.getLogger(__name__)
 np.seterr(divide="raise")
@@ -364,6 +367,12 @@ class MPIFractalVolume(FractalVolume):
 
     def generate_fractal_volume(self) -> bool:
         """Generate a 3D volume with a fractal distribution."""
+
+        from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
+        from gprMax.mpi_support import require_mpi
+        from gprMax.utilities.mpi import get_relative_neighbour
+
+        MPI = require_mpi("distributed fractal-volume generation")
 
         # Import from mpi4py_fft
         # This is an optional dependency so only import if required

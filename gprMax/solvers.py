@@ -20,9 +20,7 @@
 import logging
 
 import gprMax.config as config
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
-from gprMax.updates.mpi_updates import MPIUpdates
 
 from .grid.cuda_grid import CUDAGrid
 from .grid.fdtd_grid import FDTDGrid
@@ -76,7 +74,7 @@ class Solver:
             self.updates.update_eigenmode_sources_magnetic(iteration)
             self.updates.update_plane_waves_magnetic(iteration)
 
-            if isinstance(self.updates, MPIUpdates):
+            if getattr(self.updates, "is_distributed", False) is True:
                 self.updates.halo_swap_magnetic()
                 self.updates.update_magnetic_edge_devices(iteration)
                 # Modal H projections interpolate across transverse Yee
@@ -113,7 +111,7 @@ class Solver:
             self.updates.update_impedance_surfaces()
             self.updates.update_network_terminals(iteration)
 
-            if isinstance(self.updates, MPIUpdates):
+            if getattr(self.updates, "is_distributed", False) is True:
                 self.updates.halo_swap_electric()
             if isinstance(self.updates, CUDAUpdates):
                 self.memused = self.updates.calculate_memory_used(iteration)
@@ -153,7 +151,9 @@ def create_solver(model: Model) -> Solver:
         updates = CPUUpdates(grid)
         if config.get_model_config().materials["maxpoles"] != 0:
             updates.set_dispersive_updates()
-    elif type(grid) is MPIGrid:
+    elif getattr(grid, "is_distributed", False) is True:
+        from gprMax.updates.mpi_updates import MPIUpdates
+
         updates = MPIUpdates(grid)
         if config.get_model_config().materials["maxpoles"] != 0:
             updates.set_dispersive_updates()

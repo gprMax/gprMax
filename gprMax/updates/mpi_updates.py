@@ -24,6 +24,8 @@ from gprMax.updates.cpu_updates import CPUUpdates
 class MPIUpdates(CPUUpdates[MPIGrid]):
     """Defines update functions for MPI CPU-based solver."""
 
+    is_distributed = True
+
     def update_magnetic_sources(self, iteration):
         """Apply magnetic-field writers before exchanging magnetic halos.
 

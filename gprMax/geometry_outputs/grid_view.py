@@ -17,18 +17,21 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
 from itertools import chain
-from typing import Generic, Tuple
+from typing import TYPE_CHECKING, Generic, Tuple
 
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
 from typing_extensions import TypeVar
 
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.materials import Material
+
+if TYPE_CHECKING:
+    from gprMax.grid.mpi_grid import MPIGrid
 
 logger = logging.getLogger(__name__)
 
@@ -550,7 +553,7 @@ class GridView(Generic[GridType]):
         return self.get_array_slice(self.grid.Hz, upper_bound_exclusive=False)
 
 
-class MPIGridView(GridView[MPIGrid]):
+class MPIGridView(GridView["MPIGrid"]):
     def __init__(
         self,
         grid: MPIGrid,
@@ -583,6 +586,9 @@ class MPIGridView(GridView[MPIGrid]):
         """
         super().__init__(grid, xs, ys, zs, xf, yf, zf, dx, dy, dz)
 
+        from gprMax.mpi_support import require_mpi
+
+        MPI = require_mpi("distributed geometry views")
         comm = grid.comm.Split()
         assert isinstance(comm, MPI.Intracomm)
 

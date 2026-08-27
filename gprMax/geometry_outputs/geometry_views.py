@@ -17,27 +17,30 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
 import sys
 from abc import abstractmethod
 from pathlib import Path
-from typing import Dict, Generic, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Generic, List, Optional, Sequence, Tuple, Union
 
 import h5py
 import numpy as np
 import numpy.typing as npt
-from mpi4py import MPI
 from tqdm import tqdm
 
 import gprMax.config as config
 from gprMax._version import __version__
 from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.receivers import Rx
-from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.sources import Source
+from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.utilities.utilities import get_terminal_width
 from gprMax.vtkhdf_filehandlers.vtkhdf import VtkHdfFile
+
+if TYPE_CHECKING:
+    from gprMax.grid.mpi_grid import MPIGrid
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +262,7 @@ class Metadata(Generic[GridType]):
             return [m.ID for m in materials]
 
 
-class MPIMetadata(Metadata[MPIGrid]):
+class MPIMetadata(Metadata["MPIGrid"]):
     def nx_ny_nz_comment(self) -> npt.NDArray[np.int32]:
         return self.grid.global_size
 

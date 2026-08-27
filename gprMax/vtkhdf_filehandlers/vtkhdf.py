@@ -17,6 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
 from abc import abstractmethod
 from contextlib import AbstractContextManager
@@ -24,12 +26,14 @@ from enum import Enum
 from os import PathLike
 from pathlib import Path
 from types import TracebackType
-from typing import Optional, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Tuple, Union
 
 import h5py
 import numpy as np
 import numpy.typing as npt
-from mpi4py.MPI import Intracomm
+
+if TYPE_CHECKING:
+    from mpi4py.MPI import Intracomm
 
 logger = logging.getLogger(__name__)
 

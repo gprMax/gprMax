@@ -20,17 +20,19 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Generic, Optional, Tuple
+from typing import TYPE_CHECKING, Generic, Optional, Tuple
 
 import numpy as np
 import numpy.typing as npt
 from typing_extensions import TypeVar
 
 from gprMax import config
+from gprMax.grid.axes import Dim, Dir
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.subgrids.grid import SubGridBaseGrid
-from gprMax.utilities.mpi import Dim, Dir
+
+if TYPE_CHECKING:
+    from gprMax.grid.mpi_grid import MPIGrid
 
 from .utilities.utilities import round_int
 
@@ -395,7 +397,7 @@ class MainGridUserInput(UserInput[GridType]):
         )
 
 
-class MPIUserInput(MainGridUserInput[MPIGrid]):
+class MPIUserInput(MainGridUserInput["MPIGrid"]):
     """Handles (x, y, z) points supplied by the user for MPI grids.
 
     This class autotranslates points from the global coordinate system

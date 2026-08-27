@@ -17,20 +17,20 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import re
 from pathlib import Path
-from typing import Generic
+from typing import TYPE_CHECKING, Generic
 
 import h5py
 import numpy as np
-from mpi4py import MPI
 from tqdm import tqdm
 
 from gprMax import config
 from gprMax._version import __version__
 from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.material_database import (
     create_database_document,
     make_database_id,
@@ -38,6 +38,9 @@ from gprMax.material_database import (
     write_database,
 )
 from gprMax.materials import Material
+
+if TYPE_CHECKING:
+    from gprMax.grid.mpi_grid import MPIGrid
 
 
 class GeometryObject(Generic[GridType]):
@@ -172,7 +175,7 @@ class GeometryObject(Generic[GridType]):
         write_database(self.filename_materials, self._material_document(material_keys))
 
 
-class MPIGeometryObject(GeometryObject[MPIGrid]):
+class MPIGeometryObject(GeometryObject["MPIGrid"]):
     @property
     def GRID_VIEW_TYPE(self) -> type[MPIGridView]:
         return MPIGridView
@@ -189,6 +192,9 @@ class MPIGeometryObject(GeometryObject[MPIGrid]):
         IDs already have node ownership rules; cell-based rigid arrays need
         this one-plane maximum reduction before their non-overlapping write.
         """
+        from gprMax.mpi_support import require_mpi
+
+        MPI = require_mpi("distributed geometry-object output")
         for dimension in range(3):
             negative, positive = self.grid_view.comm.Shift(dimension, 1)
             send_plane = None
