@@ -117,8 +117,9 @@ def logging_config(
     # Don't add handlers for non-zero ranks unless logging is turned on
     # for all ranks
     if mpi_logger:
-        from mpi4py import MPI
+        from gprMax.mpi_support import require_mpi
 
+        MPI = require_mpi("MPI logging")
         rank = MPI.COMM_WORLD.rank
         if not log_all_ranks and not rank == 0:
             return

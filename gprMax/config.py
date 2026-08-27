@@ -361,8 +361,9 @@ class SimulationConfig:
         }
 
         if self.mpi and self.general["progressbars"]:
-            from mpi4py import MPI
+            from gprMax.mpi_support import require_mpi
 
+            MPI = require_mpi("MPI progress reporting")
             self.general["progressbars"] = MPI.COMM_WORLD.rank == 0
 
         # Store information about host machine

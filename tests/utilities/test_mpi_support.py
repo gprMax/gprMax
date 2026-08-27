@@ -84,3 +84,55 @@ def test_require_mpi_reports_actionable_error(monkeypatch):
         require_mpi("distributed test feature")
 
     assert isinstance(excinfo.value.__cause__, ImportError)
+
+
+@pytest.mark.unit
+def test_requesting_mpi_features_without_dependency_reports_actionable_error(tmp_path):
+    """Public MPI paths must fail at the optional-dependency boundary."""
+
+    script = textwrap.dedent(
+        """
+        import importlib.abc
+        import sys
+
+        class BlockMPI(importlib.abc.MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                if fullname == "mpi4py" or fullname.startswith("mpi4py."):
+                    raise ModuleNotFoundError("blocked optional mpi4py dependency")
+                return None
+
+        sys.meta_path.insert(0, BlockMPI())
+        import gprMax
+        from gprMax.mpi_support import MPIUnavailableError
+
+        cases = (
+            ({"mpi": (1, 1, 1)}, "MPI domain decomposition"),
+            ({"taskfarm": True}, "MPI task farming"),
+        )
+        for options, feature in cases:
+            scene = gprMax.Scene()
+            try:
+                gprMax.run(
+                    scenes=[scene],
+                    n=1,
+                    outputfile="unused",
+                    hide_progress_bars=True,
+                    **options,
+                )
+            except MPIUnavailableError as exc:
+                assert f"{feature} requires a working MPI runtime" in str(exc)
+            else:
+                raise AssertionError(f"{feature} unexpectedly passed without mpi4py")
+        """
+    )
+    env = os.environ.copy()
+    env["MPLCONFIGDIR"] = str(tmp_path / "matplotlib")
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, result.stderr

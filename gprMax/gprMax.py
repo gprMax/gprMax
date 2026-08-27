@@ -364,6 +364,18 @@ def run_main(args):
 
     preflight_study_args(args)
     results = {}
+
+    # Validate optional MPI support before MPI-aware logging or simulation
+    # configuration can access the runtime.
+    if args.taskfarm:
+        from gprMax.mpi_support import require_mpi
+
+        require_mpi("MPI task farming")
+    elif args.mpi is not None:
+        from gprMax.mpi_support import require_mpi
+
+        require_mpi("MPI domain decomposition")
+
     logging_config(
         level=args.log_level,
         log_file=args.log_file,
@@ -375,16 +387,12 @@ def run_main(args):
     # MPI taskfarm running with (OpenMP/CUDA/OpenCL)
     if config.sim_config.args.taskfarm:
         from gprMax.contexts import TaskfarmContext
-        from gprMax.mpi_support import require_mpi
 
-        require_mpi("MPI task farming")
         context = TaskfarmContext()
     # MPI running to divide model between ranks
     elif config.sim_config.args.mpi is not None:
         from gprMax.contexts import MPIContext
-        from gprMax.mpi_support import require_mpi
 
-        require_mpi("MPI domain decomposition")
         context = MPIContext()
     # Standard running (OpenMP/CUDA/OpenCL/Metal)
     else:
