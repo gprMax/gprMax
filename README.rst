@@ -276,6 +276,22 @@ recompiling gprMax by installing the system MPI runtime and then running
 fractals). A compatible system MPI runtime is still required; the Python extra
 does not install or configure that runtime.
 
+Accelerator bindings are also optional and can be installed independently:
+
+.. code-block:: console
+
+    (gprMax)$ pip install -e "gprMax[cuda]"       # NVIDIA CUDA; Linux/Windows
+    (gprMax)$ pip install -e "gprMax[opencl]"     # OpenCL
+    (gprMax)$ pip install -e "gprMax[metal]"      # Apple Metal; macOS
+
+Several extras can be requested together, for example
+``gprMax[cuda,opencl]``. The ``gprMax[accelerators]`` convenience extra
+requests every accelerator binding applicable to the current operating
+system. It is not the default because package installers cannot detect whether
+a compatible device, driver, CUDA toolkit, or OpenCL runtime is present, and
+building an unavailable binding can prevent installation. The backend-specific
+system software described in :ref:`accelerators` is still required.
+
 **You are now ready to proceed to running gprMax.**
 
 Running gprMax

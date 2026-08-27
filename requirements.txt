@@ -30,22 +30,15 @@ wheel
 #
 # pip install -e ".[mpi-fractals]"
 
-# If running with CUDA backend, the following dependencies
-# are also required:
-
-# pycuda
-
-
-# If running with OpenCL backend, the following dependencies
-# are also required:
-
-# pyopencl
-
-
-# If running with Apple Metal backend, the following dependencies
-# are also required:
-
-# pyobjc-framework-metal
+# Accelerator bindings are optional. Install only the backend(s) required:
+#
+# pip install -e ".[cuda]"
+# pip install -e ".[opencl]"
+# pip install -e ".[metal]"       # macOS only
+#
+# Multiple extras may be combined, e.g. ".[cuda,opencl]". The
+# ".[accelerators]" convenience extra requests every backend applicable to
+# the current platform, but may require CUDA/OpenCL system software.
 
 
 # The following are required to run the ReFrame test suite (uncomment if
