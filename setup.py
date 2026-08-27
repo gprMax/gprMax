@@ -19,10 +19,8 @@
 import glob
 import importlib.util
 import os
-import platform
 import re
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -31,6 +29,16 @@ from Cython.Build import cythonize
 from jinja2 import Environment, FileSystemLoader
 from setuptools import Extension, setup
 
+_build_config_spec = importlib.util.spec_from_file_location(
+    "gprmax_build_config", Path(__file__).resolve().parent / "build_config.py"
+)
+if _build_config_spec is None or _build_config_spec.loader is None:
+    raise RuntimeError("Could not load the gprMax compiler configuration")
+_build_config = importlib.util.module_from_spec(_build_config_spec)
+sys.modules[_build_config_spec.name] = _build_config
+_build_config_spec.loader.exec_module(_build_config)
+compiler_configuration = _build_config.compiler_configuration
+build_jobs = _build_config.build_jobs
 
 _packaging_config_spec = importlib.util.spec_from_file_location(
     "gprmax_packaging_config", Path(__file__).resolve().parent / "packaging_config.py"
@@ -193,67 +201,8 @@ if "cleanall" in sys.argv:
     sys.argv[1] = "clean"  # this is what distutils understands
 
 else:
-    # Compiler options - Windows
-    if sys.platform == "win32":
-        # No static linking as no static version of OpenMP library;
-        # /w disables warnings
-        compile_args = ["/O2", "/openmp", "/w"]
-        linker_args = []
-        libraries = []
-
-    elif sys.platform == "darwin":
-        # Check for Intel or Apple M series CPU
-        cpuID = (
-            subprocess.check_output(
-                "sysctl -n machdep.cpu.brand_string",
-                shell=True,
-                stderr=subprocess.STDOUT,
-            )
-            .decode("utf-8")
-            .strip()
-        )
-        cpuID = " ".join(cpuID.split())
-        if "Apple" in cpuID:
-            gccbasepath = "/opt/homebrew/bin/"
-        else:
-            gccbasepath = "/usr/local/bin/"
-        gccpath = glob.glob(gccbasepath + "gcc-[0-9][0-9]")
-        if gccpath:
-            # Use newest gcc found
-            os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
-            if "Apple" in cpuID:
-                rpath = "/opt/homebrew/opt/gcc/lib/gcc/" + gccpath[-1].split(os.sep)[-1][-1] + "/"
-        else:
-            raise (
-                f"Cannot find gcc in {gccbasepath}. gprMax requires gcc "
-                + "to be installed - easily done through the Homebrew package "
-                + "manager (http://brew.sh). Note: gcc with OpenMP support "
-                + "is required."
-            )
-
-        # Set minimum supported macOS deployment target to installed macOS version
-        MIN_MACOS_VERSION = platform.mac_ver()[0]
-        try:
-            os.environ["MACOSX_DEPLOYMENT_TARGET"]
-            del os.environ["MACOSX_DEPLOYMENT_TARGET"]
-        except:
-            pass
-        os.environ["MIN_SUPPORTED_MACOSX_DEPLOYMENT_TARGET"] = MIN_MACOS_VERSION
-        # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
-        compile_args = [
-            "-O3",
-            "-w",
-            "-fopenmp",
-            "-march=native",
-            f"-mmacosx-version-min={MIN_MACOS_VERSION}",
-        ]
-        linker_args = ["-fopenmp", f"-mmacosx-version-min={MIN_MACOS_VERSION}"]
-        libraries = ["gomp"]
-
-    elif sys.platform == "linux":
-        compile_args = ["-O3", "-w", "-fopenmp", "-march=native"]
-        linker_args = ["-fopenmp"]
-        libraries = []
+    compiler = compiler_configuration()
+    parallel_build_jobs = build_jobs()
 
     # Build list of all the extensions - Cython source files
     extensions = []
@@ -263,10 +212,11 @@ else:
             tmp[0].replace(os.sep, "."),
             [tmp[0] + tmp[1]],
             language="c",
-            include_dirs=[np.get_include()],
-            extra_compile_args=compile_args,
-            extra_link_args=linker_args,
-            libraries=libraries,
+            include_dirs=[np.get_include(), *compiler.include_dirs],
+            library_dirs=list(compiler.library_dirs),
+            extra_compile_args=list(compiler.compile_args),
+            extra_link_args=list(compiler.linker_args),
+            libraries=list(compiler.libraries),
         )
         extensions.append(extension)
 
@@ -280,7 +230,7 @@ else:
             "embedsignature": True,
             "language_level": 3,
         },
-        nthreads=None,
+        nthreads=parallel_build_jobs,
         annotate=False,
     )
 
@@ -336,6 +286,7 @@ else:
         exclude_package_data=EXCLUDED_PACKAGE_DATA,
         include_package_data=True,
         include_dirs=[np.get_include()],
+        options={"build_ext": {"parallel": parallel_build_jobs}},
         zip_safe=False,
         classifiers=[
             "Environment :: Console",

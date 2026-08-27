@@ -130,6 +130,34 @@ checking is enabled, so misspelled or unregistered markers fail collection.
 New tests should also pass the repository's Black, isort, and pre-commit
 checks.
 
+Binary distribution tests
+=========================
+
+The ``Binary distributions`` GitHub Actions workflow builds CPython
+3.11--3.13 wheels for Linux x86-64, Windows AMD64, macOS x86-64, and macOS
+ARM64. It also builds the source distribution. This is deliberately different
+from testing an editable source checkout: each repaired wheel is installed in
+an isolated environment before any test runs.
+
+``tests/wheel_smoke.py`` then:
+
+* imports every Cython extension, detecting missing OpenMP or other shared
+  libraries;
+* verifies that build-only C/Cython sources were not installed;
+* lists and copies the version-matched packaged examples; and
+* runs a compact CPU model using the installed wheel.
+
+The workflow uses ``auditwheel``, ``delvewheel``, and ``delocate`` through
+``cibuildwheel`` to repair platform wheels and bundle permitted shared-library
+dependencies. ``twine check`` validates every wheel and source archive. Pull
+requests changing packaging, compiled code, toolboxes, or packaged examples
+trigger the workflow; it may also be run manually. The resulting archives are
+retained as workflow artifacts but are not automatically published to PyPI.
+
+Portable release builds do not use ``-march=native``. Developers may request
+a private host-optimised Linux or macOS source build with
+``GPRMAX_BUILD_NATIVE=1``; such a build is not suitable for redistribution.
+
 Analytical validation
 =====================
 

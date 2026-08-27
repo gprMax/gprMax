@@ -80,7 +80,40 @@ Package overview
 Installation
 ============
 
-The following steps provide guidance on how to install gprMax:
+Binary wheel installation (recommended)
+---------------------------------------
+
+For a released gprMax v4 package, the simplest installation is:
+
+.. code-block:: console
+
+    $ python -m pip install gprMax
+
+The binary wheels contain the compiled CPU extensions and do not require a C
+compiler, OpenMP development headers, Git, or a Conda environment on the
+user's machine. Python 3.11--3.13 is supported, with Python 3.12 recommended.
+Release wheels are built for 64-bit Linux and Windows, and for both Intel and
+Apple Silicon macOS. A virtual environment, including one created by Conda or
+``venv``, is still recommended to isolate dependencies.
+
+Optional features use the same extras as source installations, for example:
+
+.. code-block:: console
+
+    $ python -m pip install "gprMax[mpi]"
+    $ python -m pip install "gprMax[cuda]"
+    $ python -m pip install "gprMax[metal]"
+
+These extras install Python bindings only. MPI, CUDA, OpenCL, and Metal still
+require compatible system runtimes and hardware as described below and in
+the `accelerator documentation
+<https://docs.gprmax.com/en/latest/accelerators.html>`_.
+
+Installing from source
+----------------------
+
+Build from source when developing gprMax, modifying its Cython extensions, or
+using a platform for which no wheel is published. The source-build steps are:
 
 1. Install a C compiler which supports OpenMP
 2. [Optional] Install MPI
@@ -101,11 +134,17 @@ Linux
 macOS
 ^^^^^
 
-* Xcode (the IDE for macOS) comes with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_. That said, it is still useful to have Xcode (with command line tools) installed. It can be downloaded from the App Store. Once Xcode is installed, download and install the `Homebrew package manager <http://brew.sh>`_ and then to install gcc, run:
+* Install the Xcode command-line tools, which provide Apple Clang, and install
+  the OpenMP runtime using `Homebrew <https://brew.sh>`_:
 
 .. code-block:: console
 
-    $ brew install gcc
+    $ xcode-select --install
+    $ brew install libomp
+
+  gprMax detects ``libomp`` from Homebrew, the active Python environment, or
+  ``GPRMAX_LIBOMP_PREFIX``. The previous Homebrew GCC requirement is no longer
+  necessary.
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
@@ -167,7 +206,9 @@ If you are using Arch Linux (https://www.archlinux.org/) you may need to also in
 4. [Optional] Build h5py against Parallel HDF5
 ----------------------------------------------
 
-If you plan to use the :ref:`MPI domain decomposition functionality <mpi_domain_decomposition>` available in gprMax, h5py must be built with MPI support.
+If you plan to use the `MPI domain decomposition functionality
+<https://docs.gprmax.com/en/latest/accelerators.html#mpi-domain-decomposition>`_
+available in gprMax, h5py must be built with MPI support.
 
 Install with conda
 ^^^^^^^^^^^^^^^^^^
@@ -195,7 +236,9 @@ Further guidance on building h5py against a parallel build of HDF5 is available 
 5. [Optional] Install mpi4py_fft
 --------------------------------
 
-If you plan to use the :ref:`MPI domain decomposition functionality <mpi_domain_decomposition>` available in gprMax with :ref:`fractal user objects <fractals>`, you need to install mpi4py_fft.
+If you plan to use the `MPI domain decomposition functionality
+<https://docs.gprmax.com/en/latest/accelerators.html#mpi-domain-decomposition>`_
+with fractal user objects, you need to install mpi4py_fft.
 
 Python 3.12 is recommended for this optional configuration. ``mpi4py_fft``
 contains Python-version-specific compiled extensions and also requires a
@@ -262,6 +305,20 @@ Once you have installed the aforementioned tools follow these steps to build and
 
     (gprMax)$ pip install -e gprMax
 
+Release and ordinary source builds use portable instruction sets. Developers
+making a private build for the current host can opt into machine-specific
+optimisation on Linux or macOS:
+
+.. code-block:: console
+
+    (gprMax)$ GPRMAX_BUILD_NATIVE=1 pip install -e gprMax
+
+Do not redistribute a native build: it may contain instructions unavailable
+on another processor. Published binary wheels never enable this option. Two
+extension modules are compiled concurrently by default; constrained systems
+can set ``GPRMAX_BUILD_JOBS=1``, while release builders may select a larger
+positive value.
+
 For MPI domain decomposition or task farming, install the MPI extra instead:
 
 .. code-block:: console
@@ -295,7 +352,8 @@ requests every accelerator binding applicable to the current operating
 system. It is not the default because package installers cannot detect whether
 a compatible device, driver, CUDA toolkit, or OpenCL runtime is present, and
 building an unavailable binding can prevent installation. The backend-specific
-system software described in :ref:`accelerators` is still required.
+system software described in the `accelerator documentation
+<https://docs.gprmax.com/en/latest/accelerators.html>`_ is still required.
 
 **You are now ready to proceed to running gprMax.**
 

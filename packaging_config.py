@@ -25,6 +25,7 @@ EXCLUDED_INSTALL_PACKAGES = (
 EXCLUDED_PACKAGE_DATA = {
     # Binary wheels use the extension modules produced by build_ext. Generated
     # C/Cython inputs remain in the sdist for source builds.
+    "gprMax": ["config.pxd", "*.pxd"],
     "gprMax.cython": ["*.c", "*.pyx", "*.pxd", "*.jinja"],
     "toolboxes.STEPtoVoxel": ["examples/patch_antenna/output/*"],
     "toolboxes.STLtoVoxel": [
