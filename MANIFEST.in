@@ -1,14 +1,25 @@
 include README.rst
 include setup.py
+include packaging_config.py
 include LICENSE
 include MANIFEST.in
 
 # All source files
 recursive-include examples *
 recursive-include gprMax *
-recursive-include testing *
 recursive-include toolboxes *
 
 # Exclude what we don't want to include
+prune reframe_tests
+prune testing
+prune toolboxes/STEPtoVoxel/examples/patch_antenna/output
+prune toolboxes/STLtoVoxel/examples/stl/point_cloud
+exclude toolboxes/STLtoVoxel/examples/bunny.vti
+exclude toolboxes/STLtoVoxel/examples/stl/Caribou_Lakes.stl
+exclude toolboxes/STLtoVoxel/examples/stl/Frenchman_Mountain.stl
+exclude toolboxes/STLtoVoxel/examples/stl/Mont_Blanc.stl
+exclude toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny.h5
+exclude toolboxes/STLtoVoxel/examples/stl/Trinity_Alps.stl
 global-exclude *.pyc *.pyo
+global-exclude *.so *.pyd
 global-exclude *.DS_Store

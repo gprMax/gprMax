@@ -4,6 +4,12 @@
 Testing and validation
 **********************
 
+The manual validation archive and ReFrame regression data are development
+resources and are deliberately not installed by binary wheels or PyPI source
+distributions. Clone the gprMax repository when running the workflows in this
+section. This keeps ordinary installations compact without removing any
+validation material from the project repository.
+
 gprMax uses several complementary forms of testing. They are kept separate
 because a fast unit test, a comparison with an analytical solution, an
 inter-code research study, and an HPC regression campaign provide different

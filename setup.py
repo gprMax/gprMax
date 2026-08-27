@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import glob
+import importlib.util
 import os
 import platform
 import re
@@ -28,24 +29,22 @@ from pathlib import Path
 import numpy as np
 from Cython.Build import cythonize
 from jinja2 import Environment, FileSystemLoader
-from setuptools import Extension, find_packages, setup
+from setuptools import Extension, setup
 
 
-EXAMPLES_PACKAGE = "gprMax._examples"
-EXAMPLES_SOURCE = Path("examples")
+_packaging_config_spec = importlib.util.spec_from_file_location(
+    "gprmax_packaging_config", Path(__file__).resolve().parent / "packaging_config.py"
+)
+if _packaging_config_spec is None or _packaging_config_spec.loader is None:
+    raise RuntimeError("Could not load the gprMax packaging configuration")
+_packaging_config = importlib.util.module_from_spec(_packaging_config_spec)
+_packaging_config_spec.loader.exec_module(_packaging_config)
 
-
-def packaged_example_files():
-    """Return example resources, excluding local interpreter artefacts."""
-
-    return [
-        path.relative_to(EXAMPLES_SOURCE).as_posix()
-        for path in EXAMPLES_SOURCE.rglob("*")
-        if path.is_file()
-        and "__pycache__" not in path.parts
-        and path.suffix not in {".pyc", ".pyo"}
-        and path.name != "__init__.py"
-    ]
+EXAMPLES_PACKAGE = _packaging_config.EXAMPLES_PACKAGE
+EXAMPLES_SOURCE = _packaging_config.EXAMPLES_SOURCE
+EXCLUDED_PACKAGE_DATA = _packaging_config.EXCLUDED_PACKAGE_DATA
+distribution_packages = _packaging_config.distribution_packages
+packaged_example_files = _packaging_config.packaged_example_files
 
 
 # Check Python version
@@ -325,9 +324,10 @@ else:
             "mpi-fractals": ["mpi4py", "mpi4py-fft"],
         },
         ext_modules=extensions,
-        packages=find_packages(exclude=("examples", "examples.*")) + [EXAMPLES_PACKAGE],
+        packages=distribution_packages(),
         package_dir={EXAMPLES_PACKAGE: str(EXAMPLES_SOURCE)},
         package_data={EXAMPLES_PACKAGE: packaged_example_files()},
+        exclude_package_data=EXCLUDED_PACKAGE_DATA,
         include_package_data=True,
         include_dirs=[np.get_include()],
         zip_safe=False,
