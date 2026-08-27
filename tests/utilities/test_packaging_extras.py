@@ -14,6 +14,8 @@ OPTIONAL_REQUIREMENTS = {
     "accelerators": ("pycuda", "pyopencl", "pyobjc-framework-metal"),
 }
 
+SUPPORTED_PYTHON = ">=3.11,<3.14"
+
 
 def _normalised_requirements():
     return [requirement.lower() for requirement in (requires("gprMax") or [])]
@@ -21,6 +23,11 @@ def _normalised_requirements():
 
 def _has_extra(requirement, extra):
     return re.search(rf"extra\s*==\s*['\"]{re.escape(extra)}['\"]", requirement)
+
+
+@pytest.mark.unit
+def test_supported_python_range_is_declared():
+    assert metadata("gprMax")["Requires-Python"] == SUPPORTED_PYTHON
 
 
 @pytest.mark.unit

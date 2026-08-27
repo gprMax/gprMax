@@ -140,9 +140,9 @@ Microsoft Windows
 3. Install Python, the required Python packages, and get the gprMax source
 --------------------------------------------------------------------------
 
-We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
+We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis. gprMax supports Python 3.11--3.13, and Python 3.12 is the recommended version for the first v4 release. The supplied ``conda_env.yml`` therefore creates a Python 3.12 environment.
 
-* `Download and install Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_. Choose the Python 3.x version for your platform. We recommend choosing the installation options to: install Miniconda only for your user account; add Miniconda to your PATH environment variable; and register Miniconda Python as your default Python. See the `Quick Install page <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_ for help installing Miniconda.
+* `Download and install Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_ for your platform. The Python version used by the Miniconda installer does not need to match the Python 3.12 version selected by ``conda_env.yml``. We recommend choosing the installation options to: install Miniconda only for your user account; add Miniconda to your PATH environment variable; and register Miniconda Python as your default Python. See the `Quick Install page <https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html>`_ for help installing Miniconda.
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows) and run the following commands:
 
 .. code-block:: console
@@ -196,6 +196,11 @@ Further guidance on building h5py against a parallel build of HDF5 is available 
 --------------------------------
 
 If you plan to use the :ref:`MPI domain decomposition functionality <mpi_domain_decomposition>` available in gprMax with :ref:`fractal user objects <fractals>`, you need to install mpi4py_fft.
+
+Python 3.12 is recommended for this optional configuration. ``mpi4py_fft``
+contains Python-version-specific compiled extensions and also requires a
+compatible MPI implementation and FFTW installation, so it is more sensitive
+to the local software stack than the core gprMax package.
 
 Install FFTW
 ^^^^^^^^^^^^

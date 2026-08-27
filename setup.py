@@ -47,11 +47,14 @@ distribution_packages = _packaging_config.distribution_packages
 packaged_example_files = _packaging_config.packaged_example_files
 
 
-# Check Python version
-MIN_PYTHON_VERSION = (3, 7)
-if sys.version_info[:2] < MIN_PYTHON_VERSION:
+# Check Python version. Keep this consistent with ``python_requires`` below
+# and the compatibility matrix in ``.github/workflows/tests.yml``.
+MIN_PYTHON_VERSION = (3, 11)
+MAX_PYTHON_VERSION = (3, 14)
+if not MIN_PYTHON_VERSION <= sys.version_info[:2] < MAX_PYTHON_VERSION:
     sys.exit(
-        "\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} or newer!\n"
+        f"\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} through "
+        f"{MAX_PYTHON_VERSION[0]}.{MAX_PYTHON_VERSION[1] - 1}!\n"
     )
 
 # Importing gprMax _version__.py before building can cause issues.
@@ -295,7 +298,10 @@ else:
         long_description=long_description,
         long_description_content_type="text/x-rst",
         license="GPLv3+",
-        python_requires=f">{str(MIN_PYTHON_VERSION[0])}.{str(MIN_PYTHON_VERSION[1])}",
+        python_requires=(
+            f">={MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]},"
+            f"<{MAX_PYTHON_VERSION[0]}.{MAX_PYTHON_VERSION[1]}"
+        ),
         install_requires=[
             "colorama",
             "cython",
@@ -339,6 +345,9 @@ else:
             "Operating System :: POSIX :: Linux",
             "Programming Language :: Cython",
             "Programming Language :: Python :: 3",
+            "Programming Language :: Python :: 3.11",
+            "Programming Language :: Python :: 3.12",
+            "Programming Language :: Python :: 3.13",
             "Topic :: Scientific/Engineering",
         ],
     )
