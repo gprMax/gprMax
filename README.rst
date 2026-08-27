@@ -83,7 +83,7 @@ Installation
 The following steps provide guidance on how to install gprMax:
 
 1. Install a C compiler which supports OpenMP
-2. Install MPI
+2. [Optional] Install MPI
 3. Install Python, required Python packages, and get the gprMax source code from GitHub
 4. [Optional] Build h5py against Parallel HDF5
 5. [Optional] Install mpi4py_fft
@@ -116,10 +116,17 @@ Microsoft Windows
 Alternatively, if you are using Windows 10/11 you can install the `Windows Subsystem for Linux <https://docs.microsoft.com/en-gb/windows/wsl/about>`_ and then follow the Linux install instructions for gprMax. Note however that currently, WSL does not aim to support GUI desktops or applications, e.g. Gnome, KDE, etc...
 
 
-2. Install MPI
---------------
+2. [Optional] Install MPI
+--------------------------
 
-If you are running gprMax on a HPC system, MPI will likely be installed already. Otherwise you will need to install it yourself.
+MPI is required only for domain decomposition and task farming. Ordinary
+serial, OpenMP, CUDA, OpenCL, and Metal simulations do not require an MPI
+runtime or the ``mpi4py`` Python package. The ``mpi4py`` binding is installed
+through the gprMax ``mpi`` extra in step 6.
+
+If you plan to use MPI and are running gprMax on an HPC system, a suitable MPI
+implementation will likely be installed already. Otherwise you will need to
+install one yourself.
 
 Linux/macOS
 ^^^^^^^^^^^
@@ -146,7 +153,9 @@ We recommend using Miniconda to install Python and the required Python packages 
     $ cd gprMax
     $ conda env create -f conda_env.yml
 
-This will make sure conda is up-to-date, install Git, get the latest gprMax source code from GitHub, and create an environment for gprMax with all the necessary Python packages.
+This will make sure conda is up-to-date, install Git, get the latest gprMax
+source code from GitHub, and create an environment containing the core gprMax
+packages. MPI is deliberately not installed in this base environment.
 
 If you prefer to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
 
@@ -247,6 +256,25 @@ Once you have installed the aforementioned tools follow these steps to build and
 .. code-block:: console
 
     (gprMax)$ pip install -e gprMax
+
+For MPI domain decomposition or task farming, install the MPI extra instead:
+
+.. code-block:: console
+
+    (gprMax)$ pip install -e "gprMax[mpi]"
+
+For distributed fractal generation, use the combined extra:
+
+.. code-block:: console
+
+    (gprMax)$ pip install -e "gprMax[mpi-fractals]"
+
+The ``mpi-fractals`` extra includes both ``mpi4py`` and ``mpi4py-fft``. If a
+core source installation is already built, MPI support can be added without
+recompiling gprMax by installing the system MPI runtime and then running
+``python -m pip install mpi4py`` (plus ``mpi4py-fft`` for distributed
+fractals). A compatible system MPI runtime is still required; the Python extra
+does not install or configure that runtime.
 
 **You are now ready to proceed to running gprMax.**
 

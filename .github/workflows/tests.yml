@@ -19,6 +19,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  serial-without-mpi:
+    name: Serial install (without MPI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OMP_NUM_THREADS: "1"
+      PYTHONFAULTHANDLER: "1"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: setup.py
+
+      - name: Install core gprMax without MPI
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip uninstall --yes mpi4py
+          python -m pip install --editable . pytest
+
+      - name: Verify optional dependency metadata
+        run: |
+          python -c "from importlib.metadata import requires; r = requires('gprMax') or []; assert 'mpi4py' not in r; assert any(x.startswith('mpi4py;') and 'mpi' in x for x in r)"
+          python -c "import importlib.util; import gprMax; assert importlib.util.find_spec('mpi4py') is None"
+
+      - name: Run MPI-free serial regression tests
+        run: python -u -m pytest -q tests/utilities/test_mpi_support.py
+
   unit:
     name: Unit tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -67,7 +101,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          python -m pip install --editable .
+          python -m pip install --editable ".[mpi]"
 
       - name: Import smoke test
         run: python -u -c "import gprMax; from gprMax.fractals.fractal_surface import FractalSurface; print('imports ok')"

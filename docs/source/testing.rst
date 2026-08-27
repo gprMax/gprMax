@@ -56,7 +56,11 @@ requirements and run the usual CPU selection from the repository root:
 .. code-block:: console
 
     $ python -m pip install -r requirements.txt
+    $ python -m pip install -e ".[mpi]"
     $ python -m pytest -m "not gpu and not slow"
+
+The MPI extra is needed for the complete developer test suite. Core serial
+users do not need it.
 
 This is also the selection run by the GitHub Actions workflow for pull
 requests and pushes to ``devel``. Run the complete locally available suite

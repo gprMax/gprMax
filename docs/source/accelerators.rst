@@ -62,7 +62,19 @@ By default, gprMax will try to determine and use the maximum number of OpenMP th
 MPI
 ===
 
-No additional software is required to use MPI as it is part of the standard installation of gprMax. However you will need to :ref:`build h5py with MPI support<h5py_mpi>` if you plan to use the MPI domain decomposition functionality.
+MPI support is optional and is not installed with the core gprMax package. It
+requires a system MPI implementation and the gprMax ``mpi`` extra:
+
+.. code-block:: console
+
+    (gprMax)$ python -m pip install -e ".[mpi]"
+
+The extra installs ``mpi4py`` but does not install or configure the system MPI
+runtime. You will also need to :ref:`build h5py with MPI support<h5py_mpi>` if
+you plan to use parallel HDF5 output with MPI domain decomposition.
+For an existing source installation, MPI can instead be enabled without
+recompiling gprMax by installing the runtime followed by
+``python -m pip install mpi4py``.
 
 There are two ways to use MPI with gprMax:
 

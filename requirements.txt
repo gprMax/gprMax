@@ -8,7 +8,6 @@ humanize
 jinja2
 jupyter
 matplotlib
-mpi4py
 numpy
 numpy-stl
 pandas
@@ -21,6 +20,15 @@ terminaltables
 tqdm
 typing_extensions
 wheel
+
+# MPI domain decomposition and task farming are optional. Install their
+# Python dependency through the package extra:
+#
+# pip install -e ".[mpi]"
+#
+# Distributed fractal generation additionally requires:
+#
+# pip install -e ".[mpi-fractals]"
 
 # If running with CUDA backend, the following dependencies
 # are also required:
@@ -38,11 +46,6 @@ wheel
 # are also required:
 
 # pyobjc-framework-metal
-
-
-# Distributed fractal generation additionally requires:
-
-# mpi4py-fft
 
 
 # The following are required to run the ReFrame test suite (uncomment if

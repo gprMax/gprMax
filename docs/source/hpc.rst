@@ -32,7 +32,7 @@ Full installation instructions for gprMax can be found in the :ref:`Getting Star
     (gprMax)$ python -m pip install --upgrade pip
     (gprMax)$ HDF5_MPI='ON' python -m pip install --no-binary=h5py h5py
     (gprMax)$ python -m pip install -r requirements.txt
-    (gprMax)$ python -m pip install -e .
+    (gprMax)$ python -m pip install -e ".[mpi]"
 
 .. tip::
 

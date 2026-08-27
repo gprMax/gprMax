@@ -28,8 +28,8 @@ dependencies:
 
 - pip:
   - humanize
-#  - mpi4py
-#  - mpi4py-fft
+  # MPI is optional. After creating this environment, use
+  # pip install -e ".[mpi]" or pip install -e ".[mpi-fractals]".
   - numpy-stl
 #  - pyobjc-framework-metal
 #  - pycuda

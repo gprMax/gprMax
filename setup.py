@@ -294,6 +294,10 @@ else:
             "tqdm",
             "typing_extensions",
         ],
+        extras_require={
+            "mpi": ["mpi4py"],
+            "mpi-fractals": ["mpi4py", "mpi4py-fft"],
+        },
         ext_modules=extensions,
         packages=find_packages(),
         include_package_data=True,
