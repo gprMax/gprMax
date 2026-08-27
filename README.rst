@@ -301,6 +301,23 @@ gprMax is designed as a Python package, i.e. a namespace which can contain multi
 
 Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`.
 
+Examples from a wheel installation
+----------------------------------
+
+Binary wheel installations also contain the examples that match the installed
+gprMax version. Copy them from the read-only installation into a writable
+workspace with:
+
+.. code-block:: console
+
+    (gprMax)$ python -m gprMax.examples list
+    (gprMax)$ python -m gprMax.examples copy ~/gprMax-v4-examples
+    (gprMax)$ cd ~/gprMax-v4-examples
+
+The destination contains the normal ``examples/`` hierarchy, so the same
+commands work for wheel and source installations. An existing example tree is
+not overwritten unless ``--force`` is supplied.
+
 Basic usage of gprMax is:
 
 .. code-block:: console

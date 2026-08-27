@@ -2,6 +2,15 @@
 gprMax examples
 ==============
 
+This directory is part of both source checkouts and binary wheel
+installations. Wheel users can create a writable, version-matched copy with::
+
+    python -m gprMax.examples copy
+
+Run ``python -m gprMax.examples list`` to show the installed categories. The
+copy command creates a versioned workspace containing this ``examples/``
+directory, preserving the paths used throughout the documentation.
+
 The examples are organised by application so that related hash-command input
 files and Python API models can be found together.
 

@@ -4,6 +4,18 @@ Introductory (2D) models
 
 This section provides some introductory example models in 2D that demonstrate the basic features of gprMax. Each example comes with an input file which you can download and run.
 
+If gprMax was installed from a binary wheel, all version-matched examples can
+be copied into a writable workspace before following this section:
+
+.. code-block:: console
+
+    python -m gprMax.examples list
+    python -m gprMax.examples copy ~/gprMax-v4-examples
+    cd ~/gprMax-v4-examples
+
+The copied workspace contains the same ``examples/`` paths used below. The
+source installation already provides this directory directly.
+
 .. _example-2D-Ascan:
 
 A-scan from a metal cylinder

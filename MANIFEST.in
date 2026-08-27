@@ -10,4 +10,5 @@ recursive-include testing *
 recursive-include toolboxes *
 
 # Exclude what we don't want to include
+global-exclude *.pyc *.pyo
 global-exclude *.DS_Store

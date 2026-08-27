@@ -30,6 +30,24 @@ from Cython.Build import cythonize
 from jinja2 import Environment, FileSystemLoader
 from setuptools import Extension, find_packages, setup
 
+
+EXAMPLES_PACKAGE = "gprMax._examples"
+EXAMPLES_SOURCE = Path("examples")
+
+
+def packaged_example_files():
+    """Return example resources, excluding local interpreter artefacts."""
+
+    return [
+        path.relative_to(EXAMPLES_SOURCE).as_posix()
+        for path in EXAMPLES_SOURCE.rglob("*")
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix not in {".pyc", ".pyo"}
+        and path.name != "__init__.py"
+    ]
+
+
 # Check Python version
 MIN_PYTHON_VERSION = (3, 7)
 if sys.version_info[:2] < MIN_PYTHON_VERSION:
@@ -307,7 +325,9 @@ else:
             "mpi-fractals": ["mpi4py", "mpi4py-fft"],
         },
         ext_modules=extensions,
-        packages=find_packages(),
+        packages=find_packages(exclude=("examples", "examples.*")) + [EXAMPLES_PACKAGE],
+        package_dir={EXAMPLES_PACKAGE: str(EXAMPLES_SOURCE)},
+        package_data={EXAMPLES_PACKAGE: packaged_example_files()},
         include_package_data=True,
         include_dirs=[np.get_include()],
         zip_safe=False,
