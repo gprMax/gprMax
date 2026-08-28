@@ -27,7 +27,7 @@ We are grateful to the following people for their contributions, including
 bug fixes, documentation, testing, toolboxes and model libraries, and smaller
 features:
 
-* Abhishek Kumar — GPU backend for DWP plane wave sources and FDTD subgrids — GSoC 2026
+* Abhishek Kumar — GPU backend for DWP plane-wave sources — GSoC 2026
 * Sahibjot Singh — Comprehensive test suite — GSoC 2026
 * Gaurav Sharma — Marimo notebooks and dashboards for gprMax data — GSoC 2026
 * Mahdee Abir — Initial development of STEP file voxelisation toolbox for gprMax — University of Edinburgh, 2026

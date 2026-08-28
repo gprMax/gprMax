@@ -2373,7 +2373,8 @@ Subgrid
 
 A subgrid is added to the main scene, but its materials and geometry are added
 to the subgrid object. With ``autotranslate=True`` these objects can use main
-grid coordinates:
+grid coordinates. Subgridding currently uses the double-precision CPU solver;
+CUDA, OpenCL, and Metal subgrid execution are not part of this release.
 
 .. code-block:: python
 
