@@ -23,20 +23,46 @@ finite-difference time-domain (FDTD) method. It supports two- and
 three-dimensional models through both a Python API and a text-based input-file
 interface.
 
-The software originated in research on the forward problem of ground-probing
-radar in the 1990s, documented in the `1997 D.Phil. thesis by Antonis
-Giannopoulos <https://etheses.whiterose.ac.uk/id/eprint/2443>`_. Ground
+The software originated in research on the forward problem of ground-penetrating
+radar in the 1990s. Antonis Giannopoulos created the original gprMax code and
+established its numerical foundations; this work is documented in his `1997
+D.Phil. thesis <https://etheses.whiterose.ac.uk/id/eprint/2443>`_. Ground
 Penetrating Radar (GPR) remains an important application and gives gprMax its
-name. Subsequent generations have broadened the code into a general FDTD
-research platform. The third generation was described in the `2016 Computer
-Physics Communications paper <https://doi.org/10.1016/j.cpc.2016.08.020>`_,
-and the current version 4 codebase extends the physical models, sources,
-outputs, solvers, validation evidence and user workflows substantially beyond
-that release.
+name.
 
-Current applications include GPR, antenna and microwave modelling,
-electromagnetic scattering and radar cross section, bioelectromagnetics and
-dosimetry, and radiometry. The main capabilities include:
+Craig Warren led the creation of the open-source Python and Cython codebase
+that became gprMax version 3, building on `his doctoral research
+<https://era.ed.ac.uk/items/0fd15c09-cb97-47a0-98b4-9ae0b13e81a2>`_. Iraklis
+Giannakis contributed major original developments in dispersive-material
+modelling, fractal media and realistic GPR models through `his doctoral
+research on realistic GPR modelling
+<https://era.ed.ac.uk/items/1e853a06-d597-4bdf-964c-82cdda258683>`_.
+Together with Antonis Giannopoulos, they described this generation in the
+`2016 Computer Physics Communications paper
+<https://doi.org/10.1016/j.cpc.2016.08.020>`_.
+
+Version 4 was initiated through the `doctoral research of John Hartley
+<https://era.ed.ac.uk/items/d253612b-7c1e-4adf-9a39-d730bbe76a95>`_, including
+the development of FDTD subgridding and dispersive-interface averaging. Nathan
+Mannall subsequently carried out a major architectural refactoring and
+developed the MPI domain-decomposition solver. Qifeng Shen developed the FDFD
+eigenmode solver, wave-port and impedance-boundary capabilities, and has led
+the expansion of antenna and RF modelling. Accelerator backends, testing
+infrastructure, geometry importers, toolboxes, antenna models and documentation
+also reflect substantial work by the wider gprMax community and Google Summer
+of Code contributors. The `full authors and contributors record
+<https://github.com/gprMax/gprMax/blob/devel/AUTHORS.rst>`_ describes these
+contributions in more detail.
+
+After nearly three decades of development, the current version 4 codebase
+extends substantially beyond the capabilities described in the 2016 paper.
+Although GPR remains a core application, gprMax is now a general-purpose
+research platform for time-domain computational electromagnetics. Applications
+also include antenna and microwave modelling, electromagnetic scattering and
+radar cross section, bioelectromagnetics and dosimetry, and radiometry. A range
+of established and recent methods from the published literature complement
+gprMax's original formulations and existing core functionality. Some of the
+key features include:
 
 * geometrical modelling with dielectric smoothing, semantic object tags,
   imported voxel geometries, fractal media and locally refined subgrids;

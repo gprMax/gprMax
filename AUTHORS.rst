@@ -3,7 +3,8 @@
 Authors
 *******
 
-gprMax is created and maintained by:
+The principal authors of gprMax, responsible for its creation, foundational
+original developments, or major codebase rewrites, are:
 
 * Antonis Giannopoulos — Creator of the first version of the original gprMax C code and designer of the code's numerical foundation. Developed the original input file scheme, the RIPML and the improved time-domain NTFF formulations — University of Edinburgh
 * Craig Warren — Lead developer. Created the new open source gprMax codebase in Python and Cython. Built the GPR antenna toolboxes, the gprMax website and the new documentation — Northumbria University

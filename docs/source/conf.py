@@ -14,8 +14,8 @@ import time
 sys.path.insert(0, os.path.abspath("../.."))
 
 project = "gprMax"
-copyright = f'2015-{time.strftime("%Y")}, The University of Edinburgh, United Kingdom. Authors: Craig Warren, Antonis Giannopoulos, and John Hartley'
-author = "Craig Warren, Antonis Giannopoulos, and John Hartley"
+copyright = f'2015-{time.strftime("%Y")}, The University of Edinburgh, United Kingdom. gprMax authors and contributors'
+author = "Antonis Giannopoulos, Craig Warren, Iraklis Giannakis, John Hartley, and Nathan Mannall"
 with open("../../gprMax/_version.py", "r") as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE).group(1)
 
