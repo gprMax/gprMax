@@ -10,15 +10,46 @@ Small improvements or fixes are always appreciated.
 
 If you are new to contributing to `open source <https://opensource.guide/how-to-contribute/>`_, this guide helps explain why, what, and how to get involved.
 
+Building the documentation
+--------------------------
+
+Install the Python documentation dependencies into the active development
+environment and build the HTML User Guide with:
+
+.. code-block:: console
+
+    $ python -m pip install -r docs/requirements.txt
+    $ make -C docs html
+
+The build treats Sphinx warnings as errors. The generated HTML starts at
+``docs/build/index.html``.
+
+A PDF version can be generated from the same sources. A TeX distribution that
+provides XeLaTeX and ``latexmk`` is additionally required (for example, TeX
+Live on Linux and macOS or MiKTeX on Windows):
+
+.. code-block:: console
+
+    $ make -C docs latexpdf
+
+On native Windows, the equivalent Sphinx make-mode command is:
+
+.. code-block:: console
+
+    > sphinx-build -M latexpdf docs/source docs/build -W --keep-going
+
+The resulting file is ``docs/build/latex/gprMax.pdf``. Read the Docs also
+builds a downloadable PDF for each published documentation version.
+
 How can you help us?
 --------------------
 
 * Report a bug
-* Improve our `documentation <https://docs.gprmax.com/en/devel/>`_
+* Improve our `documentation <https://docs.gprmax.com/en/latest/>`_
 * Submit a bug fix
 * Propose new features
 * Discuss the code implementation
-* Test our latest version which is available through the `devel branch <https://github.com/gprmax/gprMax/tree/devel>`_ on our repository
+* Test the current maintained code in the `master branch <https://github.com/gprmax/gprMax/tree/master>`_ of the repository
 
 How to Contribute
 -----------------
@@ -50,11 +81,13 @@ In general, we follow the "fork-and-pull" Git workflow.
 
     $ git remote -v
 
-6. Always take a pull from the upstream repository to your devel branch to keep it at par with the main project (updated repository).
+6. Update your local ``master`` branch from the upstream repository before
+   creating a feature branch.
 
 .. code-block:: console
 
-    $ git pull upstream devel
+    $ git switch master
+    $ git pull --ff-only upstream master
 
 7. Create a new branch.
 
@@ -90,7 +123,8 @@ In general, we follow the "fork-and-pull" Git workflow.
 
 .. note::
 
-    Be sure to merge the latest from "upstream" before making a pull request!
+    Be sure to incorporate the latest ``upstream/master`` before making a pull
+    request.
 
 Feature and Bug reports
 -----------------------

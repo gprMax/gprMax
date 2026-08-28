@@ -11,11 +11,11 @@ If you are new to contributing to [open source](https://opensource.guide/how-to-
 ## How can you help us?
 
 * Report a bug
-* Improve our [documentation](https://docs.gprmax.com/en/devel/)
+* Improve our [documentation](https://docs.gprmax.com/en/latest/)
 * Submit a bug fix
 * Propose new features
 * Discuss the code implementation
-* Test our latest version which is available through the [devel branch](https://github.com/gprmax/gprMax/tree/devel) on our repository.
+* Test the current maintained code in the [master branch](https://github.com/gprmax/gprMax/tree/master) of the repository.
 
 ## How to Contribute
 
@@ -38,9 +38,10 @@ In general, we follow the "fork-and-pull" Git workflow.
     ```bash
     git remote -v
     ```
-6. Always take a pull from the upstream repository to your devel branch to keep it at par with the main project (updated repository).
+6. Update your local `master` branch from the upstream repository before creating a feature branch.
    ```bash
-   git pull upstream devel
+   git switch master
+   git pull --ff-only upstream master
    ```
 7. Create a new branch.
    ```bash
@@ -65,7 +66,7 @@ In general, we follow the "fork-and-pull" Git workflow.
      ```
 12. Submit a Pull request so that we can review your changes
 
-> NOTE: Be sure to merge the latest from "upstream" before making a pull request!
+> NOTE: Be sure to incorporate the latest `upstream/master` before making a pull request!
 
 ## Feature and Bug reports
 

@@ -14,8 +14,8 @@ import time
 sys.path.insert(0, os.path.abspath("../.."))
 
 project = "gprMax"
-copyright = f'2015-{time.strftime("%Y")}, The University of Edinburgh, United Kingdom. Authors: Craig Warren, Antonis Giannopoulos, and John Hartley'
-author = "Craig Warren, Antonis Giannopoulos, and John Hartley"
+copyright = f'2015-{time.strftime("%Y")}, The University of Edinburgh, United Kingdom. gprMax authors and contributors'
+author = "Antonis Giannopoulos, Craig Warren, Iraklis Giannakis, John Hartley, and Nathan Mannall"
 with open("../../gprMax/_version.py", "r") as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE).group(1)
 
@@ -25,6 +25,7 @@ with open("../../gprMax/_version.py", "r") as fd:
 extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.autodoc",
+    "sphinx.ext.imgconverter",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
 ]
@@ -52,3 +53,16 @@ exclude_patterns = []
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+
+# -- Options for LaTeX and PDF output ----------------------------------------
+
+# XeLaTeX handles the Unicode symbols, names, and mathematical text used
+# throughout the User Guide more reliably than pdfLaTeX.
+latex_engine = "xelatex"
+latex_documents = [
+    ("index", "gprMax.tex", "gprMax User Guide", author, "manual"),
+]
+latex_elements = {
+    "papersize": "a4paper",
+}
+latex_show_urls = "footnote"

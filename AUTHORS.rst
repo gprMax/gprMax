@@ -3,7 +3,8 @@
 Authors
 *******
 
-gprMax is created and maintained by:
+The principal authors of gprMax, responsible for its creation, foundational
+original developments, or major codebase rewrites, are:
 
 * Antonis Giannopoulos — Creator of the first version of the original gprMax C code and designer of the code's numerical foundation. Developed the original input file scheme, the RIPML and the improved time-domain NTFF formulations — University of Edinburgh
 * Craig Warren — Lead developer. Created the new open source gprMax codebase in Python and Cython. Built the GPR antenna toolboxes, the gprMax website and the new documentation — Northumbria University
@@ -26,7 +27,7 @@ We are grateful to the following people for their contributions, including
 bug fixes, documentation, testing, toolboxes and model libraries, and smaller
 features:
 
-* Abhishek Kumar — GPU backend for DWP plane wave sources and FDTD subgrids — GSoC 2026
+* Abhishek Kumar — GPU backend for DWP plane-wave sources — GSoC 2026
 * Sahibjot Singh — Comprehensive test suite — GSoC 2026
 * Gaurav Sharma — Marimo notebooks and dashboards for gprMax data — GSoC 2026
 * Mahdee Abir — Initial development of STEP file voxelisation toolbox for gprMax — University of Edinburgh, 2026
@@ -37,7 +38,7 @@ features:
 * Kartik Bansal — Initial development of STL file voxelisation toolbox for gprMax — GSoC 2021
 * Ourania Patsia — Development of the 2000 MHz palm GSSI antenna surrogate model — University of Edinburgh
 * Sam Stadler — Development of the 400 MHz GSSI antenna surrogate model — Leibniz Institute for Applied Geophysics
-* Nectaria Diamanti — Advanced testing of gprMax and of its GPR antenna modelling capabilities — Aristotle University of Thessaloniki
+* Nectaria Diamanti — Early ADI-FDTD subgridding research for gprMax that influenced the current HSG formulation, and advanced testing of gprMax and its GPR antenna modelling capabilities — Aristotle University of Thessaloniki
 * Tobias Schruff-Wieneke — Initial generic MPI executor and accompanying CLI integration, subsequently incorporated into the gprMax MPI task-farm implementation — PR #233, 2019–2020
 
 For a complete and up-to-date list of contributions, see the

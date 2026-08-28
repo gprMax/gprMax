@@ -510,7 +510,7 @@ far-field traces on the device until finalisation.
 Subgridding
 ===========
 
-Including finely detailed objects or regions of high dielectric strength in FDTD modeling can dramatically increase the computational burden of the method. This is because the conditionally stable nature of the algorithm requires a minimum time step for a given spatial discretization. Thus, when the spatial discretization is lowered, either to reduce numerical dispersion or include small-sized features, the time step must be reduced. Also, the number of spatial cells is increased. One approach to reducing the overall computational cost is to introduce local finely discretized regions into a coarser finite-difference grid. This approach is known as subgridding. The computing time is reduced since there are fewer cells to solve. Also, there are fewer iterations since the coarse time step is maintained in the coarse region. gprMax uses a new Huygens subgridding (HSG) algorithm with a novel artificial loss mechanism called the switched Huygens subgridding (SHSG). For a detailed description of subgridding and the SHSG method please read [HAR2021]_. Examples of how to use the subgridding functionality can be found in the :ref:`Advanced features <examples-subgrid>` section.
+Including finely detailed objects or regions of high dielectric strength in FDTD modeling can dramatically increase the computational burden of the method. This is because the conditionally stable nature of the algorithm requires a minimum time step for a given spatial discretization. Thus, when the spatial discretization is lowered, either to reduce numerical dispersion or include small-sized features, the time step must be reduced. Also, the number of spatial cells is increased. One approach to reducing the overall computational cost is to introduce local finely discretized regions into a coarser finite-difference grid. This approach is known as subgridding. The computing time is reduced since there are fewer cells to solve. Also, there are fewer iterations since the coarse time step is maintained in the coarse region. Early gprMax subgridding research used an ADI-FDTD formulation developed by Diamanti and Giannopoulos [DIA2009]_. The current code uses a Huygens subgridding (HSG) algorithm with an artificial-loss mechanism called switched Huygens subgridding (SHSG), developed by Hartley *et al.* [HAR2021]_. The current HSG implementation is available only with the CPU solver and uses double precision; accelerator support is not part of this release. Examples of how to use the current subgridding functionality can be found in the :ref:`Advanced features <examples-subgrid>` section.
 
 Dispersive materials
 ====================
@@ -531,7 +531,14 @@ Fractal correlated noise [TUR1997]_ is used to describe the stochastic distribut
 Library of antenna models
 =========================
 
-gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_ [STA2017]_. Currently models of antennas similar to `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna, and 400 MHz antenna, as well as `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna are included. By taking advantage of our Python API, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python API <input-api>` section.
+gprMax includes Python modules with pre-defined models of antennas that behave
+similarly to commercial antennas [STA2017]_. The library contains models
+similar to 1.5 GHz, 2 GHz palm, and 400 MHz antennas from Geophysical Survey
+Systems, Inc. (GSSI), and a 1.2 GHz antenna from MALA Geoscience. The Python
+API allows these complex structures to be positioned and reused without
+building them primitive by primitive. See the :doc:`GPR Antenna Models toolbox
+<inc_GPRAntennaModels>` for the available models, attribution, supported
+resolutions, and usage examples.
 
 Anisotropic materials
 =====================
