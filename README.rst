@@ -1,5 +1,5 @@
-.. image:: https://readthedocs.org/projects/gprmax/badge/?version=devel
-    :target: http://docs.gprmax.com/en/latest/?badge=devel
+.. image:: https://readthedocs.org/projects/gprmax/badge/?version=latest
+    :target: https://docs.gprmax.com/en/latest/?badge=latest
     :alt: Documentation Status
 
 |
@@ -55,7 +55,7 @@ expansion of antenna and RF modelling. Accelerator backends, testing
 infrastructure, geometry importers, toolboxes, antenna models and documentation
 also reflect substantial work by the wider gprMax community and Google Summer
 of Code contributors. The `full authors and contributors record
-<https://github.com/gprMax/gprMax/blob/devel/AUTHORS.rst>`_ describes these
+<https://github.com/gprMax/gprMax/blob/master/AUTHORS.rst>`_ describes these
 contributions in more detail.
 
 After nearly three decades of development, the current version 4 codebase
