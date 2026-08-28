@@ -17,7 +17,38 @@ Getting Started
 What is gprMax?
 ===============
 
-`gprMax <http://www.gprmax.com>`_ is an open source software that simulates electromagnetic wave propagation. It solves Maxwell's equations in 3D using the Finite-Difference Time-Domain (FDTD) method. gprMax was designed for modelling Ground Penetrating Radar (GPR) but can also be used to model electromagnetic wave propagation for many other applications.
+`gprMax <http://www.gprmax.com>`_ is open-source computational
+electromagnetics software that solves Maxwell's equations using the
+finite-difference time-domain (FDTD) method. It supports two- and
+three-dimensional models through both a Python API and a text-based input-file
+interface.
+
+The software originated in research on the forward problem of ground-probing
+radar in the 1990s, documented in the `1997 D.Phil. thesis by Antonis
+Giannopoulos <https://etheses.whiterose.ac.uk/id/eprint/2443>`_. Ground
+Penetrating Radar (GPR) remains an important application and gives gprMax its
+name. Subsequent generations have broadened the code into a general FDTD
+research platform. The third generation was described in the `2016 Computer
+Physics Communications paper <https://doi.org/10.1016/j.cpc.2016.08.020>`_,
+and the current version 4 codebase extends the physical models, sources,
+outputs, solvers, validation evidence and user workflows substantially beyond
+that release.
+
+Current applications include GPR, antenna and microwave modelling,
+electromagnetic scattering and radar cross section, bioelectromagnetics and
+dosimetry, and radiometry. The main capabilities include:
+
+* geometrical modelling with dielectric smoothing, semantic object tags,
+  imported voxel geometries, fractal media and locally refined subgrids;
+* conductive, anisotropic, magnetic and multipole dispersive materials, with
+  reusable material databases and dispersive interface averaging;
+* dipole, voltage, transmission-line, magnetic-frill, plane-wave, rational
+  network and FDFD eigenmode-port excitation;
+* port quantities and multi-case studies, S-parameters, impedance, antenna
+  gain and directivity, radar cross section, near- and far-field transforms,
+  SAR and radiometric absorbed-power outputs; and
+* shared-memory CPU execution, NVIDIA CUDA, OpenCL, Apple Metal and MPI domain
+  decomposition, with common model-building and output interfaces.
 
 gprMax is currently released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 
@@ -33,17 +64,21 @@ If you use gprMax and publish your work we would be grateful if you could cite o
 For further information on referencing gprMax visit the `Publications section of our website <http://www.gprmax.com/publications.shtml>`_.
 
 
-Package overview
-================
+Repository overview
+===================
 
 .. code-block:: none
 
     gprMax/
+        .github/
         docs/
         examples/
         gprMax/
+        images_shared/
+        packaging/
         reframe_tests/
         testing/
+        tests/
         toolboxes/
         CITATION.cff
         CODE_OF_CONDUCT.md
@@ -55,26 +90,64 @@ Package overview
         pyproject.toml
         README.rst
         requirements.txt
+        build_config.py
+        packaging_config.py
         setup.py
 
-* ``docs/`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup, and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
-* ``examples/`` is a sub-package where example input files and models are stored.
-* ``gprMax/`` is the main package. Within this package, the main module is ``gprMax.py``
-* ``reframe_tests/`` contains regression tests run using
-  `ReFrame <https://reframe-hpc.readthedocs.io>`_. The regression checks are currently specific to the `ARCHER2 <https://www.archer2.ac.uk/>`_ system and additional work wil be required to make them portable between systems.
-* ``testing/`` is a sub-package which contains test modules and input files.
-* ``toolboxes/`` is a sub-package where useful modules contributed by users are stored, including the reproducible ``gprMaxLogo`` FDTD model and branding assets.
+* ``.github/`` contains the continuous-integration workflows that test the
+  supported operating systems, build binary wheels and source distributions,
+  and run the automated test suites.
+* ``docs/`` contains the source for the User Guide. It uses
+  `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_
+  and `Sphinx <https://www.sphinx-doc.org>`_, and is published by
+  `Read the Docs <https://readthedocs.org>`_.
+* ``examples/`` contains user-facing input files and Python API models grouped
+  by application. These examples are also distributed as package resources so
+  they remain available to users who install a binary wheel.
+* ``gprMax/`` is the main Python package. It contains model construction,
+  material and source definitions, CPU and accelerator solvers, MPI domain
+  decomposition, subgridding, FDFD eigenmode ports, near-to-far-field
+  transforms, antenna and port processing, SAR and radiometry outputs, and the
+  compiled Cython kernels used by performance-critical operations.
+* ``images_shared/`` stores figures shared by the README and User Guide.
+* ``packaging/`` contains platform-specific helpers used to produce portable
+  binary distributions, including the macOS OpenMP build support.
+* ``reframe_tests/`` contains whole-model and HPC regression tests built with
+  `ReFrame <https://reframe-hpc.readthedocs.io>`_. The supplied machine
+  configuration and numerical references currently target
+  `ARCHER2 <https://www.archer2.ac.uk/>`_; other systems can provide their own
+  configuration and reference data.
+* ``testing/`` is the manually run scientific evidence archive. It separates
+  analytical validation, comparisons with other numerical codes, backend
+  consistency studies, larger regression campaigns, experimental work, and
+  performance benchmarks.
+* ``tests/`` is the automated pytest suite, containing focused unit tests,
+  compact integration tests, platform tests and tests that require real
+  accelerator hardware.
+* ``toolboxes/`` contains user-facing processing, conversion, visualisation,
+  antenna-model and waveform-modelling tools. Toolboxes and their compact
+  examples are included in source and binary distributions.
 * ``CITATION.cff`` is a plain text file with human- and machine-readable citation information for gprMax.
-* ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
-* ``CONTRIBUTING.md`` is guide on how to contribute to gprMax.
+* ``conda_env.yml`` defines the recommended Conda development environment.
+  MPI runtimes and accelerator bindings remain optional and are installed for
+  the hardware and workflow being used.
+* ``CONTRIBUTING.md`` is a guide to contributing to gprMax.
 * ``AUTHORS.rst`` records the people and organisations that have created,
   developed, contributed to, and supported gprMax.
 * ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 * ``MANIFEST.in`` consists of commands, one per line, instructing setuptools to add or remove files from the source distribution.
-* ``pyproject.toml`` contains build system requirements.
+* ``pyproject.toml`` contains build-system requirements and configuration for
+  pytest, source formatting, and cross-platform binary-wheel builds.
 * ``README.rst`` contains getting started information on installation, usage, and new features/changes.
-* ``requirements.txt`` is a configuration file for pip that sets up a Python environment with all the required Python packages for gprMax.
-* ``setup.py`` is the centre of all activity in building, distributing, and installing gprMax, including building and compiling the Cython extension modules.
+* ``requirements.txt`` lists the common source-development and test
+  dependencies that can be installed with pip. Optional MPI and accelerator
+  dependencies are selected through package extras.
+* ``build_config.py`` provides the portable compiler and OpenMP configuration
+  used for local source builds and binary wheels.
+* ``packaging_config.py`` defines which packages, examples, toolboxes and data
+  files are included in installed distributions.
+* ``setup.py`` defines the setuptools package metadata and Cython extension
+  modules, using the shared build and packaging configuration above.
 
 .. _installation:
 
