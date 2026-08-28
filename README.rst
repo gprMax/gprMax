@@ -41,13 +41,17 @@ Together with Antonis Giannopoulos, they described this generation in the
 `2016 Computer Physics Communications paper
 <https://doi.org/10.1016/j.cpc.2016.08.020>`_.
 
-Version 4 was initiated through the `doctoral research of John Hartley
-<https://era.ed.ac.uk/items/d253612b-7c1e-4adf-9a39-d730bbe76a95>`_, including
-the development of FDTD subgridding and dispersive-interface averaging. Nathan
-Mannall subsequently carried out a major architectural refactoring and
-developed the MPI domain-decomposition solver. Qifeng Shen developed the FDFD
-eigenmode solver, wave-port and impedance-boundary capabilities, and has led
-the expansion of antenna and RF modelling. Accelerator backends, testing
+The subgridding lineage of gprMax includes the early `ADI-FDTD research of
+Nectaria Diamanti and Antonis Giannopoulos
+<https://doi.org/10.1016/j.jappgeo.2008.07.004>`_. This work influenced the
+subsequent `doctoral research of John Hartley
+<https://era.ed.ac.uk/items/d253612b-7c1e-4adf-9a39-d730bbe76a95>`_, through
+which version 4 was initiated and the current FDTD subgridding and
+dispersive-interface averaging capabilities were developed. Nathan Mannall
+subsequently carried out a major architectural refactoring and developed the
+MPI domain-decomposition solver. Qifeng Shen developed the FDFD eigenmode
+solver, wave-port and impedance-boundary capabilities, and has led the
+expansion of antenna and RF modelling. Accelerator backends, testing
 infrastructure, geometry importers, toolboxes, antenna models and documentation
 also reflect substantial work by the wider gprMax community and Google Summer
 of Code contributors. The `full authors and contributors record
@@ -56,8 +60,8 @@ contributions in more detail.
 
 After nearly three decades of development, the current version 4 codebase
 extends substantially beyond the capabilities described in the 2016 paper.
-Although GPR remains a core application, gprMax is now a general-purpose
-research platform for time-domain computational electromagnetics. Applications
+Although GPR remains a core application, gprMax is now a `general-purpose
+research platform for time-domain computational electromagnetics`. Applications
 also include antenna and microwave modelling, electromagnetic scattering and
 radar cross section, bioelectromagnetics and dosimetry, and radiometry. A range
 of established and recent methods from the published literature complement
@@ -123,7 +127,7 @@ Repository overview
 * ``.github/`` contains the continuous-integration workflows that test the
   supported operating systems, build binary wheels and source distributions,
   and run the automated test suites.
-* ``docs/`` contains the source for the User Guide. It uses
+* ``docs/`` contains the source for the HTML and PDF versions of the User Guide. It uses
   `reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_
   and `Sphinx <https://www.sphinx-doc.org>`_, and is published by
   `Read the Docs <https://readthedocs.org>`_.
@@ -524,7 +528,7 @@ Optional command line arguments
 
 .. warning::
 
-    ``-mpi`` has been depreciated in favour of ``--taskfarm``. Additionally, ``--mpi`` controls the new MPI domain decomposition functionality.
+    ``-mpi`` has been deprecated in favour of ``--taskfarm``. Additionally, ``--mpi`` controls the new MPI domain decomposition functionality.
 
 ..  list-table::
     :widths: 40 10 50
@@ -545,7 +549,7 @@ Optional command line arguments
     * - ``-t`` or ``--taskfarm``
       - flag
       - Flag to use Message Passing Interface (MPI) taskfarm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI taskfarm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm``. For further details see the
-        `parallel performance section of the User Guide <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
+        `MPI task-farm section of the User Guide <https://docs.gprmax.com/en/latest/accelerators.html#task-farm>`_
     * - ``--mpi``
       - list
       - Flag to use Message Passing Interface (MPI) to divide the model between MPI ranks. Three integers should be provided to define the number of MPI processes (min 1) in the x, y, and z dimensions.
@@ -619,7 +623,8 @@ Periodically you should update conda and the required Python packages. With the 
     $ conda env update -f conda_env.yml
 
 
-Thanks To Our Contributors ✨🔗
-===============================
-.. image:: https://contrib.rocks/image?repo=gprMax/gprMax
-   :target: https://github.com/gprMax/gprMax/graphs/contributors
+Thanks to our contributors
+==========================
+
+The complete and current contributor history is available in the `GitHub
+contributor graph <https://github.com/gprMax/gprMax/graphs/contributors>`_.

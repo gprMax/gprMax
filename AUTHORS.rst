@@ -38,7 +38,7 @@ features:
 * Kartik Bansal — Initial development of STL file voxelisation toolbox for gprMax — GSoC 2021
 * Ourania Patsia — Development of the 2000 MHz palm GSSI antenna surrogate model — University of Edinburgh
 * Sam Stadler — Development of the 400 MHz GSSI antenna surrogate model — Leibniz Institute for Applied Geophysics
-* Nectaria Diamanti — Advanced testing of gprMax and of its GPR antenna modelling capabilities — Aristotle University of Thessaloniki
+* Nectaria Diamanti — Early ADI-FDTD subgridding research for gprMax that influenced the current HSG formulation, and advanced testing of gprMax and its GPR antenna modelling capabilities — Aristotle University of Thessaloniki
 * Tobias Schruff-Wieneke — Initial generic MPI executor and accompanying CLI integration, subsequently incorporated into the gprMax MPI task-farm implementation — PR #233, 2019–2020
 
 For a complete and up-to-date list of contributions, see the
