@@ -20,7 +20,7 @@ The name gprMax comes from the joining of the acronym for Ground Penetrating Rad
 No, you can use gprMax purely through commands in your input. However, gprMax also has a Python API which can be used to create more complex simulations and scripting.
 
 **Can I still do all my pre/post-processing for gprMax in MATLAB?**
-Yes, `MATLAB has built-in functions to read HDF5 files <http://uk.mathworks.com/help/matlab/high-level-functions.html>`_.
+Yes. MATLAB has `built-in HDF5 functions <https://www.mathworks.com/help/matlab/hdf5-files.html>`_, and the :doc:`Utilities toolbox <inc_Utilities>` includes ``gprmax_read_h5.m`` for recursively loading a gprMax output and ``gprmax_h5_to_mat.m`` for creating MATLAB v7.3 MAT files. The utilities support receiver histories, ports, S-parameter studies, NTFF, SAR/radiometry, subgrids, attributes, strings, and complex arrays.
 
 **Can I convert my output file to a text file, e.g. to import it into Microsoft Excel**
 Yes, we recommend you download `HDFView <https://support.hdfgroup.org/products/java/hdfview/>`_ which is a free viewer for HDF files. You can then export any of the datasets in the output file to a text (ASCII) file that can be imported into Microsoft Excel. To do so right-click on the dataset in HDFView and choose Export Dataset -> Export Data to Text File.

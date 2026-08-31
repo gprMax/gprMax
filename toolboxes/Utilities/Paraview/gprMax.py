@@ -37,7 +37,8 @@ from paraview.simple import (
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.vtkCommonCore import vtkStringArray
 
-COLOUR_SCALARS = ("CELLS", "Material")
+MATERIAL_SCALARS = ("CELLS", "Material")
+TAG_SCALARS = ("CELLS", "TagID")
 
 
 def threshold_materials(source: SourceProxy, view: Proxy, material_ids: vtkStringArray):
@@ -55,7 +56,7 @@ def threshold_materials(source: SourceProxy, view: Proxy, material_ids: vtkStrin
 
     for index in range(material_ids.GetNumberOfValues()):
         material_name = material_ids.GetValue(index)
-        threshold = Threshold(Input=source, Scalars=COLOUR_SCALARS)
+        threshold = Threshold(Input=source, Scalars=MATERIAL_SCALARS)
 
         if pvv.major == 5 and pvv.minor < 10:
             threshold.ThresholdRange = [index, index]
@@ -77,7 +78,48 @@ def threshold_materials(source: SourceProxy, view: Proxy, material_ids: vtkStrin
         threshold.UpdatePipeline()
 
 
-def create_box_sources(names: vtkStringArray, positions: dsa.VTKArray, dl: dsa.VTKArray):
+def threshold_geometry_tags(
+    source: SourceProxy,
+    tag_ids: dsa.VTKArray,
+    tag_names: vtkStringArray,
+):
+    """Create a hidden threshold filter for every semantic geometry tag.
+
+    Tag filters are hidden initially so that they do not obscure the material
+    filters. They can be shown individually from ParaView's Pipeline Browser.
+
+    Args:
+        source: Input to the threshold filters.
+        tag_ids: Integer IDs corresponding to the tag names.
+        tag_names: Semantic tag names.
+    """
+
+    number_of_tags = tag_names.GetNumberOfValues()
+    if len(tag_ids) != number_of_tags:
+        raise HaltException("ERROR: Geometry tag ID and name catalogues have different lengths.")
+
+    pvv = GetParaViewVersion()
+    for index in range(number_of_tags):
+        tag_id = int(tag_ids[index])
+        tag_name = tag_names.GetValue(index)
+        threshold = Threshold(Input=source, Scalars=TAG_SCALARS)
+
+        if pvv.major == 5 and pvv.minor < 10:
+            threshold.ThresholdRange = [tag_id, tag_id]
+        else:
+            threshold.LowerThreshold = tag_id
+            threshold.UpperThreshold = tag_id
+
+        RenameSource(f"Tag - {tag_name}", threshold)
+        threshold.UpdatePipeline()
+
+
+def create_box_sources(
+    names: vtkStringArray,
+    positions: dsa.VTKArray,
+    dl: dsa.VTKArray,
+    view: Proxy,
+):
     """Create new single cell box sources.
 
     Args:
@@ -96,10 +138,15 @@ def create_box_sources(names: vtkStringArray, positions: dsa.VTKArray, dl: dsa.V
             ZLength=dl[2],
         )
         RenameSource(name, src)
-        Show(src)
+        Show(src, view)
 
 
-def display_pmls(pmlthick: dsa.VTKArray, dx_dy_dz: dsa.VTKArray, nx_ny_nz: dsa.VTKArray):
+def display_pmls(
+    pmlthick: dsa.VTKArray,
+    dx_dy_dz: dsa.VTKArray,
+    bounds: tuple,
+    view: Proxy,
+):
     """Display PMLs as box sources using PML thickness values.
 
     Only suitable for gprMax >= v4.
@@ -107,73 +154,78 @@ def display_pmls(pmlthick: dsa.VTKArray, dx_dy_dz: dsa.VTKArray, nx_ny_nz: dsa.V
     Args:
         pmlthick: PML thickness values for each slab (cells).
         dx_dy_dz: Spatial resolution (m).
-        nx_ny_dz: Domain size (cells).
+        bounds: Bounds of the geometry-view dataset.
+        view: View proxy in which to display the PMLs.
     """
 
     pml_names = ["x0", "y0", "z0", "xmax", "ymax", "zmax"]
     pmls = dict.fromkeys(pml_names, None)
+    xmin, xmax, ymin, ymax, zmin, zmax = bounds
+    xlength = xmax - xmin
+    ylength = ymax - ymin
+    zlength = zmax - zmin
 
     if pmlthick[0] != 0:
         x0 = Box(
             Center=[
-                pmlthick[0] * dx_dy_dz[0] / 2,
-                nx_ny_nz[1] * dx_dy_dz[1] / 2,
-                nx_ny_nz[2] * dx_dy_dz[2] / 2,
+                xmin + pmlthick[0] * dx_dy_dz[0] / 2,
+                (ymin + ymax) / 2,
+                (zmin + zmax) / 2,
             ],
             XLength=pmlthick[0] * dx_dy_dz[0],
-            YLength=nx_ny_nz[1] * dx_dy_dz[1],
-            ZLength=nx_ny_nz[2] * dx_dy_dz[2],
+            YLength=ylength,
+            ZLength=zlength,
         )
         pmls["x0"] = x0
 
     if pmlthick[3] != 0:
         xmax = Box(
             Center=[
-                dx_dy_dz[0] * (nx_ny_nz[0] - pmlthick[3] / 2),
-                nx_ny_nz[1] * dx_dy_dz[1] / 2,
-                nx_ny_nz[2] * dx_dy_dz[2] / 2,
+                bounds[1] - pmlthick[3] * dx_dy_dz[0] / 2,
+                (ymin + ymax) / 2,
+                (zmin + zmax) / 2,
             ],
             XLength=pmlthick[3] * dx_dy_dz[0],
-            YLength=nx_ny_nz[1] * dx_dy_dz[1],
-            ZLength=nx_ny_nz[2] * dx_dy_dz[2],
+            YLength=ylength,
+            ZLength=zlength,
         )
         pmls["xmax"] = xmax
 
     if pmlthick[1] != 0:
         y0 = Box(
             Center=[
-                nx_ny_nz[0] * dx_dy_dz[0] / 2,
-                pmlthick[1] * dx_dy_dz[1] / 2,
-                nx_ny_nz[2] * dx_dy_dz[2] / 2,
+                (xmin + bounds[1]) / 2,
+                ymin + pmlthick[1] * dx_dy_dz[1] / 2,
+                (zmin + zmax) / 2,
             ],
-            XLength=nx_ny_nz[0] * dx_dy_dz[0],
+            XLength=xlength,
             YLength=pmlthick[1] * dx_dy_dz[1],
-            ZLength=nx_ny_nz[2] * dx_dy_dz[2],
+            ZLength=zlength,
         )
         pmls["y0"] = y0
 
     if pmlthick[4] != 0:
         ymax = Box(
             Center=[
-                nx_ny_nz[0] * dx_dy_dz[0] / 2,
-                dx_dy_dz[1] * (nx_ny_nz[1] - pmlthick[4] / 2),
-                nx_ny_nz[2] * dx_dy_dz[2] / 2,
+                (xmin + bounds[1]) / 2,
+                bounds[3] - pmlthick[4] * dx_dy_dz[1] / 2,
+                (zmin + zmax) / 2,
             ],
-            XLength=nx_ny_nz[0] * dx_dy_dz[0],
+            XLength=xlength,
             YLength=pmlthick[4] * dx_dy_dz[1],
-            ZLength=nx_ny_nz[2] * dx_dy_dz[2],
+            ZLength=zlength,
         )
         pmls["ymax"] = ymax
 
     if pmlthick[2] != 0:
         z0 = Box(
             Center=[
-                nx_ny_nz[0] * dx_dy_dz[0] / 2,
-                nx_ny_nz[1] * dx_dy_dz[1] / 2,
-                pmlthick[2] * dx_dy_dz[2] / 2,
+                (xmin + bounds[1]) / 2,
+                (ymin + bounds[3]) / 2,
+                zmin + pmlthick[2] * dx_dy_dz[2] / 2,
             ],
-            XLength=nx_ny_nz[0] * dx_dy_dz[0],
-            YLength=nx_ny_nz[1] * dx_dy_dz[1],
+            XLength=xlength,
+            YLength=ylength,
             ZLength=pmlthick[2] * dx_dy_dz[2],
         )
         pmls["z0"] = z0
@@ -181,12 +233,12 @@ def display_pmls(pmlthick: dsa.VTKArray, dx_dy_dz: dsa.VTKArray, nx_ny_nz: dsa.V
     if pmlthick[5] != 0:
         zmax = Box(
             Center=[
-                nx_ny_nz[0] * dx_dy_dz[0] / 2,
-                nx_ny_nz[1] * dx_dy_dz[1] / 2,
-                dx_dy_dz[2] * (nx_ny_nz[2] - pmlthick[5] / 2),
+                (xmin + bounds[1]) / 2,
+                (ymin + bounds[3]) / 2,
+                bounds[5] - pmlthick[5] * dx_dy_dz[2] / 2,
             ],
-            XLength=nx_ny_nz[0] * dx_dy_dz[0],
-            YLength=nx_ny_nz[1] * dx_dy_dz[1],
+            XLength=xlength,
+            YLength=ylength,
             ZLength=pmlthick[5] * dx_dy_dz[2],
         )
         pmls["zmax"] = zmax
@@ -196,14 +248,14 @@ def display_pmls(pmlthick: dsa.VTKArray, dx_dy_dz: dsa.VTKArray, nx_ny_nz: dsa.V
     for pml in pmls:
         if pmls[pml]:
             RenameSource("PML - " + pml, pmls[pml])
-            Hide(pmls[pml], pv_view)
+            Hide(pmls[pml], view)
             tmp.append(pmls[pml])
 
     # Create a group of PMLs to switch on/off easily
     if tmp:
         pml_gp = AppendDatasets(Input=tmp)
         RenameSource("PML - All", pml_gp)
-        pml_view = Show(pml_gp)
+        pml_view = Show(pml_gp, view)
         pml_view.Opacity = 0.5
 
 
@@ -253,9 +305,7 @@ try:
         if len(metadata_keys) > 0:
             keys = "\n- ".join(metadata_keys)
             print(f"Found:  \n- {keys}\n")
-        raise HaltException(
-            "ERROR: Missing gprMax metadata information. Do you have the correct source selected?"
-        )
+        raise HaltException("ERROR: Missing gprMax metadata information. Do you have the correct source selected?")
 
     # gprMax version
     version = data.FieldData["gprMax_version"].GetValue(0)
@@ -282,7 +332,7 @@ try:
         pv_disp = Show(pv_source, pv_view)
 
     # Set scalar colouring
-    ColorBy(pv_disp, COLOUR_SCALARS)
+    ColorBy(pv_disp, MATERIAL_SCALARS)
 
     # Materials
     print("Loading materials... ", end="\t")
@@ -292,10 +342,26 @@ try:
     else:
         print("No materials to load.")
 
+    # Display semantic geometry tags as initially hidden threshold items
+    print("Loading geometry tags... ", end="\t")
+    if (
+        is_valid_key("geometry_tag_ids", data.FieldData)
+        and is_valid_key("geometry_tag_names", data.FieldData)
+        and is_valid_key("TagID", data.CellData)
+    ):
+        threshold_geometry_tags(
+            pv_source,
+            data.FieldData["geometry_tag_ids"],
+            data.FieldData["geometry_tag_names"],
+        )
+        print("Done.")
+    else:
+        print("No geometry tags to load.")
+
     # Display any sources
     print("Loading sources... ", end="\t\t")
     if is_valid_key("source_ids", data.FieldData) and is_valid_key("sources", data.FieldData):
-        create_box_sources(data.FieldData["source_ids"], data.FieldData["sources"], dl)
+        create_box_sources(data.FieldData["source_ids"], data.FieldData["sources"], dl, pv_view)
         print("Done.")
     else:
         print("No sources to load.")
@@ -303,7 +369,7 @@ try:
     # Display any receivers
     print("Loading receivers... ", end="\t")
     if is_valid_key("receiver_ids", data.FieldData) and is_valid_key("receivers", data.FieldData):
-        create_box_sources(data.FieldData["receiver_ids"], data.FieldData["receivers"], dl)
+        create_box_sources(data.FieldData["receiver_ids"], data.FieldData["receivers"], dl, pv_view)
         print("Done.")
     else:
         print("No receivers to load.")
@@ -311,7 +377,7 @@ try:
     # Display any PMLs
     print("Loading PMLs... ", end="\t\t")
     if is_valid_key("pml_thickness", data.FieldData):
-        display_pmls(data.FieldData["pml_thickness"], dl, nl)
+        display_pmls(data.FieldData["pml_thickness"], dl, raw_data.GetBounds(), pv_view)
         print("Done.")
     else:
         print("No PMLs to load.")

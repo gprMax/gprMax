@@ -198,6 +198,15 @@ database. For example:
 The database is resolved beside the HDF5 geometry file. Legacy text material
 files remain readable when their filename ends in ``.txt``.
 
+New PNG-derived geometry should be created with
+``python -m toolboxes.Utilities.convert_png2h5``. The utility writes both the
+current HDF5 material-key mapping and an adjacent editable JSON database. Its
+entries initially contain null constitutive values because electromagnetic
+properties cannot be inferred from image colours; complete them before using
+``GeometryObjectsRead``. The selected RGB/RGBA values remain in material
+metadata for an auditable colour-to-material mapping. See the
+:doc:`Utilities toolbox <inc_Utilities>` for the complete workflow.
+
 Convert an existing pair non-destructively with:
 
 .. code-block:: console

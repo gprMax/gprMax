@@ -38,7 +38,11 @@ For example to plot the ``Ez`` output component with it's FFT:
 plot_Bscan.py
 -------------
 
-gprMax produces a separate output file for each trace (A-scan) in the B-scan. These must be combined into a single file using the ``outputfiles_merge.py`` module (found in the ``toolboxes\Utilities``). This module uses matplotlib to plot an image of the B-scan. Usage (from the top-level gprMax directory) is:
+gprMax produces a separate output file for each trace (A-scan) in the
+B-scan. These must first be combined with the
+``toolboxes.Utilities.outputfiles_merge`` module. ``plot_Bscan.py`` then uses
+matplotlib to plot the resulting real, time-domain receiver-data matrix.
+Usage from the top-level gprMax directory is:
 
 .. code-block:: none
 
@@ -48,6 +52,19 @@ where:
 
 * ``outputfile`` is the name of output file including the path
 * ``rx-component`` is the name of the receiver output component (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot
+
+Merged antenna terminal voltages can be plotted without adding a point
+receiver. Select ``Vtotal`` and identify the merged port or feed group:
+
+.. code-block:: none
+
+    python -m toolboxes.Plotting.plot_Bscan antenna_merged.h5 Vtotal \
+        --trace-group ports/receive
+
+Voltage-source and rational-network ports use ``ports/<ID>``. Transmission
+lines and magnetic frills use paths such as ``tls/tl1`` and
+``frills/frill1``. S-parameters, impedance, and spectra are intentionally not
+B-scan quantities and cannot be selected here.
 
 plot_port.py
 ------------
