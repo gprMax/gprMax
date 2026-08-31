@@ -1,0 +1,21 @@
+#title: Four buried metal bars for GPR B-scan export
+#domain_mode: TM
+#domain: 0.720 0.320 inf
+#dx_dy_dz: 0.002 0.002 0.002
+#time_window: 8e-9
+
+#material: 6 0.002 1 0 half_space
+
+#waveform: ricker 1 1.0e9 pulse
+#hertzian_dipole: z 0.040 0.275 inf pulse
+#rx: 0.080 0.275 inf
+#src_steps: 0.004 0 0
+#rx_steps: 0.004 0 0
+
+#box: 0 0 0 0.720 0.250 inf half_space
+#cylinder: 0.160 0.185 0 0.160 0.185 inf 0.012 pec
+#cylinder: 0.270 0.145 0 0.270 0.145 inf 0.015 pec
+#cylinder: 0.390 0.105 0 0.390 0.105 inf 0.010 pec
+#cylinder: 0.500 0.165 0 0.500 0.165 inf 0.013 pec
+
+#geometry_view: 0 0 0 0.720 0.320 inf 0.002 0.002 0.002 four_metal_bars n

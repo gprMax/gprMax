@@ -45,7 +45,15 @@ def gather_receiver_outputs(filename, rxcomponent):
     return np.column_stack(traces), dt
 
 
-def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, show=True):
+def mpl_plot(
+    filename,
+    outputdata,
+    dt,
+    rxnumber,
+    rxcomponent,
+    show=True,
+    trace_group=None,
+):
     """Creates a plot of the B-scan.
 
     Args:
@@ -57,6 +65,7 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, show=True):
         show: boolean flag to display the plot interactively; if False, or
             if the current matplotlib backend is not interactive, the plot
             is saved to file instead.
+        trace_group: optional HDF5 group for a terminal-voltage B-scan.
 
     Returns:
         plt: matplotlib plot object.
@@ -64,8 +73,10 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, show=True):
 
     file = Path(filename)
 
+    trace_id = str(trace_group).strip("/") if trace_group else f"rx{rxnumber}"
+    safe_trace_id = trace_id.replace("/", "_")
     fig = plt.figure(
-        num=file.stem + " - rx" + str(rxnumber),
+        num=f"{file.stem} - {trace_id}",
         figsize=(20, 10),
         facecolor="w",
         edgecolor="w",
@@ -97,8 +108,10 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, show=True):
         cb.set_label("Field strength [A/m]")
     elif "I" in rxcomponent:
         cb.set_label("Current [A]")
+    elif rxcomponent.startswith("V"):
+        cb.set_label("Voltage [V]")
 
-    suffix = "_rx" + str(rxnumber)
+    suffix = f"_{safe_trace_id}"
     handle_plot_output(plt, fig, str(file), suffix=suffix, show=show)
 
     return plt
@@ -114,7 +127,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "rx_component",
         help="name of output component to be plotted",
-        choices=["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz"],
+        choices=["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz", "Vtotal"],
+    )
+    parser.add_argument(
+        "--trace-group",
+        default=None,
+        help=("time-domain terminal-voltage group in a merged file, e.g. " "ports/receive, tls/tl1, or frills/frill1"),
     )
     parser.add_argument(
         "-gather",
@@ -130,18 +148,38 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Open output file and read number of outputs (receivers)
-    with h5py.File(args.outputfile, "r") as f:
-        nrx = int(f.attrs["nrx"])
-
-    # Check there are any receivers
-    if nrx == 0:
-        raise ValueError(f"No receivers found in {args.outputfile}")
-
-    if args.gather:
+    if args.trace_group is not None:
+        if args.gather:
+            parser.error("--trace-group and -gather cannot be used together")
+        if args.rx_component != "Vtotal":
+            parser.error("--trace-group requires the Vtotal component")
+        outputdata, dt = get_output_data(
+            args.outputfile,
+            1,
+            args.rx_component,
+            trace_group=args.trace_group,
+        )
+        mpl_plot(
+            args.outputfile,
+            outputdata,
+            dt,
+            1,
+            args.rx_component,
+            show=not args.save,
+            trace_group=args.trace_group,
+        )
+    elif args.rx_component == "Vtotal":
+        parser.error("Vtotal requires --trace-group")
+    elif args.gather:
         rxsgather, dt = gather_receiver_outputs(args.outputfile, args.rx_component)
+        with h5py.File(args.outputfile, "r") as f:
+            nrx = int(f.attrs["nrx"])
         mpl_plot(args.outputfile, rxsgather, dt, nrx, args.rx_component, show=not args.save)
     else:
+        with h5py.File(args.outputfile, "r") as f:
+            nrx = int(f.attrs["nrx"])
+        if nrx == 0:
+            raise ValueError(f"No receivers found in {args.outputfile}")
         for rx in range(1, nrx + 1):
             outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
             mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component, show=not args.save)

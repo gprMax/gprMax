@@ -84,6 +84,16 @@ def _assert_examples_are_available(workspace: Path) -> None:
     assert (copied / "examples" / "gpr" / "basic" / "cylinder_Ascan_2D.in").is_file()
 
 
+def _assert_matlab_utilities_are_available() -> None:
+    toolboxes = Path(importlib.import_module("toolboxes").__file__).resolve().parent
+    matlab = toolboxes / "Utilities" / "MATLAB"
+    assert (matlab / "gprmax_read_h5.m").is_file()
+    assert (matlab / "gprmax_h5_to_mat.m").is_file()
+    assert (matlab / "gprmax_h5_get.m").is_file()
+    assert (matlab / "plot_Ascan.m").is_file()
+    assert (matlab / "plot_Bscan.m").is_file()
+
+
 def _run_tiny_cpu_model(output: Path) -> None:
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(0.001, 0.001, 0.001)))
@@ -91,9 +101,7 @@ def _run_tiny_cpu_model(output: Path) -> None:
     scene.add(gprMax.PMLThickness(thickness=0))
     scene.add(gprMax.TimeWindow(iterations=300))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"))
-    scene.add(
-        gprMax.HertzianDipole(p1=(0.005, 0.005, 0.005), polarisation="z", waveform_id="pulse")
-    )
+    scene.add(gprMax.HertzianDipole(p1=(0.005, 0.005, 0.005), polarisation="z", waveform_id="pulse"))
     scene.add(gprMax.Rx(p1=(0.006, 0.005, 0.005), outputs=["Ez"]))
 
     gprMax.run(
@@ -108,6 +116,7 @@ def _run_tiny_cpu_model(output: Path) -> None:
 def main() -> None:
     _assert_compiled_extensions_load()
     _assert_only_wheel_payload_is_installed()
+    _assert_matlab_utilities_are_available()
     with tempfile.TemporaryDirectory(prefix="gprmax-wheel-") as directory:
         root = Path(directory)
         _assert_examples_are_available(root / "workspace")

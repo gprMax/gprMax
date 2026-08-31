@@ -7,7 +7,7 @@ Model Output
 Field(s) output
 ===============
 
-gprMax produces an output file that primarily contains time history data for electromagnetic field outputs (receivers) in the model. The output file has the same name as the input file but with ``.h5`` appended, and therefore uses the widely-supported `HDF5 <https://www.hdfgroup.org/HDF5/>`_ format which was designed to store and organize large amounts of numerical data. There are a number of free tools available to read HDF5 files. Also MATLAB has high- and low-level functions for reading and writing HDF5 files, i.e. ``h5info`` and ``h5disp`` are useful for returning information and displaying the contents of HDF5 files respectively. gprMax includes some Python modules (in the ``toolboxes/plotting`` package) to help you view output data, which are documented in the README.rst file for that package.
+gprMax produces an output file that primarily contains time history data for electromagnetic field outputs (receivers) in the model. The output file has the same name as the input file but with ``.h5`` appended, and therefore uses the widely-supported `HDF5 <https://www.hdfgroup.org/HDF5/>`_ format which was designed to store and organize large amounts of numerical data. There are a number of free tools available to read HDF5 files. MATLAB also has high- and low-level functions for reading HDF5 files, including ``h5info``, ``h5disp``, and ``h5read``. The :doc:`Utilities toolbox <inc_Utilities>` supplies ``gprmax_read_h5.m`` to load the complete hierarchy into a MATLAB structure and ``gprmax_h5_to_mat.m`` to create MATLAB v7.3 MAT files. These functions reconstruct complex arrays and retain gprMax's documented multidimensional array ordering. Its modernised ``plot_Ascan.m`` and ``plot_Bscan.m`` functions use the stored physical timing and support receiver fields, subgrids, and merged terminal-voltage scans. gprMax also includes Python modules in the Plotting toolbox to view output data.
 
 File structure
 --------------
@@ -1612,7 +1612,7 @@ semantics.
 #. **Open the file** either from the File menu or the toolbar.
 #. Click the **Apply** button in the Properties panel. You should see an outline of the volume of the geometry view.
 #. Install the ``gprMax.py`` Python script, that comes with the gprMax source code (in the ``toolboxes/Utilities/Paraview`` directory), as a macro in Paraview. This script makes it quick and easy to view the different materials in a geometry file. To add the script as a macro in Paraview choose the file from the Macros->Add new macro menu. It will then appear as a shortcut button in the toolbar as shown in :numref:`pv_toolbar`. You only need to do this once, the macro will be kept in Paraview for future use.
-#. Click the ``gprMax`` shortcut button. All the materials in the model should appear in the Pipeline Browser as Threshold items as shown in :numref:`pv_pipeline`.
+#. Click the ``gprMax`` shortcut button. All the materials in the model should appear in the Pipeline Browser as Threshold items as shown in :numref:`pv_pipeline`. If the geometry contains semantic tags, the macro also creates ``Tag - <name>`` Threshold items. These are hidden initially to avoid obscuring the material view and can be enabled individually with the eye icon.
 
 .. _pv_pipeline:
 
