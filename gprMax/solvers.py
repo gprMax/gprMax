@@ -42,8 +42,12 @@ class Solver:
         """
         Args:
             updates: Updates contains methods to run FDTD algorithm.
-            hsg: boolean to use sub-gridding.
         """
+
+        if not isinstance(updates, Updates):
+            raise TypeError(
+                f"updates must implement the Updates interface, got {type(updates).__name__}"
+            )
 
         self.updates = updates
         self.solvetime = 0

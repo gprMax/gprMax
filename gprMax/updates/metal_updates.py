@@ -41,6 +41,7 @@ from gprMax.eigenmode_device import (
     prepare_device_eigenmode_source,
     reanchor_device_eigenmode_monitor,
 )
+from gprMax.grid.metal_grid import MetalGrid
 from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
 from gprMax.ntff.device import MetalCombinedKSIRCollector
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays, requested_current_outputs
@@ -61,21 +62,22 @@ from gprMax.sources import (
     htod_transmission_line_arrays,
 )
 from gprMax.updates.metal_plane_waves import MetalPlaneWaveController
+from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import round32
 
 logger = logging.getLogger(__name__)
 
 
-class MetalUpdates:
+class MetalUpdates(Updates[MetalGrid]):
     """Defines update functions for Apple Metal-based solver."""
 
-    def __init__(self, G, shared=None):
+    def __init__(self, G: MetalGrid, shared=None):
         """
         Args:
-            G: OpenCLGrid class describing a grid in a model.
+            G: MetalGrid class describing a grid in a model.
         """
 
-        self.grid = G
+        super().__init__(G)
 
         self.metal = import_module("Metal")
         self.opts = self.metal.MTLCompileOptions.new()

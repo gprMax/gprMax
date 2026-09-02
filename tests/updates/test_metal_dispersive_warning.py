@@ -40,13 +40,14 @@ import pytest
 
 import gprMax.solvers as solvers_mod
 from gprMax import config, gprMax
+from gprMax.updates.cpu_updates import CPUUpdates
 
 
 class _FakeMetalGrid:
     pass
 
 
-class _FakeMetalUpdates:
+class _FakeMetalUpdates(CPUUpdates):
     def __init__(self, grid):
         self.grid = grid
 

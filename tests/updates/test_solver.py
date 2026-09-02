@@ -19,7 +19,7 @@
 
 This file holds the **running order of an FDTD timestep**, and it holds it
 nowhere else. There is no "advance one step" method on ``CPUUpdates``; the
-sequence exists only as eleven consecutive lines inside ``Solver.solve``.
+sequence exists only inside ``Solver.solve``.
 
 That matters because the Yee scheme leapfrogs. Electric and magnetic fields
 are staggered half a timestep apart and each is computed from the curl of the
@@ -54,6 +54,7 @@ CPU_ITERATION_ORDER = [
     "store_outputs",
     "store_snapshots",
     "observe_ntff_electric",
+    "observe_sar_electric",
     "update_magnetic",
     "update_magnetic_pml",
     "update_magnetic_sources",
@@ -69,6 +70,8 @@ CPU_ITERATION_ORDER = [
     "update_plane_waves_electric",
     "update_symmetry_boundaries_electric_b",
     "update_electric_b",
+    "update_impedance_surfaces",
+    "update_network_terminals",
 ]
 
 # Called once each, outside the loop.
@@ -125,6 +128,9 @@ class RecordingUpdates(CPUUpdates):
     def observe_ntff_electric(self, iteration):
         self._record("observe_ntff_electric")
 
+    def observe_sar_electric(self, iteration):
+        self._record("observe_sar_electric")
+
     def update_eigenmode_sources_magnetic(self, iteration):
         self._record("update_eigenmode_sources_magnetic")
 
@@ -146,6 +152,12 @@ class RecordingUpdates(CPUUpdates):
     def update_electric_b(self):
         self._record("update_electric_b")
 
+    def update_impedance_surfaces(self):
+        self._record("update_impedance_surfaces")
+
+    def update_network_terminals(self, iteration):
+        self._record("update_network_terminals")
+
     def time_start(self):
         self._record("time_start")
 
@@ -163,8 +175,8 @@ class RecordingUpdates(CPUUpdates):
 class MinimalRecordingUpdates(Updates):
     """A conforming backend that is *not* a ``CPUUpdates``.
 
-    Used to show which steps are CPU-only: the two plane-wave calls are
-    skipped entirely for a backend the ``isinstance`` guard does not match.
+    It records the common mandatory sequence and selected optional hooks,
+    while leaving plane-wave and eigenmode hooks as inherited no-ops.
     """
 
     def __init__(self):
@@ -201,6 +213,9 @@ class MinimalRecordingUpdates(Updates):
     def observe_ntff_electric(self, iteration):
         self._record("observe_ntff_electric")
 
+    def observe_sar_electric(self, iteration):
+        self._record("observe_sar_electric")
+
     def observe_ntff_magnetic(self, iteration):
         self._record("observe_ntff_magnetic")
 
@@ -212,6 +227,12 @@ class MinimalRecordingUpdates(Updates):
 
     def update_electric_b(self):
         self._record("update_electric_b")
+
+    def update_impedance_surfaces(self):
+        self._record("update_impedance_surfaces")
+
+    def update_network_terminals(self, iteration):
+        self._record("update_network_terminals")
 
     def time_start(self):
         self._record("time_start")
@@ -237,7 +258,7 @@ def recording_updates():
 
 
 class TestSolverConstruction:
-    """``Solver(updates)`` — three attributes, no logic."""
+    """``Solver(updates)`` — validate and retain a conforming backend."""
 
     def test_stores_the_updates_object(self, recording_updates):
         assert Solver(recording_updates).updates is recording_updates
@@ -260,9 +281,15 @@ class TestSolverConstruction:
         Solver(recording_updates)
         assert recording_updates.calls == []
 
+    def test_rejects_an_object_that_bypasses_the_updates_contract(self):
+        """Fail during setup rather than at the first missing timestep hook."""
+
+        with pytest.raises(TypeError, match="Updates interface"):
+            Solver(SimpleNamespace())
+
 
 class TestIterationOrder:
-    """The eleven beats, in order. The heart of this file."""
+    """The complete timestep sequence, in order. The heart of this file."""
 
     def test_one_iteration_produces_the_canonical_sequence(self, recording_updates):
         """The full per-iteration order for a CPU run.
@@ -322,16 +349,21 @@ class TestIterationOrder:
 
         assert calls.index(field) < calls.index(pml) < calls.index(sources)
 
-    def test_electric_b_is_the_last_step_of_the_iteration(self, recording_updates):
-        """The dispersive closing half runs after everything else.
+    def test_electric_b_precedes_sparse_electric_edge_corrections(self, recording_updates):
+        """The dispersive closing half runs before sparse edge corrections.
 
         It needs both the old and the new electric field, so it cannot run
-        until the PML and the sources have finished with E.
+        until the PML and the sources have finished with E. Impedance and
+        network-terminal corrections then act on the completed bulk update.
         """
         Solver(recording_updates).solve(range(1))
 
         body = [c for c in recording_updates.calls if c not in PROLOGUE + EPILOGUE]
-        assert body[-1] == "update_electric_b"
+        assert body[-3:] == [
+            "update_electric_b",
+            "update_impedance_surfaces",
+            "update_network_terminals",
+        ]
 
     def test_electric_b_follows_the_electric_sources(self, recording_updates):
         Solver(recording_updates).solve(range(1))
@@ -346,11 +378,11 @@ class TestIterationOrder:
         assert calls.index("update_magnetic_sources") < calls.index("update_plane_waves_magnetic")
         assert calls.index("update_electric_sources") < calls.index("update_plane_waves_electric")
 
-    def test_there_are_eighteen_steps_in_an_iteration(self, recording_updates):
+    def test_there_are_twenty_one_steps_in_an_iteration(self, recording_updates):
         Solver(recording_updates).solve(range(1))
 
         body = [c for c in recording_updates.calls if c not in PROLOGUE + EPILOGUE]
-        assert len(body) == 18
+        assert len(body) == 21
 
 
 class TestLoopBracketing:
@@ -428,7 +460,7 @@ class TestIterationCount:
         Solver(recording_updates).solve(iter([0, 1, 2]))
 
         body = [c for c in recording_updates.calls if c not in PROLOGUE + EPILOGUE]
-        assert len(body) == 3 * 18
+        assert len(body) == 3 * len(CPU_ITERATION_ORDER)
 
     def test_iteration_values_are_passed_to_the_steps(self):
         """Whatever the iterator yields reaches the iteration-taking steps."""
@@ -443,15 +475,11 @@ class TestIterationCount:
         assert seen == [3, 9, 27]
 
 
-class TestBackendSpecificSteps:
-    """Which steps a backend gets depends on its type.
+class TestOptionalAndBackendSpecificSteps:
+    """Optional hooks may be inherited as no-ops or overridden by a backend."""
 
-    ``Solver.solve`` guards four of its calls with ``isinstance``, because
-    the methods are not on the ``Updates`` base class.
-    """
-
-    def test_a_non_cpu_backend_skips_the_plane_wave_steps(self):
-        """The two plane-wave calls are ``CPUUpdates``-only."""
+    def test_inherited_plane_wave_hooks_are_noops(self):
+        """The calls occur, but a backend may intentionally do no work."""
         updates = MinimalRecordingUpdates()
 
         Solver(updates).solve(range(1))
@@ -459,19 +487,22 @@ class TestBackendSpecificSteps:
         assert "update_plane_waves_electric" not in updates.calls
         assert "update_plane_waves_magnetic" not in updates.calls
 
-    def test_a_non_cpu_backend_still_runs_the_shared_steps(self):
-        """Everything on the base class still happens, in the same order.
-        CPU-only steps (plane-waves, eigenmode) are excluded."""
+    def test_a_minimal_backend_still_runs_the_recorded_shared_steps(self):
+        """Recorded hooks retain their order around inherited no-ops."""
         updates = MinimalRecordingUpdates()
 
         Solver(updates).solve(range(1))
 
-        cpu_only = {"update_plane_waves", "update_eigenmode_sources", "observe_eigenmode_ports"}
+        inherited_noops = {
+            "update_plane_waves",
+            "update_eigenmode_sources",
+            "observe_eigenmode_ports",
+        }
         body = [c for c in updates.calls if c not in PROLOGUE + EPILOGUE]
         assert body == [
             step
             for step in CPU_ITERATION_ORDER
-            if not any(step.startswith(prefix) for prefix in cpu_only)
+            if not any(step.startswith(prefix) for prefix in inherited_noops)
         ]
 
     def test_a_non_cpu_backend_is_still_bracketed(self):
@@ -505,12 +536,8 @@ class TestBackendSpecificSteps:
         assert "cleanup" not in updates.calls
         assert updates.calls[-1] == "calculate_solve_time"
 
-    def test_the_cpu_guard_matches_subclasses(self, recording_updates):
-        """``isinstance`` here, not exact type — unlike ``create_solver``.
-
-        ``RecordingUpdates`` subclasses ``CPUUpdates`` and does get the
-        plane-wave steps, which is what makes it a faithful stand-in.
-        """
+    def test_a_cpu_subclass_uses_overridden_plane_wave_hooks(self, recording_updates):
+        """Overrides remain active through a ``CPUUpdates`` subclass."""
         assert isinstance(recording_updates, CPUUpdates)
         assert type(recording_updates) is not CPUUpdates
 
@@ -564,9 +591,9 @@ class TestCreateSolver:
         constructing ``CPUUpdates`` any other way leaves those attributes
         missing.
         """
-        updates_config.model_config.materials["dispersivedtype"] = (
-            updates_config.sim_config.dtypes["float_or_double"]
-        )
+        updates_config.model_config.materials["dispersivedtype"] = updates_config.sim_config.dtypes[
+            "float_or_double"
+        ]
 
         solver = create_solver(make_model(FDTDGrid(), maxpoles=2))
 
