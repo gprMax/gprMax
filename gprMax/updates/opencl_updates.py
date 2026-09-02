@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+import os
 from importlib import import_module
 
 import numpy as np
@@ -68,6 +69,18 @@ from gprMax.updates.updates import Updates
 logger = logging.getLogger(__name__)
 
 
+def _configure_pyopencl_cache_failure_policy() -> None:
+    """Give PyOpenCL's cache fallback a non-fatal default.
+
+    PyOpenCL 2026.1.2 indexes this environment variable directly when its
+    compiler cache fails. If the variable is absent, the fallback itself
+    raises ``KeyError`` instead of rebuilding from source. Preserve an
+    explicit user policy, but make an absent policy non-fatal.
+    """
+
+    os.environ.setdefault("PYOPENCL_CACHE_FAILURE_FATAL", "")
+
+
 class OpenCLUpdates(Updates[OpenCLGrid]):
     """Defines update functions for OpenCL-based solver."""
 
@@ -79,6 +92,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         super().__init__(G)
 
         # Import pyopencl module
+        _configure_pyopencl_cache_failure_policy()
         self.cl = import_module("pyopencl")
         self.elwiseknl = getattr(import_module("pyopencl.elementwise"), "ElementwiseKernel")
 

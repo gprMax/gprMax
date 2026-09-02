@@ -18,9 +18,10 @@
 """The ``Updates`` abstract base class — ``gprMax/updates/updates.py``.
 
 ``Updates`` is the contract every solver backend implements. It carries no
-logic at all: eleven ``@abstractmethod`` declarations, two concrete no-ops,
-and an ``__init__`` that stores the grid. There is nothing to compute, so
-every test here is about the *shape* of the contract.
+numerical logic: eleven ``@abstractmethod`` declarations, concrete no-op
+hooks for optional features, and an ``__init__`` that stores the grid. There
+is nothing to compute, so every test here is about the *shape* of the
+contract.
 
 That is worth testing precisely because the class exists to make a mistake
 impossible. If a new abstract method is added upstream and one backend does
@@ -35,6 +36,7 @@ per method would pass unchanged if a twelfth were added, which is precisely
 the event worth catching.
 """
 
+import importlib
 import inspect
 from abc import ABC
 
@@ -63,8 +65,34 @@ ABSTRACT_METHODS = frozenset(
 )
 
 # Methods with a real (empty) body on the base class, inherited by any
-# backend that does not care to override them.
-CONCRETE_METHODS = frozenset({"finalise", "cleanup"})
+# backend that does not care to override them. Lifecycle hooks are kept
+# separate because they take no iteration argument.
+LIFECYCLE_HOOKS = frozenset({"finalise", "cleanup"})
+OPTIONAL_TIMESTEP_HOOKS = frozenset(
+    {
+        "observe_eigenmode_ports",
+        "observe_ntff_electric",
+        "observe_ntff_magnetic",
+        "observe_sar_electric",
+        "update_eigenmode_sources_electric",
+        "update_eigenmode_sources_magnetic",
+        "update_impedance_surfaces",
+        "update_network_terminals",
+        "update_plane_waves_electric",
+        "update_plane_waves_magnetic",
+        "update_symmetry_boundaries_electric",
+        "update_symmetry_boundaries_electric_b",
+    }
+)
+CONCRETE_METHODS = LIFECYCLE_HOOKS | OPTIONAL_TIMESTEP_HOOKS
+
+SOLVER_BACKENDS = (
+    ("gprMax.updates.cpu_updates", "CPUUpdates"),
+    ("gprMax.updates.cuda_updates", "CUDAUpdates"),
+    ("gprMax.updates.opencl_updates", "OpenCLUpdates"),
+    ("gprMax.updates.metal_updates", "MetalUpdates"),
+    ("gprMax.subgrids.updates", "SubgridUpdates"),
+)
 
 
 class MinimalUpdates(Updates):
@@ -167,7 +195,7 @@ class TestAbstractContract:
 
 
 class TestConcreteMethods:
-    """``finalise`` and ``cleanup`` — the two hooks with a default."""
+    """Optional timestep and lifecycle hooks have safe defaults."""
 
     @pytest.mark.parametrize("name", sorted(CONCRETE_METHODS))
     def test_hook_is_not_abstract(self, name):
@@ -176,15 +204,26 @@ class TestConcreteMethods:
 
     @pytest.mark.parametrize("name", sorted(CONCRETE_METHODS))
     def test_hook_returns_none(self, name):
-        """Both are no-ops on the base class."""
+        """Every default hook is a no-op on the base class."""
         updates = MinimalUpdates(FDTDGrid())
-        assert getattr(updates, name)() is None
+        signature = inspect.signature(getattr(Updates, name))
+        args = [0] * (len(signature.parameters) - 1)
+        assert getattr(updates, name)(*args) is None
 
-    @pytest.mark.parametrize("name", sorted(CONCRETE_METHODS))
-    def test_hook_takes_no_arguments_beyond_self(self, name):
+    @pytest.mark.parametrize("name", sorted(LIFECYCLE_HOOKS))
+    def test_lifecycle_hook_takes_no_arguments_beyond_self(self, name):
         """``Solver.solve`` calls both with no arguments."""
         sig = inspect.signature(getattr(Updates, name))
         assert list(sig.parameters) == ["self"]
+
+    @pytest.mark.parametrize("name", sorted(OPTIONAL_TIMESTEP_HOOKS))
+    def test_optional_timestep_hook_has_supported_signature(self, name):
+        """Optional hooks take either no value or the current iteration."""
+
+        assert list(inspect.signature(getattr(Updates, name)).parameters) in (
+            ["self"],
+            ["self", "iteration"],
+        )
 
     def test_cpu_updates_reimplements_both_hooks_identically(self):
         """``CPUUpdates`` re-declares both as byte-identical no-ops.
@@ -193,7 +232,7 @@ class TestConcreteMethods:
         harmless, but they are dead code, and anyone adding behaviour to the
         base-class hooks would find it silently ignored on the CPU path.
         """
-        for name in CONCRETE_METHODS:
+        for name in LIFECYCLE_HOOKS:
             assert name in CPUUpdates.__dict__
             assert getattr(CPUUpdates, name) is not getattr(Updates, name)
 
@@ -273,6 +312,28 @@ class TestBackendConformance:
         """No abstract methods remain, so it is instantiable."""
         assert not CPUUpdates.__abstractmethods__
 
+    @pytest.mark.parametrize("module_name,class_name", SOLVER_BACKENDS)
+    def test_every_local_solver_backend_implements_the_contract(self, module_name, class_name):
+        """Backend classes can neither bypass the ABC nor remain abstract.
+
+        Importing these modules does not initialise accelerator hardware; the
+        platform libraries are loaded only when an update object is built.
+        """
+
+        backend = getattr(importlib.import_module(module_name), class_name)
+        assert issubclass(backend, Updates)
+        assert not backend.__abstractmethods__
+
+    @pytest.mark.parametrize("module_name,class_name", SOLVER_BACKENDS)
+    def test_backend_overrides_preserve_contract_signatures(self, module_name, class_name):
+        """An override must accept the arguments used by ``Solver.solve``."""
+
+        backend = getattr(importlib.import_module(module_name), class_name)
+        for name in ABSTRACT_METHODS | CONCRETE_METHODS:
+            expected = list(inspect.signature(getattr(Updates, name)).parameters)
+            actual = list(inspect.signature(getattr(backend, name)).parameters)
+            assert actual == expected, f"{class_name}.{name}{actual} != Updates.{name}{expected}"
+
     def test_cpu_updates_can_be_constructed(self):
         assert isinstance(CPUUpdates(FDTDGrid()), Updates)
 
@@ -290,24 +351,24 @@ class TestBackendConformance:
         assert "set_dispersive_updates" in CPUUpdates.__dict__
         assert "set_dispersive_updates" not in vars(Updates)
 
-    def test_metal_updates_does_not_implement_the_contract(self):
-        """``MetalUpdates`` is not an ``Updates`` subclass at all.
+    def test_metal_updates_implements_the_contract(self):
+        """Metal inherits optional hooks as well as the required interface.
 
-        It is a plain class that assigns ``self.grid = G`` by hand. Because
-        ``Solver.__init__`` is annotated ``updates: Updates`` and
-        ``create_solver`` hands it a ``MetalUpdates``, the Metal path violates
-        the solver's own type contract — and the ABC cannot catch it, because
-        nothing ever inherited from the ABC.
-
-        Written up in ``notes/bugs/metal-updates-not-an-updates-subclass.md``.
-        The import is guarded because the module imports ``Metal`` lazily but
-        may still fail to import on a non-Apple platform.
+        This prevents a newly added optional timestep hook from failing only
+        on Metal with ``AttributeError``. Platform-specific libraries are
+        imported lazily, so class conformance can be checked without Apple
+        hardware.
         """
         metal_updates = pytest.importorskip(
             "gprMax.updates.metal_updates",
             reason="metal_updates imports platform-specific machinery",
         )
-        assert not issubclass(metal_updates.MetalUpdates, Updates)
+        assert issubclass(metal_updates.MetalUpdates, Updates)
+        assert not metal_updates.MetalUpdates.__abstractmethods__
+        assert (
+            metal_updates.MetalUpdates.update_impedance_surfaces
+            is Updates.update_impedance_surfaces
+        )
 
 
 pytestmark = pytest.mark.unit

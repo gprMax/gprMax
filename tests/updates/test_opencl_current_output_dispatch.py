@@ -26,6 +26,20 @@ import gprMax.updates.opencl_updates as opencl_updates
 from gprMax.updates.opencl_updates import OpenCLUpdates
 
 
+def test_opencl_cache_failure_policy_defaults_to_nonfatal(monkeypatch):
+    """An unwritable/broken PyOpenCL cache must fall back to source builds."""
+
+    monkeypatch.delenv("PYOPENCL_CACHE_FAILURE_FATAL", raising=False)
+    opencl_updates._configure_pyopencl_cache_failure_policy()
+    assert opencl_updates.os.environ["PYOPENCL_CACHE_FAILURE_FATAL"] == ""
+
+
+def test_opencl_cache_failure_policy_preserves_user_choice(monkeypatch):
+    monkeypatch.setenv("PYOPENCL_CACHE_FAILURE_FATAL", "1")
+    opencl_updates._configure_pyopencl_cache_failure_policy()
+    assert opencl_updates.os.environ["PYOPENCL_CACHE_FAILURE_FATAL"] == "1"
+
+
 def _set_config(monkeypatch):
     monkeypatch.setattr(
         config,
