@@ -17,9 +17,24 @@ Additionally, the Message Passing Interface (MPI) can be utilised to implement a
 
 Some of these accelerators and frameworks require additional software to be installed. The guidance below explains how to do that and gives examples of usage.
 
+.. _accelerator-bindings-installation:
+
+Installing optional accelerator bindings
+========================================
+
 The CPU/OpenMP solver is part of the core installation. The Python bindings
-for the other accelerators are optional package extras and can be installed
-independently from the top-level gprMax source directory:
+for the other accelerators are optional package extras. For a released gprMax
+package installed from the Python Package Index (PyPI), install the binding for
+the required backend with one of the following commands:
+
+.. code-block:: console
+
+    $ python -m pip install "gprMax[cuda]"       # Linux/Windows
+    $ python -m pip install "gprMax[opencl]"
+    $ python -m pip install "gprMax[metal]"      # macOS
+
+For an editable source installation, run the corresponding command from the
+top-level directory of the gprMax checkout:
 
 .. code-block:: console
 
@@ -27,10 +42,15 @@ independently from the top-level gprMax source directory:
     (gprMax)$ python -m pip install -e ".[opencl]"
     (gprMax)$ python -m pip install -e ".[metal]"      # macOS
 
-Extras can be combined, for example ``.[cuda,opencl]``. The
-``.[accelerators]`` convenience extra requests all accelerator bindings that
-apply to the current operating system. A core installation remains fully
-usable with the CPU solver when none of these extras is installed.
+The different targets are intentional: ``gprMax[...]`` names the released
+distribution, whereas ``.[...]`` refers to the checkout in the current
+directory and ``-e`` makes that source installation editable. Extras can be
+combined in either form, for example ``gprMax[cuda,opencl]`` or
+``.[cuda,opencl]``. The ``accelerators`` convenience extra, selected as either
+``gprMax[accelerators]`` or ``.[accelerators]``, requests all accelerator
+bindings that apply to the current operating system. A core installation
+remains fully usable with the CPU solver when none of these extras is
+installed.
 
 .. warning::
 
@@ -213,16 +233,11 @@ The following steps provide guidance on how to install the extra components to a
    user path environment variable, for example
    ``C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\vX.X\bin`` on Windows
    or the toolkit's ``bin`` directory on Linux.
-3. Install the CUDA extra. Open a Terminal (Linux) or Command Prompt
-   (Windows), navigate into the top-level gprMax directory, activate the
-   gprMax environment if necessary, and run:
-
-   .. code-block:: console
-
-       (gprMax)$ python -m pip install -e ".[cuda]"
-
-   This installs ``pycuda``. Modern macOS releases do not support NVIDIA CUDA,
-   so the dependency is guarded by a platform marker.
+3. Install the CUDA extra using the command for the relevant installation type
+   under :ref:`Installing optional accelerator bindings
+   <accelerator-bindings-installation>`. This installs ``pycuda``. Modern
+   macOS releases do not support NVIDIA CUDA, so the dependency is guarded by
+   a platform marker.
 
 Example
 -------
@@ -250,15 +265,10 @@ Software required
 The following steps provide guidance on how to install the extra components to allow gprMax to use OpenCL:
 
 1. Install a vendor OpenCL implementation/ICD for the intended CPU or GPU.
-2. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the
-   top-level gprMax directory, activate the gprMax environment if necessary,
-   and install the OpenCL extra:
-
-   .. code-block:: console
-
-       (gprMax)$ python -m pip install -e ".[opencl]"
-
-   This installs ``pyopencl``; it does not install the vendor OpenCL runtime.
+2. Install the OpenCL extra using the command for the relevant installation
+   type under :ref:`Installing optional accelerator bindings
+   <accelerator-bindings-installation>`. This installs ``pyopencl``; it does
+   not install the vendor OpenCL runtime.
 
 Example
 -------
@@ -296,14 +306,10 @@ Software required
 
 The following Python package is required to use Apple Metal acceleration:
 
-1. Open a Terminal on macOS, navigate into the top-level gprMax directory,
-   activate the gprMax environment if necessary, and install the Metal extra:
-
-   .. code-block:: console
-
-       (gprMax)$ python -m pip install -e ".[metal]"
-
-   This installs ``pyobjc-framework-Metal`` only on macOS.
+1. Install the Metal extra using the command for the relevant installation
+   type under :ref:`Installing optional accelerator bindings
+   <accelerator-bindings-installation>`. This installs
+   ``pyobjc-framework-Metal`` only on macOS.
 
 .. note::
 
