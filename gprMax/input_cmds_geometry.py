@@ -48,6 +48,28 @@ from gprMax.utilities import round_value
 from gprMax.utilities import get_terminal_width
 
 
+def _check_geometry_material_indices(command, matfile, materialcmds, *arrays):
+    """Check that geometry arrays only reference imported material indices."""
+
+    maxindex = -1
+    for array in arrays:
+        if array.size:
+            maxindex = max(maxindex, int(np.amax(array)))
+
+    # ``materialcmds`` contains all commands imported from the materials file,
+    # including dispersion commands. Only #material commands declare entries
+    # in the file-local material index used by the geometry arrays.
+    nmaterials = sum(cmd.lstrip().startswith('#material:') for cmd in materialcmds)
+    maxmaterialindex = nmaterials - 1
+    if maxindex > maxmaterialindex:
+        message = (
+            "'" + command + "'"
+            + ' found material index {} in the geometry objects file greater than the maximum index for the specified materials ({}) in materials file {}. '
+            + 'The materials file must contain a #material command for every material index referenced by the geometry arrays; files written by #geometry_objects_write commonly include pec and free_space.'
+        )
+        raise CmdInputError(message.format(maxindex, maxmaterialindex, matfile))
+
+
 def process_geometrycmds(geometry, G):
     """
     This function checks the validity of command parameters, creates instances
@@ -124,8 +146,7 @@ def process_geometrycmds(geometry, G):
                 data = data.astype('int16')
 
             # Check that there are no values in the data greater than the maximum index for the specified materials
-            if np.amax(data) > len(materials) - 1:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' found data value(s) ({}) in the geometry objects file greater than the maximum index for the specified materials ({})'.format(np.amax(data), len(materials) - 1))
+            _check_geometry_material_indices(' '.join(tmp), matfile, materials, data)
 
             # Look to see if rigid and ID arrays are present (these should be
             # present if the original geometry objects were written from gprMax)
@@ -133,6 +154,7 @@ def process_geometrycmds(geometry, G):
                 rigidE = f['/rigidE'][:]
                 rigidH = f['/rigidH'][:]
                 ID = f['/ID'][:]
+                _check_geometry_material_indices(' '.join(tmp), matfile, materials, ID)
                 G.solid[xs:xs + data.shape[0], ys:ys + data.shape[1], zs:zs + data.shape[2]] = data + numexistmaterials
                 G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
                 G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
