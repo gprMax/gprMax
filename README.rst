@@ -206,6 +206,7 @@ Optional features use the same extras as source installations, for example:
 
     $ python -m pip install "gprMax[mpi]"
     $ python -m pip install "gprMax[cuda]"
+    $ python -m pip install "gprMax[opencl]"
     $ python -m pip install "gprMax[metal]"
 
 These extras install Python bindings only. MPI, CUDA, OpenCL, and Metal still
@@ -446,9 +447,16 @@ Accelerator bindings are also optional and can be installed independently:
 
 .. code-block:: console
 
-    (gprMax)$ pip install -e "gprMax[cuda]"       # NVIDIA CUDA; Linux/Windows
-    (gprMax)$ pip install -e "gprMax[opencl]"     # OpenCL
-    (gprMax)$ pip install -e "gprMax[metal]"      # Apple Metal; macOS
+    (gprMax)$ python -m pip install -e "gprMax[cuda]"       # NVIDIA CUDA; Linux/Windows
+    (gprMax)$ python -m pip install -e "gprMax[opencl]"     # OpenCL
+    (gprMax)$ python -m pip install -e "gprMax[metal]"      # Apple Metal; macOS
+
+The ``gprMax[...]`` target is used here because these source-installation
+steps are run from the directory above the gprMax checkout. If the current
+directory is instead the top level of the checkout, use the equivalent
+``.[...]`` target, for example
+``python -m pip install -e ".[metal]"``. The accelerator documentation uses
+this latter form.
 
 Several extras can be requested together, for example
 ``gprMax[cuda,opencl]``. The ``gprMax[accelerators]`` convenience extra
