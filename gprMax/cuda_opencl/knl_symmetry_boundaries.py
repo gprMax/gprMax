@@ -70,15 +70,17 @@ kernel void update_electric_pmc(
     // plus the doubled ghost contribution from each adjoining PMC plane.
     $CUDA_IDX
 
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+    size_t field_plane = (size_t)$NY_FIELDS * (size_t)$NZ_FIELDS;
+    size_t yz_fields = (size_t)i % field_plane;
+    int x = (int)((size_t)i / field_plane);
+    int y = (int)(yz_fields / (size_t)$NZ_FIELDS);
+    int z = (int)(yz_fields % (size_t)$NZ_FIELDS);
 
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) %
-        ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) %
-        ($NY_ID * $NZ_ID)) % $NZ_ID;
+    size_t ID_plane = (size_t)$NY_ID * (size_t)$NZ_ID;
+    size_t ID_offset = (size_t)i % ((size_t)$NX_ID * ID_plane);
+    int x_ID = (int)(ID_offset / ID_plane);
+    int y_ID = (int)((ID_offset % ID_plane) / (size_t)$NZ_ID);
+    int z_ID = (int)((ID_offset % ID_plane) % (size_t)$NZ_ID);
 
     int ex_on_pmc = (y == 0 && PMC_Y0) || (y == NY && PMC_YMAX)
         || (z == 0 && PMC_Z0) || (z == NZ && PMC_ZMAX);
@@ -296,14 +298,16 @@ kernel void update_electric_pmc_dispersive_b(
     "func": Template(
         r"""
     $CUDA_IDX
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
-    int z = (i % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) %
-        ($NY_ID * $NZ_ID)) / $NZ_ID;
-    int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) %
-        ($NY_ID * $NZ_ID)) % $NZ_ID;
+    size_t field_plane = (size_t)$NY_FIELDS * (size_t)$NZ_FIELDS;
+    size_t yz_fields = (size_t)i % field_plane;
+    int x = (int)((size_t)i / field_plane);
+    int y = (int)(yz_fields / (size_t)$NZ_FIELDS);
+    int z = (int)(yz_fields % (size_t)$NZ_FIELDS);
+    size_t ID_plane = (size_t)$NY_ID * (size_t)$NZ_ID;
+    size_t ID_offset = (size_t)i % ((size_t)$NX_ID * ID_plane);
+    int x_ID = (int)(ID_offset / ID_plane);
+    int y_ID = (int)((ID_offset % ID_plane) / (size_t)$NZ_ID);
+    int z_ID = (int)((ID_offset % ID_plane) % (size_t)$NZ_ID);
 
     int ex_on_pmc = (y == 0 && PMC_Y0) || (y == NY && PMC_YMAX)
         || (z == 0 && PMC_Z0) || (z == NZ && PMC_ZMAX);

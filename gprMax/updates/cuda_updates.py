@@ -69,6 +69,11 @@ from gprMax.utilities.utilities import round32
 
 logger = logging.getLogger(__name__)
 
+CUDA_THREAD_INDEX = (
+    "size_t i = (size_t)blockIdx.x * (size_t)blockDim.x + "
+    "(size_t)threadIdx.x;"
+)
+
 
 class CUDAUpdates(Updates[CUDAGrid]):
     """Defines update functions for GPU-based (CUDA) solver."""
@@ -104,7 +109,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         # Substitutions in function bodies
         self.subs_func = {
             "REAL": config.sim_config.dtypes["C_float_or_double"],
-            "CUDA_IDX": "int i = blockIdx.x * blockDim.x + threadIdx.x;",
+            "CUDA_IDX": CUDA_THREAD_INDEX,
             "TFSF_IDX": "int t = blockIdx.x * blockDim.x + threadIdx.x;",
             "METAL_DFT_PARAMETERS": "",
             "NX_FIELDS": self.grid.nx + 1,

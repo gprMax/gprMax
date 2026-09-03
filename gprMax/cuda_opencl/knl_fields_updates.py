@@ -72,16 +72,18 @@ update_electric = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 3D field arrays
-    int yz_fields = i % ($NY_FIELDS * $NZ_FIELDS);
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = yz_fields / $NZ_FIELDS;
-    int z = yz_fields % $NZ_FIELDS;
+    size_t field_plane = (size_t)$NY_FIELDS * (size_t)$NZ_FIELDS;
+    size_t yz_fields = (size_t)i % field_plane;
+    int x = (int)((size_t)i / field_plane);
+    int y = (int)(yz_fields / (size_t)$NZ_FIELDS);
+    int z = (int)(yz_fields % (size_t)$NZ_FIELDS);
 
     // Convert the linear index to subscripts for 4D material ID array
-    int yz_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID);
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = yz_ID / $NZ_ID;
-    int z_ID = yz_ID % $NZ_ID;
+    size_t ID_plane = (size_t)$NY_ID * (size_t)$NZ_ID;
+    size_t ID_offset = (size_t)i % ((size_t)$NX_ID * ID_plane);
+    int x_ID = (int)(ID_offset / ID_plane);
+    int y_ID = (int)((ID_offset % ID_plane) / (size_t)$NZ_ID);
+    int z_ID = (int)((ID_offset % ID_plane) % (size_t)$NZ_ID);
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -165,16 +167,18 @@ update_magnetic = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 3D field arrays
-    int yz_fields = i % ($NY_FIELDS * $NZ_FIELDS);
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = yz_fields / $NZ_FIELDS;
-    int z = yz_fields % $NZ_FIELDS;
+    size_t field_plane = (size_t)$NY_FIELDS * (size_t)$NZ_FIELDS;
+    size_t yz_fields = (size_t)i % field_plane;
+    int x = (int)((size_t)i / field_plane);
+    int y = (int)(yz_fields / (size_t)$NZ_FIELDS);
+    int z = (int)(yz_fields % (size_t)$NZ_FIELDS);
 
     // Convert the linear index to subscripts for 4D material ID array
-    int yz_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID);
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = yz_ID / $NZ_ID;
-    int z_ID = yz_ID % $NZ_ID;
+    size_t ID_plane = (size_t)$NY_ID * (size_t)$NZ_ID;
+    size_t ID_offset = (size_t)i % ((size_t)$NX_ID * ID_plane);
+    int x_ID = (int)(ID_offset / ID_plane);
+    int y_ID = (int)((ID_offset % ID_plane) / (size_t)$NZ_ID);
+    int z_ID = (int)((ID_offset % ID_plane) % (size_t)$NZ_ID);
 
     // Hx component. Include both own-axis domain walls; PMC symmetry uses
     // the lower-wall value, while the ordinary outer-wall result remains
@@ -280,22 +284,25 @@ update_electric_dispersive_A = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 3D field arrays
-    int yz_fields = i % ($NY_FIELDS * $NZ_FIELDS);
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = yz_fields / $NZ_FIELDS;
-    int z = yz_fields % $NZ_FIELDS;
+    size_t field_plane = (size_t)$NY_FIELDS * (size_t)$NZ_FIELDS;
+    size_t yz_fields = (size_t)i % field_plane;
+    int x = (int)((size_t)i / field_plane);
+    int y = (int)(yz_fields / (size_t)$NZ_FIELDS);
+    int z = (int)(yz_fields % (size_t)$NZ_FIELDS);
 
     // Convert the linear index to subscripts for 4D material ID array
-    int yz_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID);
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = yz_ID / $NZ_ID;
-    int z_ID = yz_ID % $NZ_ID;
+    size_t ID_plane = (size_t)$NY_ID * (size_t)$NZ_ID;
+    size_t ID_offset = (size_t)i % ((size_t)$NX_ID * ID_plane);
+    int x_ID = (int)(ID_offset / ID_plane);
+    int y_ID = (int)((ID_offset % ID_plane) / (size_t)$NZ_ID);
+    int z_ID = (int)((ID_offset % ID_plane) % (size_t)$NZ_ID);
 
     // Convert the linear index to subscripts for 4D dispersive array
-    int yz_T = (i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T);
-    int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
-    int y_T = yz_T / $NZ_T;
-    int z_T = yz_T % $NZ_T;
+    size_t T_plane = (size_t)$NY_T * (size_t)$NZ_T;
+    size_t T_offset = (size_t)i % ((size_t)$NX_T * T_plane);
+    int x_T = (int)(T_offset / T_plane);
+    int y_T = (int)((T_offset % T_plane) / (size_t)$NZ_T);
+    int z_T = (int)((T_offset % T_plane) % (size_t)$NZ_T);
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -414,22 +421,25 @@ update_electric_dispersive_B = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 3D field arrays
-    int yz_fields = i % ($NY_FIELDS * $NZ_FIELDS);
-    int x = i / ($NY_FIELDS * $NZ_FIELDS);
-    int y = yz_fields / $NZ_FIELDS;
-    int z = yz_fields % $NZ_FIELDS;
+    size_t field_plane = (size_t)$NY_FIELDS * (size_t)$NZ_FIELDS;
+    size_t yz_fields = (size_t)i % field_plane;
+    int x = (int)((size_t)i / field_plane);
+    int y = (int)(yz_fields / (size_t)$NZ_FIELDS);
+    int z = (int)(yz_fields % (size_t)$NZ_FIELDS);
 
     // Convert the linear index to subscripts for 4D material ID array
-    int yz_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID);
-    int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
-    int y_ID = yz_ID / $NZ_ID;
-    int z_ID = yz_ID % $NZ_ID;
+    size_t ID_plane = (size_t)$NY_ID * (size_t)$NZ_ID;
+    size_t ID_offset = (size_t)i % ((size_t)$NX_ID * ID_plane);
+    int x_ID = (int)(ID_offset / ID_plane);
+    int y_ID = (int)((ID_offset % ID_plane) / (size_t)$NZ_ID);
+    int z_ID = (int)((ID_offset % ID_plane) % (size_t)$NZ_ID);
 
     // Convert the linear index to subscripts for 4D dispersive array
-    int yz_T = (i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T);
-    int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
-    int y_T = yz_T / $NZ_T;
-    int z_T = yz_T % $NZ_T;
+    size_t T_plane = (size_t)$NY_T * (size_t)$NZ_T;
+    size_t T_offset = (size_t)i % ((size_t)$NX_T * T_plane);
+    int x_T = (int)(T_offset / T_plane);
+    int y_T = (int)((T_offset % T_plane) / (size_t)$NZ_T);
+    int z_T = (int)((T_offset % T_plane) % (size_t)$NZ_T);
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
