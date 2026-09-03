@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "status": "partial",
-  "finalization_requested": false,
-  "partial_report_requested": true,
-  "generated_at": "2026-09-04T01:02:48.210267+08:00",
+  "status": "complete",
+  "finalization_requested": true,
+  "partial_report_requested": false,
+  "generated_at": "2026-09-04T01:35:40.295583+08:00",
   "run_date": "2026-09-04",
   "timezone": "Asia/Shanghai",
   "source_commit": "03a84afd467aeb3ce372077e3d15d3cdfc163b00",
@@ -26,7 +26,7 @@
   },
   "coverage": {
     "expected_physical_fdtd_runs": 57,
-    "completed_physical_fdtd_runs": 56,
+    "completed_physical_fdtd_runs": 57,
     "completed_additional_ad_hoc_fdtd_runs": 1,
     "expected_families": {
       "regression": 17,
@@ -45,13 +45,8 @@
       "Dipole-only internal-PML fixture without eigenmode solver"
     ]
   },
-  "pending": [
-    "physical FDTD coverage: 56/57"
-  ],
-  "failed": [
-    "cst-patch-farfield",
-    "cst-patch-farfield-plot"
-  ],
+  "pending": [],
+  "failed": [],
   "acceptance": [
     {
       "name": "Standalone FDFD analytical indices",
@@ -1028,28 +1023,26 @@
     },
     {
       "name": "cst-patch-farfield",
-      "command": [
+      "command": null,
+      "cwd": ".",
+      "fdtd_run_count": 1,
+      "family": "cst_comparison",
+      "status": "completed",
+      "exit_code": null,
+      "runtime_s": null,
+      "runtime_kind": "unrecorded",
+      "started_utc": null,
+      "log": null,
+      "evidence_basis": "user_reported_and_h5_verified",
+      "reproduction_command": [
         "python",
         "-m",
         "gprMax",
         "testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in",
-        "-outputfile",
-        "testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff",
         "-gpu",
-        "0",
-        "--hide-progress-bars"
+        "0"
       ],
-      "cwd": ".",
-      "fdtd_run_count": 1,
-      "family": "cst_comparison",
-      "status": "failed",
-      "exit_code": 1,
-      "runtime_s": 453.62224909999986,
-      "runtime_kind": "process wall time",
-      "started_utc": "2026-09-03T16:51:39.657054+00:00",
-      "log": ".pytest_cache/eigenmode-rerun-20260904/cst-patch-farfield-retry.log",
-      "failure_reason": "PermissionError: [Errno 13] Unable to synchronously create file (unable to open file: name = 'testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff.h5', errno = 13, error message = 'Permission denied', flags = 13, o_flags = 302)",
-      "failure_category": "environment_output_permission",
+      "note": "User confirmed completion. Exact invocation, wall time, and backend were not captured; HDF5 contents were verified.",
       "attempts": [
         {
           "name": "cst-patch-farfield",
@@ -1092,11 +1085,29 @@
           "exit_code": 1,
           "failure_reason": "PermissionError: [Errno 13] Unable to synchronously create file (unable to open file: name = 'testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff.h5', errno = 13, error message = 'Permission denied', flags = 13, o_flags = 302)",
           "failure_category": "environment_output_permission"
+        },
+        {
+          "name": "cst-patch-farfield",
+          "status": "completed",
+          "command": null,
+          "cwd": ".",
+          "seconds": null,
+          "exit_code": null,
+          "evidence_basis": "user_reported_and_h5_verified",
+          "reproduction_command": [
+            "python",
+            "-m",
+            "gprMax",
+            "testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in",
+            "-gpu",
+            "0"
+          ],
+          "note": "User confirmed completion. Exact invocation, wall time, and backend were not captured; HDF5 contents were verified."
         }
       ],
-      "backend": "CUDA",
-      "device": 0,
-      "precision": "single",
+      "backend": "unrecorded",
+      "device": null,
+      "precision": "unrecorded",
       "host_openmp_threads": null
     },
     {
@@ -2677,12 +2688,48 @@
       "cwd": ".",
       "fdtd_run_count": 0,
       "family": "postprocessing",
-      "status": "skipped-dependency",
-      "exit_code": null,
-      "runtime_s": 0,
+      "status": "completed",
+      "exit_code": 0,
+      "runtime_s": 1.4686093,
       "runtime_kind": "process wall time",
-      "started_utc": "2026-09-03T16:44:12.425295+00:00",
-      "log": null
+      "started_utc": null,
+      "log": null,
+      "evidence_basis": "assistant_executed_and_source_verified",
+      "reproduction_command": [
+        "python",
+        "testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py"
+      ],
+      "note": "Regenerated after correcting the default input filename; reads the newly verified HDF5.",
+      "attempts": [
+        {
+          "name": "cst-patch-farfield-plot",
+          "command": [
+            "python",
+            "testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py"
+          ],
+          "started_utc": "2026-09-03T16:44:12.425295+00:00",
+          "status": "skipped-dependency",
+          "seconds": 0,
+          "exit_code": null
+        },
+        {
+          "name": "cst-patch-farfield-plot",
+          "status": "completed",
+          "command": [
+            "python",
+            "testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py"
+          ],
+          "cwd": ".",
+          "seconds": 1.4686093,
+          "exit_code": 0,
+          "evidence_basis": "assistant_executed_and_source_verified",
+          "reproduction_command": [
+            "python",
+            "testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py"
+          ],
+          "note": "Regenerated after correcting the default input filename; reads the newly verified HDF5."
+        }
+      ]
     },
     {
       "name": "pec_copper_plot",
@@ -3199,6 +3246,132 @@
       "gprmax_minus_cst_fem_minimum_depth_db": 3.262403279138095,
       "cst_fit_minus_cst_fem_minimum_frequency_hz": -74970000.0,
       "cst_fit_minus_cst_fem_minimum_depth_db": 3.52415807085497
+    },
+    "cst_patch_farfield": {
+      "gprmax_output_file": "patch_antenna_recentered_closed_ntff_backed_pml.h5",
+      "requested_frequency_hz": 2450000000.0,
+      "gprmax_stored_frequency_hz": 2449999872.0,
+      "comparison_floor_dbi": -40.0,
+      "main_beams": {
+        "phi_cuts": {
+          "phi_0_deg": {
+            "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+              "theta_deg": 0.0,
+              "directivity_dbi": 5.735
+            },
+            "gprmax_closed_ntff": {
+              "theta_deg": 0.0,
+              "directivity_dbi": 5.869401
+            },
+            "cst_fit_time_domain": {
+              "theta_deg": 0.0,
+              "directivity_dbi": 6.998
+            }
+          },
+          "phi_90_deg": {
+            "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+              "theta_deg": 14.0,
+              "directivity_dbi": 5.896
+            },
+            "gprmax_closed_ntff": {
+              "theta_deg": 18.0,
+              "directivity_dbi": 6.179636
+            },
+            "cst_fit_time_domain": {
+              "theta_deg": 15.0,
+              "directivity_dbi": 7.588
+            }
+          }
+        },
+        "full_planes": {
+          "phi_0_180_deg": {
+            "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+              "signed_plane_angle_deg": 0.0,
+              "directivity_dbi": 5.735
+            },
+            "gprmax_closed_ntff": {
+              "signed_plane_angle_deg": 0.0,
+              "directivity_dbi": 5.869401
+            },
+            "cst_fit_time_domain": {
+              "signed_plane_angle_deg": 0.0,
+              "directivity_dbi": 6.998
+            }
+          },
+          "phi_90_270_deg": {
+            "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+              "signed_plane_angle_deg": 14.0,
+              "directivity_dbi": 5.896
+            },
+            "gprmax_closed_ntff": {
+              "signed_plane_angle_deg": 18.0,
+              "directivity_dbi": 6.179636
+            },
+            "cst_fit_time_domain": {
+              "signed_plane_angle_deg": 15.0,
+              "directivity_dbi": 7.588
+            }
+          }
+        }
+      },
+      "cuts": {
+        "phi_0_deg": {
+          "gprmax_vs_cst_fem": {
+            "reference_peak_dbi": 5.735,
+            "reference_peak_theta_deg": 0.0,
+            "gprmax_peak_dbi": 5.869400978088379,
+            "gprmax_peak_theta_deg": 0.0,
+            "peak_difference_db": 0.1344009780883786,
+            "boresight_difference_db": 0.1344009780883786,
+            "back_direction_difference_db": -4.567784957885742,
+            "mae_floor_clipped_db": 1.9348180234140522,
+            "rmse_floor_clipped_db": 3.0615514207705052,
+            "front_hemisphere_mae_floor_clipped_db": 0.2838530621079429,
+            "front_hemisphere_rmse_floor_clipped_db": 0.30418881181558743
+          },
+          "gprmax_vs_cst_fit": {
+            "reference_peak_dbi": 6.998,
+            "reference_peak_theta_deg": 0.0,
+            "gprmax_peak_dbi": 5.869400978088379,
+            "gprmax_peak_theta_deg": 0.0,
+            "peak_difference_db": -1.1285990219116213,
+            "boresight_difference_db": -1.1285990219116213,
+            "back_direction_difference_db": -2.817784957885742,
+            "mae_floor_clipped_db": 2.8225995590677115,
+            "rmse_floor_clipped_db": 3.3082386654263654,
+            "front_hemisphere_mae_floor_clipped_db": 1.3964824323975515,
+            "front_hemisphere_rmse_floor_clipped_db": 1.4266603041224946
+          }
+        },
+        "phi_90_deg": {
+          "gprmax_vs_cst_fem": {
+            "reference_peak_dbi": 5.896,
+            "reference_peak_theta_deg": 14.0,
+            "gprmax_peak_dbi": 6.179635524749756,
+            "gprmax_peak_theta_deg": 18.0,
+            "peak_difference_db": 0.28363552474975595,
+            "boresight_difference_db": 0.1344009780883786,
+            "back_direction_difference_db": -4.567769699096679,
+            "mae_floor_clipped_db": 0.8895406568926606,
+            "rmse_floor_clipped_db": 1.6653309381243473,
+            "front_hemisphere_mae_floor_clipped_db": 0.23245218500598452,
+            "front_hemisphere_rmse_floor_clipped_db": 0.26053262442983266
+          },
+          "gprmax_vs_cst_fit": {
+            "reference_peak_dbi": 7.588,
+            "reference_peak_theta_deg": 15.0,
+            "gprmax_peak_dbi": 6.179635524749756,
+            "gprmax_peak_theta_deg": 18.0,
+            "peak_difference_db": -1.4083644752502442,
+            "boresight_difference_db": -1.1285990219116213,
+            "back_direction_difference_db": -2.8177696990966794,
+            "mae_floor_clipped_db": 1.8106211402900445,
+            "rmse_floor_clipped_db": 2.505249540849961,
+            "front_hemisphere_mae_floor_clipped_db": 1.004688972462036,
+            "front_hemisphere_rmse_floor_clipped_db": 1.0355480762219345
+          }
+        }
+      }
     }
   },
   "baseline_metrics": {
@@ -3404,7 +3577,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3416,7 +3590,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3428,7 +3603,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3440,7 +3616,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3452,7 +3629,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3464,7 +3642,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3476,7 +3655,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3488,7 +3668,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3500,7 +3681,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3512,7 +3694,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3524,7 +3707,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3536,7 +3720,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3548,7 +3733,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3560,7 +3746,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3572,7 +3759,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3584,7 +3772,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3596,7 +3785,8 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3604,7 +3794,8 @@
           "testing/regression/eigenmode_sources/validate_sparameters.py",
           "testing/regression/eigenmode_sources"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3628,7 +3819,8 @@
           "testing/regression/eigenmode_sources/straight_waveguide/3d/cylindrical_waveguide",
           "testing/regression/eigenmode_sources/straight_waveguide/3d/rectangular_waveguide"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3636,7 +3828,8 @@
           "testing/regression/eigenmode_sources/plot_sparameters.py",
           "testing/regression/eigenmode_sources"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3644,7 +3837,8 @@
           "testing/regression/eigenmode_sources/bending_waveguide/plot_bend_comparison.py",
           "testing/regression/eigenmode_sources/bending_waveguide"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3652,7 +3846,8 @@
           "testing/regression/eigenmode_sources/broadband_vs_single_frequency/plot_source_comparison.py",
           "testing/regression/eigenmode_sources/broadband_vs_single_frequency"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3660,7 +3855,8 @@
           "testing/regression/eigenmode_sources/grid_spacing/plot_grid_spacing.py",
           "testing/regression/eigenmode_sources/grid_spacing"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3668,7 +3864,8 @@
           "testing/regression/eigenmode_sources/loss_comparison/plot_loss_comparison.py",
           "testing/regression/eigenmode_sources/loss_comparison"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3677,14 +3874,16 @@
           "--gpu",
           "0"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "examples/features/eigenmode_ports/example_1_straight_waveguide/plot_results.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3693,14 +3892,16 @@
           "--gpu",
           "0"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "examples/features/eigenmode_ports/example_2_curved_waveguide/plot_results.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3709,14 +3910,16 @@
           "--gpu",
           "0"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "examples/features/eigenmode_ports/example_3_antenna_and_farfield/plot_results.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3725,14 +3928,16 @@
           "--gpu",
           "0"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "examples/features/eigenmode_ports/example_4_complete_s_matrix/plot_results.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3741,14 +3946,16 @@
           "--gpu",
           "0"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "examples/features/eigenmode_ports/example_5_phased_array/plot_results.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3757,14 +3964,16 @@
           "--gpu",
           "0"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "examples/features/eigenmode_ports/example_6_near_cutoff/plot_results.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3776,14 +3985,16 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "testing/validation/rectangular_waveguide_partial_cutoff/plot_partial_cutoff.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3795,14 +4006,16 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "testing/other_codes/cst/horn_antenna/plot_horn_results.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3816,14 +4029,16 @@
           "0",
           "--hide-progress-bars"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
           "python",
           "testing/other_codes/cst/patch_antenna/S-parameter/plot_patch_sparameters.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       },
       {
         "command": [
@@ -3831,20 +4046,19 @@
           "-m",
           "gprMax",
           "testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in",
-          "-outputfile",
-          "testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff",
           "-gpu",
-          "0",
-          "--hide-progress-bars"
+          "0"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "suggested_reproduction"
       },
       {
         "command": [
           "python",
           "testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py"
         ],
-        "cwd": "."
+        "cwd": ".",
+        "command_basis": "recorded"
       }
     ],
     "Internal-PML sweep and fixtures": [
@@ -3993,29 +4207,218 @@
       }
     ]
   },
-  "manual_rerun_required": {
-    "case": "cst-patch-farfield",
-    "cwd": ".",
-    "reason": "The corrected input ran through field stepping but existing output-file permissions prevented HDF5 overwrite. The user requested no further automatic simulation and will run the remaining case manually.",
-    "commands": [
-      [
-        "python",
-        "-m",
-        "gprMax",
-        "testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in",
-        "-outputfile",
-        "testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff",
-        "-gpu",
-        "0",
-        "--hide-progress-bars"
-      ],
-      [
-        "python",
-        "testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py"
-      ]
+  "manual_run_verification": {
+    "source_file": "testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.h5",
+    "evidence_basis": "user_reported_and_h5_verified",
+    "gprmax_version": "4.0.0",
+    "iterations": 25964,
+    "grid_shape": [
+      301,
+      400,
+      140
     ],
-    "artifact_status": "Existing patch far-field HDF5, comparison figures, CSV cuts and summary remain unrefreshed.",
-    "input_profile_correction": "Removed undefined trailing port_load profile ID from #pml_slab, retaining default global HORIPML/CFS, geometry and time window.",
-    "subsequent_preflight": "An elevated preflight failed because its working directory was incorrect; it did not launch a solver and is not counted as a simulation."
-  }
+    "cell_spacing_m": [
+      0.0004,
+      0.0004,
+      0.0004
+    ],
+    "timestep_s": 7.70333280618588e-13,
+    "frequency_count": 11,
+    "directions_per_frequency": 65160,
+    "frequency_band_hz": [
+      2200000000.0,
+      2700000000.0
+    ],
+    "fields": {
+      "Ephi": {
+        "shape": [
+          11,
+          65160
+        ],
+        "dtype": "complex64",
+        "finite": true
+      },
+      "Etheta": {
+        "shape": [
+          11,
+          65160
+        ],
+        "dtype": "complex64",
+        "finite": true
+      },
+      "directivity_dbi": {
+        "shape": [
+          11,
+          65160
+        ],
+        "dtype": "float32",
+        "finite": true
+      },
+      "gain_dbi": {
+        "shape": [
+          11,
+          65160
+        ],
+        "dtype": "float32",
+        "finite": true
+      },
+      "radiation_efficiency": {
+        "shape": [
+          11
+        ],
+        "dtype": "float32",
+        "finite": true
+      },
+      "radiation_intensity": {
+        "shape": [
+          11,
+          65160
+        ],
+        "dtype": "float32",
+        "finite": true
+      },
+      "realized_gain_dbi": {
+        "shape": [
+          11,
+          65160
+        ],
+        "dtype": "float32",
+        "finite": true
+      },
+      "total_efficiency": {
+        "shape": [
+          11
+        ],
+        "dtype": "float32",
+        "finite": true
+      }
+    },
+    "valid_modal_coefficients": 11,
+    "valid_modal_power_waves": 11,
+    "sha256": "5f67337c4a70e2a41b7e55705be0cdb89347341e5c9f87a55015321967c839de",
+    "size_bytes": 342239536,
+    "file_modified_at": "2026-09-04T01:28:25.705318+08:00",
+    "plot_summary_file": "testing/other_codes/cst/patch_antenna/farfield/patch_farfield_comparison_2p45ghz.json",
+    "plot_source_matches_verified_hdf5": true,
+    "main_beams": {
+      "phi_cuts": {
+        "phi_0_deg": {
+          "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+            "theta_deg": 0.0,
+            "directivity_dbi": 5.735
+          },
+          "gprmax_closed_ntff": {
+            "theta_deg": 0.0,
+            "directivity_dbi": 5.869401
+          },
+          "cst_fit_time_domain": {
+            "theta_deg": 0.0,
+            "directivity_dbi": 6.998
+          }
+        },
+        "phi_90_deg": {
+          "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+            "theta_deg": 14.0,
+            "directivity_dbi": 5.896
+          },
+          "gprmax_closed_ntff": {
+            "theta_deg": 18.0,
+            "directivity_dbi": 6.179636
+          },
+          "cst_fit_time_domain": {
+            "theta_deg": 15.0,
+            "directivity_dbi": 7.588
+          }
+        }
+      },
+      "full_planes": {
+        "phi_0_180_deg": {
+          "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+            "signed_plane_angle_deg": 0.0,
+            "directivity_dbi": 5.735
+          },
+          "gprmax_closed_ntff": {
+            "signed_plane_angle_deg": 0.0,
+            "directivity_dbi": 5.869401
+          },
+          "cst_fit_time_domain": {
+            "signed_plane_angle_deg": 0.0,
+            "directivity_dbi": 6.998
+          }
+        },
+        "phi_90_270_deg": {
+          "cst_fem_frequency_domain_adaptive_mesh_refinement": {
+            "signed_plane_angle_deg": 14.0,
+            "directivity_dbi": 5.896
+          },
+          "gprmax_closed_ntff": {
+            "signed_plane_angle_deg": 18.0,
+            "directivity_dbi": 6.179636
+          },
+          "cst_fit_time_domain": {
+            "signed_plane_angle_deg": 15.0,
+            "directivity_dbi": 7.588
+          }
+        }
+      }
+    },
+    "attempts": [
+      {
+        "name": "cst-patch-farfield",
+        "status": "completed",
+        "command": null,
+        "cwd": ".",
+        "seconds": null,
+        "exit_code": null,
+        "evidence_basis": "user_reported_and_h5_verified",
+        "reproduction_command": [
+          "python",
+          "-m",
+          "gprMax",
+          "testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in",
+          "-gpu",
+          "0"
+        ],
+        "note": "User confirmed completion. Exact invocation, wall time, and backend were not captured; HDF5 contents were verified."
+      },
+      {
+        "name": "cst-patch-farfield-plot",
+        "status": "completed",
+        "command": [
+          "python",
+          "testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py"
+        ],
+        "cwd": ".",
+        "seconds": 1.4686093,
+        "exit_code": 0,
+        "evidence_basis": "assistant_executed_and_source_verified",
+        "reproduction_command": [
+          "python",
+          "testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py"
+        ],
+        "note": "Regenerated after correcting the default input filename; reads the newly verified HDF5."
+      }
+    ],
+    "visual_qa": [
+      {
+        "path": "testing/other_codes/cst/patch_antenna/farfield/patch_farfield_comparison_2p45ghz.png",
+        "status": "passed",
+        "notes": "Freshly regenerated from the verified HDF5; all panels, axes, traces, and legends readable without clipping."
+      },
+      {
+        "path": "testing/other_codes/cst/patch_antenna/farfield/patch_farfield_polar_comparison_2p45ghz.png",
+        "status": "passed",
+        "notes": "Freshly regenerated from the verified HDF5; all panels, axes, traces, and legends readable without clipping."
+      }
+    ]
+  },
+  "non_simulation_attempts": [
+    {
+      "case": "cst-patch-farfield",
+      "type": "elevated_preflight",
+      "status": "failed",
+      "reason": "Incorrect working directory; solver was never launched.",
+      "fdtd_run_count": 0
+    }
+  ]
 }

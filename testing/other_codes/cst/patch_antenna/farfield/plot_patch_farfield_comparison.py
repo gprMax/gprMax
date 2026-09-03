@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 from pathlib import Path
@@ -17,7 +18,7 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).resolve().parent
 CST_FEM_PATH = ROOT / "patch_ff_fem_cst.txt"
 CST_FIT_PATH = ROOT / "patch_ff_fit_cst.txt"
-GPRMAX_PATH = ROOT / "patch_recentered_closed_ntff.h5"
+GPRMAX_PATH = ROOT / "patch_antenna_recentered_closed_ntff_backed_pml.h5"
 PLOT_PATH = ROOT / "patch_farfield_comparison_2p45ghz.png"
 POLAR_PLOT_PATH = ROOT / "patch_farfield_polar_comparison_2p45ghz.png"
 CSV_PATH = ROOT / "patch_farfield_comparison_2p45ghz.csv"
@@ -50,11 +51,13 @@ def load_cst(path: Path) -> dict[float, tuple[np.ndarray, np.ndarray]]:
     return cuts
 
 
-def load_gprmax() -> tuple[float, dict[float, tuple[np.ndarray, np.ndarray]]]:
+def load_gprmax(
+    path: Path = GPRMAX_PATH,
+) -> tuple[float, dict[float, tuple[np.ndarray, np.ndarray]]]:
     """Return the nearest stored frequency and requested gprMax phi cuts."""
 
     band_path = "ntff/patch_surface/frequency/patch_farfield_band"
-    with h5py.File(GPRMAX_PATH, "r") as output:
+    with h5py.File(path, "r") as output:
         band = output[band_path]
         frequencies = np.asarray(band["frequencies"], dtype=np.float64)
         frequency_index = int(np.argmin(np.abs(frequencies - FREQUENCY_HZ)))
@@ -347,12 +350,20 @@ def plot_polar_planes(
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--gprmax-output", type=Path, default=GPRMAX_PATH,
+        help="gprMax HDF5 output; defaults to the input model's output basename",
+    )
+    args = parser.parse_args()
     cst_fem_cuts = load_cst(CST_FEM_PATH)
     cst_fit_cuts = load_cst(CST_FIT_PATH)
-    stored_frequency, gprmax_cuts = load_gprmax()
+    stored_frequency, gprmax_cuts = load_gprmax(args.gprmax_output)
+    print(f"Read gprMax output: {args.gprmax_output.resolve()}")
     reference_theta = cst_fem_cuts[PHI_CUTS_DEG[0]][0]
 
     summary = {
+        "gprmax_output_file": args.gprmax_output.name,
         "requested_frequency_hz": FREQUENCY_HZ,
         "gprmax_stored_frequency_hz": stored_frequency,
         "comparison_floor_dbi": COMPARISON_FLOOR_DBI,

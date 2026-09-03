@@ -1,4 +1,5 @@
 {
+  "gprmax_output_file": "patch_antenna_recentered_closed_ntff_backed_pml.h5",
   "requested_frequency_hz": 2450000000.0,
   "gprmax_stored_frequency_hz": 2449999872.0,
   "comparison_floor_dbi": -40.0,
@@ -11,7 +12,7 @@
         },
         "gprmax_closed_ntff": {
           "theta_deg": 0.0,
-          "directivity_dbi": 5.8694
+          "directivity_dbi": 5.869401
         },
         "cst_fit_time_domain": {
           "theta_deg": 0.0,
@@ -25,7 +26,7 @@
         },
         "gprmax_closed_ntff": {
           "theta_deg": 18.0,
-          "directivity_dbi": 6.179637
+          "directivity_dbi": 6.179636
         },
         "cst_fit_time_domain": {
           "theta_deg": 15.0,
@@ -41,7 +42,7 @@
         },
         "gprmax_closed_ntff": {
           "signed_plane_angle_deg": 0.0,
-          "directivity_dbi": 5.8694
+          "directivity_dbi": 5.869401
         },
         "cst_fit_time_domain": {
           "signed_plane_angle_deg": 0.0,
@@ -55,7 +56,7 @@
         },
         "gprmax_closed_ntff": {
           "signed_plane_angle_deg": 18.0,
-          "directivity_dbi": 6.179637
+          "directivity_dbi": 6.179636
         },
         "cst_fit_time_domain": {
           "signed_plane_angle_deg": 15.0,
@@ -69,56 +70,56 @@
       "gprmax_vs_cst_fem": {
         "reference_peak_dbi": 5.735,
         "reference_peak_theta_deg": 0.0,
-        "gprmax_peak_dbi": 5.8694000244140625,
+        "gprmax_peak_dbi": 5.869400978088379,
         "gprmax_peak_theta_deg": 0.0,
-        "peak_difference_db": 0.13440002441406218,
-        "boresight_difference_db": 0.13440002441406218,
-        "back_direction_difference_db": -4.567765884399414,
-        "mae_floor_clipped_db": 1.934819861443471,
-        "rmse_floor_clipped_db": 3.061555741437223,
-        "front_hemisphere_mae_floor_clipped_db": 0.2838519600770107,
-        "front_hemisphere_rmse_floor_clipped_db": 0.3041877783532122
+        "peak_difference_db": 0.1344009780883786,
+        "boresight_difference_db": 0.1344009780883786,
+        "back_direction_difference_db": -4.567784957885742,
+        "mae_floor_clipped_db": 1.9348180234140522,
+        "rmse_floor_clipped_db": 3.0615514207705052,
+        "front_hemisphere_mae_floor_clipped_db": 0.2838530621079429,
+        "front_hemisphere_rmse_floor_clipped_db": 0.30418881181558743
       },
       "gprmax_vs_cst_fit": {
         "reference_peak_dbi": 6.998,
         "reference_peak_theta_deg": 0.0,
-        "gprmax_peak_dbi": 5.8694000244140625,
+        "gprmax_peak_dbi": 5.869400978088379,
         "gprmax_peak_theta_deg": 0.0,
-        "peak_difference_db": -1.1285999755859377,
-        "boresight_difference_db": -1.1285999755859377,
-        "back_direction_difference_db": -2.817765884399414,
-        "mae_floor_clipped_db": 2.822602610595009,
-        "rmse_floor_clipped_db": 3.3082425461923646,
-        "front_hemisphere_mae_floor_clipped_db": 1.3964835344284838,
-        "front_hemisphere_rmse_floor_clipped_db": 1.4266613570652946
+        "peak_difference_db": -1.1285990219116213,
+        "boresight_difference_db": -1.1285990219116213,
+        "back_direction_difference_db": -2.817784957885742,
+        "mae_floor_clipped_db": 2.8225995590677115,
+        "rmse_floor_clipped_db": 3.3082386654263654,
+        "front_hemisphere_mae_floor_clipped_db": 1.3964824323975515,
+        "front_hemisphere_rmse_floor_clipped_db": 1.4266603041224946
       }
     },
     "phi_90_deg": {
       "gprmax_vs_cst_fem": {
         "reference_peak_dbi": 5.896,
         "reference_peak_theta_deg": 14.0,
-        "gprmax_peak_dbi": 6.1796369552612305,
+        "gprmax_peak_dbi": 6.179635524749756,
         "gprmax_peak_theta_deg": 18.0,
-        "peak_difference_db": 0.28363695526123056,
-        "boresight_difference_db": 0.13440002441406218,
-        "back_direction_difference_db": -4.567741088867187,
-        "mae_floor_clipped_db": 0.8895399311814124,
-        "rmse_floor_clipped_db": 1.6653301501078874,
-        "front_hemisphere_mae_floor_clipped_db": 0.23245297116504926,
-        "front_hemisphere_rmse_floor_clipped_db": 0.26053370368103806
+        "peak_difference_db": 0.28363552474975595,
+        "boresight_difference_db": 0.1344009780883786,
+        "back_direction_difference_db": -4.567769699096679,
+        "mae_floor_clipped_db": 0.8895406568926606,
+        "rmse_floor_clipped_db": 1.6653309381243473,
+        "front_hemisphere_mae_floor_clipped_db": 0.23245218500598452,
+        "front_hemisphere_rmse_floor_clipped_db": 0.26053262442983266
       },
       "gprmax_vs_cst_fit": {
         "reference_peak_dbi": 7.588,
         "reference_peak_theta_deg": 15.0,
-        "gprmax_peak_dbi": 6.1796369552612305,
+        "gprmax_peak_dbi": 6.179635524749756,
         "gprmax_peak_theta_deg": 18.0,
-        "peak_difference_db": -1.4083630447387696,
-        "boresight_difference_db": -1.1285999755859377,
-        "back_direction_difference_db": -2.817741088867187,
-        "mae_floor_clipped_db": 1.8106199630983102,
-        "rmse_floor_clipped_db": 2.505248234251615,
-        "front_hemisphere_mae_floor_clipped_db": 1.0046874563098218,
-        "front_hemisphere_rmse_floor_clipped_db": 1.0355467611360707
+        "peak_difference_db": -1.4083644752502442,
+        "boresight_difference_db": -1.1285990219116213,
+        "back_direction_difference_db": -2.8177696990966794,
+        "mae_floor_clipped_db": 1.8106211402900445,
+        "rmse_floor_clipped_db": 2.505249540849961,
+        "front_hemisphere_mae_floor_clipped_db": 1.004688972462036,
+        "front_hemisphere_rmse_floor_clipped_db": 1.0355480762219345
       }
     }
   }

@@ -1,15 +1,12 @@
 # Eigenmode solver rerun results
 
-Status: **PARTIAL**. 56/57 maintained FDTD case runs completed. Standalone FDFD solves cover 24 frequency/geometry pairs and 30 modal rows.
+Status: **COMPLETE**. 57/57 maintained FDTD case runs completed. Standalone FDFD solves cover 24 frequency/geometry pairs and 30 modal rows.
 
-The remaining CST patch far-field case is left for manual execution at the user request. Its input-profile error is fixed. A subsequent run completed field stepping but could not overwrite the existing HDF5 file because write permission was denied. Its far-field HDF5, comparison figures and summary have therefore not been refreshed; they are not counted among the 56 completed cases.
+The final CST patch far-field simulation was completed by the user and verified from its fresh HDF5 output. Its exact simulation command and wall time were not recorded. The plotter had still selected the older `patch_recentered_closed_ntff.h5`; its default now matches the current model basename and it also accepts `--gprmax-output`. The comparison plots and numerical summary were regenerated from `patch_antenna_recentered_closed_ntff_backed_pml.h5`. The earlier setup and output-permission failures remain in the attempt history.
 
-Run these commands from the repository root in the gprMax environment under the normal user session. They use the existing default output name:
+The verified file contains 25,964 timesteps and 11 frequencies with 65,160 directions each. All eight inspected far-field datasets are finite, and all 11 modal coefficients and 11 power-wave flags are valid. The file SHA-256 and dataset shapes/types are recorded in `summary.json`.
 
-```text
-python -m gprMax testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in -outputfile testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff -gpu 0 --hide-progress-bars
-python testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py
-```
+The runtime environment below describes the automated reruns. Only properties verified from the user-produced HDF5 are attributed to the manual simulation; its unrecorded details are left unknown.
 
 The solver baseline is commit `03a84afd467aeb3ce372077e3d15d3cdfc163b00` on `codex/fdfd-dispersion-validation`, including the numerical-dispersion compensation and virtual-waveguide documentation. The run date is 2026-09-04 in Asia/Shanghai. Follow-up changes supply missing timesteps in three test fixtures, prevent cropping in the tutorial horn plot, and remove an undefined PML-profile name in the CST patch input. These changes do not alter the production solver.
 
@@ -28,7 +25,7 @@ An additional ad-hoc dense horn check completed during this work. At the user re
 
 The direct FDFD validator is separate from these FDTD runs. It uses the standalone solver defaults without an FDTD timestep or longitudinal spacing; its continuum-index checks remain useful but do not themselves exercise compensation. Pytest executes additional compact test simulations and is counted separately.
 
-Ignored `legacy/` inputs and equivalent `.in` representations of the six Python tutorials are excluded. The dipole-only internal-PML fixture does not use the eigenmode solver. Fresh simulation output was generated without `--reuse`; the PML driver used `--force`.
+Ignored `legacy/` inputs and equivalent `.in` representations of the six Python tutorials are excluded. The dipole-only internal-PML fixture does not use the eigenmode solver. Automated reruns generated fresh simulation output without `--reuse`; the PML driver used `--force`.
 
 A successful command or an ungated comparison is recorded as completed, not as proof of physical accuracy. Multiport residuals, tutorial/CST plots, and PML trends are reported with their limitations. All original numerical thresholds are retained.
 
@@ -145,6 +142,15 @@ The rerun minimum S11 is -12.2972 dB at 2.430000 GHz. CST reference data are unc
 
 [Patch S11 figure](../../other_codes/cst/patch_antenna/S-parameter/patch_s11.png), [patch far-field comparison](../../other_codes/cst/patch_antenna/farfield/patch_farfield_comparison_2p45ghz.png), and [horn far-field comparison](../../other_codes/cst/horn_antenna/horn_antenna_farfield_polar_comparison.png).
 
+The verified manual patch far-field output was compared at 2.449999872 GHz (requested 2.45 GHz). The principal-plane measurements are ungated comparisons with the unchanged CST references.
+
+| Cut | gprMax peak (dBi) | Peak theta (degrees) | Peak difference vs CST FEM (dB) | Front-hemisphere RMSE vs CST FEM (dB) |
+| --- | ---: | ---: | ---: | ---: |
+| phi_0_deg | 5.869401 | 0.0 | 0.134401 | 0.304189 |
+| phi_90_deg | 6.179636 | 18.0 | 0.283636 | 0.260533 |
+
+The comparison clips directivity at -40 dBi for the error statistics. [Full far-field comparison summary](../../other_codes/cst/patch_antenna/farfield/patch_farfield_comparison_2p45ghz.json).
+
 ## Automated tests
 
 | Selection | Passed | Skipped | Deselected | Failures | Errors | Seconds | Status |
@@ -171,6 +177,8 @@ Additional fresh figures inspected with no unresolved visual issues:
 - `testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff_s11_s21.png`.
 - `testing/other_codes/cst/horn_antenna/horn_antenna_farfield_polar_comparison.png`.
 - `testing/other_codes/cst/patch_antenna/S-parameter/patch_s11.png`.
+
+The patch far-field figures regenerated from the verified manual output were also visually inspected; the detailed review and output provenance are retained in `summary.json`.
 
 ## Physical case ledger
 
@@ -204,7 +212,7 @@ Paths and working directories are repository-relative. `python` means the activa
 | partial-cutoff | 1 | CUDA / single | 75.500 | completed |
 | cst-horn | 1 | CUDA / single | 147.802 | completed |
 | cst-patch-sparameters | 1 | CUDA / single | 235.073 | completed |
-| cst-patch-farfield | 1 | CUDA / single | 453.622 | failed |
+| cst-patch-farfield | 1 | unrecorded / unrecorded | unrecorded | completed |
 | multiport | 2 | cpu / double | 2.702 | completed |
 | copper | 1 | cpu / double | 147.019 | completed |
 | pec_copper_example | 2 | cpu / double | 20.425 | completed |
@@ -237,7 +245,8 @@ Retries retain the original failure or skipped dependency and the final attempt 
 
 | Retried job | Initial status | Latest status |
 | --- | --- | --- |
-| cst-patch-farfield | failed | failed |
+| cst-patch-farfield | failed | completed |
+| cst-patch-farfield-plot | skipped-dependency | completed |
 
 `cst-patch-farfield` attempt 1 (input_setup): `ValueError: Internal PML slab 'internal_pml_1' refers to unknown profile 'port_load'.`.
 
@@ -247,9 +256,11 @@ An intermediate patch-farfield attempt completed field stepping but could not ov
 
 The retained patch-farfield input referenced an undefined `port_load` profile. Removing only that trailing token from its `#pml_slab` line selects the existing default HORIPML/CFS profile. The 29-cell slab geometry, antenna/source/NTFF coordinates, and 20 ns record remain the same. The corrected input was rerun; the initial setup failure is retained separately.
 
+An elevated preflight also failed because its working directory was incorrect. It did not launch the solver and is not counted as a simulation.
+
 ## Reproduction commands
 
-Run the following repository-relative commands in their recorded working directory. PML per-case inputs are generated by the sweep command; generated raw inputs are not tracked.
+Run the following repository-relative commands in the stated working directory. Commands are recorded executions unless explicitly labeled as a reproduction command; the manual simulation command was not captured. PML per-case inputs are generated by the sweep command; generated raw inputs are not tracked.
 
 ### CPU analytical and comparison workflows
 
@@ -448,8 +459,10 @@ python -m gprMax testing/other_codes/cst/patch_antenna/S-parameter/patch_antenna
 python testing/other_codes/cst/patch_antenna/S-parameter/plot_patch_sparameters.py
 ```
 
+Reproduction command (the exact manual invocation was not recorded):
+
 ```text
-python -m gprMax testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in -outputfile testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff -gpu 0 --hide-progress-bars
+python -m gprMax testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in -gpu 0
 ```
 
 ```text
