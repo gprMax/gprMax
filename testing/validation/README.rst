@@ -106,6 +106,13 @@ sparse anchor sets on passive propagation ports to avoid redundant mode solves.
 The copper preset explicitly requests automatic fit order rather than fixing a
 pole count.
 
+The `2026-09-04 eigenmode rerun report <eigenmode_rerun_results/report.md>`_
+collects the analytical checks, maintained regressions, tutorials, PML
+experiments, and CST comparisons after numerical-dispersion compensation.
+Its accompanying `machine-readable summary <eigenmode_rerun_results/summary.json>`_
+records per-case commands, completion status, numerical criteria, and test
+results while distinguishing gated validation from ungated comparisons.
+
 ``mie_pec.py`` and ``mie_dielectric.py`` supply the independent sphere series
 used by both manual validation and automated tests. Behavioural and
 backend-consistency suites without analytical reference solutions are kept

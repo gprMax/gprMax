@@ -4,16 +4,16 @@
       "fdfd_physical_attenuation": {
         "maximum_relative_l2_error": 0.01,
         "passed": true,
-        "relative_l2_error": 0.0014682897619472245
+        "relative_l2_error": 0.00681438224733253
       },
       "fdtd_physical_attenuation": {
         "maximum_relative_l2_error": 0.02,
         "passed": true,
-        "relative_l2_error": 0.007598607715850814
+        "relative_l2_error": 0.007598673878315266
       },
       "source_reflection": {
         "maximum_allowed_db": -20.0,
-        "maximum_db": -65.00045936715561,
+        "maximum_db": -101.0893433632493,
         "passed": true
       }
     },
@@ -49,15 +49,15 @@
   "guide_width_m": 0.0016,
   "metal_preset": "copper",
   "metrics": {
-    "fdfd_insertion_loss_db_max": 0.23368011191722066,
-    "fdfd_insertion_loss_db_min": 0.2045330523166247,
-    "fdfd_physical_alpha_relative_l2_error": 0.0014682897619472245,
-    "fdtd_physical_alpha_relative_l2_error": 0.007598607715850814,
-    "impedance_fit_relative_l2_error": 0.00026022659962488345,
+    "fdfd_insertion_loss_db_max": 0.23515369752113732,
+    "fdfd_insertion_loss_db_min": 0.2064265769204516,
+    "fdfd_physical_alpha_relative_l2_error": 0.00681438224733253,
+    "fdtd_physical_alpha_relative_l2_error": 0.007598673878315266,
+    "impedance_fit_relative_l2_error": 0.0002602265408481845,
     "maximum_continuum_phase_discretisation_deg": 7.296523282472418,
-    "maximum_raw_physical_magnitude_error_db": 0.003034434058757668,
-    "maximum_raw_physical_phase_error_deg": 0.0193107983432366,
-    "maximum_source_reflection_db": -65.00045936715561,
+    "maximum_raw_physical_magnitude_error_db": 0.003034485477071941,
+    "maximum_raw_physical_phase_error_deg": 0.01931035145369531,
+    "maximum_source_reflection_db": -101.0893433632493,
     "physical_insertion_loss_db_max": 0.23430464443547658,
     "physical_insertion_loss_db_min": 0.20441970510064555
   },

@@ -19,10 +19,11 @@ propagation monitors. The 80--180 GHz fit explicitly uses
 ``fit_order='auto'`` and selects three poles. The case uses a 0.1 mm cubic
 grid, a 210 mm domain, source/passive planes at 90, 105, and 145 mm, and a
 500 ps record. The record ends 97.415 ps before the conservative earliest
-wall return. The retained four-thread run took 86.606 s, versus approximately
-148--158 s for the earlier configuration. Its impedance-fit, FDFD-attenuation,
-and FDTD-attenuation errors are 0.026023%, 0.146829%, and 0.759861%; maximum
-:math:`S_{11}` is -65.0005 dB.
+wall return. The retained result includes bulk numerical-dispersion
+compensation. Its impedance-fit, FDFD-attenuation, and FDTD-attenuation errors
+are 0.026023%, 0.681438%, and 0.759867%; maximum :math:`S_{11}` is
+-101.0893 dB. The four-thread rerun on 2026-09-04 took 147.019 s including
+analysis and plot generation.
 
 The figure uses four panels: actual and fitted :math:`Z_s`,
 driven-port :math:`S_{11}`, FDFD effective-index attenuation against

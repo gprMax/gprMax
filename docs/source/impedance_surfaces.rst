@@ -1057,12 +1057,11 @@ using a 2% relative L2 gate. The workflow therefore exercises the copper
 preset, Foster fit, exact FDFD boundary reduction, complex modal source, FDTD
 ADE, modal projection, and propagation loss in one accepted result.
 
-In the retained double-precision four-thread result, recorded before bulk
+In the retained double-precision four-thread result with bulk
 dispersion compensation, the impedance fit error is 0.026023%, the FDFD and
-FDTD attenuation errors are 0.146829% and 0.759861%,
-and maximum reflection is -65.0005 dB. The reduced domain, record, and
-passive-anchor set complete in 86.606 s, compared with approximately 148--158 s
-for the previous validation configuration on the same four-thread workflow.
+FDTD attenuation errors are 0.681438% and 0.759867%,
+and maximum reflection is -101.0893 dB. The four-thread rerun on 2026-09-04
+completed in 147.019 s including analysis and plot generation.
 
 Run the validation from the repository root:
 

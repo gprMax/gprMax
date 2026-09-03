@@ -1,16 +1,16 @@
 {
   "gprmax_s11_minimum_frequency_hz": 2430000128.0,
-  "gprmax_s11_minimum_db": -12.29718017578125,
+  "gprmax_s11_minimum_db": -12.297192573547363,
   "cst_fit_s11_minimum_frequency_hz": 2366210000.0,
   "cst_fit_s11_minimum_db": -12.035437781830488,
   "cst_fem_s11_minimum_frequency_hz": 2441180000.0,
   "cst_fem_s11_minimum_db": -15.559595852685458,
   "gprmax_minus_cst_fit_minimum_frequency_hz": 63790128.0,
   "gprmax_minus_cst_fit_minimum_frequency_percent": 2.6958777116147763,
-  "gprmax_minus_cst_fit_minimum_depth_db": -0.2617423939507617,
+  "gprmax_minus_cst_fit_minimum_depth_db": -0.261754791716875,
   "gprmax_minus_cst_fem_minimum_frequency_hz": -11179872.0,
   "gprmax_minus_cst_fem_minimum_frequency_percent": -0.45796999811566536,
-  "gprmax_minus_cst_fem_minimum_depth_db": 3.262415676904208,
+  "gprmax_minus_cst_fem_minimum_depth_db": 3.262403279138095,
   "cst_fit_minus_cst_fem_minimum_frequency_hz": -74970000.0,
   "cst_fit_minus_cst_fem_minimum_depth_db": 3.52415807085497
 }
