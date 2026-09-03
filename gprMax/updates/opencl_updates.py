@@ -18,6 +18,7 @@
 import logging
 import os
 from importlib import import_module
+from time import perf_counter
 
 import numpy as np
 from jinja2 import Environment, PackageLoader
@@ -2258,6 +2259,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         """Starts event timers used to calculate solving time for model."""
         self.event_marker1 = self.cl.enqueue_marker(self.queue)
         self.event_marker1.wait()
+        self._time_wall_start = perf_counter()
 
     def calculate_memory_used(self, iteration):
         """Calculates memory used on last iteration.
@@ -2275,7 +2277,10 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         """Calculates solving time for model."""
         event_marker2 = self.cl.enqueue_marker(self.queue)
         event_marker2.wait()
-        return (event_marker2.profile.end - self.event_marker1.profile.start) * 1e-9
+        elapsed = (event_marker2.profile.end - self.event_marker1.profile.start) * 1e-9
+        if elapsed <= 0:
+            return perf_counter() - self._time_wall_start
+        return elapsed
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
