@@ -21,7 +21,7 @@ def _read_s21(path: Path) -> tuple[np.ndarray, np.ndarray]:
     rows.sort(key=lambda row: float(row["frequency_hz"]))
     if not rows:
         raise ValueError(f"No port-2 mode-1 S21 rows in {path}")
-    valid = np.asarray([bool(int(row["valid"])) for row in rows])
+    valid = np.asarray([bool(int(row["power_wave_valid"])) for row in rows])
     return (
         np.asarray([float(row["frequency_hz"]) for row in rows]),
         np.where(

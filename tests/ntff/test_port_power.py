@@ -102,7 +102,7 @@ def _eigenmode_port(*, is_source):
     monitor.is_source = is_source
     monitor.excitation_mode_index = 1 if is_source else None
     monitor.excitation_mode_indices = (1,) if is_source else ()
-    monitor.mode_power_valid = np.ones((1, 2), dtype=bool)
+    monitor.power_basis_valid = np.ones((2, 1), dtype=bool)
     monitor.power_matrix_valid = np.ones(1, dtype=bool)
     monitor.power_matrix = np.asarray(
         [[[2.0, 0.5 - 0.25j], [0.5 + 0.25j, 1.0]]],
@@ -113,8 +113,9 @@ def _eigenmode_port(*, is_source):
         frequency=np.asarray([5.0]),
         incident=np.asarray([[2.0 + 0.0j], [1.0 - 0.5j]]),
         outgoing=np.asarray([[0.25 + 0.0j], [0.5 + 0.25j]]),
-        valid=np.ones((2, 1), dtype=bool),
+        power_wave_valid=np.ones((2, 1), dtype=bool),
         condition_number=np.ones(1),
+        coefficient_valid=np.ones((2, 1), dtype=bool),
     )
     return monitor
 
@@ -182,7 +183,7 @@ def test_eigenmode_port_power_selects_antenna_frequency_subset(monkeypatch):
     monitor = _eigenmode_port(is_source=True)
     monitor.mode_indices = (1,)
     monitor.excitation_mode_indices = (1,)
-    monitor.mode_power_valid = np.ones((3, 1), dtype=bool)
+    monitor.power_basis_valid = np.ones((1, 3), dtype=bool)
     monitor.power_matrix_valid = np.ones(3, dtype=bool)
     monitor.power_matrix = np.ones((3, 1, 1), dtype=np.complex128)
     monitor.electric_gram = np.ones((3, 1, 1), dtype=np.complex128)
@@ -190,8 +191,9 @@ def test_eigenmode_port_power_selects_antenna_frequency_subset(monkeypatch):
         frequency=np.asarray([5.0, 6.0, 7.0]),
         incident=np.asarray([[1.0, 2.0, 3.0]], dtype=np.complex128),
         outgoing=np.zeros((1, 3), dtype=np.complex128),
-        valid=np.ones((1, 3), dtype=bool),
+        power_wave_valid=np.ones((1, 3), dtype=bool),
         condition_number=np.ones(3),
+        coefficient_valid=np.ones((1, 3), dtype=bool),
     )
     monkeypatch.setattr(
         ports,
@@ -224,7 +226,7 @@ def test_eigenmode_port_power_rejects_frequency_outside_dft_grid():
 def test_lossy_eigenmode_accepted_power_keeps_interference_term(monkeypatch):
     monitor = _eigenmode_port(is_source=True)
     monitor.mode_indices = (1,)
-    monitor.mode_power_valid = np.ones((1, 1), dtype=bool)
+    monitor.power_basis_valid = np.ones((1, 1), dtype=bool)
     monitor.power_matrix_valid = np.ones(1, dtype=bool)
     monitor.power_matrix = np.asarray([[[1.0]]], dtype=np.complex128)
     monitor.electric_gram = np.asarray([[[1.0 + 0.4j]]], dtype=np.complex128)
@@ -234,8 +236,9 @@ def test_lossy_eigenmode_accepted_power_keeps_interference_term(monkeypatch):
         frequency=np.asarray([5.0]),
         incident=np.asarray([[incident]]),
         outgoing=np.asarray([[outgoing]]),
-        valid=np.ones((1, 1), dtype=bool),
+        power_wave_valid=np.ones((1, 1), dtype=bool),
         condition_number=np.ones(1),
+        coefficient_valid=np.ones((1, 1), dtype=bool),
     )
     monkeypatch.setattr(
         ports,

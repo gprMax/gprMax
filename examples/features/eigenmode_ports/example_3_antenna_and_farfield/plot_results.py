@@ -36,7 +36,7 @@ def read_sparameters(stem: Path):
     traces = {}
     with path.open(newline="", encoding="utf-8") as stream:
         for row in csv.DictReader(stream):
-            if not bool(int(row["valid"])):
+            if not bool(int(row["power_wave_valid"])):
                 continue
             mode = int(row["destination_mode"])
             traces.setdefault(mode, []).append((float(row["frequency_hz"]) * 1e-9, float(row["S_magnitude_db"])))

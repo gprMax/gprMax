@@ -32,7 +32,7 @@ def _read_sparameter(
     rows.sort(key=lambda row: float(row["frequency_hz"]))
     if not rows:
         raise ValueError(f"No port-{destination_port} mode-{destination_mode} rows in {path}")
-    valid = np.asarray([bool(int(row["valid"])) for row in rows])
+    valid = np.asarray([bool(int(row["power_wave_valid"])) for row in rows])
     return (
         np.asarray([float(row["frequency_hz"]) for row in rows]),
         np.where(

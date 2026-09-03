@@ -1852,11 +1852,13 @@ Defines the single frequency band shared by every eigenmode port in the model:
 
 * ``str1`` is a non-empty band identifier.
 * ``f1`` and ``f2`` are the inclusive DFT start and stop frequencies in Hertz.
-* ``i1`` is the number of uniformly spaced DFT points. A one-point band
-  requires ``f1=f2``; a multi-point band requires ``f2>f1``.
-* ``f3 ...`` are optional additional DFT frequencies inside the inclusive
-  band. gprMax sorts and deduplicates their union with the uniform grid. This
-  is useful when a dense S-parameter sweep must also contain specific NTFF
+* ``i1`` is the number of equally spaced output frequencies from ``f1`` to
+  ``f2``, including both endpoints. A one-point band requires ``f1=f2``;
+  a multi-point band requires ``f2>f1``.
+* ``f3 ...`` are optional extra output frequencies between ``f1`` and ``f2``
+  inclusive. They are added to the equally spaced frequencies, and the
+  combined list is sorted from low to high. Repeated values appear only once.
+  This is useful when an S-parameter sweep must also contain specific NTFF
   frequencies exactly.
 
 Exactly one band is required when eigenmode ports are present. Defining the

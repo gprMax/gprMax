@@ -36,11 +36,11 @@ def series(destination_port):
             float(row["S_real"]) + 1j * float(row["S_imag"]) for row in rows
         ]),
         "coefficient_valid": np.asarray([
-            bool(int(row.get("coefficient_valid", row["generalized_valid"])))
+            bool(int(row["coefficient_valid"]))
             for row in rows
         ]),
         "power_wave_valid": np.asarray([
-            bool(int(row.get("power_wave_valid", row["valid"]))) for row in rows
+            bool(int(row["power_wave_valid"])) for row in rows
         ]),
     }
 

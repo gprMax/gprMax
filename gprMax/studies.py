@@ -1557,8 +1557,8 @@ class EigenmodeStudyResult:
         case_ids: identifiers of the independent excitation cases.
         s: generalized modal S matrix with shape ``(F, C, C)`` and axes
             ``(frequency, output_channel, input_channel)``.
-        valid_s: physical propagating-power validity mask for ``s``.
-        generalized_valid_s: generalized-coefficient validity mask for ``s``.
+        power_wave_valid_s: physical propagating-power validity mask for ``s``.
+        coefficient_valid_s: generalized-coefficient validity mask for ``s``.
         output_file: aggregate study HDF5 path.
         embedded_far_fields: mapping from ``transform_id/output_id`` to
             de-embedded :class:`EmbeddedFarFieldBank` objects.
@@ -1566,9 +1566,9 @@ class EigenmodeStudyResult:
             retained.
         outgoing_matrix: measured outgoing modal matrix for all cases, when
             retained.
-        wave_valid_matrix: physical power-wave validity for the measured
+        power_wave_valid_matrix: physical power-wave validity for the measured
             modal matrices.
-        generalized_wave_valid_matrix: generalized-coefficient validity for
+        coefficient_valid_wave_matrix: generalized-coefficient validity for
             the measured modal matrices.
         deembedding_condition_number: condition number of the incident-wave
             solve at each frequency.
@@ -1580,14 +1580,14 @@ class EigenmodeStudyResult:
     channel_modes: npt.NDArray[np.integer]
     case_ids: tuple[str, ...]
     s: npt.NDArray[np.complexfloating]
-    valid_s: npt.NDArray[np.bool_]
-    generalized_valid_s: npt.NDArray[np.bool_]
+    power_wave_valid_s: npt.NDArray[np.bool_]
+    coefficient_valid_s: npt.NDArray[np.bool_]
     output_file: Path
     embedded_far_fields: Mapping[str, "EmbeddedFarFieldBank"] = field(default_factory=dict)
     incident_matrix: Optional[npt.NDArray[np.complexfloating]] = None
     outgoing_matrix: Optional[npt.NDArray[np.complexfloating]] = None
-    wave_valid_matrix: Optional[npt.NDArray[np.bool_]] = None
-    generalized_wave_valid_matrix: Optional[npt.NDArray[np.bool_]] = None
+    power_wave_valid_matrix: Optional[npt.NDArray[np.bool_]] = None
+    coefficient_valid_wave_matrix: Optional[npt.NDArray[np.bool_]] = None
     deembedding_condition_number: Optional[npt.NDArray[np.floating]] = None
     deembedding_valid: Optional[npt.NDArray[np.bool_]] = None
 
@@ -1632,18 +1632,18 @@ class EigenmodeStudyResult:
                     item.decode() if isinstance(item, bytes) else str(item) for item in source["case_ids"][...]
                 ),
                 s=source["S"][...],
-                valid_s=source["valid_S"][...].astype(bool),
-                generalized_valid_s=source["generalized_valid_S"][...].astype(bool),
+                power_wave_valid_s=source["power_wave_valid_S"][...].astype(bool),
+                coefficient_valid_s=source["coefficient_valid_S"][...].astype(bool),
                 output_file=path,
                 embedded_far_fields=banks,
                 incident_matrix=(source["incident_matrix"][...] if "incident_matrix" in source else None),
                 outgoing_matrix=(source["outgoing_matrix"][...] if "outgoing_matrix" in source else None),
-                wave_valid_matrix=(
-                    source["valid_wave_matrix"][...].astype(bool) if "valid_wave_matrix" in source else None
+                power_wave_valid_matrix=(
+                    source["power_wave_valid_matrix"][...].astype(bool) if "power_wave_valid_matrix" in source else None
                 ),
-                generalized_wave_valid_matrix=(
-                    source["generalized_valid_wave_matrix"][...].astype(bool)
-                    if "generalized_valid_wave_matrix" in source
+                coefficient_valid_wave_matrix=(
+                    source["coefficient_valid_wave_matrix"][...].astype(bool)
+                    if "coefficient_valid_wave_matrix" in source
                     else None
                 ),
                 deembedding_condition_number=(
@@ -1669,7 +1669,7 @@ class EigenmodeStudyResult:
 
         Zero-weight channels are omitted rather than multiplied by their
         stored NaNs.  An output is NaN when any active input lacks a valid
-        generalized coefficient to that output.  Use ``valid_s`` separately
+        generalized coefficient to that output.  Use ``power_wave_valid_s`` separately
         when the result must also represent propagating real-power waves.
         """
 
@@ -1678,7 +1678,7 @@ class EigenmodeStudyResult:
         selected_s = np.where(active[:, np.newaxis, :], self.s, 0)
         result = np.einsum("foi,fi->fo", selected_s, incident)
         valid = np.all(
-            ~active[:, np.newaxis, :] | self.generalized_valid_s,
+            ~active[:, np.newaxis, :] | self.coefficient_valid_s,
             axis=-1,
         )
         result[~valid] = np.nan + 1j * np.nan
@@ -2152,20 +2152,20 @@ def evaluate_array_state(
         raise TypeError("state must be an ArrayState")
     incident = study.excitation_weights(state.drives)
     active = np.abs(incident) > 0
-    propagating = np.diagonal(study.valid_s, axis1=1, axis2=2)
+    propagating = np.diagonal(study.power_wave_valid_s, axis1=1, axis2=2)
     active_inputs_valid = np.all(~active | propagating, axis=1)
     required_power_waves = propagating[:, :, np.newaxis] & active[:, np.newaxis, :]
-    physical_transfer_valid = np.all(~required_power_waves | study.valid_s, axis=(1, 2))
+    physical_transfer_valid = np.all(~required_power_waves | study.power_wave_valid_s, axis=(1, 2))
 
     selected_s = np.where(
-        active[:, np.newaxis, :] & study.generalized_valid_s,
+        active[:, np.newaxis, :] & study.coefficient_valid_s,
         study.s,
         0,
     )
     outgoing = np.einsum("foi,fi->fo", selected_s, incident)
     has_incident = np.any(active, axis=1)
     outgoing_valid = active_inputs_valid[:, np.newaxis] & np.all(
-        ~active[:, np.newaxis, :] | study.generalized_valid_s,
+        ~active[:, np.newaxis, :] | study.coefficient_valid_s,
         axis=2,
     )
     outgoing[~outgoing_valid] = np.nan + 1j * np.nan
@@ -2314,7 +2314,7 @@ class EigenmodeStudy(Study):
         self._embedded_bindings: dict[str, tuple[Any, str]] = {}
         self._raw_embedded_far_fields: dict[str, dict[str, Any]] = {}
         self._aggregate_wave_valid_matrix = None
-        self._aggregate_generalized_wave_valid_matrix = None
+        self._aggregate_coefficient_valid_wave_matrix = None
         self._aggregate_output_path: Optional[Path] = None
         self.result: Optional[EigenmodeStudyResult] = None
 
@@ -2330,7 +2330,7 @@ class EigenmodeStudy(Study):
         self._embedded_bindings.clear()
         self._raw_embedded_far_fields.clear()
         self._aggregate_wave_valid_matrix = None
-        self._aggregate_generalized_wave_valid_matrix = None
+        self._aggregate_coefficient_valid_wave_matrix = None
         self._aggregate_output_path = None
         self.result = None
 
@@ -2574,28 +2574,24 @@ class EigenmodeStudy(Study):
             dtype=complex_dtype,
         )
         valid = np.zeros(column.shape, dtype=bool)
-        generalized_valid = np.zeros(column.shape, dtype=bool)
+        coefficient_valid = np.zeros(column.shape, dtype=bool)
         incident = np.full_like(column, np.nan + 1j * np.nan)
         outgoing = np.full_like(column, np.nan + 1j * np.nan)
         wave_valid = np.zeros(column.shape, dtype=bool)
-        generalized_wave_valid = np.zeros(column.shape, dtype=bool)
+        coefficient_wave_valid = np.zeros(column.shape, dtype=bool)
         for output_index, (port_number, mode_index) in enumerate(self._channels):
             monitor = self._runtime_monitors[port_number]
             if not np.array_equal(monitor.result.frequency, frequency):
                 raise ValueError("All EigenmodeStudy ports must use identical DFT bins.")
             mode_position = monitor.mode_indices.index(mode_index)
             column[:, output_index] = monitor.s_parameters[mode_position]
-            valid[:, output_index] = monitor.s_valid[mode_position]
-            generalized_valid[:, output_index] = monitor.s_generalized_valid[mode_position]
+            valid[:, output_index] = monitor.s_power_wave_valid[mode_position]
+            coefficient_valid[:, output_index] = monitor.s_coefficient_valid[mode_position]
             incident[:, output_index] = monitor.result.incident[mode_position]
             outgoing[:, output_index] = monitor.result.outgoing[mode_position]
-            wave_valid[:, output_index] = monitor.result.valid[mode_position]
-            monitor_generalized_valid = getattr(
-                monitor.result,
-                "generalized_valid",
-                monitor.result.valid,
-            )
-            generalized_wave_valid[:, output_index] = monitor_generalized_valid[mode_position]
+            wave_valid[:, output_index] = monitor.result.power_wave_valid[mode_position]
+            monitor_coefficient_valid = monitor.result.coefficient_valid
+            coefficient_wave_valid[:, output_index] = monitor_coefficient_valid[mode_position]
 
         embedded: dict[str, dict[str, Any]] = {}
         for selection_key, (writer, request_key) in self._embedded_bindings.items():
@@ -2640,11 +2636,11 @@ class EigenmodeStudy(Study):
             "frequency": frequency.copy(),
             "column": column,
             "valid": valid,
-            "generalized_valid": generalized_valid,
+            "coefficient_valid": coefficient_valid,
             "incident": incident,
             "outgoing": outgoing,
             "wave_valid": wave_valid,
-            "generalized_wave_valid": generalized_wave_valid,
+            "coefficient_wave_valid": coefficient_wave_valid,
             "embedded": embedded,
         }
         self._columns[input_channel] = data
@@ -2663,27 +2659,17 @@ class EigenmodeStudy(Study):
         group.create_dataset("channel_modes", data=[item[1] for item in self._channels])
         group.create_dataset("frequency", data=data["frequency"])
         group.create_dataset("S_column", data=data["column"])
-        group.create_dataset("valid_S_column", data=data["valid"].astype(np.uint8))
         group.create_dataset("power_wave_valid_S_column", data=data["valid"].astype(np.uint8))
         group.create_dataset(
-            "generalized_valid_S_column",
-            data=data["generalized_valid"].astype(np.uint8),
-        )
-        group.create_dataset(
             "coefficient_valid_S_column",
-            data=data["generalized_valid"].astype(np.uint8),
+            data=data["coefficient_valid"].astype(np.uint8),
         )
         group.create_dataset("incident", data=data["incident"])
         group.create_dataset("outgoing", data=data["outgoing"])
-        group.create_dataset("valid_wave", data=data["wave_valid"].astype(np.uint8))
         group.create_dataset("power_wave_valid", data=data["wave_valid"].astype(np.uint8))
         group.create_dataset(
-            "generalized_valid_wave",
-            data=data["generalized_wave_valid"].astype(np.uint8),
-        )
-        group.create_dataset(
             "coefficient_valid_wave",
-            data=data["generalized_wave_valid"].astype(np.uint8),
+            data=data["coefficient_wave_valid"].astype(np.uint8),
         )
         if self._aggregate_output_path is not None:
             group.attrs["AggregateOutput"] = str(self._aggregate_output_path)
@@ -2703,8 +2689,8 @@ class EigenmodeStudy(Study):
             dtype=first["column"].dtype,
         )
         outgoing_matrix = np.full_like(incident_matrix, np.nan + 1j * np.nan)
-        wave_valid_matrix = np.zeros(shape, dtype=bool)
-        generalized_wave_valid_matrix = np.zeros(shape, dtype=bool)
+        power_wave_valid_matrix = np.zeros(shape, dtype=bool)
+        coefficient_valid_wave_matrix = np.zeros(shape, dtype=bool)
         case_ids = [""] * channel_count
 
         if len(self._columns) < channel_count and self._aggregate_output_path.exists():
@@ -2728,8 +2714,8 @@ class EigenmodeStudy(Study):
                 required = (
                     "incident_matrix",
                     "outgoing_matrix",
-                    "valid_wave_matrix",
-                    "generalized_valid_wave_matrix",
+                    "power_wave_valid_matrix",
+                    "coefficient_valid_wave_matrix",
                 )
                 missing = [name for name in required if name not in previous]
                 if missing:
@@ -2740,8 +2726,8 @@ class EigenmodeStudy(Study):
                     )
                 incident_matrix[...] = previous["incident_matrix"][...]
                 outgoing_matrix[...] = previous["outgoing_matrix"][...]
-                wave_valid_matrix[...] = previous["valid_wave_matrix"][...].astype(bool)
-                generalized_wave_valid_matrix[...] = previous["generalized_valid_wave_matrix"][...].astype(bool)
+                power_wave_valid_matrix[...] = previous["power_wave_valid_matrix"][...].astype(bool)
+                coefficient_valid_wave_matrix[...] = previous["coefficient_valid_wave_matrix"][...].astype(bool)
                 case_ids = [item.decode() for item in previous["case_ids"][...]]
         elif len(self._columns) < channel_count:
             logger.warning(
@@ -2758,24 +2744,24 @@ class EigenmodeStudy(Study):
                 raise RuntimeError("EigenmodeStudy collected inconsistent frequency axes.")
             incident_matrix[:, :, input_index] = data["incident"]
             outgoing_matrix[:, :, input_index] = data["outgoing"]
-            wave_valid_matrix[:, :, input_index] = data["wave_valid"]
-            generalized_wave_valid_matrix[:, :, input_index] = data["generalized_wave_valid"]
+            power_wave_valid_matrix[:, :, input_index] = data["wave_valid"]
+            coefficient_valid_wave_matrix[:, :, input_index] = data["coefficient_wave_valid"]
             case_ids[input_index] = data["case_id"]
 
         s, generalized_output_valid, condition_number, deembedding_valid = _deembed_modal_responses(
             incident_matrix,
             outgoing_matrix,
-            incident_valid=generalized_wave_valid_matrix,
-            response_valid=generalized_wave_valid_matrix,
+            incident_valid=coefficient_valid_wave_matrix,
+            response_valid=coefficient_valid_wave_matrix,
         )
-        generalized_valid = np.broadcast_to(
+        coefficient_valid = np.broadcast_to(
             generalized_output_valid[:, :, np.newaxis],
             shape,
         ).copy()
-        physical_incident_basis_valid = np.all(wave_valid_matrix, axis=(1, 2))
-        physical_output_valid = np.all(wave_valid_matrix, axis=2)
+        physical_incident_basis_valid = np.all(power_wave_valid_matrix, axis=(1, 2))
+        physical_output_valid = np.all(power_wave_valid_matrix, axis=2)
         valid = (
-            generalized_valid
+            coefficient_valid
             & physical_incident_basis_valid[:, np.newaxis, np.newaxis]
             & physical_output_valid[:, :, np.newaxis]
             & deembedding_valid[:, np.newaxis, np.newaxis]
@@ -2785,11 +2771,11 @@ class EigenmodeStudy(Study):
             frequency,
             channel_count,
             incident_matrix=incident_matrix,
-            wave_valid_matrix=wave_valid_matrix,
+            power_wave_valid_matrix=power_wave_valid_matrix,
             load_previous=len(self._columns) < channel_count,
         )
-        self._aggregate_wave_valid_matrix = wave_valid_matrix
-        self._aggregate_generalized_wave_valid_matrix = generalized_wave_valid_matrix
+        self._aggregate_wave_valid_matrix = power_wave_valid_matrix
+        self._aggregate_coefficient_valid_wave_matrix = coefficient_valid_wave_matrix
 
         self.result = EigenmodeStudyResult(
             frequency=np.asarray(frequency),
@@ -2797,14 +2783,14 @@ class EigenmodeStudy(Study):
             channel_modes=np.asarray([item[1] for item in self._channels], dtype=np.int32),
             case_ids=tuple(case_ids),
             s=s,
-            valid_s=valid,
-            generalized_valid_s=generalized_valid,
+            power_wave_valid_s=valid,
+            coefficient_valid_s=coefficient_valid,
             output_file=self._aggregate_output_path,
             embedded_far_fields=embedded_far_fields,
             incident_matrix=incident_matrix,
             outgoing_matrix=outgoing_matrix,
-            wave_valid_matrix=wave_valid_matrix,
-            generalized_wave_valid_matrix=generalized_wave_valid_matrix,
+            power_wave_valid_matrix=power_wave_valid_matrix,
+            coefficient_valid_wave_matrix=coefficient_valid_wave_matrix,
             deembedding_condition_number=condition_number,
             deembedding_valid=deembedding_valid,
         )
@@ -2818,7 +2804,7 @@ class EigenmodeStudy(Study):
         channel_count: int,
         *,
         incident_matrix,
-        wave_valid_matrix,
+        power_wave_valid_matrix,
         load_previous: bool,
     ) -> dict[str, EmbeddedFarFieldBank]:
         if self.codebook is None or not self.codebook.embedded_far_fields:
@@ -2920,25 +2906,25 @@ class EigenmodeStudy(Study):
                 etheta, etheta_valid, _, etheta_basis_valid = _deembed_modal_responses(
                     incident_matrix,
                     raw_etheta,
-                    incident_valid=wave_valid_matrix,
+                    incident_valid=power_wave_valid_matrix,
                     response_valid=field_response_valid,
                 )
                 ephi, ephi_valid, _, ephi_basis_valid = _deembed_modal_responses(
                     incident_matrix,
                     raw_ephi,
-                    incident_valid=wave_valid_matrix,
+                    incident_valid=power_wave_valid_matrix,
                     response_valid=field_response_valid,
                 )
                 sphere_etheta, sphere_etheta_valid, _, sphere_etheta_basis_valid = _deembed_modal_responses(
                     incident_matrix,
                     raw_sphere_etheta,
-                    incident_valid=wave_valid_matrix,
+                    incident_valid=power_wave_valid_matrix,
                     response_valid=field_response_valid,
                 )
                 sphere_ephi, sphere_ephi_valid, _, sphere_ephi_basis_valid = _deembed_modal_responses(
                     incident_matrix,
                     raw_sphere_ephi,
-                    incident_valid=wave_valid_matrix,
+                    incident_valid=power_wave_valid_matrix,
                     response_valid=field_response_valid,
                 )
                 frequency_valid = (
@@ -3019,12 +3005,10 @@ class EigenmodeStudy(Study):
             output.create_dataset("channel_modes", data=result.channel_modes)
             output.create_dataset("case_ids", data=np.asarray(result.case_ids, dtype="S"))
             output.create_dataset("S", data=result.s)
-            output.create_dataset("valid_S", data=result.valid_s.astype(np.uint8))
-            output.create_dataset("power_wave_valid_S", data=result.valid_s.astype(np.uint8))
-            output.create_dataset("generalized_valid_S", data=result.generalized_valid_s.astype(np.uint8))
+            output.create_dataset("power_wave_valid_S", data=result.power_wave_valid_s.astype(np.uint8))
             output.create_dataset(
                 "coefficient_valid_S",
-                data=result.generalized_valid_s.astype(np.uint8),
+                data=result.coefficient_valid_s.astype(np.uint8),
             )
             output.create_dataset("incident_matrix", data=result.incident_matrix)
             output.create_dataset("outgoing_matrix", data=result.outgoing_matrix)
@@ -3037,20 +3021,12 @@ class EigenmodeStudy(Study):
                 data=result.deembedding_valid.astype(np.uint8),
             )
             output.create_dataset(
-                "valid_wave_matrix",
-                data=result.wave_valid_matrix.astype(np.uint8),
-            )
-            output.create_dataset(
                 "power_wave_valid_matrix",
-                data=result.wave_valid_matrix.astype(np.uint8),
-            )
-            output.create_dataset(
-                "generalized_valid_wave_matrix",
-                data=result.generalized_wave_valid_matrix.astype(np.uint8),
+                data=result.power_wave_valid_matrix.astype(np.uint8),
             )
             output.create_dataset(
                 "coefficient_valid_wave_matrix",
-                data=result.generalized_wave_valid_matrix.astype(np.uint8),
+                data=result.coefficient_valid_wave_matrix.astype(np.uint8),
             )
             if self.codebook is not None:
                 codebook_group = output.create_group("array_codebook")

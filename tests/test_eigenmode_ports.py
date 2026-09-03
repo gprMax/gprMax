@@ -18,6 +18,7 @@
 import csv
 from types import SimpleNamespace
 
+import h5py
 import numpy as np
 import pytest
 
@@ -318,15 +319,13 @@ def test_monitor_uses_tracked_nonpropagating_reference_for_generalized_tail(
     assert monitor.eu[:2, 1, 0, 0] == pytest.approx([4, 5])
     assert monitor.neff[:, 0] == pytest.approx([-0.5j, 0.4, 0.7])
     assert monitor.neff[:, 1] == pytest.approx([0.2, 0.4, -0.3j])
-    assert monitor.mode_power_valid.tolist() == [
-        [False, True],
-        [True, True],
-        [True, False],
+    assert monitor.power_basis_valid.tolist() == [
+        [False, True, True],
+        [True, True, False],
     ]
-    assert monitor.mode_decomposition_valid.tolist() == [
-        [True, True],
-        [True, True],
-        [True, True],
+    assert monitor.reference_basis_valid.tolist() == [
+        [True, True, True],
+        [True, True, True],
     ]
 
 
@@ -382,7 +381,7 @@ def test_monitor_extrapolates_an_outer_propagating_endpoint(monkeypatch):
 
     monitor.prepare(grid)
 
-    assert monitor.power_wave_valid[:, 0].tolist() == [False, True, True]
+    assert monitor.power_basis_valid[0].tolist() == [False, True, True]
     assert monitor.neff[:, 0] == pytest.approx([-0.5j, 0.4, 0.4])
     np.testing.assert_allclose(
         monitor.hv[:, 0, 0, 0] / monitor.eu[:, 0, 0, 0],
@@ -438,8 +437,8 @@ def test_monitor_rejects_matching_zero_neff_cutoff_anchor(monkeypatch):
 
     monitor.prepare(grid)
 
-    assert monitor.mode_decomposition_valid[:, 0].tolist() == [False, True]
-    assert monitor.mode_power_valid[:, 0].tolist() == [False, True]
+    assert monitor.reference_basis_valid[0].tolist() == [False, True]
+    assert monitor.power_basis_valid[0].tolist() == [False, True]
 
 
 def test_monitor_keeps_two_evanescent_reference_runs_separate(monkeypatch):
@@ -493,7 +492,7 @@ def test_monitor_keeps_two_evanescent_reference_runs_separate(monkeypatch):
 
     monitor.prepare(grid)
 
-    assert monitor.power_wave_valid[:, 0].tolist() == [False, False, True, False, False]
+    assert monitor.power_basis_valid[0].tolist() == [False, False, True, False, False]
     assert monitor.neff[:, 0] == pytest.approx([-0.5j, -0.5j, 0.4, -0.3j, -0.3j])
     np.testing.assert_allclose(
         monitor.hv[:, 0, 0, 0] / monitor.eu[:, 0, 0, 0],
@@ -563,7 +562,7 @@ def test_monitor_uses_nearest_tracked_endpoint_outside_candidate_range(monkeypat
 
     monitor.prepare(grid)
 
-    assert not np.any(monitor.power_wave_valid)
+    assert not np.any(monitor.power_basis_valid)
     np.testing.assert_allclose(
         monitor.neff,
         [[0.4, -0.5j], [-0.3j, 0.6]],
@@ -614,7 +613,8 @@ def test_multimode_gram_solve_separates_incident_and_outgoing_waves(monkeypatch)
     monitor.magnetic_gram = gram[np.newaxis]
     monitor.frequency = np.asarray([1e9])
     monitor.neff = np.zeros((1, 2), dtype=np.complex128)
-    monitor.mode_power_valid = np.ones((1, 2), dtype=bool)
+    monitor.power_basis_valid = np.ones((2, 1), dtype=bool)
+    monitor.reference_basis_valid = monitor.power_basis_valid.copy()
     monitor.power_matrix_valid = np.ones(1, dtype=bool)
     monitor.owner = SimpleNamespace(normal_axis=0)
     monitor.magnetic_side = -1
@@ -623,8 +623,8 @@ def test_multimode_gram_solve_separates_incident_and_outgoing_waves(monkeypatch)
 
     np.testing.assert_allclose(result.incident[:, 0], expected_incident)
     np.testing.assert_allclose(result.outgoing[:, 0], expected_outgoing)
-    assert result.generalized_valid[:, 0].all()
-    assert result.valid[:, 0].all()
+    assert result.coefficient_valid[:, 0].all()
+    assert result.power_wave_valid[:, 0].all()
 
 
 @pytest.mark.parametrize(
@@ -647,7 +647,8 @@ def test_condition_validity_accounts_for_input_precision(
     monitor.magnetic_dft = monitor.electric_dft.copy()
     monitor.frequency = np.asarray([1e9])
     monitor.neff = np.zeros((1, 2), dtype=complex_dtype)
-    monitor.mode_power_valid = np.ones((1, 2), dtype=bool)
+    monitor.power_basis_valid = np.ones((2, 1), dtype=bool)
+    monitor.reference_basis_valid = monitor.power_basis_valid.copy()
     monitor.power_matrix_valid = np.ones(1, dtype=bool)
     monitor.owner = SimpleNamespace(normal_axis=0)
     monitor.magnetic_side = -1
@@ -658,7 +659,7 @@ def test_condition_validity_accounts_for_input_precision(
         assert result.condition_number[0] == pytest.approx(1e5, rel=1e-6)
     else:
         assert np.isinf(result.condition_number[0])
-    assert result.valid[:, 0].tolist() == [expected_valid, expected_valid]
+    assert result.power_wave_valid[:, 0].tolist() == [expected_valid, expected_valid]
 
 
 def test_scalar_tiny_gram_is_invalid_despite_unit_condition_number(monkeypatch):
@@ -674,8 +675,8 @@ def test_scalar_tiny_gram_is_invalid_despite_unit_condition_number(monkeypatch):
     monitor.magnetic_dft = np.asarray([[1e-20j]], dtype=np.complex128)
     monitor.frequency = np.asarray([1e9])
     monitor.neff = np.zeros((1, 1), dtype=np.complex128)
-    monitor.mode_decomposition_valid = np.ones((1, 1), dtype=bool)
-    monitor.mode_power_valid = np.ones((1, 1), dtype=bool)
+    monitor.reference_basis_valid = np.ones((1, 1), dtype=bool)
+    monitor.power_basis_valid = np.ones((1, 1), dtype=bool)
     monitor.power_matrix_valid = np.ones(1, dtype=bool)
     monitor.owner = SimpleNamespace(normal_axis=0)
     monitor.magnetic_side = -1
@@ -683,8 +684,8 @@ def test_scalar_tiny_gram_is_invalid_despite_unit_condition_number(monkeypatch):
     result = monitor.finalise(SimpleNamespace(dl=np.zeros(3)))
 
     assert np.isinf(result.condition_number[0])
-    assert not result.generalized_valid[0, 0]
-    assert not result.valid[0, 0]
+    assert not result.coefficient_valid[0, 0]
+    assert not result.power_wave_valid[0, 0]
 
 
 def test_finalise_rejects_fallback_power_normalization(monkeypatch):
@@ -700,7 +701,8 @@ def test_finalise_rejects_fallback_power_normalization(monkeypatch):
     monitor.magnetic_dft = np.ones((1, 1), dtype=np.complex128)
     monitor.frequency = np.asarray([1e9])
     monitor.neff = np.zeros((1, 1), dtype=np.complex128)
-    monitor.mode_power_valid = np.asarray([[False]])
+    monitor.power_basis_valid = np.asarray([[False]])
+    monitor.reference_basis_valid = monitor.power_basis_valid.copy()
     monitor.power_matrix_valid = np.asarray([False])
     monitor.owner = SimpleNamespace(normal_axis=0)
     monitor.magnetic_side = -1
@@ -709,7 +711,7 @@ def test_finalise_rejects_fallback_power_normalization(monkeypatch):
 
     assert np.isfinite(result.incident[0, 0])
     assert np.isfinite(result.outgoing[0, 0])
-    assert not result.valid[0, 0]
+    assert not result.power_wave_valid[0, 0]
 
 
 def test_finalise_keeps_conditioned_below_cutoff_generalized_coefficients(monkeypatch):
@@ -725,8 +727,8 @@ def test_finalise_keeps_conditioned_below_cutoff_generalized_coefficients(monkey
     monitor.magnetic_dft = np.asarray([[1.5]], dtype=np.complex128)
     monitor.frequency = np.asarray([22e9])
     monitor.neff = np.asarray([[0.5]], dtype=np.complex128)
-    monitor.power_wave_valid = np.asarray([[False]])
-    monitor.mode_decomposition_valid = np.asarray([[True]])
+    monitor.power_basis_valid = np.asarray([[False]])
+    monitor.reference_basis_valid = np.asarray([[True]])
     monitor.power_matrix_valid = np.asarray([False])
     monitor.owner = SimpleNamespace(normal_axis=0)
     monitor.magnetic_side = -1
@@ -735,9 +737,9 @@ def test_finalise_keeps_conditioned_below_cutoff_generalized_coefficients(monkey
 
     assert result.incident[0, 0] == pytest.approx(2.0)
     assert result.outgoing[0, 0] == pytest.approx(0.5)
-    assert result.generalized_valid[0, 0]
-    assert not result.valid[0, 0]
-    assert not monitor.power_wave_valid[0, 0]
+    assert result.coefficient_valid[0, 0]
+    assert not result.power_wave_valid[0, 0]
+    assert not monitor.power_basis_valid[0, 0]
     assert not monitor.power_matrix_valid[0]
 
 
@@ -759,7 +761,7 @@ def test_physical_port_power_rejects_generalized_only_coefficients(monkeypatch):
     monitor.mode_indices = (1,)
     monitor.is_source = True
     monitor.excitation_mode_index = 1
-    monitor.power_wave_valid = np.asarray([[False], [True]])
+    monitor.power_basis_valid = np.asarray([[False, True]])
     monitor.power_matrix_valid = np.asarray([True, True])
     monitor.power_matrix = np.ones((2, 1, 1), dtype=np.complex128)
     monitor.electric_gram = np.ones((2, 1, 1), dtype=np.complex128)
@@ -767,9 +769,9 @@ def test_physical_port_power_rejects_generalized_only_coefficients(monkeypatch):
         frequency=np.asarray([22e9, 28e9]),
         incident=np.asarray([[1000 + 0j, 2 + 0j]]),
         outgoing=np.asarray([[500 + 0j, 1 + 0j]]),
-        valid=np.asarray([[False, True]]),
+        power_wave_valid=np.asarray([[False, True]]),
         condition_number=np.asarray([1.0, 1.0]),
-        generalized_valid=np.asarray([[True, True]]),
+        coefficient_valid=np.asarray([[True, True]]),
     )
     monkeypatch.setattr(
         ports_module,
@@ -804,9 +806,8 @@ def test_finalise_solves_propagating_sibling_when_other_mode_is_nonpropagating(
     monitor.magnetic_dft = np.asarray([[456.0, 2.0]], dtype=np.complex128)
     monitor.frequency = np.asarray([28e9])
     monitor.neff = np.zeros((1, 2), dtype=np.complex128)
-    monitor.mode_decomposition_valid = np.asarray([[True, True]])
-    monitor.mode_power_valid = np.asarray([[False, True]])
-    monitor.power_wave_valid = np.asarray([[False, True]])
+    monitor.reference_basis_valid = np.asarray([[True], [True]])
+    monitor.power_basis_valid = np.asarray([[False], [True]])
     monitor.power_matrix_valid = np.asarray([True])
     monitor.owner = SimpleNamespace(normal_axis=0)
     monitor.magnetic_side = -1
@@ -815,8 +816,8 @@ def test_finalise_solves_propagating_sibling_when_other_mode_is_nonpropagating(
 
     assert result.incident[:, 0] == pytest.approx([0.0, 2.0])
     assert result.outgoing[:, 0] == pytest.approx([0.0, 0.0])
-    assert result.generalized_valid[:, 0].tolist() == [False, True]
-    assert result.valid[:, 0].tolist() == [False, True]
+    assert result.coefficient_valid[:, 0].tolist() == [False, True]
+    assert result.power_wave_valid[:, 0].tolist() == [False, True]
     assert result.condition_number[0] == pytest.approx(1.0)
 
 
@@ -836,9 +837,8 @@ def test_finalise_rejects_truncated_nullspace_coupled_to_power_mode(monkeypatch)
     monitor.magnetic_dft = (gram @ (incident - outgoing))[np.newaxis]
     monitor.frequency = np.asarray([28e9])
     monitor.neff = np.zeros((1, 2), dtype=np.complex128)
-    monitor.mode_decomposition_valid = np.asarray([[True, True]])
-    monitor.mode_power_valid = np.asarray([[False, True]])
-    monitor.power_wave_valid = np.asarray([[False, True]])
+    monitor.reference_basis_valid = np.asarray([[True], [True]])
+    monitor.power_basis_valid = np.asarray([[False], [True]])
     monitor.power_matrix_valid = np.asarray([True])
     monitor.owner = SimpleNamespace(normal_axis=0)
     monitor.magnetic_side = -1
@@ -847,8 +847,8 @@ def test_finalise_rejects_truncated_nullspace_coupled_to_power_mode(monkeypatch)
 
     np.testing.assert_array_equal(result.incident[:, 0], 0.0)
     np.testing.assert_array_equal(result.outgoing[:, 0], 0.0)
-    assert not np.any(result.generalized_valid[:, 0])
-    assert not np.any(result.valid[:, 0])
+    assert not np.any(result.coefficient_valid[:, 0])
+    assert not np.any(result.power_wave_valid[:, 0])
     assert np.isinf(result.condition_number[0])
 
 
@@ -887,19 +887,18 @@ def test_hdf5_metadata_distinguishes_power_and_reference_anchor_banks():
         frequency=np.asarray([1e9]),
         incident=np.zeros((1, 1), dtype=np.complex128),
         outgoing=np.zeros((1, 1), dtype=np.complex128),
-        valid=np.zeros((1, 1), dtype=bool),
+        power_wave_valid=np.zeros((1, 1), dtype=bool),
         condition_number=np.ones(1),
-        generalized_valid=np.ones((1, 1), dtype=bool),
+        coefficient_valid=np.ones((1, 1), dtype=bool),
     )
     monitor.electric_gram = np.ones((1, 1, 1), dtype=np.complex128)
     monitor.power_matrix = np.ones((1, 1, 1), dtype=np.complex128)
-    monitor.mode_decomposition_valid = np.ones((1, 1), dtype=bool)
-    monitor.power_wave_valid = np.zeros((1, 1), dtype=bool)
+    monitor.reference_basis_valid = np.ones((1, 1), dtype=bool)
+    monitor.power_basis_valid = np.zeros((1, 1), dtype=bool)
     monitor.power_matrix_valid = np.zeros(1, dtype=bool)
     monitor.s_parameters = np.asarray([[0.5 + 0j]])
-    monitor.s_generalized_valid = np.ones((1, 1), dtype=bool)
-    monitor.s_valid = np.zeros((1, 1), dtype=bool)
-    monitor.s_power_wave_valid = monitor.s_valid.copy()
+    monitor.s_coefficient_valid = np.ones((1, 1), dtype=bool)
+    monitor.s_power_wave_valid = np.zeros((1, 1), dtype=bool)
     monitor.active_s_parameters = None
 
     base = MemoryGroup()
@@ -914,20 +913,106 @@ def test_hdf5_metadata_distinguishes_power_and_reference_anchor_banks():
     np.testing.assert_array_equal(group["anchor_mode_reference_valid"], [[1], [1], [1]])
     np.testing.assert_allclose(group["anchor_balanced_power"], [[1.0], [2.0], [3.0]])
     np.testing.assert_allclose(group["anchor_complex_neff"], monitor.anchor_neff)
-    np.testing.assert_array_equal(group["generalized_valid"], [[1]])
-    np.testing.assert_array_equal(group["coefficient_valid"], group["generalized_valid"])
-    np.testing.assert_array_equal(group["valid"], [[0]])
-    np.testing.assert_array_equal(group["power_wave_valid"], group["valid"])
-    np.testing.assert_array_equal(group["reference_basis_valid"], group["decomposition_valid"])
-    np.testing.assert_array_equal(group["power_basis_valid"], group["power_normalization_valid"])
-    np.testing.assert_array_equal(group["generalized_valid_S"], [[1]])
-    np.testing.assert_array_equal(group["coefficient_valid_S"], group["generalized_valid_S"])
-    np.testing.assert_array_equal(group["valid_S"], [[0]])
-    np.testing.assert_array_equal(group["power_wave_valid_S"], group["valid_S"])
-    assert group["generalized_valid"].shape == group["valid"].shape == (1, 1)
-    assert group["generalized_valid_S"].shape == group["valid_S"].shape == (1, 1)
-    assert group["valid"].dtype == np.uint8
-    assert group["generalized_valid"].dtype == np.uint8
+    np.testing.assert_array_equal(group["coefficient_valid"], [[1]])
+    np.testing.assert_array_equal(group["power_wave_valid"], [[0]])
+    np.testing.assert_array_equal(group["reference_basis_valid"], [[1]])
+    np.testing.assert_array_equal(group["power_basis_valid"], [[0]])
+    np.testing.assert_array_equal(group["coefficient_valid_S"], [[1]])
+    np.testing.assert_array_equal(group["power_wave_valid_S"], [[0]])
+    assert {name for name in group if "valid" in name} == {
+        "reference_basis_valid", "power_basis_valid", "coefficient_valid",
+        "power_wave_valid", "coefficient_valid_S", "power_wave_valid_S",
+        "anchor_mode_valid", "anchor_mode_reference_valid", "power_matrix_valid",
+    }
+    assert group["coefficient_valid"].shape == group["power_wave_valid"].shape == (1, 1)
+    assert group["coefficient_valid_S"].shape == group["power_wave_valid_S"].shape == (1, 1)
+    assert group["power_wave_valid"].dtype == np.uint8
+    assert group["coefficient_valid"].dtype == np.uint8
+
+
+
+@pytest.mark.parametrize("driven_modes", ((3,), (3, 1)))
+def test_validity_masks_share_mode_frequency_axes_in_hdf5(
+    tmp_path, monkeypatch, driven_modes
+):
+    monkeypatch.setattr(
+        config, "sim_config", SimpleNamespace(dtypes={"complex": np.complex128})
+    )
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(output_file_path=tmp_path / "modal"),
+    )
+    monitor = EigenmodePortMonitor.__new__(EigenmodePortMonitor)
+    monitor.port_index = 1
+    monitor.port_id = "modal"
+    monitor.is_source = True
+    monitor.mode_indices = (3, 1)
+    monitor.excitation_mode_index = driven_modes[0] if len(driven_modes) == 1 else None
+    monitor.excitation_mode_indices = driven_modes
+    monitor.owner = SimpleNamespace(
+        direction="+",
+        normal="x",
+        normal_axis=0,
+        plane_index=2,
+        requested_anchor_policy="explicit",
+        resolved_anchor_policy="explicit",
+    )
+    monitor.frequency = np.asarray([1e9, 2e9, 3e9])
+    monitor.neff = np.ones((3, 2), dtype=np.complex128)
+    monitor.magnetic_side = -1
+    monitor.reference_basis_valid = np.asarray(
+        [[True, True, True], [True, True, False]]
+    )
+    monitor.power_basis_valid = np.asarray([[False, True, True], [True, True, False]])
+    monitor.electric_gram = np.tile(np.eye(2, dtype=np.complex128), (3, 1, 1))
+    monitor.magnetic_gram = monitor.electric_gram.copy()
+    monitor.power_matrix = monitor.electric_gram.copy()
+    monitor.power_matrix_valid = np.ones(3, dtype=bool)
+    incident = np.asarray([[2, 3, 4], [5, 6, 7]], dtype=np.complex128)
+    monitor.electric_dft = (1.25 * incident).T
+    monitor.magnetic_dft = (0.75 * incident).T
+    monitor.anchor_frequencies = monitor.frequency.copy()
+    monitor.anchor_mode_valid = monitor.power_basis_valid.T.copy()
+    monitor.anchor_mode_reference_valid = monitor.reference_basis_valid.T.copy()
+    monitor.anchor_mode_propagating = monitor.anchor_mode_valid.copy()
+    monitor.anchor_balanced_power = np.ones((3, 2))
+    monitor.anchor_neff = monitor.neff.copy()
+    monitor.mode_anchor_policies = ("explicit", "explicit")
+    monitor.s_parameters = None
+    monitor.active_s_parameters = None
+    grid = SimpleNamespace(name="main_grid", dl=np.zeros(3), eigenmodeports=[monitor])
+
+    finalise_eigenmode_ports(grid)
+
+    np.testing.assert_allclose(monitor.result.incident, [[2, 3, 4], [5, 6, 0]])
+    expected = {
+        "reference_basis_valid": [[1, 1, 1], [1, 1, 0]],
+        "power_basis_valid": [[0, 1, 1], [1, 1, 0]],
+        "coefficient_valid": [[1, 1, 1], [1, 1, 0]],
+        "power_wave_valid": [[0, 1, 1], [1, 1, 0]],
+    }
+    if len(driven_modes) == 1:
+        expected["coefficient_valid_S"] = [[1, 1, 1], [1, 1, 0]]
+        expected["power_wave_valid_S"] = [[0, 1, 1], [0, 1, 0]]
+        ratio_name = "S"
+        expected_ratio = [[0.25, 0.25], [0.625, 0.5]]
+    else:
+        expected["coefficient_valid_active_S"] = [[1, 1, 1], [1, 1, 0]]
+        expected["power_wave_valid_active_S"] = [[0, 1, 1], [1, 1, 0]]
+        ratio_name = "active_S"
+        expected_ratio = [[0.25, 0.25], [0.25, 0.25]]
+    output_path = tmp_path / "modal.h5"
+    with h5py.File(output_path, "w") as output:
+        monitor.write_hdf5(output)
+    with h5py.File(output_path, "r") as output:
+        port = output["eigenmode_ports/port1"]
+        np.testing.assert_array_equal(port.attrs["ModeIndices"], [3, 1])
+        for name, values in expected.items():
+            assert port[name].shape == port["incident"].shape == (2, 3)
+            assert port[name].dtype == np.uint8
+            np.testing.assert_array_equal(port[name][...], values)
+        np.testing.assert_allclose(port[ratio_name][...][:, :2], expected_ratio)
 
 
 def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
@@ -941,11 +1026,12 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
             frequency=frequency,
             incident=np.asarray([[100 + 0j], [2 + 0j]]),
             outgoing=np.asarray([[1 + 0j], [0.5 + 0j]]),
-            valid=np.asarray([[True], [True]]),
+            power_wave_valid=np.asarray([[True], [True]]),
             condition_number=np.asarray([1.0]),
+            coefficient_valid=np.asarray([[True], [True]]),
         ),
         finalise=lambda grid: None,
-        mode_power_valid=np.ones((1, 2), dtype=bool),
+        power_basis_valid=np.ones((2, 1), dtype=bool),
         power_matrix_valid=np.ones(1, dtype=bool),
     )
     receiver = SimpleNamespace(
@@ -956,11 +1042,12 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
             frequency=frequency,
             incident=np.zeros((2, 1), dtype=np.complex128),
             outgoing=np.asarray([[1 + 0j], [0.5 + 0j]]),
-            valid=np.asarray([[True], [True]]),
+            power_wave_valid=np.asarray([[True], [True]]),
             condition_number=np.asarray([1.0]),
+            coefficient_valid=np.asarray([[True], [True]]),
         ),
         finalise=lambda grid: None,
-        mode_power_valid=np.ones((1, 2), dtype=bool),
+        power_basis_valid=np.ones((2, 1), dtype=bool),
         power_matrix_valid=np.ones(1, dtype=bool),
     )
     grid = SimpleNamespace(name="main_grid", eigenmodeports=[source, receiver])
@@ -979,9 +1066,14 @@ def test_sparameter_csv_contains_s11_and_each_s21_mode(tmp_path, monkeypatch):
     assert "coefficient_magnitude_squared" in rows[0]
     assert "power_ratio" not in rows[0]
     assert "power_wave_valid" in rows[0]
-    assert "generalized_valid" in rows[0]
-    assert all(row["valid"] == row["power_wave_valid"] for row in rows)
-    assert all(row["valid"] == row["generalized_valid"] for row in rows)
+    assert "coefficient_valid" in rows[0]
+    assert set(rows[0]) == {
+        "frequency_hz", "source_port", "source_mode", "destination_port",
+        "destination_mode", "S_real", "S_imag", "S_magnitude",
+        "S_magnitude_db", "S_phase_deg", "coefficient_magnitude_squared",
+        "power_wave_valid", "coefficient_valid",
+    }
+    assert all(row["power_wave_valid"] == row["coefficient_valid"] for row in rows)
     values = {
         (int(row["destination_port"]), int(row["destination_mode"])): float(row["S_magnitude"])
         for row in rows
@@ -1010,12 +1102,12 @@ def test_multiple_drives_write_active_sparameters_not_an_sparameter_column(
                 frequency=frequency,
                 incident=np.full((len(modes), 2), 2 * port_index, dtype=np.complex128),
                 outgoing=np.full((len(modes), 2), 0.5 * port_index, dtype=np.complex128),
-                valid=np.tile([[True, False]], (len(modes), 1)),
+                power_wave_valid=np.tile([[True, False]], (len(modes), 1)),
                 condition_number=np.ones(2),
-                generalized_valid=np.ones((len(modes), 2), dtype=bool),
+                coefficient_valid=np.ones((len(modes), 2), dtype=bool),
             ),
             finalise=lambda grid: None,
-            mode_power_valid=np.tile([[True], [False]], (1, len(modes))),
+            power_basis_valid=np.tile([[True, False]], (len(modes), 1)),
             power_matrix_valid=np.ones(2, dtype=bool),
             drive_metadata=tuple(
                 {
@@ -1063,11 +1155,12 @@ def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(tmp_path, 
             frequency=frequency,
             incident=np.asarray([[np.nan + 0j, 2 + 0j]]),
             outgoing=np.asarray([[np.nan + 0j, 0.5 + 0j]]),
-            valid=np.asarray([[False, True]]),
+            power_wave_valid=np.asarray([[False, True]]),
             condition_number=np.asarray([np.inf, 1.0]),
+            coefficient_valid=np.asarray([[False, True]]),
         ),
         finalise=lambda grid: None,
-        mode_power_valid=np.ones((2, 1), dtype=bool),
+        power_basis_valid=np.ones((1, 2), dtype=bool),
         power_matrix_valid=np.ones(2, dtype=bool),
     )
     receiver = SimpleNamespace(
@@ -1078,11 +1171,12 @@ def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(tmp_path, 
             frequency=frequency,
             incident=np.asarray([[np.nan + 0j, 0 + 0j]]),
             outgoing=np.asarray([[np.nan + 0j, 1 + 0j]]),
-            valid=np.asarray([[False, True]]),
+            power_wave_valid=np.asarray([[False, True]]),
             condition_number=np.asarray([np.inf, 1.0]),
+            coefficient_valid=np.asarray([[False, True]]),
         ),
         finalise=lambda grid: None,
-        mode_power_valid=np.ones((2, 1), dtype=bool),
+        power_basis_valid=np.ones((1, 2), dtype=bool),
         power_matrix_valid=np.ones(2, dtype=bool),
     )
     grid = SimpleNamespace(name="main_grid", eigenmodeports=[source, receiver])
@@ -1094,8 +1188,8 @@ def test_invalid_source_bin_does_not_invalidate_other_sparameter_bins(tmp_path, 
 
     csv_path = finalise_eigenmode_ports(grid)
 
-    assert not receiver.s_valid[0, 0]
-    assert receiver.s_valid[0, 1]
+    assert not receiver.s_power_wave_valid[0, 0]
+    assert receiver.s_power_wave_valid[0, 1]
     assert np.isnan(receiver.s_parameters[0, 0])
     assert receiver.s_parameters[0, 1] == pytest.approx(0.5)
     with csv_path.open(newline="", encoding="utf-8") as stream:
@@ -1121,12 +1215,12 @@ def test_below_cutoff_generalized_s_is_finite_but_not_power_wave_valid(
             # scales: each normalization class needs its own incident floor.
             incident=np.asarray([[2e9 + 0j, 2 + 0j]]),
             outgoing=np.asarray([[0.2 + 0j, 0.2 + 0j]]),
-            valid=np.asarray([[False, True]]),
+            power_wave_valid=np.asarray([[False, True]]),
             condition_number=np.ones(2),
-            generalized_valid=np.asarray([[True, True]]),
+            coefficient_valid=np.asarray([[True, True]]),
         ),
         finalise=lambda grid: None,
-        mode_power_valid=np.asarray([[False], [True]]),
+        power_basis_valid=np.asarray([[False, True]]),
         power_matrix_valid=np.ones(2, dtype=bool),
     )
     receiver = SimpleNamespace(
@@ -1137,12 +1231,12 @@ def test_below_cutoff_generalized_s_is_finite_but_not_power_wave_valid(
             frequency=frequency,
             incident=np.zeros((1, 2), dtype=np.complex128),
             outgoing=np.asarray([[1e9 + 0j, 1 + 0j]]),
-            valid=np.asarray([[False, True]]),
+            power_wave_valid=np.asarray([[False, True]]),
             condition_number=np.ones(2),
-            generalized_valid=np.asarray([[True, True]]),
+            coefficient_valid=np.asarray([[True, True]]),
         ),
         finalise=lambda grid: None,
-        mode_power_valid=np.asarray([[False], [True]]),
+        power_basis_valid=np.asarray([[False, True]]),
         power_matrix_valid=np.ones(2, dtype=bool),
     )
     grid = SimpleNamespace(name="main_grid", eigenmodeports=[source, receiver])
@@ -1154,16 +1248,14 @@ def test_below_cutoff_generalized_s_is_finite_but_not_power_wave_valid(
 
     csv_path = finalise_eigenmode_ports(grid)
 
-    assert receiver.s_generalized_valid[0].tolist() == [True, True]
-    assert receiver.s_valid[0].tolist() == [False, True]
+    assert receiver.s_coefficient_valid[0].tolist() == [True, True]
     assert receiver.s_power_wave_valid[0].tolist() == [False, True]
     assert receiver.s_parameters[0, 0] == pytest.approx(0.5)
     assert receiver.s_parameters[0, 1] == pytest.approx(0.5)
     with csv_path.open(newline="", encoding="utf-8") as stream:
         rows = [row for row in csv.DictReader(stream) if row["destination_port"] == "2"]
-    assert [row["valid"] for row in rows] == ["0", "1"]
     assert [row["power_wave_valid"] for row in rows] == ["0", "1"]
-    assert [row["generalized_valid"] for row in rows] == ["1", "1"]
+    assert [row["coefficient_valid"] for row in rows] == ["1", "1"]
 
 
 def test_monitor_rejects_invalid_interpolated_power(monkeypatch):

@@ -28,7 +28,7 @@ def read_sparameters(stem: Path):
     traces = defaultdict(list)
     with path.open(newline="", encoding="utf-8") as stream:
         for row in csv.DictReader(stream):
-            if not bool(int(row["valid"])):
+            if not bool(int(row["power_wave_valid"])):
                 continue
             key = (
                 int(row["source_port"]),

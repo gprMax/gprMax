@@ -27,10 +27,7 @@ def main():
         ports = result["channel_ports"][...].astype(int)
         modes = result["channel_modes"][...].astype(int)
         matrix = result["S"][...]
-        valid_name = (
-            "power_wave_valid_S" if "power_wave_valid_S" in result else "valid_S"
-        )
-        valid = result[valid_name][...].astype(bool)
+        valid = result["power_wave_valid_S"][...].astype(bool)
 
     if set(zip(ports, modes)) != {(1, 1), (2, 1)}:
         raise ValueError("Expected dominant mode 1 at ports 1 and 2")

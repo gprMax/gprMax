@@ -25,7 +25,7 @@ def _s21(path: Path) -> tuple[np.ndarray, np.ndarray]:
             for row in csv.DictReader(stream)
             if int(row["destination_port"]) == 2
             and int(row["destination_mode"]) == 1
-            and bool(int(row["valid"]))
+            and bool(int(row["power_wave_valid"]))
         ]
     rows.sort(key=lambda row: float(row["frequency_hz"]))
     if not rows:

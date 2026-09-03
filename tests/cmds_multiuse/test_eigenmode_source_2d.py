@@ -636,7 +636,7 @@ def test_straight_example_auto_ports_share_broadband_anchors(tmp_path):
                 and row["source_mode"] == "1"
                 and row["destination_port"] == "2"
                 and row["destination_mode"] == "1"
-                and row["valid"] == "1"
+                and row["power_wave_valid"] == "1"
             ]
         )
     assert np.ptp(s21_mode1_db) < 0.01

@@ -384,11 +384,26 @@ file for audit and restart.
     results = gprMax.run(scenes=[scene], study=study, outputfile='array')
     modal_s = results['study'].s
 
+The corresponding hash command selects an eigenmode study and its case CSV:
+
+.. code-block:: none
+
+    #study: eigenmode cases.csv
+
+For the two channels above, ``cases.csv`` contains:
+
+.. code-block:: text
+
+    case_id,object_id,port,mode
+    p1m1,eigenmode_excitation_1,1,1
+    p2m1,eigenmode_excitation_1,2,1
+
 The matrix convention is
 ``S[frequency, output_channel, input_channel]``. ``channel_ports`` and
-``channel_modes`` define both channel axes. Physical power-wave and
-generalized-coefficient validity masks are stored separately, so an
-evanescent generalized coefficient is never mistaken for a propagating power
+``channel_modes`` define both channel axes. ``power_wave_valid_s`` and
+``coefficient_valid_s`` are the physical power-wave and modal-coefficient
+masks on ``EigenmodeStudyResult``. HDF5 uses ``power_wave_valid_S`` and
+``coefficient_valid_S``. An evanescent coefficient is not a propagating power
 wave. Compatible columns in an existing ``<output>_study.h5`` are retained
 when restarting with ``i=N``. More precisely, the compatible raw excitation
 cases are retained and the full de-embedding solve is repeated using all
@@ -466,7 +481,7 @@ field from each case, gprMax solves
 A retained full-sphere quadrature is treated in the same way, so
 radiated power, directivity, gain, realized gain, and efficiencies include
 the coherent cross terms. Only physical propagating power-wave bins marked by
-``valid_S`` are used for these power metrics; generalized evanescent
+``power_wave_valid_S`` are used for these power metrics; generalized evanescent
 coefficients remain available in ``S`` but are not treated as watts.
 No embedded-field storage or full-sphere evaluation is performed unless a
 codebook explicitly selects a far-field output. With a selection, storage is
@@ -1168,9 +1183,39 @@ formulation currently requires a built-in analytic waveform.
 Eigenmode band, ports, excitation, and virtual guides
 ------------------------------------------------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeBand
+
+Corresponding hash command:
+
+.. code-block:: none
+
+    #eigenmode_band: id fmin fmax points [frequency ...]
+
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodePort
+
+Corresponding hash command:
+
+.. code-block:: none
+
+    #eigenmode_port: port x1 y1 z1 x2 y2 z2 direction modes auto|anchor [anchor ...] [y|n]
+
 .. autoclass:: gprMax.user_objects.cmds_multiuse.VirtualWaveguide
+
+Corresponding hash command:
+
+.. code-block:: none
+
+    #virtual_waveguide: port [length_cells] [pml_cells] [source_clearance_cells] [pml_profile]
+
 .. autoclass:: gprMax.user_objects.cmds_multiuse.EigenmodeExcitation
+
+Corresponding hash command:
+
+.. code-block:: none
+
+    #eigenmode_excitation: port mode [waveform] [amplitude] [phase_deg] [delay_s] [y|n]
+
+Square brackets denote optional arguments. See :doc:`eigenmode_port` for the
+argument reference, command examples, and runnable Python tutorials.
 
 An eigenmode model has one shared frequency band, one or more independently
 configured ports, and zero or more modal drives. One drive produces one
@@ -1205,12 +1250,14 @@ not repeat the DFT range or waveform:
         port=1, mode=1, waveform='auto', plot_waveform=True,
     ))
 
-The optional ``frequencies`` values are inserted into the uniform
-``fmin``--``fmax`` grid. The final union is sorted and deduplicated and is
-shared by every port. This lets an S-parameter sweep include exact frequencies
+``points`` selects equally spaced output frequencies from ``fmin`` to
+``fmax``, including both endpoints. The optional ``frequencies`` argument
+adds specific values within that range. The combined list is sorted from
+low to high, with repeated values included only once, and is shared by
+every port. This lets an S-parameter sweep include exact frequencies
 needed by a sparser NTFF request. When an ``NTFFAntennaPorts`` association uses
-modal power, every NTFF transform frequency must be present in this union, but
-the NTFF grid may be a strict subset. ``frequencies`` changes direct-DFT/output
+modal power, every NTFF transform frequency must be present in this list.
+NTFF can use fewer of these frequencies. ``frequencies`` changes direct-DFT/output
 bins; it is independent of the ``anchors`` policy used to solve and interpolate
 the modal fields.
 

@@ -2577,18 +2577,19 @@ class DiscretePlaneWaveAxial(GridUserObject):
 class EigenmodeBand(GridUserObject):
     """Define the frequency band and optional extra DFT bins shared by all ports.
 
-    ``fmin``, ``fmax``, and ``points`` define the usual uniform grid.
-    ``frequencies`` may contain additional in-band frequencies; gprMax sorts
-    and deduplicates their union with the uniform grid.
+    ``points`` selects equally spaced output frequencies from ``fmin`` to
+    ``fmax``, including both endpoints. ``frequencies`` adds specific values
+    within that range. The combined list is sorted from low to high, with
+    repeated values included only once.
 
     Attributes:
         id: unique identifier for the shared eigenmode band.
         fmin: lower direct-DFT frequency in Hz.
         fmax: upper direct-DFT frequency in Hz.
-        points: number of linearly spaced direct-DFT frequencies.
+        points: number of equally spaced output frequencies, including both endpoints.
         frequencies: optional additional direct-DFT frequencies in Hz. Values
-            must lie within the inclusive band and are merged with the uniform
-            grid.
+            must lie between fmin and fmax inclusive and are added to the
+            equally spaced frequencies selected by points.
         transition: positive transition width in Hz for an automatically
             generated bandpass waveform, or ``"auto"`` (default).
         spectral_threshold: relative spectral threshold used to determine

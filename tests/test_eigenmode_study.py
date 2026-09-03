@@ -405,7 +405,7 @@ def test_eigenmode_study_matches_fresh_builds_without_resolving_modes(tmp_path, 
 
     assert returned["study"] is study.result
     assert study.result.s.shape[1:] == (2, 2)
-    assert study.result.valid_s.any()
+    assert study.result.power_wave_valid_s.any()
     incident_columns = []
     outgoing_columns = []
     for case_index in (1, 2):
@@ -521,14 +521,17 @@ def test_hash_eigenmode_study_runs_and_writes_complete_smatrix(tmp_path):
         np.testing.assert_array_equal(output["channel_ports"], (1, 2))
         np.testing.assert_array_equal(output["channel_modes"], (1, 1))
         assert output["S"].shape[1:] == (2, 2)
-        np.testing.assert_array_equal(output["power_wave_valid_S"], output["valid_S"])
-        np.testing.assert_array_equal(output["coefficient_valid_S"], output["generalized_valid_S"])
+        assert {name for name in output if "valid" in name} == {
+            "power_wave_valid_S", "coefficient_valid_S",
+            "power_wave_valid_matrix", "coefficient_valid_wave_matrix",
+            "deembedding_valid",
+        }
         np.testing.assert_array_equal(
-            output["power_wave_valid_matrix"], output["valid_wave_matrix"]
+            output["power_wave_valid_matrix"], returned["study"].power_wave_valid_matrix
         )
         np.testing.assert_array_equal(
+            returned["study"].coefficient_valid_wave_matrix,
             output["coefficient_valid_wave_matrix"],
-            output["generalized_valid_wave_matrix"],
         )
         assert output["array_codebook"].attrs["Schema"] == "gprMax-array-codebook-v1"
         assert "array_states/p1_only/tarc" in output
@@ -560,7 +563,7 @@ def test_eigenmode_study_switches_cached_modes_without_new_fdfd_solves(tmp_path,
     # build; selecting all four source channels must not solve again.
     assert solves == 2
     assert study.result.s.shape[1:] == (4, 4)
-    assert study.result.generalized_valid_s.any()
+    assert study.result.coefficient_valid_s.any()
     np.testing.assert_array_equal(study.result.channel_ports, (1, 1, 2, 2))
     np.testing.assert_array_equal(study.result.channel_modes, (1, 2, 1, 2))
 
@@ -635,16 +638,16 @@ def test_modal_array_weights_and_embedded_response_synthesis():
 
     s = np.full((2, 2, 2), np.nan + 1j * np.nan)
     s[:, :, 0] = np.asarray((0.5, 0.25))[np.newaxis, :]
-    generalized_valid = np.zeros(s.shape, dtype=bool)
-    generalized_valid[:, :, 0] = True
+    coefficient_valid = np.zeros(s.shape, dtype=bool)
+    coefficient_valid[:, :, 0] = True
     study_result = gprMax.EigenmodeStudyResult(
         frequency=frequency,
         channel_ports=np.asarray((1, 2)),
         channel_modes=np.asarray((1, 1)),
         case_ids=("p1", "p2"),
         s=s,
-        valid_s=generalized_valid.copy(),
-        generalized_valid_s=generalized_valid,
+        power_wave_valid_s=coefficient_valid.copy(),
+        coefficient_valid_s=coefficient_valid,
         output_file=Path("unused.h5"),
     )
     np.testing.assert_allclose(
@@ -685,7 +688,7 @@ def test_full_incident_matrix_deembedding_recovers_analytical_network_and_fields
     raw_fields = np.einsum("fdi,fij->fdj", true_fields, incident)
     valid = np.ones(incident.shape, dtype=bool)
 
-    recovered_s, s_valid, condition, basis_valid = _deembed_modal_responses(
+    recovered_s, s_power_wave_valid, condition, basis_valid = _deembed_modal_responses(
         incident,
         outgoing,
         incident_valid=valid,
@@ -700,7 +703,7 @@ def test_full_incident_matrix_deembedding_recovers_analytical_network_and_fields
 
     np.testing.assert_allclose(recovered_s, true_s, rtol=2e-15, atol=2e-15)
     np.testing.assert_allclose(recovered_fields, true_fields, rtol=2e-15, atol=2e-15)
-    assert np.all(s_valid)
+    assert np.all(s_power_wave_valid)
     assert np.all(field_valid)
     assert np.all(basis_valid)
     assert np.max(condition) < 1.1
@@ -742,8 +745,8 @@ def test_two_port_active_network_metrics_match_closed_form(tmp_path):
         channel_modes=np.asarray((1, 1)),
         case_ids=("p1", "p2"),
         s=scattering,
-        valid_s=valid,
-        generalized_valid_s=valid,
+        power_wave_valid_s=valid,
+        coefficient_valid_s=valid,
         output_file=tmp_path / "unused.h5",
     )
     state = gprMax.ArrayState(
@@ -803,7 +806,7 @@ def test_array_codebook_json_and_coherent_state_metrics(tmp_path):
 
     frequency = np.asarray((1e9,))
     s = np.zeros((1, 2, 2), dtype=np.complex128)
-    valid_s = np.ones(s.shape, dtype=bool)
+    power_wave_valid_s = np.ones(s.shape, dtype=bool)
     # Two orthogonal requested samples and two-point equal-weight sphere.
     bank = gprMax.EmbeddedFarFieldBank(
         transform_id="ff",
@@ -830,8 +833,8 @@ def test_array_codebook_json_and_coherent_state_metrics(tmp_path):
         channel_modes=np.asarray((1, 1)),
         case_ids=("p1", "p2"),
         s=s,
-        valid_s=valid_s,
-        generalized_valid_s=valid_s,
+        power_wave_valid_s=power_wave_valid_s,
+        coefficient_valid_s=power_wave_valid_s,
         output_file=tmp_path / "unused.h5",
         embedded_far_fields={bank.key: bank},
     )
@@ -919,8 +922,8 @@ def test_two_element_hertzian_array_matches_analytical_array_factor(tmp_path):
         channel_modes=np.asarray((1, 1)),
         case_ids=("element1", "element2"),
         s=np.zeros((1, 2, 2), dtype=np.complex128),
-        valid_s=valid,
-        generalized_valid_s=valid,
+        power_wave_valid_s=valid,
+        coefficient_valid_s=valid,
         output_file=tmp_path / "unused.h5",
         embedded_far_fields={bank.key: bank},
     )
@@ -983,8 +986,8 @@ def test_array_state_excludes_evanescent_output_from_power_accounting(tmp_path):
         channel_modes=np.asarray((1, 2)),
         case_ids=("mode1", "mode2"),
         s=scattering,
-        valid_s=physical,
-        generalized_valid_s=generalized,
+        power_wave_valid_s=physical,
+        coefficient_valid_s=generalized,
         output_file=tmp_path / "unused.h5",
     )
 
@@ -1497,7 +1500,7 @@ def _assert_device_eigenmode_study_matches_cpu(
         **device_options,
     )
     np.testing.assert_array_equal(device.result.frequency, cpu.result.frequency)
-    valid = device.result.generalized_valid_s & cpu.result.generalized_valid_s
+    valid = device.result.coefficient_valid_s & cpu.result.coefficient_valid_s
     assert valid.any()
     np.testing.assert_allclose(
         device.result.s[valid],

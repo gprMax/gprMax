@@ -354,16 +354,13 @@ def evaluate_port_power_spectrum(
                     "not included in its monitored mode indices"
                 ) from exc
 
-        power_wave_valid_value = getattr(output, "power_wave_valid", None)
-        if power_wave_valid_value is None:
-            power_wave_valid_value = output.mode_power_valid
-        power_wave_valid = np.asarray(power_wave_valid_value, dtype=bool)[frequency_indices]
-        result_valid = np.asarray(output.result.valid, dtype=bool)[:, frequency_indices]
+        power_wave_valid = np.asarray(output.power_basis_valid, dtype=bool)[:, frequency_indices]
+        result_valid = np.asarray(output.result.power_wave_valid, dtype=bool)[:, frequency_indices]
         power_matrix_valid = np.asarray(output.power_matrix_valid, dtype=bool)[frequency_indices]
-        modal_valid = result_valid & power_wave_valid.T & power_matrix_valid[np.newaxis, :]
+        modal_valid = result_valid & power_wave_valid & power_matrix_valid[np.newaxis, :]
         physical_power_valid = np.zeros(frequency.shape, dtype=bool)
         for frequency_index in range(frequency.size):
-            physical_modes = np.flatnonzero(power_wave_valid[frequency_index])
+            physical_modes = np.flatnonzero(power_wave_valid[:, frequency_index])
             if (
                 physical_modes.size == 0
                 or not power_matrix_valid[frequency_index]
@@ -371,7 +368,7 @@ def evaluate_port_power_spectrum(
             ):
                 continue
             if excitation_positions.size and not np.all(
-                power_wave_valid[frequency_index, excitation_positions]
+                power_wave_valid[excitation_positions, frequency_index]
             ):
                 continue
 

@@ -625,7 +625,7 @@ def test_subgrid_eigenmode_study_switches_modal_source(tmp_path, virtual_wavegui
     )
 
     assert study.result.s.shape[1:] == (2, 2)
-    assert study.result.generalized_valid_s.any()
+    assert study.result.coefficient_valid_s.any()
     for case_index in (1, 2):
         with h5py.File(tmp_path / f"{outputfile.name}{case_index}.h5") as output:
             assert "subgrids/fine_grid/eigenmode_ports/port1" in output
