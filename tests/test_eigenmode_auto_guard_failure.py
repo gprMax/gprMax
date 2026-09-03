@@ -59,7 +59,7 @@ def test_automatic_guard_below_cutoff_does_not_corrupt_through_s21(
         assert np.any(reported_guard)
         assert not np.any(usable[reported_guard])
         assert not np.any((candidate_anchors < 24.9827048e9) & usable)
-        assert np.all(source_port["power_normalization_valid"][...])
+        assert np.all(source_port["power_basis_valid"][...])
         source_signature = {
             "resolved_policy": source_port.attrs["ResolvedAnchorPolicy"],
             "resolved_anchors": resolved_anchors.copy(),
@@ -122,6 +122,6 @@ def test_automatic_guard_below_cutoff_does_not_corrupt_through_s21(
         ]
 
     assert len(s21) == 29
-    assert all(row["valid"] == "1" for row in s21)
+    assert all(row["power_wave_valid"] == "1" for row in s21)
     assert max(abs(float(row["S_magnitude_db"])) for row in s21) < 0.1
     assert any("non-propagating" in warning for warning in warnings)

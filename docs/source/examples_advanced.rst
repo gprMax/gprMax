@@ -17,7 +17,7 @@ Always inspect the solved mode before committing to a long FDTD run:
 
 .. code-block:: console
 
-    python -m gprMax examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide.in --geometry-only
+    python examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide.py --geometry-only
 
 Geometry-only mode builds the material grid and solves the mode without time
 stepping. It automatically writes the modal-field plot. Check its requested

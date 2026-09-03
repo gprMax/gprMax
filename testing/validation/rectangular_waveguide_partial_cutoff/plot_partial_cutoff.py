@@ -36,31 +36,15 @@ def read_series(
     if not rows:
         raise ValueError(f"Missing S{destination_port}1 data in {path}")
     rows.sort(key=lambda row: float(row["frequency_hz"]))
-    if "generalized_valid" in rows[0]:
-        generalized_valid = np.asarray(
-            [bool(int(row["generalized_valid"])) for row in rows]
-        )
-        power_valid = np.asarray([bool(int(row["valid"])) for row in rows])
-        explicit_power_valid = np.asarray(
-            [bool(int(row["power_wave_valid"])) for row in rows]
-        )
-        np.testing.assert_array_equal(power_valid, explicit_power_valid)
-    else:
-        # Compatibility with outputs produced by the unmerged cutoff branch,
-        # where ``valid`` still carried the generalized mask.
-        generalized_valid = np.asarray(
-            [bool(int(row["valid"])) for row in rows]
-        )
-        power_valid = np.asarray(
-            [bool(int(row.get("power_wave_valid", row["valid"]))) for row in rows]
-        )
+    coefficient_valid = np.asarray([bool(int(row["coefficient_valid"])) for row in rows])
+    power_valid = np.asarray([bool(int(row["power_wave_valid"])) for row in rows])
     return (
         np.asarray([float(row["frequency_hz"]) for row in rows]),
         np.asarray(
             [float(row["S_real"]) + 1j * float(row["S_imag"]) for row in rows]
         ),
         np.asarray([float(row["S_magnitude_db"]) for row in rows]),
-        generalized_valid,
+        coefficient_valid,
         power_valid,
     )
 
@@ -87,10 +71,10 @@ def plot_case(root: Path) -> Path:
     if len(paths) != 1:
         raise FileNotFoundError(f"Expected one S-parameter CSV below {root}, found {len(paths)}.")
     path = paths[0]
-    s11_frequency, _s11, s11_db, s11_generalized_valid, s11_power_valid = read_series(
+    s11_frequency, _s11, s11_db, s11_coefficient_valid, s11_power_valid = read_series(
         path, 1
     )
-    s21_frequency, s21, s21_db, s21_generalized_valid, s21_power_valid = read_series(
+    s21_frequency, s21, s21_db, s21_coefficient_valid, s21_power_valid = read_series(
         path, 2
     )
     np.testing.assert_array_equal(s11_frequency, s21_frequency)
@@ -105,7 +89,7 @@ def plot_case(root: Path) -> Path:
     theoretical_s21_phase_deg = -np.rad2deg(np.real(beta) * reference_span)
     integrated_s21_phase_deg = np.rad2deg(np.unwrap(np.angle(s21)))
     expected_power_valid = ~below_cutoff
-    if not np.all(s11_generalized_valid) or not np.all(s21_generalized_valid):
+    if not np.all(s11_coefficient_valid) or not np.all(s21_coefficient_valid):
         raise ValueError("Every partial-cutoff generalized S coefficient must be valid.")
     np.testing.assert_array_equal(s11_power_valid, expected_power_valid)
     np.testing.assert_array_equal(s21_power_valid, expected_power_valid)
@@ -161,8 +145,8 @@ def plot_case(root: Path) -> Path:
         )
 
     for label, magnitude_db, valid, color in (
-        ("gprMax S11", s11_db, s11_generalized_valid, "tab:blue"),
-        ("gprMax S21", s21_db, s21_generalized_valid, "tab:orange"),
+        ("gprMax S11", s11_db, s11_coefficient_valid, "tab:blue"),
+        ("gprMax S21", s21_db, s21_coefficient_valid, "tab:orange"),
     ):
         plotted_db = np.maximum(magnitude_db[valid], PLOT_FLOOR_DB)
         magnitude_axis.plot(
@@ -185,8 +169,8 @@ def plot_case(root: Path) -> Path:
     )
 
     phase_axis.plot(
-        frequency_ghz[s21_generalized_valid],
-        integrated_s21_phase_deg[s21_generalized_valid],
+        frequency_ghz[s21_coefficient_valid],
+        integrated_s21_phase_deg[s21_coefficient_valid],
         marker="o",
         markersize=3.5,
         linewidth=1.5,
@@ -211,7 +195,7 @@ def plot_case(root: Path) -> Path:
         0.01,
         0.02,
         "Below cutoff: branch-local E/H-balanced amplitudes\n"
-        "(generalized_valid = 1, valid = power_wave_valid = 0).",
+        "(coefficient_valid = 1, power_wave_valid = 0).",
         transform=magnitude_axis.transAxes,
         fontsize="small",
         va="bottom",

@@ -375,20 +375,17 @@ Every eigenmode-study case instead contains
 ``study/eigenmode_response``. ``InputPort`` and ``InputMode`` identify the
 nominal incident modal channel. ``incident`` and ``outgoing`` contain the
 complete measured modal vectors for that run, ordered by ``channel_ports``
-and ``channel_modes``; ``valid_wave`` and ``generalized_valid_wave`` are their
-validity masks. Preferred aliases ``power_wave_valid`` and
-``coefficient_valid_wave`` state their meanings directly. ``S_column`` is the single-source-normalized per-run
+and ``channel_modes``; ``power_wave_valid`` and ``coefficient_valid_wave`` are their
+validity masks. ``S_column`` is the single-source-normalized per-run
 diagnostic retained alongside those raw waves. It is not the authoritative
 column when passive ports have residual incident waves.
 
 The eigenmode aggregate ``<output>_study.h5`` contains ``frequency``,
 ``channel_ports``, ``channel_modes``, ``case_ids``, ``incident_matrix``,
-``outgoing_matrix``, ``valid_wave_matrix``,
-``generalized_valid_wave_matrix``, ``deembedding_condition_number``,
-``deembedding_valid``, ``S``, ``valid_S``, and ``generalized_valid_S``.
-Preferred aliases ``power_wave_valid_matrix``,
-``coefficient_valid_wave_matrix``, ``power_wave_valid_S``, and
-``coefficient_valid_S`` are stored alongside the legacy names. Its convention is
+``outgoing_matrix``, ``power_wave_valid_matrix``,
+``coefficient_valid_wave_matrix``, ``deembedding_condition_number``,
+``deembedding_valid``, ``S``, ``power_wave_valid_S``, and ``coefficient_valid_S``.
+Only these descriptive validity names are supported. Its convention is
 ``S[frequency, output_channel, input_channel]``. Modal channels can represent
 different mode counts on different ports; the two channel-index datasets are
 therefore authoritative and should be used instead of assuming one mode per
@@ -484,12 +481,12 @@ text when it came from a JSON file.
                 channel_modes
                 frequency
                 S_column
-                valid_S_column
-                generalized_valid_S_column
+                power_wave_valid_S_column
+                coefficient_valid_S_column
                 incident
                 outgoing
-                valid_wave
-                generalized_valid_wave
+                power_wave_valid
+                coefficient_valid_wave
         rxs/
             rx1/
                 Name
@@ -575,20 +572,14 @@ text when it came from a JSON file.
                 anchor_mode_reference_valid
                 anchor_mode_propagating
                 anchor_balanced_power
-                decomposition_valid
                 reference_basis_valid
-                generalized_valid
                 coefficient_valid
-                power_normalization_valid
                 power_basis_valid
                 power_matrix_valid
-                valid
                 power_wave_valid
                 condition_number
                 S
-                generalized_valid_S
                 coefficient_valid_S
-                valid_S
                 power_wave_valid_S
                 active_S
                 active_S_driven
@@ -1054,26 +1045,19 @@ exactly orthogonal. The incident and outgoing arrays are generalized modal
 travelling-wave coefficients; an individual coefficient magnitude squared is
 not an additive power when ``power_matrix`` is non-diagonal. The electric
 cross-power matrix is retained to reconstruct total-field flux in lossy
-ports. ``decomposition_valid`` (preferred alias ``reference_basis_valid``) has
-shape ``(nfrequencies, nmodes)`` and records pre-solve reference eligibility.
-``generalized_valid`` (preferred alias ``coefficient_valid``) has shape
-``(nmodes, nfrequencies)`` and records conditioned incident/outgoing
-coefficients. Legacy ``valid`` has the same latter shape and is the stricter
-physical power-wave mask, also stored as ``power_wave_valid``.
-``power_normalization_valid`` (preferred alias ``power_basis_valid``) has shape
-``(nfrequencies, nmodes)``, while ``power_matrix_valid`` has shape
-``(nfrequencies,)``. The anchor masks have shape ``(ncandidates, nmodes)``.
+ports. ``reference_basis_valid`` has shape ``(mode, frequency)`` and records
+tracked reference eligibility before the Gram solve. ``power_basis_valid``
+has the same shape and records forward real-power support.
+``coefficient_valid`` and ``power_wave_valid`` have shape ``(mode, frequency)``:
+the first marks conditioned incident/outgoing coefficients, and the second
+also requires physical power-wave support and a usable power matrix.
 
-For scattering output, ``generalized_valid_S``/``coefficient_valid_S``, ``valid_S``, and
-``power_wave_valid_S`` all have shape ``(nmodes, nfrequencies)``.
-``generalized_valid_S`` identifies conditioned generalized coefficient
-ratios, including the source-spectrum check. ``valid_S`` preserves the legacy
-physical meaning, and ``power_wave_valid_S`` is its explicit exact alias. A
-below-cutoff coefficient can therefore have ``generalized_valid_S=1`` while
-``valid_S=power_wave_valid_S=0``. Ill-conditioned or weakly excited bins
-remain in the file but must not be plotted as valid results; generalized
-coefficients must not be used for power accounting unless the corresponding
-physical mask is also true.
+Single-source scattering output includes ``S``, ``coefficient_valid_S``, and
+``power_wave_valid_S``, all with shape ``(mode, frequency)``. Ratio masks
+additionally require a usable incident denominator above the -60 dB spectrum
+floor. Below-cutoff coefficients may pass ``coefficient_valid_S`` while
+failing ``power_wave_valid_S``; their squared magnitudes are not power
+fractions.
 
 A run with one eigenmode source also writes
 ``<output>_sparameters.csv`` with one row per frequency, destination port,
@@ -1436,7 +1420,7 @@ ports as ``<subgrid ID>/<local port ID>``. Although the grouped antenna result
 is written below the main-grid NTFF group, each port spectrum is calculated
 with the spatial step, time step, and trace length of the grid that owns it.
 
-The legacy name ``terminal_valid`` is also the combined modal-power validity
+``terminal_valid`` is also the combined modal-power validity
 mask when a modal port is present. The validity datasets should always be
 applied before plotting. The default
 gain bandwidth includes frequencies whose total incident spectrum is within

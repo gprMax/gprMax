@@ -48,7 +48,7 @@ def read_gprmax_s11() -> tuple[np.ndarray, np.ndarray]:
             if (
                 int(row["destination_port"]) == 1
                 and int(row["destination_mode"]) == 1
-                and bool(int(row["valid"]))
+                and bool(int(row["power_wave_valid"]))
             ):
                 rows.append(
                     (float(row["frequency_hz"]), float(row["S_magnitude_db"]))

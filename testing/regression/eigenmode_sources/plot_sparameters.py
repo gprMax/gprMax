@@ -32,7 +32,7 @@ def read_sparameter_csv(path: Path):
     series = {}
     for key, selected in sorted(grouped.items()):
         selected.sort(key=lambda row: float(row["frequency_hz"]))
-        valid = np.asarray([bool(int(row["valid"])) for row in selected])
+        valid = np.asarray([bool(int(row["power_wave_valid"])) for row in selected])
         series[key] = {
             "frequency": np.asarray([float(row["frequency_hz"]) for row in selected]),
             "magnitude_db": np.where(

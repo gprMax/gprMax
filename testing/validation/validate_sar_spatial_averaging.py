@@ -26,11 +26,21 @@ def _load_reference(root: Path):
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
-    step1 = next(iter(root.glob("**/libAvgSARStep1.so")), None)
-    step2 = next(iter(root.glob("**/libAvgSARStep2.so")), None)
-    if step1 is None or step2 is None:
-        raise FileNotFoundError("build libAvgSARStep1.so and libAvgSARStep2.so first")
-    return module.spatialAverageSAR, step1, step2
+    libraries = []
+    for step in (1, 2):
+        names = (
+            f"libAvgSARStep{step}.so",
+            f"libAvgSARStep{step}.dylib",
+            f"AvgSARStep{step}.dll",
+            f"libAvgSARStep{step}.dll",
+        )
+        library = next((path for name in names for path in sorted(root.rglob(name))), None)
+        if library is None:
+            raise FileNotFoundError(
+                f"Build the STASIS AvgSARStep{step} shared library (.so, .dylib, or .dll) first"
+            )
+        libraries.append(library.resolve())
+    return module.spatialAverageSAR, *libraries
 
 
 def main():

@@ -137,7 +137,7 @@ def _read_s11(path: Path) -> tuple[np.ndarray, np.ndarray]:
             for row in csv.DictReader(stream)
             if int(row["destination_port"]) == 1
             and int(row["destination_mode"]) == 1
-            and int(row["valid"])
+            and int(row["power_wave_valid"])
         ]
     rows.sort(key=lambda row: float(row["frequency_hz"]))
     if not rows:

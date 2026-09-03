@@ -72,7 +72,7 @@ def _write_case(root, source_mode, primary_transmission_db=-1, case_name=None):
         "S_magnitude_db",
         "S_phase_deg",
         "coefficient_magnitude_squared",
-        "valid",
+        "power_wave_valid",
     )
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=fieldnames)
@@ -104,7 +104,7 @@ def _write_case(root, source_mode, primary_transmission_db=-1, case_name=None):
                         "S_magnitude_db": magnitude_db,
                         "S_phase_deg": 0,
                         "coefficient_magnitude_squared": 10 ** (magnitude_db / 10),
-                        "valid": 1,
+                        "power_wave_valid": 1,
                     }
                 )
 
@@ -120,6 +120,22 @@ def test_modal_sparameter_plot_writes_one_combined_plot_per_csv(tmp_path):
         "mode2_sparameters_plot.png",
     }
     assert all(path.stat().st_size > 0 for path in outputs)
+
+
+def test_patch_antenna_plotter_reads_bundled_sparameter_data():
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "testing/other_codes/cst/patch_antenna/S-parameter/plot_patch_sparameters.py"
+    )
+    spec = importlib.util.spec_from_file_location("patch_sparameter_plotter", path)
+    plotter = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(plotter)
+
+    frequency, magnitude_db = plotter.read_gprmax_s11()
+
+    assert frequency.size == magnitude_db.size == 321
+    assert np.all(np.diff(frequency) > 0)
+    assert np.all(np.isfinite(magnitude_db))
 
 
 def test_example_snapshots_are_sorted_by_physical_time_and_can_be_capped(

@@ -448,12 +448,10 @@ def _read_port(path: Path, port: int):
         frequency = np.asarray(group["frequency"], dtype=np.float64)
         incident = np.asarray(group["incident"])[0]
         outgoing = np.asarray(group["outgoing"])[0]
-        valid_name = "power_wave_valid" if "power_wave_valid" in group else "valid"
-        valid = np.asarray(group[valid_name], dtype=bool)[0]
+        valid = np.asarray(group["power_wave_valid"], dtype=bool)[0]
         s_parameter = np.asarray(group["S"])[0] if "S" in group else None
-        s_valid_name = "power_wave_valid_S" if "power_wave_valid_S" in group else "valid_S"
         s_valid = (
-            np.asarray(group[s_valid_name], dtype=bool)[0] if s_parameter is not None else None
+            np.asarray(group["power_wave_valid_S"], dtype=bool)[0] if s_parameter is not None else None
         )
         anchors = np.asarray(group.attrs["CandidateAnchorFrequencies"], dtype=np.float64)
         anchor_neff = np.asarray(group["anchor_complex_neff"])[:, 0]

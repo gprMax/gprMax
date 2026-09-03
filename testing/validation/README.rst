@@ -192,12 +192,19 @@ took approximately 78.5 and 59.2 minutes, respectively. The compact STASIS
 case remains the more convenient independent development check; the
 exhaustive cases are retained for release validation.
 
-Each analytical script applies conservative numerical tolerances after writing
-its outputs and exits with a non-zero status if the comparison fails. The
-partial-cutoff plotter applies 0.45 dB magnitude and 3-degree phase limits. The
-``summary.json`` and report produced by the report-based drivers record the
-individual checks and the overall ``PASS``/``FAIL`` result. The full-resolution
-plane-wave and PEC-sphere cases
+Drivers with explicit acceptance gates apply numerical tolerances after writing
+their outputs and exit with a non-zero status if the comparison fails. The
+partial-cutoff plotter applies 0.45 dB magnitude and 3-degree phase limits.
+Drivers that expose an acceptance summary record their individual checks and
+overall ``PASS``/``FAIL`` result in their numerical output and report.
+
+The Debye-soil sphere and dispersive-averaging studies, Engheta and Smith
+pattern comparisons, GSSI energy-convergence study, and FMCW multilayer
+comparison report numerical errors without enforcing an acceptance threshold.
+Review those metrics and convergence results directly; a successful script
+exit confirms completion, not numerical acceptance.
+
+The full-resolution plane-wave and PEC-sphere cases
 are intentionally long-running manual validations; the focused ``tests``
 suite contains smaller end-to-end analytical checks for routine CI use.
 

@@ -34,7 +34,7 @@ def _write_s21(path, values):
         "destination_port",
         "destination_mode",
         "S_magnitude_db",
-        "valid",
+        "power_wave_valid",
     )
     with path.open("w", newline="", encoding="utf-8") as stream:
         writer = csv.DictWriter(stream, fieldnames=fieldnames)
@@ -48,7 +48,7 @@ def _write_s21(path, values):
                     "destination_port": 2,
                     "destination_mode": 1,
                     "S_magnitude_db": value,
-                    "valid": 1,
+                    "power_wave_valid": 1,
                 }
             )
 

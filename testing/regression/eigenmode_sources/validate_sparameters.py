@@ -16,7 +16,7 @@ def _series(path: Path, destination_port: int, destination_mode: int) -> np.ndar
             for row in csv.DictReader(stream)
             if int(row["destination_port"]) == destination_port
             and int(row["destination_mode"]) == destination_mode
-            and bool(int(row["valid"]))
+            and bool(int(row["power_wave_valid"]))
         ]
     if not rows:
         raise AssertionError(
