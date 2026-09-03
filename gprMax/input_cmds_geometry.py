@@ -56,7 +56,11 @@ def _check_geometry_material_indices(command, matfile, materialcmds, *arrays):
         if array.size:
             maxindex = max(maxindex, int(np.amax(array)))
 
-    maxmaterialindex = len(materialcmds) - 1
+    # ``materialcmds`` contains all commands imported from the materials file,
+    # including dispersion commands. Only #material commands declare entries
+    # in the file-local material index used by the geometry arrays.
+    nmaterials = sum(cmd.lstrip().startswith('#material:') for cmd in materialcmds)
+    maxmaterialindex = nmaterials - 1
     if maxindex > maxmaterialindex:
         message = (
             "'" + command + "'"

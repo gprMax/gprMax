@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 
 from gprMax.exceptions import CmdInputError
+from gprMax.input_cmds_geometry import _check_geometry_material_indices
 from gprMax.input_cmds_geometry import process_geometrycmds
 from gprMax.materials import Material
 
@@ -22,6 +23,21 @@ def builtin_materials():
 
 
 class GeometryObjectsReadTest(unittest.TestCase):
+
+    def test_dispersion_commands_do_not_count_as_materials(self):
+        materialcmds = [
+            '#material: 2 0 1 0 soil\n',
+            '#add_dispersion_debye: 1 1 1e-9 soil\n',
+        ]
+        ID = np.ones((6, 1, 1, 1), dtype=np.uint32)
+
+        with self.assertRaisesRegex(CmdInputError, 'materials file'):
+            _check_geometry_material_indices(
+                '#geometry_objects_read: 0 0 0 geometry.h5 materials.txt',
+                'materials.txt',
+                materialcmds,
+                ID,
+            )
 
     def test_generated_geometry_reports_missing_material_indices(self):
         with tempfile.TemporaryDirectory() as tmpdir:
