@@ -26,6 +26,7 @@ import gprMax.config as config
 from gprMax.eigenmode_plotting import plot_eigenmode_excitation, plot_eigenmode_port_fields
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
+from gprMax.fdfd_eigenmode_solver.numerical_dispersion import discrete_angular_frequency
 from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     BoundaryAmpereRow,
     BoundaryMagneticTerm,
@@ -810,6 +811,7 @@ class EigenmodeSource(Source):
                 conductive_mass=conductive_mass,
                 port_lengths=lengths,
                 port_admittances=admittances,
+                normalization_angular_frequency=port_responses[0].discrete_angular_frequency,
             )
             magnetic_terms = self._surface_boundary_magnetic_terms(
                 G,
@@ -1436,6 +1438,8 @@ class EigenmodeSource(Source):
             pmc_v_mask=pmc_v_mask,
             pmc_w_mask=pmc_w_mask,
             surface_boundary=self.fdfd_surface_boundary,
+            fdtd_dt=G.dt,
+            propagation_spacing=G.dl[self.normal_axis],
         )
         solver.solve()
 
@@ -1455,6 +1459,8 @@ class EigenmodeSource(Source):
             dt=G.dl[self.physical_transverse_axis],
             mode_index=(self.mode_count or self.mode_index) - 1,
             polarization=self.domain_polarization,
+            fdtd_dt=G.dt,
+            propagation_spacing=G.dl[self.normal_axis],
             **solver_inputs,
         )
         solver.solve()
@@ -2120,7 +2126,7 @@ class EigenmodeSource(Source):
         for material_id in used_ids:
             material = materials_by_id[int(material_id)]
             material_values[material_id] = (
-                self._complex_er(material) if electric else self._complex_mur(material)
+                self._complex_er(material, G.dt) if electric else self._complex_mur(material, G.dt)
             )
 
         return tuple(material_values[ids].copy() for ids in component_ids)
@@ -2157,7 +2163,7 @@ class EigenmodeSource(Source):
                 material_id = int(G.ID[(component, *local_coordinate)])
                 material = materials_by_id[material_id]
                 local_values[u, v] = (
-                    self._complex_er(material) if electric else self._complex_mur(material)
+                    self._complex_er(material, G.dt) if electric else self._complex_mur(material, G.dt)
                 )
                 local_count[u, v] = 1
 
@@ -2347,26 +2353,33 @@ class EigenmodeSource(Source):
         G.comm.Allreduce(local_mask, mask, op=MPI.MAX)
         return mask.astype(bool)
 
-    def _complex_er(self, material):
-        omega = 2 * np.pi * self.frequency
+    def _complex_er(self, material, fdtd_dt=None):
         if hasattr(material, "calculate_er") and material.__class__.__name__ != "Material":
+            # Pole responses remain evaluated at the physical frequency.
+            # Matching their recursive FDTD constitutive update is separate
+            # from compensation of the Maxwell time/space differences.
             er = material.calculate_er(self.frequency)
         else:
             er = material.er
             if getattr(material, "se", 0) not in [0, float("inf")]:
-                er = er - 1j * material.se / (omega * config.e0)
+                er = er - 1j * material.se * self._conductivity_frequency_factor(fdtd_dt) / config.e0
         if getattr(material, "se", 0) == float("inf"):
             er = self.FDFD_PEC_PROPERTY
         return er
 
-    def _complex_mur(self, material):
-        omega = 2 * np.pi * self.frequency
+    def _complex_mur(self, material, fdtd_dt=None):
         mur = material.mr
         if getattr(material, "sm", 0) not in [0, float("inf")]:
-            mur = mur - 1j * material.sm / (omega * config.m0)
+            mur = mur - 1j * material.sm * self._conductivity_frequency_factor(fdtd_dt) / config.m0
         if getattr(material, "sm", 0) == float("inf"):
             mur = self.FDFD_PMC_PROPERTY
         return mur
+
+    def _conductivity_frequency_factor(self, fdtd_dt):
+        """Midpoint conductivity divided by the Yee time-derivative symbol."""
+        omega = discrete_angular_frequency(self.frequency, fdtd_dt)
+        midpoint = 1.0 if fdtd_dt is None else np.cos(np.pi * self.frequency * fdtd_dt)
+        return midpoint / omega
 
     def update_eigenmode_magnetic(self, iteration, G):
         """Apply magnetic-field TF/SF corrections using incident modal E."""

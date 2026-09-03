@@ -194,6 +194,7 @@ def boundary_edge_relative_permittivity(
     conductive_mass: float,
     port_lengths: npt.ArrayLike,
     port_admittances: npt.ArrayLike | None = None,
+    normalization_angular_frequency: float | None = None,
 ) -> complex:
     """Return the exact-time-discrete electric coefficient for a boundary row.
 
@@ -203,12 +204,14 @@ def boundary_edge_relative_permittivity(
 
     The returned coefficient obeys
 
-    ``j*omega*epsilon0*Aret*eps_eff =``
+    ``j*omega_norm*epsilon0*Aret*eps_eff =``
     ``j*Omega*m_eps + cos(theta/2)*m_sigma + sum(length*K/E)``.
 
-    Here ``omega`` is physical because that is the current P/Q solver's curl
-    normalization, whereas ``Omega`` is the exact discrete time-derivative
-    frequency. For one model on every attached face, omit
+    ``omega_norm`` must match the P/Q solver's curl normalization. It defaults
+    to the physical angular frequency for compatibility; a solver using the
+    Yee time derivative supplies ``response.discrete_angular_frequency``.
+    ``Omega`` is the exact discrete time-derivative frequency. For one model
+    on every attached face, omit
     ``port_admittances`` and the admittance in ``response`` is used for all
     ports.
     """
@@ -217,6 +220,13 @@ def boundary_edge_relative_permittivity(
     retained_dual_area = float(retained_dual_area)
     electric_mass = float(electric_mass)
     conductive_mass = float(conductive_mass)
+    normalization_angular_frequency = float(
+        response.physical_angular_frequency
+        if normalization_angular_frequency is None
+        else normalization_angular_frequency
+    )
+    if not np.isfinite(normalization_angular_frequency) or normalization_angular_frequency <= 0:
+        raise ValueError("surface boundary normalization angular frequency must be finite and positive")
     lengths = np.asarray(port_lengths, dtype=np.float64).reshape(-1)
     if port_admittances is None:
         admittances = np.full(lengths.shape, response.admittance, dtype=np.complex128)
@@ -240,11 +250,9 @@ def boundary_edge_relative_permittivity(
         raise ValueError("surface boundary metric and constitutive data must be passive and finite")
 
     load = response.midpoint_cosine * conductive_mass + np.dot(lengths, admittances)
-    # The ADE numerator is exact for the runtime time discretisation, but the
-    # current P/Q solver normalises every spatial curl with physical k0.  Map
-    # the complete discrete load onto that physical-frequency convention.  A
-    # denominator based on Omega would rescale the electric row while leaving
-    # its clipped curl coefficients on the omega convention.
-    denominator = 1j * response.physical_angular_frequency * epsilon0 * retained_dual_area
+    # The ADE numerator is exact for the runtime time discretisation. Map the
+    # complete discrete load onto the same angular-frequency convention as
+    # the solver's standard and clipped spatial curls.
+    denominator = 1j * normalization_angular_frequency * epsilon0 * retained_dual_area
     discrete_mass = 1j * response.discrete_angular_frequency * electric_mass
     return complex((discrete_mass + load) / denominator)

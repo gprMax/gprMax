@@ -179,10 +179,11 @@ port, equal y coordinates a y-normal port. Mode numbers are solver ordering,
 not guaranteed physical labels. Inspect the E/H profiles before identifying
 a solution as TE10, quasi-TEM, or a particular guided slab mode.
 
-Direct ports launch a TF/SF field but do not terminate the real waveguide.
-Continue the guide behind the port through a domain PML, or attach a virtual
-guide as described below. Point receivers are optional diagnostics;
-S-parameters come from the modal port monitors.
+An excited port launches the selected modal field and measures returning
+waves, but it does not absorb those waves. Continue the guide behind the
+port through a domain PML, or attach a :ref:`virtual-waveguide` to provide a
+matched termination. Point receivers are optional diagnostics; S-parameters
+come from the modal port monitors.
 
 Hash command: #eigenmode_port
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -267,44 +268,174 @@ omitting it retains the geometry-only default. Repeated commands drive
 distinct channels of one coherent state. The hash interface uses amplitude;
 ``power`` is a Python-only alternative.
 
-VirtualWaveguide arguments
---------------------------
+.. _virtual-waveguide:
+
+VirtualWaveguide: a matched termination
+---------------------------------------
+
+In CST or `HFSS <https://ansyshelp.ansys.com/public/Views/Secured/Electronics/v251/en/Subsystems/HFSS/Content/HFSS/WavePortsTheory.htm>`_,
+you often use a waveguide port that does two jobs: it injects a chosen
+waveguide mode and absorbs waves returning to the port from the device. A
+*mode* is the electric and magnetic field pattern that travels along the
+guide. A *matched termination* accepts a returning wave with as little
+additional reflection as possible, as though the guide continued indefinitely.
+
+In gprMax these jobs are separate. ``EigenmodePort`` together with
+``EigenmodeExcitation`` supplies the modal injection and measurement, but
+**the eigenmode port itself does not absorb the returning wave**. The wave
+can pass back through the source plane and continue along the feed. If it
+then reaches a reflecting end, it can bounce back into the device and alter
+the result.
+
+The usual finite-difference time-domain (FDTD) solution is to extend the real
+waveguide behind the port into the **domain PML**. FDTD advances electric and
+magnetic fields on a grid of cells; the *domain* is the physical region
+represented by that grid. A PML (*perfectly matched layer*) is an absorbing
+layer at its boundary. Keeping the feed's cross-section unchanged as it
+enters this layer lets returning waves leave the model with little reflection.
+
+This arrangement can be inconvenient for an antenna. A **near-to-far-field
+(NTFF) box** is an imaginary measurement surface around the antenna: fields
+recorded on its faces are used to calculate radiation far away. For a closed
+box in homogeneous air, we want to enclose the entire antenna and its feed
+aperture without a metal or dielectric feed crossing a face. A real feed
+running all the way to the domain PML can prevent that arrangement.
+
+``VirtualWaveguide`` provides a matched termination at an internal port, so
+the physical feed no longer needs to extend to the domain boundary. Despite
+its name, **its practical purpose is to terminate the port**. The extra guide
+is simulated in a separate, auxiliary grid, leaving room in the main domain
+for the rear face of a closed NTFF box. The main domain still needs its own
+PML to absorb radiation leaving the antenna.
+
+How the virtual waveguide works
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+1. gprMax copies the material cross-section at the port into a separate,
+   straight numerical waveguide. This auxiliary grid uses the same cell
+   sizes and time step as the grid containing the port, and has its own PML
+   at the far end.
+2. The port aperture connects the two grids. Electric and magnetic fields
+   are exchanged at every time step, allowing waves to travel through the
+   connection in both directions. A wave returning from the device enters
+   the auxiliary guide and travels to its PML, where it is absorbed.
+3. If the port has an ``EigenmodeExcitation``, gprMax places that source
+   inside the auxiliary guide. The launched wave travels through the
+   aperture into the physical feed. If there is no excitation on that port,
+   it simply acts as a passive matched termination.
+
+The following shows the wave paths, not the physical layout of the grids:
+
+.. code-block:: text
+
+   Separate auxiliary grid                  Main simulation grid
+   [PML] --- [modal source] --- connection --- [port] --- [antenna]
+                 launched wave -------------------------->
+     <--------------------------- wave returning from antenna
+
+The auxiliary guide does not occupy space behind the port in the main
+geometry, so it does not cross the NTFF box. Its fields are still calculated
+during the run, so it adds some memory and time-stepping cost. The modal
+monitor remains at the physical port plane, where it measures incident and
+outgoing waves for S-parameters.
+
+A matched termination reduces reflections from the *feed termination*; it
+does not remove the antenna's own mismatch or force its S11 to zero. The
+antenna's reflected wave is measured at the port before travelling into the
+auxiliary absorber. The approach follows Wang and Langdon [WAN2010]_; see
+`Virtual-guide aperture coupling`_ for the field-update equations.
+
+How to use it
+^^^^^^^^^^^^^
+
+Place an ``EigenmodePort`` at the end of a straight, uniform section of the
+physical feed, inside the simulation domain. Point ``direction`` toward the
+device: for an x-normal port, ``"+"`` launches toward increasing x and the
+virtual continuation represents the feed behind it, toward decreasing x.
+The aperture must cover the guided field and have the same material
+cross-section immediately on either side of the plane. Keep bends, tapers,
+and other changes away from this connection.
+
+Add one ``VirtualWaveguide`` referring to that port number. Keep the
+``EigenmodeExcitation`` if the port should transmit; omit it if the port
+should only absorb. You do not draw the auxiliary guide or add its PML to
+the physical geometry yourself.
+
+For example, this is the feed configuration from `Example 3: a pyramidal
+horn antenna`_. It assumes that ``scene`` already contains the 3D domain,
+mesh, materials, and horn geometry from that example; this snippet alone is
+not a complete model. Coordinates are in metres and frequencies are in Hz.
 
 .. code-block:: python
 
+   scene.add(gprMax.EigenmodeBand(
+       id="eigenmode_band", fmin=8e9, fmax=12e9, points=101,
+   ))
+   scene.add(gprMax.EigenmodePort(
+       port=1, p1=(0.012, 0.033, 0.029), p2=(0.012, 0.057, 0.041),
+       direction="+", modes=(1,), anchors="auto",
+   ))
    scene.add(gprMax.VirtualWaveguide(
        port=1, length_cells=30, pml_cells=12,
-       source_clearance_cells=6, pml_profile=None,
+       source_clearance_cells=6,
    ))
+   scene.add(gprMax.EigenmodeExcitation(port=1, mode=1, waveform="auto"))
 
-``port`` is required and identifies an existing port. The other arguments
-default to the values shown. ``length_cells`` is the total auxiliary-guide
-length, ``pml_cells`` is the remote absorbing-layer thickness (at least two),
-and ``source_clearance_cells`` separates the internal source from that PML.
-All cell counts are positive integers and the total length must be at least
-``pml_cells + source_clearance_cells + 3``. ``pml_profile`` optionally names
-an existing reusable PML profile; otherwise the global formulation and CFS
-terms are used.
+The physical feed starts at x = 12 mm and points toward the horn. The
+example's closed NTFF box has its rear face at x = 10 mm, in air behind the
+feed. The virtual continuation uses separate grid storage, so its 30-cell
+length does not need to fit into that 2 mm gap. Use the complete example for
+the geometry, NTFF setup, and commands to run and plot the results.
 
-The virtual guide repeats the aperture's material cross-section behind an
-internal reference plane. Its bidirectional Yee-grid coupling absorbs waves
-returning from the device and moves the modal source into the auxiliary grid.
-An unexcited virtual port is a passive matched termination. The auxiliary
-wave-port approach follows Wang and Langdon [WAN2010]_, with gprMax-specific
-staggering, broadband injection, and modal monitoring.
+For a passive receiving port in a multiport model, add its own
+``EigenmodePort`` and ``VirtualWaveguide`` but no ``EigenmodeExcitation`` for
+that port. A model with no eigenmode excitations is allowed only when every
+eigenmode port has a virtual guide; it records raw modal spectra without
+normalized S-parameters.
 
-This experimental feature requires a 3D internal port, a locally uniform,
-non-dispersive cross-section, and at least two transverse cells per axis.
-Main-grid CPU, CUDA, OpenCL, Metal, and domain-decomposed MPI CPU paths are
-supported; HSG subgrid virtual ports use the CPU fine-grid update cycle.
-Check guide-length, PML, mesh, and source-clearance convergence.
+VirtualWaveguide arguments
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A virtual feed allows a closed NTFF surface in homogeneous air behind the
-physical antenna. Keep every face outside domain PML and clear of the port
-aperture and metal. KSIR requires all six physical faces; there is no separate
-eigenmode-source prohibition. Gain normalization requires a rectangular
-transform window and an ``NTFFAntennaPorts`` association listing every
-physical port, including passive ports.
+.. code-block:: python
+
+   gprMax.VirtualWaveguide(
+       port=1, length_cells=30, pml_cells=12,
+       source_clearance_cells=6, pml_profile=None,
+   )
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 22 53
+
+   * - Argument
+     - Default
+     - Meaning and constraints
+   * - ``port``
+     - Required
+     - Positive, one-based number of an existing ``EigenmodePort`` in the same grid. Attach at most one virtual guide per port.
+   * - ``length_cells``
+     - ``30``
+     - Total auxiliary-guide length, **including** its PML and source clearance. A positive integer, at least ``pml_cells + source_clearance_cells + 3``.
+   * - ``pml_cells``
+     - ``12``
+     - Thickness of the auxiliary guide's absorbing layer at the end away from the port. An integer of at least 2 cells.
+   * - ``source_clearance_cells``
+     - ``6``
+     - Distance between the internal source plane and the start of that PML. A positive integer number of cells, at least 1.
+   * - ``pml_profile``
+     - ``None``
+     - Name of an existing reusable PML profile. ``None`` uses the global PML formulation and absorption settings (CFS terms).
+
+Only ``port`` is required: ``gprMax.VirtualWaveguide(port=1)`` uses the
+defaults above. Cell counts refer to the grid containing the port, along
+the guide axis. For a 1 mm cell size, 30 cells mean a 30 mm auxiliary guide.
+
+The remaining
+``length_cells - pml_cells - source_clearance_cells`` cells separate the
+source from the port connection: 12 cells with the defaults. Increasing the
+PML thickness or source clearance at fixed total length reduces this
+separation; increase the total length as needed. These constraints also
+apply to passive guides.
 
 Hash command: #virtual_waveguide
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -318,6 +449,32 @@ The required port number identifies an existing ``#eigenmode_port``. Cell
 counts default to 30, 12, and 6, with the same constraints as the Python API.
 The optional final token names a reusable PML profile. An unexcited virtual
 port provides a passive matched termination.
+
+Placement and accuracy checks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This feature is experimental. It currently requires a 3D internal port, a
+locally uniform, non-dispersive cross-section, and at least two cells across
+each transverse direction. Models using impedance volumes are not supported.
+Main-grid CPU, CUDA, OpenCL, Metal, and domain-decomposed MPI CPU paths are
+supported; HSG subgrid virtual ports use the CPU fine-grid update cycle.
+
+For an antenna, enclose the entire physical antenna and feed aperture with
+the NTFF box. Keep every face in the intended homogeneous background, clear
+of the aperture and metal, and outside the domain PML. Both a closed
+equivalent-current surface and KSIR can be used; KSIR requires all six
+physical faces. For gain calculations, use a rectangular transform window
+and an ``NTFFAntennaPorts`` association listing every physical port,
+including passive ports. See the complete horn example for these settings.
+
+Start with the default guide settings and inspect the geometry and modal
+field plots using ``geometry_only=True``. Then repeat the full run with a
+longer auxiliary guide, a thicker PML, and different source clearance,
+changing one control at a time and respecting the length constraint. Also
+refine the mesh. Check that S11 and any requested radiation patterns or gain
+change by less than the accuracy your application needs. A finite PML is an
+approximation to a matched termination, so the defaults are a starting point,
+not a guarantee of negligible reflection for every guide and frequency band.
 
 Choosing frequency anchors
 --------------------------
@@ -841,24 +998,60 @@ propagating, real-power-normalised subset can be used by ``EigenmodeSource``.
 Frequency and wavenumber convention
 -----------------------------------
 
-Both FDFD solvers currently use the physical angular frequency and free-space
-wavenumber at each modal solve frequency:
+Both FDFD solvers distinguish the physical solve frequency from the symbols
+of the FDTD differences. At each modal solve frequency,
 
 .. math::
 
-   \omega_0 = 2\pi f, \qquad k_0 = \frac{\omega_0}{c}.
+   \omega_0 = 2\pi f, \qquad k_{0,\mathrm{physical}} = \frac{\omega_0}{c}.
 
-The eigenproblems and field reconstruction use these values directly, rather
-than numerical-dispersion-compensated versions of :math:`\omega_0` and
-:math:`k_0` matched to the FDTD time and space differences. The transverse
-operators still use the component-sampled Yee grid; this limitation concerns
-their frequency/wavenumber convention and its agreement with FDTD propagation.
+Given the owning grid's time step :math:`\Delta t`, the eigenproblem and
+field reconstruction use the leapfrog temporal symbol
 
-This is generally a small error with the fine spatial steps :math:`\Delta x`
-and time steps :math:`\Delta t` used in the simulations. The fine-grid
-waveguide validation confirms very low reflection from modal injection.
-Numerical-dispersion compensation for :math:`\omega_0` and :math:`k_0` is
-planned for the immediate next update.
+.. math::
+
+   \Omega = \frac{2}{\Delta t}\sin\left(\frac{\omega_0\Delta t}{2}\right),
+   \qquad k_0 = \frac{\Omega}{c}.
+
+These are exposed as ``solver.omega`` and ``solver.k0``; the physical values
+are ``solver.physical_omega`` and ``solver.physical_k0``. The transverse
+operators retain their component-sampled Yee differences. The eigenvalue
+determines the longitudinal difference symbol :math:`K_w`, rather than the
+phase propagation constant :math:`\beta` directly:
+
+.. math::
+
+   \lambda&=-n_{\mathrm{operator}}^2,
+   \qquad n_{\mathrm{operator}}=\frac{K_w}{k_0},\\
+   \beta&=\frac{2}{\Delta w}\sin^{-1}\left(\frac{K_w\Delta w}{2}\right),
+   \qquad n_{\mathrm{eff}}=\frac{\beta}{k_{0,\mathrm{physical}}}.
+
+Here :math:`\Delta w` is the normal cell spacing. The inverse-sine branch is
+chosen for passive forward propagation, including decay for evanescent
+modes. ``solver.beta`` stores the phase propagation constant. Field
+reconstruction uses ``operator_neff``; the public ``complex_neff`` and
+``modal_real_neff`` describe its effective index. This distinction keeps the
+E/H amplitude relationship consistent with the discrete curls while supplying
+the correct phase to source and monitor staggering.
+
+Lossless modes at or beyond the longitudinal spatial band edge
+:math:`|K_w\Delta w/2|\geq1` are retained for inspection but have
+``power_valid=False`` and cannot be used for source injection.
+
+Eigenmode sources pass the owning grid's time step and normal spacing
+automatically, including a subgrid's own values. Direct low-level callers
+enable the same convention with ``fdtd_dt`` and ``propagation_spacing``.
+Omitting ``fdtd_dt`` uses :math:`\Omega=\omega_0`; omitting
+``propagation_spacing`` uses :math:`\beta=K_w`. Omitting both preserves the
+continuum time and longitudinal conventions of earlier low-level calls.
+Waveforms, Fourier transforms, and half-time-step phase factors always use
+the physical frequency :math:`\omega_0`.
+
+For nondispersive media, the source material extraction also includes the
+midpoint factor in electric and magnetic conductivity. Bulk dispersive
+material poles are still evaluated from their analytic physical-frequency
+response, rather than the exact FDTD ADE transfer. Such materials therefore
+retain a time-discretization mismatch that should be checked by convergence.
 
 1D Scalar Solver for 2D Models
 ------------------------------
@@ -937,6 +1130,9 @@ The constructor signature is:
        pmc_a_mask=None,
        pmc_w_mask=None,
        guess=None,
+       *,
+       fdtd_dt=None,
+       propagation_spacing=None,
    )
 
 ``frequency``
@@ -969,6 +1165,16 @@ The constructor signature is:
     Optional ARPACK shift. If omitted, the solver derives a shift from the
     largest finite material magnitude.
 
+``fdtd_dt``
+    Optional keyword-only FDTD time step in seconds. A positive finite value
+    enables the leapfrog frequency symbol and requires ``frequency`` below
+    temporal Nyquist. This is distinct from the transverse spatial ``dt``.
+
+``propagation_spacing``
+    Optional keyword-only positive finite cell spacing along ``w``, in
+    metres. Enables conversion from the longitudinal difference symbol to
+    the phase propagation constant. See `Frequency and wavenumber convention`_.
+
 1D Eigenproblem and Constraints
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -999,12 +1205,13 @@ In both cases:
 
 .. code-block:: text
 
-   n_eff = sqrt(-lambda)
+   operator_neff = sqrt(-lambda)
 
 gprMax uses ``exp(+j*omega*t - j*beta*w)``. The square-root branch is
-therefore chosen with positive real phase propagation, ``Re(n_eff) >= 0``.
-For a passive mode ``Im(n_eff) <= 0``; a purely evanescent mode uses the
-negative-imaginary branch so that it decays in positive ``w``.
+therefore chosen with ``Re(operator_neff) >= 0``. For a passive mode
+``Im(operator_neff) <= 0``; a purely evanescent mode uses the negative-imaginary
+branch so that it decays in positive ``w``. The public ``complex_neff`` is
+then recovered as described in `Frequency and wavenumber convention`_.
 
 PEC constraints remove electric scalar degrees of freedom from the TM
 problem, while PMC constraints remove magnetic scalar degrees of freedom from
@@ -1021,14 +1228,14 @@ For TM, the selected ``E_a`` eigenvector gives:
 
 .. code-block:: text
 
-   H_t = -n_eff E_a / (eta0 mu_t)
+   H_t = -operator_neff E_a / (eta0 mu_t)
    H_w = i inv(mu_w) D_nc E_a / eta0
 
 For TE, the selected ``H_a`` eigenvector gives:
 
 .. code-block:: text
 
-   E_t = eta0 n_eff H_a / eps_t
+   E_t = eta0 operator_neff H_a / eps_t
    E_w = -i eta0 inv(eps_w) D_cn H_a
 
 The other three field components are identically zero for the selected 2D
@@ -1183,6 +1390,10 @@ The constructor signature is:
        pmc_v_mask=None,
        pmc_w_mask=None,
        guess=None,
+       surface_boundary=None,
+       *,
+       fdtd_dt=None,
+       propagation_spacing=None,
    )
 
 ``frequency``
@@ -1214,6 +1425,20 @@ The constructor signature is:
 ``guess``
     Optional ARPACK shift. If omitted, the solver chooses a conservative shift
     from the largest finite material magnitude.
+
+``surface_boundary``
+    Optional compiled impedance-volume boundary. See :doc:`impedance_surfaces`
+    for retained-component masks and clipped curl rows.
+
+``fdtd_dt``
+    Optional keyword-only FDTD time step in seconds. A positive finite value
+    enables the leapfrog frequency symbol and requires ``frequency`` below
+    temporal Nyquist.
+
+``propagation_spacing``
+    Optional keyword-only positive finite cell spacing along ``w``, in
+    metres. Enables conversion from the longitudinal difference symbol to
+    the phase propagation constant. See `Frequency and wavenumber convention`_.
 
 2D Array Ordering
 ^^^^^^^^^^^^^^^^^
@@ -1306,16 +1531,18 @@ solves:
    Omega * Euv = eigenvalue * Euv
    Omega = P * Q
 
-where the effective index is recovered from:
+where the operator index is recovered from:
 
 .. code-block:: python
 
-   neff = sqrt(-eigenvalue)
+   operator_neff = sqrt(-eigenvalue)
 
-The branch follows ``exp(+j*omega*t - j*beta*w)``: ``Re(n_eff) >= 0`` for
-positive phase propagation and ``Im(n_eff) <= 0`` for passive attenuation.
-When the real part is zero, the negative-imaginary branch gives evanescent
-decay in positive ``w``.
+Here the matrix ``Omega = P * Q`` is distinct from the scalar temporal symbol
+:math:`\Omega`. The branch follows ``exp(+j*omega*t - j*beta*w)``:
+``Re(operator_neff) >= 0`` and ``Im(operator_neff) <= 0`` for passive forward
+propagation. When the real part is zero, the negative-imaginary branch gives
+evanescent decay in positive ``w``. The public ``complex_neff`` is then
+recovered as described in `Frequency and wavenumber convention`_.
 
 Because the operators connect the correct staggered Yee component grids, there
 is no separate PEC-neighbour spurious-mode rejection heuristic in this solver.
@@ -1350,7 +1577,7 @@ After solving the eigenproblem, the solver reconstructs:
 
 * ``E_u`` and ``E_v`` directly from the transverse eigenvector.
 * ``H_u`` and ``H_v`` from ``Q * Euv / sqrt(eigenvalue)``, using the branch
-  ``sqrt(eigenvalue) = +j*n_eff`` selected by the propagation convention.
+  ``sqrt(eigenvalue) = +j*operator_neff`` selected by the propagation convention.
 * ``E_w`` from transverse magnetic curl terms.
 * ``H_w`` from transverse electric curl terms.
 
@@ -1433,6 +1660,9 @@ Limitations
 
 * Material tensors are diagonal in the local ``u``/``v``/``w`` basis.
 * The finite-difference operators use first-order sparse Yee-grid differences.
+* Bulk dispersive material poles use their analytic physical-frequency
+  response. Matching their exact FDTD ADE transfer remains a separate step
+  beyond the temporal and longitudinal difference compensation.
 * A single-frequency source reuses one solved profile across the waveform
   spectrum. A broadband source instead phase-aligns and interpolates several
   anchor solves, but its accuracy is limited by anchor spacing and it must not
@@ -1449,7 +1679,8 @@ For gprMax integration, use this path:
 3. Extract local ``mu_r_uu``, ``mu_r_vv`` and ``mu_r_ww`` from Yee magnetic
    component material IDs with native staggered shapes.
 4. Mark magnetic PMC entries with ``np.inf + 0j`` or explicit local PMC masks.
-5. Construct ``FDFD_2D_mode_solver`` using local ``du`` and ``dv``.
+5. Construct ``FDFD_2D_mode_solver`` using local ``du`` and ``dv``, the owning
+   grid's ``fdtd_dt``, and the normal cell size as ``propagation_spacing``.
 6. Call ``solver.solve()``.
 7. Use ``solver.modal_Eu``, ``solver.modal_Ev``, ``solver.modal_Hu`` and
    ``solver.modal_Hv`` for transverse eigenmode source injection after mapping
@@ -1489,7 +1720,7 @@ frequency time dependence ``exp(+j*omega*t)``. The FFT sign is not a second
 physical convention: it is the analysis kernel paired with the phasor
 synthesis sign.
 
-With ``exp(+j*omega*t)``, Maxwell's curl equations are
+With ``exp(+j*omega*t)``, the continuum Maxwell curl equations are
 
 .. math::
 
@@ -1500,7 +1731,7 @@ With ``exp(+j*omega*t)``, Maxwell's curl equations are
    &= +j\omega\widetilde{\boldsymbol{\epsilon}}_c
       \widetilde{\mathbf{E}}.
 
-Finite electric and magnetic conductivities are included through
+Their continuum electric and magnetic conductivity terms are
 
 .. math::
 
@@ -1511,11 +1742,25 @@ Finite electric and magnetic conductivities are included through
    &= \mu_r(\omega)
       -j\frac{\sigma_m}{\omega\mu_0}.
 
+For nondispersive material extraction on an FDTD grid, the solver instead
+uses the exact midpoint conductivity terms
+
+.. math::
+
+   \epsilon_{r,c}^{\mathrm{Yee}}
+   &= \epsilon_r-j\frac{\sigma\cos(\omega\Delta t/2)}{\Omega\epsilon_0},\\
+   \mu_{r,c}^{\mathrm{Yee}}
+   &= \mu_r-j\frac{\sigma_m\cos(\omega\Delta t/2)}{\Omega\mu_0},
+
+with the temporal symbol from `Frequency and wavenumber convention`_.
+Low-level callers supply their own complex relative material arrays; passing
+``fdtd_dt`` does not reinterpret those arrays as conductivity parameters.
+
 For a forward passive mode,
 
 .. math::
 
-   \beta=k_0n_{\mathrm{eff}}=\beta_r-j\alpha,
+   \beta=k_{0,\mathrm{physical}}n_{\mathrm{eff}}=\beta_r-j\alpha,
    \qquad \alpha\geq 0,
 
 and therefore
@@ -1525,7 +1770,7 @@ and therefore
    \exp(-j\beta w)
    =\exp(-j\beta_r w)\exp(-\alpha w).
 
-The selected square-root branch consequently satisfies
+The selected propagation branch consequently satisfies
 
 .. math::
 
@@ -1538,7 +1783,7 @@ If the real part is numerically zero, a purely evanescent mode uses
 the square root is never replaced by its absolute value; its sign contains
 the loss or gain information.
 
-As an example, at 5 GHz a homogeneous material with
+As a continuum example, at 5 GHz a homogeneous material with
 ``epsilon_r=9`` and ``sigma=2 S/m`` has
 
 .. math::
@@ -1547,7 +1792,7 @@ As an example, at 5 GHz a homogeneous material with
    \qquad
    n\simeq 3.203-j1.122.
 
-This gives :math:`\alpha=-k_0\operatorname{Im}(n)\simeq
+This gives :math:`\alpha=-k_{0,\mathrm{physical}}\operatorname{Im}(n)\simeq
 117.6\ \mathrm{m}^{-1}`. The field magnitude after 0.5 mm is approximately
 ``exp(-alpha * 0.5e-3) = 0.943``.
 
@@ -1566,7 +1811,8 @@ refer to their final Yee-component locations. The workflow is:
    component position on the source plane. PEC and PMC cells become explicit
    component constraints.
 4. At each requested frequency, solve either the 1D scalar TM/TE problem for a
-   2D FDTD model or the 2D full-vector problem for a 3D FDTD model.
+   2D FDTD model or the 2D full-vector problem for a 3D FDTD model, using the
+   owning grid's time step and normal cell spacing.
 5. Reconstruct all modal E and H components, zero constrained degrees of
    freedom, apply either real-power or balanced E/H normalization, and choose
    a consistent global phase.
@@ -1817,6 +2063,10 @@ each bin, gprMax applies the magnetic staggering factor
        \frac{\omega_m\Delta t}{2}
        +\frac{\beta_m\Delta w}{2}
    \right)\right].
+
+Here :math:`\omega_m=2\pi f_m` is the physical angular frequency, and
+:math:`\beta_m` is recovered from the longitudinal difference symbol. The
+temporal difference symbol :math:`\Omega` is not a phase frequency.
 
 The local coordinate is defined in the requested propagation direction. The
 tangential H correction lies half a cell on the incident side of the electric

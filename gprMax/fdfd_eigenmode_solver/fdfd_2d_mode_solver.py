@@ -25,6 +25,12 @@ from scipy.sparse import bmat, coo_matrix, diags
 from scipy.sparse.linalg import eigs
 
 import gprMax.config as config
+from gprMax.fdfd_eigenmode_solver.numerical_dispersion import (
+    discrete_angular_frequency,
+    phase_propagation_constant,
+    positive_finite,
+    spatially_resolved,
+)
 from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     BoundaryAmpereRow,
     BoundaryMagneticTerm,
@@ -64,6 +70,12 @@ class FDFD_2D_mode_solver:
     while each integral Ampere row replaces the corresponding standard curl
     row and electric material coefficient.
 
+    Optional ``fdtd_dt`` (seconds) and ``propagation_spacing`` (metres)
+    match the time and normal spatial difference symbols to FDTD.
+    ``operator_neff`` controls field reconstruction; public ``complex_neff``
+    is phase beta / physical_k0. Material arrays use the solver's omega
+    normalization, including the supplied surface-boundary coefficients.
+
     After :meth:`solve`, ``raw_powers`` contains the complex Poynting power
     before normalization. ``forward_power_metrics`` is its real part divided
     by a positive, E/H-balanced transverse field norm; ``power_valid`` applies
@@ -92,19 +104,28 @@ class FDFD_2D_mode_solver:
         pmc_w_mask=None,
         guess=None,
         surface_boundary=None,
+        *,
+        fdtd_dt=None,
+        propagation_spacing=None,
     ):
         self.epsilon0 = config.sim_config.em_consts["e0"]
         self.mu0 = config.sim_config.em_consts["m0"]
         self.c = config.sim_config.em_consts["c"]
         self.eta0 = config.sim_config.em_consts["z0"]
-        self.omega = 2 * np.pi * frequency
+        self.frequency = positive_finite(frequency, "frequency")
+        self.fdtd_dt = None if fdtd_dt is None else positive_finite(fdtd_dt, "fdtd_dt")
+        self.propagation_spacing = (
+            None if propagation_spacing is None else positive_finite(propagation_spacing, "propagation_spacing")
+        )
+        self.physical_omega = 2 * np.pi * self.frequency
+        self.physical_k0 = self.physical_omega / self.c
+        self.omega = discrete_angular_frequency(self.frequency, self.fdtd_dt)
         self.k0 = self.omega / self.c
 
-        self.frequency = frequency
-        self.du = du
-        self.dv = dv
-        self.normalized_du = self.k0 * du
-        self.normalized_dv = self.k0 * dv
+        self.du = positive_finite(du, "du")
+        self.dv = positive_finite(dv, "dv")
+        self.normalized_du = self.k0 * self.du
+        self.normalized_dv = self.k0 * self.dv
         self.mode_index = int(mode_index)
         self.num_modes = self.mode_index + 1
 
@@ -186,6 +207,8 @@ class FDFD_2D_mode_solver:
         self.guess = guess if guess is not None else self._default_guess()
         self.eigenvalues = None
         self.eigenvectors = None
+        self.operator_neff = None
+        self.beta = None
         self.complex_neff = None
         self.real_neff = None
         self.raw_powers = None
@@ -587,8 +610,7 @@ class FDFD_2D_mode_solver:
 
         self.eigenvalues = eigenvalues
         self.eigenvectors = eigenvectors
-        self.complex_neff = self._passive_positive_neff(-self.eigenvalues)
-        self.real_neff = np.real(self.complex_neff)
+        self.operator_neff = self._passive_positive_neff(-self.eigenvalues)
 
         self._calculate_fields(Q_reduced, eps_ww_inv, mu_ww_inv)
         self._orient_backward_modes_to_forward_power(
@@ -596,15 +618,20 @@ class FDFD_2D_mode_solver:
             eps_ww_inv,
             mu_ww_inv,
         )
+        wavenumber = self.k0 * self.operator_neff
+        self.beta = phase_propagation_constant(wavenumber, self.propagation_spacing)
+        self.complex_neff = self.beta / self.physical_k0
+        self.real_neff = np.real(self.complex_neff)
+        self.spatially_resolved = spatially_resolved(wavenumber, self.propagation_spacing)
         self._normalize_modes_to_power()
         self._align_modes_for_real_profile_power()
         self._set_modal_fields()
 
     def _calculate_fields(self, Q_reduced, eps_ww_inv, mu_ww_inv):
-        # eigenvalue = -neff^2, so the branch consistent with
-        # exp(+j*omega*t - j*beta*w) is sqrt(eigenvalue) = +j*neff.
+        # eigenvalue = -operator_neff^2, so the branch consistent with
+        # exp(+j*omega*t - j*beta*w) is sqrt(eigenvalue) = +j*operator_neff.
         # Reuse the selected propagation branch when reconstructing H.
-        sqrt_eigenvalues = 1j * self.complex_neff
+        sqrt_eigenvalues = 1j * self.operator_neff
         if np.any(np.abs(sqrt_eigenvalues) < 1e-300):
             raise ValueError(
                 "Encountered a near-zero eigenvalue while reconstructing magnetic fields."
@@ -732,7 +759,7 @@ class FDFD_2D_mode_solver:
             if not np.isfinite(balanced_power) or balanced_power <= 0:
                 continue
             metric = np.real(self._calculate_mode_complex_power(mode)) / balanced_power
-            candidate = -self.complex_neff[mode]
+            candidate = -self.operator_neff[mode]
             tolerance = 1e-12 * max(1.0, abs(candidate))
             reverse[mode] = (
                 np.isfinite(metric)
@@ -742,8 +769,7 @@ class FDFD_2D_mode_solver:
         if not np.any(reverse):
             return
 
-        self.complex_neff[reverse] *= -1
-        self.real_neff = np.real(self.complex_neff)
+        self.operator_neff[reverse] *= -1
         self._calculate_fields(Q_reduced, eps_ww_inv, mu_ww_inv)
 
     def _real_profile_power_from_fields(self, eu_field, ev_field, hu_field, hv_field):
@@ -776,7 +802,9 @@ class FDFD_2D_mode_solver:
                 metric = float(np.real(raw_power) / balanced_power)
                 self.forward_power_metrics[mode] = metric
                 self.power_valid[mode] = (
-                    np.isfinite(metric) and metric > self.FORWARD_POWER_METRIC_TOLERANCE
+                    np.isfinite(metric)
+                    and metric > self.FORWARD_POWER_METRIC_TOLERANCE
+                    and self.spatially_resolved[mode]
                 )
             if not np.isfinite(balanced_power) or balanced_power <= 0:
                 raise ValueError(

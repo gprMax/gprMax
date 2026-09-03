@@ -78,7 +78,8 @@ def test_surface_response_is_exact_bilinear_transfer_with_midpoint_admittance():
     )
 
 
-def test_boundary_permittivity_reproduces_integral_discrete_ampere_load():
+@pytest.mark.parametrize("discrete_normalization", (False, True))
+def test_boundary_permittivity_reproduces_integral_discrete_ampere_load(discrete_normalization):
     epsilon0 = config.sim_config.em_consts["e0"]
     dt = 1e-12
     frequency = 20e9
@@ -97,6 +98,11 @@ def test_boundary_permittivity_reproduces_integral_discrete_ampere_load():
     electric_mass = epsilon0 * relative_permittivity * retained_area
     conductive_mass = conductivity * retained_area
     lengths = np.asarray((0.8e-3, 0.3e-3))
+    normalization = (
+        {"normalization_angular_frequency": response.discrete_angular_frequency}
+        if discrete_normalization
+        else {}
+    )
 
     effective = boundary_edge_relative_permittivity(
         response=response,
@@ -105,11 +111,15 @@ def test_boundary_permittivity_reproduces_integral_discrete_ampere_load():
         electric_mass=electric_mass,
         conductive_mass=conductive_mass,
         port_lengths=lengths,
+        **normalization,
     )
 
-    represented_load = (
-        1j * response.physical_angular_frequency * epsilon0 * retained_area * effective
+    normalization_frequency = (
+        response.discrete_angular_frequency
+        if discrete_normalization
+        else response.physical_angular_frequency
     )
+    represented_load = 1j * normalization_frequency * epsilon0 * retained_area * effective
     expected_load = (
         1j * response.discrete_angular_frequency * electric_mass
         + response.midpoint_cosine * conductive_mass
@@ -117,6 +127,28 @@ def test_boundary_permittivity_reproduces_integral_discrete_ampere_load():
     )
     assert represented_load == pytest.approx(expected_load, rel=2e-14, abs=2e-14)
     assert response.physical_angular_frequency != response.discrete_angular_frequency
+
+
+@pytest.mark.parametrize("normalization_frequency", (0.0, -1.0, np.nan, np.inf))
+def test_boundary_permittivity_rejects_invalid_normalization_frequency(normalization_frequency):
+    response = evaluate_surface_ade(
+        frequency_hz=20e9,
+        dt=1e-12,
+        F=np.empty((0, 0)),
+        G=np.empty(0),
+        L=np.empty(0),
+        Z0=40.0,
+    )
+    with pytest.raises(ValueError, match="normalization angular frequency.*finite and positive"):
+        boundary_edge_relative_permittivity(
+            response=response,
+            epsilon0=config.sim_config.em_consts["e0"],
+            retained_dual_area=1.5e-6,
+            electric_mass=config.sim_config.em_consts["e0"] * 1.5e-6,
+            conductive_mass=0.0,
+            port_lengths=(0.8e-3,),
+            normalization_angular_frequency=normalization_frequency,
+        )
 
 
 @pytest.mark.parametrize(
