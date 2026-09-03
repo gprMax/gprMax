@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
+from pathlib import Path
 
 import gprMax.config as config
 
@@ -125,6 +126,15 @@ help_msg = {
         " file."
     ),
 }
+
+
+def _existing_input_file(value: str) -> Path:
+    """Return an input path or raise an argparse-friendly error."""
+
+    path = Path(value).expanduser()
+    if not path.is_file():
+        raise argparse.ArgumentTypeError(f"input file does not exist: {value}")
+    return path
 
 
 def run(
@@ -261,7 +271,7 @@ def cli():
     parser = argparse.ArgumentParser(
         prog="gprMax", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("inputfile", help=help_msg["inputfile"])
+    parser.add_argument("inputfile", type=_existing_input_file, help=help_msg["inputfile"])
     parser.add_argument("-outputfile", "-o", help=help_msg["outputfile"])
     parser.add_argument("-n", default=args_defaults["n"], type=int, help=help_msg["n"])
     parser.add_argument("-i", type=int, help=help_msg["i"])
