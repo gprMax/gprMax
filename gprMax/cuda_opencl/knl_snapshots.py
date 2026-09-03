@@ -161,28 +161,30 @@ store_snapshot = {
         zz = zs + z * dz;
 
         // The electric field component value at a point comes from an average of
-        // the 4 electric field component values in that cell
+        // the 4 electric field component values at the corners of the sampled
+        // snapshot cell. For a strided snapshot, those corners are separated by
+        // dx/dy/dz full-grid cells, matching the CPU's strided GridView.
         snapEx[IDX4D_SNAPS(p,x,y,z)] = (Ex[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Ex[IDX3D_FIELDS(xx,yy+sy,zz)] +
-                                        Ex[IDX3D_FIELDS(xx,yy,zz+sz)] +
-                                        Ex[IDX3D_FIELDS(xx,yy+sy,zz+sz)]) * ($REAL)0.25;
+                                        Ex[IDX3D_FIELDS(xx,yy+sy*dy,zz)] +
+                                        Ex[IDX3D_FIELDS(xx,yy,zz+sz*dz)] +
+                                        Ex[IDX3D_FIELDS(xx,yy+sy*dy,zz+sz*dz)]) * ($REAL)0.25;
         snapEy[IDX4D_SNAPS(p,x,y,z)] = (Ey[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Ey[IDX3D_FIELDS(xx+sx,yy,zz)] +
-                                        Ey[IDX3D_FIELDS(xx,yy,zz+sz)] +
-                                        Ey[IDX3D_FIELDS(xx+sx,yy,zz+sz)]) * ($REAL)0.25;
+                                        Ey[IDX3D_FIELDS(xx+sx*dx,yy,zz)] +
+                                        Ey[IDX3D_FIELDS(xx,yy,zz+sz*dz)] +
+                                        Ey[IDX3D_FIELDS(xx+sx*dx,yy,zz+sz*dz)]) * ($REAL)0.25;
         snapEz[IDX4D_SNAPS(p,x,y,z)] = (Ez[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Ez[IDX3D_FIELDS(xx+sx,yy,zz)] +
-                                        Ez[IDX3D_FIELDS(xx,yy+sy,zz)] +
-                                        Ez[IDX3D_FIELDS(xx+sx,yy+sy,zz)]) * ($REAL)0.25;
+                                        Ez[IDX3D_FIELDS(xx+sx*dx,yy,zz)] +
+                                        Ez[IDX3D_FIELDS(xx,yy+sy*dy,zz)] +
+                                        Ez[IDX3D_FIELDS(xx+sx*dx,yy+sy*dy,zz)]) * ($REAL)0.25;
 
         // The magnetic field component value at a point comes from average of
-        // 2 magnetic field component values in that cell and the following cell
+        // 2 magnetic field component values on opposing sampled-cell faces.
         snapHx[IDX4D_SNAPS(p,x,y,z)] = (Hx[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hx[IDX3D_FIELDS(xx+sx,yy,zz)]) * ($REAL)0.5;
+                                        Hx[IDX3D_FIELDS(xx+sx*dx,yy,zz)]) * ($REAL)0.5;
         snapHy[IDX4D_SNAPS(p,x,y,z)] = (Hy[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hy[IDX3D_FIELDS(xx,yy+sy,zz)]) * ($REAL)0.5;
+                                        Hy[IDX3D_FIELDS(xx,yy+sy*dy,zz)]) * ($REAL)0.5;
         snapHz[IDX4D_SNAPS(p,x,y,z)] = (Hz[IDX3D_FIELDS(xx,yy,zz)] +
-                                        Hz[IDX3D_FIELDS(xx,yy,zz+sz)]) * ($REAL)0.5;
+                                        Hz[IDX3D_FIELDS(xx,yy,zz+sz*dz)]) * ($REAL)0.5;
 
     }
 """

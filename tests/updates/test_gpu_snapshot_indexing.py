@@ -58,6 +58,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
+from gprMax.cuda_opencl import knl_snapshots
 from gprMax.snapshots import Snapshot, update_snapshot_max_dims
 
 
@@ -88,6 +89,24 @@ def test_update_snapshot_max_dims_is_a_noop_on_empty_list(monkeypatch):
     update_snapshot_max_dims([])
 
     assert (Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max) == (7, 8, 9)
+
+
+def test_gpu_snapshot_collocation_uses_the_snapshot_cell_stride():
+    """GPU collocation must match the CPU's strided ``GridView`` corners."""
+
+    body = knl_snapshots.store_snapshot["func"].substitute(
+        {
+            "CUDA_IDX": "",
+            "REAL": "float",
+            "NX_SNAPS": 1,
+            "NY_SNAPS": 1,
+            "NZ_SNAPS": 1,
+        }
+    )
+
+    assert "xx+sx*dx" in body
+    assert "yy+sy*dy" in body
+    assert "zz+sz*dz" in body
 
 
 # ---------------------------------------------------------------------------

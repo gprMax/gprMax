@@ -27,6 +27,7 @@ from gprMax.cuda_opencl.knl_ntff import build_ntff_kernel_source
 from gprMax.grid.metal_grid import MetalBufferView
 from gprMax.updates.metal_plane_waves import (
     _MetalElementwiseKernel,
+    _prepare_planewave_kernel_source,
     _render_planewave_kernel_source,
 )
 
@@ -107,15 +108,33 @@ def test_all_plane_wave_templates_render_for_metal():
         source = _render_planewave_kernel_source(
             specification, "", "float", "metal::complex<float>"
         )
+        prepared_source, packed_scalar_count = _prepare_planewave_kernel_source(
+            specification, "", "float", "metal::complex<float>"
+        )
 
         parameter_names = _metal_parameter_names(declaration)
 
-        assert source == f"\n{declaration}{{\n{body}}}\n"
+        assert source == prepared_source
         assert "$" not in declaration
         assert "$" not in body
         assert "thread_position_in_grid" in declaration
         assert "blockIdx" not in body
         assert len(parameter_names) == len(set(parameter_names))
+
+        resource_count = len(parameter_names) - 1
+        if resource_count <= 31:
+            assert packed_scalar_count == 0
+            assert source == f"\n{declaration}{{\n{body}}}\n"
+        else:
+            assert packed_scalar_count > 0
+            rendered_declaration = re.search(
+                r"kernel\s+void\s+\w+\s*\(.*?\)", source, re.DOTALL
+            ).group(0)
+            rendered_parameter_names = _metal_parameter_names(rendered_declaration)
+            assert len(rendered_parameter_names) - 1 <= 31
+            assert rendered_parameter_names[0] == "_metal_scalars"
+            for name in parameter_names[:packed_scalar_count]:
+                assert f"_metal_scalars.{name}" in source
         if "$TFSF_IDX" in specification["func"].template:
             assert parameter_names.count("t") == 1
             assert "int t =" not in body
@@ -173,6 +192,25 @@ def test_metal_plane_wave_adapter_preserves_buffer_offsets_and_scalar_types():
     assert command.encoder.scalars[0][1] == np.dtype(np.int32).itemsize
     assert command.encoder.buffers[1] == (raw_buffer, 24)
     assert command.encoder.dispatched == ((13, 1, 1), (13, 1, 1))
+
+
+def test_metal_plane_wave_adapter_packs_scalar_prefix_into_one_buffer_slot():
+    command = _FakeCommand()
+    owner = SimpleNamespace(
+        cmdqueue=SimpleNamespace(commandBuffer=lambda: command),
+        metal=SimpleNamespace(MTLSizeMake=lambda x, y, z: (x, y, z)),
+    )
+    pipeline = SimpleNamespace(maxTotalThreadsPerThreadgroup=lambda: 64)
+    kernel = _MetalElementwiseKernel(owner, pipeline, packed_scalar_count=2)
+    raw_buffer = SimpleNamespace(contents=lambda: None, length=lambda: 128)
+
+    kernel(np.int32(7), np.float32(1.25), raw_buffer, range=slice(0, 13))
+
+    packed, packed_length = command.encoder.scalars[0]
+    assert packed_length == 8
+    assert np.frombuffer(packed[:4], dtype=np.int32)[0] == 7
+    assert np.frombuffer(packed[4:], dtype=np.float32)[0] == np.float32(1.25)
+    assert command.encoder.buffers[1] == (raw_buffer, 0)
 
 
 def test_opencl_ntff_source_accepts_offset_field_views():
