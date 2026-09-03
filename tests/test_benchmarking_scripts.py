@@ -24,6 +24,45 @@ from types import SimpleNamespace
 from testing.benchmarking import bench_simple, benchmark_layered_ntff
 from testing.benchmarking import benchmark_metal as metal_benchmark
 
+STANDARD_PREAMBLE = """# Copyright (C) 2015-2026: The University of Edinburgh, United Kingdom
+#
+# This file is part of the gprMax source code base.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax. If not, see <https://www.gnu.org/licenses/>.
+"""
+
+STANDARD_HEADER_PATHS = (
+    "testing/analytical_solutions.py",
+    "testing/benchmarking/__init__.py",
+    "testing/benchmarking/bench_simple.py",
+    "testing/benchmarking/benchmark_impedance_box.py",
+    "testing/benchmarking/benchmark_layered_ntff.py",
+    "testing/benchmarking/benchmark_metal.py",
+    "testing/benchmarking/benchmark_ntff.py",
+    "testing/diff_output_files.py",
+    "testing/models_pmls/pml_3D_pec_plate/plot_pml_comparison.py",
+    "testing/models_pmls/pml_basic/plot_pml_comparison.py",
+    "testing/test_experimental.py",
+    "testing/test_models.py",
+    "toolboxes/Plotting/plot_Ascan.py",
+    "toolboxes/Plotting/plot_Bscan.py",
+    "toolboxes/Plotting/plot_source_wave.py",
+    "toolboxes/Utilities/Paraview/gprMax.py",
+    "toolboxes/Utilities/get_host_spec.py",
+    "toolboxes/Utilities/outputfiles_merge.py",
+)
+
 
 def test_simple_benchmark_builds_the_requested_matrix_without_running():
     scenes = bench_simple.build_scenes(
@@ -128,3 +167,11 @@ def test_python_source_headers_do_not_contain_legacy_author_bylines():
                 offenders.append(f"{path.relative_to(root)}:{line_number}")
 
     assert offenders == []
+
+
+def test_changed_source_headers_use_the_standard_project_preamble():
+    root = Path(__file__).parents[1]
+
+    for relative_path in STANDARD_HEADER_PATHS:
+        source = (root / relative_path).read_text(encoding="utf-8")
+        assert source.startswith(STANDARD_PREAMBLE), relative_path

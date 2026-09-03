@@ -1,6 +1,6 @@
-# Copyright (C) 2026: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2026: The University of Edinburgh, United Kingdom
 #
-# This file is part of gprMax.
+# This file is part of the gprMax source code base.
 #
 # gprMax is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
