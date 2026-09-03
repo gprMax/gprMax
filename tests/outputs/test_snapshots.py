@@ -456,12 +456,11 @@ class TestStoreFlags:
 
 
 class TestStoreWithStride:
-    def test_a_strided_snapshot_samples_rather_than_averages_the_gap(
+    def test_a_strided_snapshot_collocates_at_coarse_cell_centres(
         self, make_snapshot, make_view_grid
     ):
-        """Expects a step-2 view to produce half-sized output, with each cell
-        still averaged from its own immediate neighbours rather than over the
-        skipped cells."""
+        """Expects a step-2 view to produce half-sized output, collocated at
+        the centre of each coarse snapshot cell by averaging its two faces."""
         g = make_view_grid(nx=8, ny=8, nz=8, fill=False)
         for name in FIELDS:
             getattr(g, name)[...] = 0.0

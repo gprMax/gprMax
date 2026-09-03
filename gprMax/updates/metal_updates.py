@@ -63,7 +63,7 @@ from gprMax.sources import (
 )
 from gprMax.updates.metal_plane_waves import MetalPlaneWaveController
 from gprMax.updates.updates import Updates
-from gprMax.utilities.utilities import round32
+from gprMax.utilities.utilities import round32, timer
 
 logger = logging.getLogger(__name__)
 
@@ -1743,8 +1743,13 @@ class MetalUpdates(Updates[MetalGrid]):
         command.waitUntilCompleted()
 
     def time_start(self):
-        """Starts event timers used to calculate solving time for model."""
-        pass
+        """Start the wall timer used to calculate solving time for a model.
+
+        Metal launches in this backend wait for each command buffer to finish,
+        so elapsed wall time measures the completed GPU work without requiring
+        a separate end event.
+        """
+        self.timestart = timer()
 
     def calculate_memory_used(self, iteration):
         """Calculates memory used on last iteration.
@@ -1759,7 +1764,7 @@ class MetalUpdates(Updates[MetalGrid]):
 
     def calculate_solve_time(self):
         """Calculates solving time for model."""
-        return 0
+        return timer() - self.timestart
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
