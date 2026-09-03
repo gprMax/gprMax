@@ -9,11 +9,21 @@ This section provides information and results from performance benchmarking of g
 How to benchmark?
 =================
 
-The following simple models (found in the ``testing/benchmarking`` sub-package) can be used to benchmark gprMax on your own system. The models feature different domain sizes (from 100^3 to 800^3 cells) and contain a simple Hertzian dipole source in free space:
+The ``bench_simple`` module in the ``testing/benchmarking`` sub-package can be
+used to benchmark gprMax on your own system. Its default matrix covers domain
+sizes from 100^3 to 800^3 cells and several OpenMP thread counts, with a simple
+Hertzian dipole source in free space. Run it from the repository root:
 
-.. literalinclude:: ../../testing/benchmarking/bench_simple.py
-    :language: python
-    :linenos:
+.. code-block:: none
+
+    (gprMax)$ python -m testing.benchmarking.bench_simple
+
+Domain sizes, thread counts, discretisation, time window, and output path can
+be selected from the command line. Use a reduced matrix for a quick smoke test:
+
+.. code-block:: none
+
+    (gprMax)$ python -m testing.benchmarking.bench_simple --domains 0.024 --threads 1 --time-window 1e-11 --output /tmp/bench_simple
 
 The performance metric used to measure the throughput of the solver is:
 
@@ -77,20 +87,15 @@ Apple Metal GPU Benchmarking
 
 For macOS users with Apple Silicon (M-series) based GPUs, a dedicated Metal benchmarking script is available in the ``testing/benchmarking`` sub-package:
 
-.. literalinclude:: ../../testing/benchmarking/benchmark_metal.py
-    :language: python
-    :linenos:
-    :lines: 1-30
-
 This script provides comprehensive benchmarking capabilities specifically designed for the Apple Metal backend:
 
 Features
 --------
 
-* **Automated domain size testing**: Tests multiple domain sizes from 50×50×50 to 200×200×200 cells
+* **Automated domain size testing**: Tests multiple domain sizes from 50×50×50 to 400×400×400 cells by default
 * **CPU vs Metal comparison**: Runs identical simulations on both CPU and Metal backends for direct performance comparison
 * **Performance visualization**: Generates plots showing throughput (Mcells/s) and speedup ratios
-* **Data export**: Saves results in multiple formats (JSON, NumPy) for further analysis
+* **Data export**: Saves the configuration, individual timings, throughput, and speedup results as JSON
 * **Validation integration**: Can be combined with PML validation testing
 
 Usage
@@ -100,15 +105,21 @@ To run the Metal benchmarking suite:
 
 .. code-block:: none
 
-    (gprMax)$ cd testing/benchmarking
-    (gprMax)$ python benchmark_metal.py
+    (gprMax)$ python -m testing.benchmarking.benchmark_metal
+
+For a quick functional test before a full benchmark, reduce the domain,
+iterations, repeats, and warmups:
+
+.. code-block:: none
+
+    (gprMax)$ python -m testing.benchmarking.benchmark_metal --sizes 24 --iterations 4 --repeats 1 --warmups 0 --no-plot --output /tmp/metal_benchmark.json
 
 The script will automatically:
 
-1. Create benchmark input files for different domain sizes
+1. Build identical Python-API scenes for different domain sizes
 2. Run simulations using both CPU and Metal backends
 3. Calculate performance metrics using the standard formula above
-4. Generate comparison plots and save results
+4. Save JSON results and, unless ``--no-plot`` is specified, generate a comparison plot
 
 Visualization Tools
 ===================
