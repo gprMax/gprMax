@@ -43,7 +43,7 @@ availablecomponents = list(f[path].keys())
 # Check for polarity of output and if requested output is in file
 if args.output[0][0] == 'm':
     polarity = -1
-    args.outputs[0] = args.output[0][1:]
+    args.output[0] = args.output[0][1:]
 else:
     polarity = 1
 
