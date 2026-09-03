@@ -672,7 +672,18 @@ class EigenmodeSource(Source):
         """Choose real-only or in-phase/quadrature single-mode injection."""
         residual = self._align_tangential_mode_for_real_injection()
         self._store_real_modal_fields()
-        if residual <= self.COMPLEX_PROFILE_TOLERANCE and not self._drive_requires_quadrature():
+        # Even real tangential profiles can have complex propagation. A time
+        # shift alone cannot retain the half-cell attenuation or gain in H.
+        omega = 2 * np.pi * self.frequency
+        beta = omega * complex(self.complex_neff) / config.sim_config.em_consts["c"]
+        half_cell_phase = 0.5 * beta * G.dl[self.normal_axis]
+        stagger_tolerance = 64 * np.finfo(float).eps * max(1.0, abs(half_cell_phase))
+        requires_complex_stagger = abs(half_cell_phase.imag) > stagger_tolerance
+        if (
+            residual <= self.COMPLEX_PROFILE_TOLERANCE
+            and not self._drive_requires_quadrature()
+            and not requires_complex_stagger
+        ):
             if self.mpi_coordinator:
                 logger.info(
                     "Single-frequency eigenmode tangential complex-profile residual "
@@ -693,8 +704,7 @@ class EigenmodeSource(Source):
         if self.mpi_coordinator:
             logger.info(
                 "Single-frequency eigenmode tangential complex-profile residual "
-                f"is {residual:.3e}, above the {self.COMPLEX_PROFILE_TOLERANCE:.3e} "
-                "tolerance; using in-phase/quadrature injection."
+                f"is {residual:.3e}; using in-phase/quadrature injection."
             )
         self._prepare_broadband_time_traces(
             G,
@@ -2524,9 +2534,9 @@ class EigenmodeSource(Source):
         return self.start <= time <= self.stop
 
     def _magnetic_modal_time_offset(self, G):
-        """Half-step plus half-cell propagation delay for modal H sampling."""
-        neff = abs(float(np.real(self.neff)))
-        return 0.5 * G.dt + neff * G.dl[self.normal_axis] / (2 * config.c)
+        """Half-step plus signed half-cell delay for real-beta modal H sampling."""
+        neff = float(np.real(self.complex_neff))
+        return 0.5 * G.dt + neff * G.dl[self.normal_axis] / (2 * config.sim_config.em_consts["c"])
 
     def _waveform_value(self, time, G):
         return self.drive_amplitude * self.waveform.calculate_value(time - self.start, G.dt)

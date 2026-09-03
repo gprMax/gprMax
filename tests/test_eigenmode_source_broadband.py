@@ -22,6 +22,7 @@ import pytest
 
 import gprMax.config as config
 import gprMax.sources as sources_module
+from gprMax.eigenmode_device import eigenmode_source_envelopes, eigenmode_source_profiles
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.sources import EigenmodeSource
 from gprMax.waveforms import Waveform
@@ -578,6 +579,8 @@ def test_single_frequency_global_phase_shift_uses_real_profile(monkeypatch):
     source = EigenmodeSource(None)
     source.normal_axis = 0
     source.transverse_axes = (1, 2)
+    source.frequency = 5e9
+    source.complex_neff = 1.0 + 0.0j
     phase = np.exp(0.73j)
     source.modal_e = [
         1j * np.asarray([1.0, 2.0]),
@@ -590,7 +593,7 @@ def test_single_frequency_global_phase_shift_uses_real_profile(monkeypatch):
         phase * np.asarray([0.3, 0.1, -0.5]) / impedance,
     ]
 
-    source._prepare_single_frequency_injection(SimpleNamespace())
+    source._prepare_single_frequency_injection(SimpleNamespace(dl=np.full(3, 0.5e-3)))
 
     residual = source.complex_profile_residual
     assert residual < 1e-12
@@ -774,3 +777,119 @@ def test_single_frequency_complex_mode_reuses_fft_quadrature(monkeypatch):
         n=padded_count,
     )[:sample_count]
     assert actual_magnetic == pytest.approx(expected_magnetic)
+
+
+@pytest.mark.parametrize("normal_axis", (0, 2))
+@pytest.mark.parametrize(
+    ("operator_neff", "requires_quadrature"),
+    (
+        pytest.param(1.0, False, id="positive-phase"),
+        pytest.param(-1.0, False, id="negative-phase"),
+        pytest.param(1.0 - 0.1j, True, id="lossy-real-profile"),
+        pytest.param(1.0 + 0.1j, True, id="growing-real-profile"),
+        pytest.param(1.0 - 1e-16j, False, id="roundoff-loss"),
+    ),
+)
+def test_single_frequency_real_profile_preserves_propagation_stagger(
+    monkeypatch, normal_axis, operator_neff, requires_quadrature
+):
+    """CPU and device H injection must preserve phase sign and attenuation."""
+    speed = 299792458.0
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            em_consts={"z0": 1.0, "c": speed},
+            dtypes={"float_or_double": np.float64, "C_float_or_double": "double"},
+        ),
+    )
+    monkeypatch.setattr(config, "get_model_config", lambda: SimpleNamespace(ompthreads=1))
+    grid = SimpleNamespace(
+        iterations=128,
+        dt=6e-12,
+        dl=np.full(3, 1e-3),
+        updatecoeffsE=None,
+        ID=None,
+        Ex=None,
+        Ey=None,
+        Ez=None,
+    )
+    grid.dl[normal_axis] = 5e-3
+    source = EigenmodeSource(None)
+    source.normal_axis = normal_axis
+    source.transverse_axes = tuple(axis for axis in range(3) if axis != normal_axis)
+    source.transverse_start = np.zeros(2, dtype=np.int32)
+    source.transverse_stop = np.ones(2, dtype=np.int32)
+    source.plane_index = 1
+    source.direction = "+"
+    source.start, source.stop = 0.0, np.inf
+    source.frequency = 10e9
+    omega = 2 * np.pi * source.frequency
+    spacing = grid.dl[normal_axis]
+    discrete_beta = operator_neff * 2 * np.sin(omega * grid.dt / 2) / (speed * grid.dt)
+    beta = 2 * np.arcsin(discrete_beta * spacing / 2) / spacing
+    source.complex_neff = beta * speed / omega
+    source.neff = float(np.real(source.complex_neff))
+    source.mode_solver = object()
+    source.modal_e = [np.zeros((1, 1), dtype=np.complex128) for _ in range(3)]
+    source.modal_h = [np.zeros((1, 1), dtype=np.complex128) for _ in range(3)]
+    electric_axis, magnetic_axis = source.transverse_axes
+    # Matched impedance keeps both tangential profiles real even for complex beta.
+    source.modal_e[electric_axis].fill(1.0)
+    source.modal_h[magnetic_axis].fill(1.0)
+    source._modal_cross_power = lambda electric, magnetic, grid: 1.0
+    source.waveform = Waveform()
+    source.waveform.type = "user"
+    source.waveform.userfunc = lambda time: (
+        np.sin(omega * time) * np.exp(-(((time - 0.35e-9) / 0.12e-9) ** 2))
+    )
+
+    source._prepare_single_frequency_injection(grid)
+
+    assert source.complex_profile_residual < 1e-14
+    assert source.uses_quadrature is requires_quadrature
+    times = np.arange(grid.iterations) * grid.dt
+    if requires_quadrature:
+        padded_count = 2 * grid.iterations
+        waveform = np.asarray([source.waveform.calculate_value(t, grid.dt) for t in times])
+        spectrum = np.fft.rfft(waveform, n=padded_count)
+        spectrum[0] = spectrum[-1] = 0
+        bin_omega = 2 * np.pi * np.fft.rfftfreq(padded_count, d=grid.dt)
+        # The single-frequency model holds phase index constant across the pulse.
+        bin_beta = beta * bin_omega / omega
+        stagger = np.exp(1j * (bin_omega * grid.dt / 2 + bin_beta * spacing / 2))
+        expected = np.fft.irfft(spectrum * stagger, n=padded_count)[: grid.iterations]
+    else:
+        shifted_times = times + grid.dt / 2 + np.real(beta) * spacing / (2 * omega)
+        expected = np.asarray(
+            [
+                source.waveform.calculate_value(t, grid.dt) if t >= source.start else 0.0
+                for t in shifted_times
+            ]
+        )
+
+    applied = []
+
+    def capture_electric_update(*args):
+        # The electric TF/SF update consumes the incident magnetic profile.
+        applied.append(args[10] * args[11 + magnetic_axis][0, 0])
+
+    monkeypatch.setattr(
+        sources_module, "updateEigenmode_electric", {"double": capture_electric_update}
+    )
+    _, magnetic_profiles = eigenmode_source_profiles(source)
+    cpu_trace, device_trace = [], []
+    for iteration in range(grid.iterations):
+        applied.clear()
+        source.update_eigenmode_electric(iteration, grid)
+        cpu_trace.append(sum(applied))
+        device_trace.append(
+            sum(
+                magnetic_profiles[basis, magnetic_axis, 0, 0] * envelope
+                for basis, envelope in eigenmode_source_envelopes(
+                    source, grid, iteration, magnetic=False
+                )
+            )
+        )
+    np.testing.assert_allclose(cpu_trace, expected, rtol=2e-13, atol=2e-14)
+    np.testing.assert_allclose(device_trace, expected, rtol=2e-13, atol=2e-14)
