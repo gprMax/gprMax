@@ -1054,12 +1054,12 @@ class MetalUpdates(Updates[MetalGrid]):
             (*main_h, *aux_h),
             nface,
         )
-        nmain = self.grid.Ex.size
+        nrear = guide._rear_clear_points(magnetic=True)
         self._dispatch_1d(
             self.pso_virtual_clear_magnetic,
-            self._virtual_scalars(guide, nmain),
+            self._virtual_scalars(guide, nrear),
             (*main_h, *aux_h),
-            nmain,
+            nrear,
         )
 
     def _update_virtual_waveguide_electric(self, guide, iteration):
@@ -1096,10 +1096,10 @@ class MetalUpdates(Updates[MetalGrid]):
             ),
             nface,
         )
-        nmain = self.grid.Ex.size
+        nrear = guide._rear_clear_points(magnetic=False)
         self._dispatch_1d(
             self.pso_virtual_clear_electric,
-            self._virtual_scalars(guide, nmain),
+            self._virtual_scalars(guide, nrear),
             (
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,
@@ -1108,7 +1108,7 @@ class MetalUpdates(Updates[MetalGrid]):
                 guide.aux_grid.Ey_dev,
                 guide.aux_grid.Ez_dev,
             ),
-            nmain,
+            nrear,
         )
 
     def update_magnetic(self):
