@@ -20,7 +20,8 @@
 A geometry view exports what a model is *made of*. The pixels are the easy
 part; the reason the files are usable in ParaView without a separate legend is
 ``Metadata``, which attaches version, discretisation, domain size, material
-names, PML depths, and every source and receiver position as VTKHDF field data.
+names, PML depths, typed source geometry, and receiver positions as VTKHDF
+field data.
 
 Three things here repay attention.
 
@@ -322,15 +323,201 @@ class TestSourceAndReceiverComment:
         g.rxs = [make_rx(ID="a"), make_rx(ID="b"), make_rx(ID="c")]
         assert make_metadata(grid=g).receiver_positions.shape == (3, 3)
 
-    def test_all_four_source_types_are_combined(self, make_metadata, make_view_grid):
-        """Expects dipoles, voltage sources and transmission lines in one
-        list — the file makes no distinction between them."""
+    def test_internal_voltage_port_receiver_is_not_a_public_rx(
+        self, make_metadata, make_view_grid, make_rx
+    ):
+        g = make_view_grid()
+        public = make_rx(ID="probe")
+        internal = make_rx(ID="_voltage_port_feed")
+        internal.internal = True
+        g.rxs = [public, internal]
+        meta = make_metadata(grid=g)
+
+        assert meta.receiver_ids == ["probe"]
+        assert meta.receiver_geometry_ids == ["probe"]
+
+    def test_all_positioned_source_types_are_combined(self, make_metadata, make_view_grid):
+        """Every localized active source has a point marker and type."""
         g = make_view_grid()
         g.hertziandipoles = [_FakeSource("hd")]
         g.magneticdipoles = [_FakeSource("md")]
         g.voltagesources = [_FakeSource("vs")]
         g.transmissionlines = [_FakeSource("tl")]
-        assert make_metadata(grid=g).source_ids == ["hd", "md", "vs", "tl"]
+        g.magneticfrillsources = [_FakeSource("frill")]
+        g.networkterminals = [
+            _FakeSource("network", excited=True),
+            _FakeSource("passive", excited=False),
+        ]
+        meta = make_metadata(grid=g)
+        assert meta.source_ids == ["hd", "md", "vs", "tl", "frill", "network"]
+        assert meta.source_types == ["_FakeSource"] * 6
+
+    def test_point_sources_have_typed_box_geometry(self, make_metadata, make_view_grid):
+        g = make_view_grid(dl=DL_ANISO)
+        g.hertziandipoles = [_FakeSource("src", coord=(1, 2, 3))]
+        meta = make_metadata(grid=g)
+
+        assert meta.source_geometry_ids == ["src"]
+        assert meta.source_geometry_types == ["_FakeSource"]
+        assert meta.source_geometry_kinds == ["point"]
+        assert meta.source_geometry_bounds[0] == pytest.approx(
+            [
+                DL_ANISO[0],
+                2 * DL_ANISO[0],
+                2 * DL_ANISO[1],
+                3 * DL_ANISO[1],
+                3 * DL_ANISO[2],
+                4 * DL_ANISO[2],
+            ]
+        )
+
+    def test_zero_amplitude_voltage_port_is_a_receiver(self, make_metadata, make_view_grid):
+        g = make_view_grid(dl=DL_ANISO)
+        source = _FakeSource("voltage", coord=(1, 2, 3))
+        source.port_id = "feed2"
+        source.waveformvalues_wholedt = np.zeros(4)
+        source.waveformvalues_halfdt = np.zeros(4)
+        g.voltagesources = [source]
+        meta = make_metadata(grid=g)
+
+        assert meta.source_geometry_ids is None
+        assert meta.receiver_geometry_ids == ["feed2"]
+        assert meta.receiver_geometry_types == ["VoltageSourcePort"]
+        assert meta.receiver_geometry_kinds == ["point"]
+
+    def test_nonzero_voltage_port_is_a_source(self, make_metadata, make_view_grid):
+        g = make_view_grid()
+        source = _FakeSource("voltage")
+        source.port_id = "feed1"
+        source.waveformvalues_wholedt = np.asarray((0, 1, 0))
+        source.waveformvalues_halfdt = np.zeros(3)
+        g.voltagesources = [source]
+        meta = make_metadata(grid=g)
+
+        assert meta.source_geometry_ids == ["feed1"]
+        assert meta.source_geometry_types == ["VoltageSourcePort"]
+        assert meta.receiver_geometry_ids is None
+
+    @pytest.mark.parametrize(
+        ("attribute", "expected_id", "expected_type"),
+        (
+            ("transmissionlines", "tl1", "TransmissionLinePort"),
+            ("magneticfrillsources", "frill1", "MagneticFrillPort"),
+        ),
+    )
+    def test_zero_amplitude_terminal_source_is_a_receiver_port(
+        self,
+        make_metadata,
+        make_view_grid,
+        attribute,
+        expected_id,
+        expected_type,
+    ):
+        g = make_view_grid()
+        source = _FakeSource("terminal")
+        source.waveformvalues_wholedt = np.zeros(4)
+        source.waveformvalues_halfdt = np.zeros(4)
+        setattr(g, attribute, [source])
+        meta = make_metadata(grid=g)
+
+        assert meta.source_geometry_ids is None
+        assert meta.receiver_geometry_ids == [expected_id]
+        assert meta.receiver_geometry_types == [expected_type]
+
+    def test_passive_network_port_is_a_receiver(self, make_metadata, make_view_grid):
+        g = make_view_grid()
+        terminal = _FakeSource("load", excited=False)
+        terminal.output = SimpleNamespace(output_id="load")
+        g.networkterminals = [terminal]
+        meta = make_metadata(grid=g)
+
+        assert meta.source_geometry_ids is None
+        assert meta.receiver_geometry_ids == ["load"]
+        assert meta.receiver_geometry_types == ["RationalNetworkPort"]
+
+    def test_tfsf_source_is_a_box_boundary(self, make_metadata, make_view_grid):
+        g = make_view_grid(dl=DL_ANISO)
+        g.discreteplanewaves = [_FakePlaneWave((1, 2, 3, 5, 7, 9))]
+        meta = make_metadata(grid=g)
+
+        assert meta.source_geometry_ids == ["plane_wave_1"]
+        assert meta.source_geometry_types == ["_FakePlaneWave"]
+        assert meta.source_geometry_kinds == ["box"]
+        assert meta.source_geometry_bounds[0] == pytest.approx(
+            [
+                DL_ANISO[0],
+                5 * DL_ANISO[0],
+                2 * DL_ANISO[1],
+                7 * DL_ANISO[1],
+                3 * DL_ANISO[2],
+                9 * DL_ANISO[2],
+            ]
+        )
+
+    @pytest.mark.parametrize(
+        ("mode", "live_index"),
+        (("2D TMz", 0), ("2D TEz", 1)),
+    )
+    def test_2d_tfsf_source_is_a_rectangle_on_the_live_plane(
+        self,
+        make_metadata,
+        make_view_grid,
+        outputs_config,
+        mode,
+        live_index,
+    ):
+        outputs_config.model_config.mode = mode
+        g = make_view_grid(dl=DL_ANISO)
+        g.discreteplanewaves = [_FakePlaneWave((1, 2, 0, 5, 7, 1))]
+        meta = make_metadata(grid=g)
+
+        assert meta.source_geometry_kinds == ["rectangle"]
+        assert meta.source_geometry_bounds[0] == pytest.approx(
+            [
+                DL_ANISO[0],
+                5 * DL_ANISO[0],
+                2 * DL_ANISO[1],
+                7 * DL_ANISO[1],
+                live_index * DL_ANISO[2],
+                live_index * DL_ANISO[2],
+            ]
+        )
+
+    def test_active_eigenmode_port_is_a_plane(self, make_metadata, make_view_grid):
+        g = make_view_grid(dl=DL_ANISO)
+        owner = _FakeEigenmodeSource(
+            normal_axis=0,
+            transverse_axes=(1, 2),
+            plane_index=4,
+            transverse_start=(2, 3),
+            transverse_stop=(7, 9),
+        )
+        g.eigenmodeports = [
+            _FakeEigenmodeMonitor("port2", 2, owner, is_source=True),
+            _FakeEigenmodeMonitor("port3", 3, owner, is_source=False),
+        ]
+        g.virtual_waveguide_specs = {3: SimpleNamespace()}
+        meta = make_metadata(grid=g)
+
+        assert meta.source_geometry_ids == ["port2"]
+        assert meta.source_geometry_types == ["EigenmodePort"]
+        assert meta.source_geometry_kinds == ["plane"]
+        assert meta.source_geometry_bounds[0] == pytest.approx(
+            [
+                4 * DL_ANISO[0],
+                4 * DL_ANISO[0],
+                2 * DL_ANISO[1],
+                7 * DL_ANISO[1],
+                3 * DL_ANISO[2],
+                9 * DL_ANISO[2],
+            ]
+        )
+        assert meta.receiver_geometry_ids == ["port3"]
+        assert meta.receiver_geometry_types == ["VirtualWaveguideInterface"]
+        assert meta.receiver_geometry_kinds == ["plane"]
+        assert meta.receiver_geometry_bounds[0] == pytest.approx(
+            meta.source_geometry_bounds[0]
+        )
 
     def test_sources_and_receivers_are_kept_separate(self, make_metadata, make_view_grid, make_rx):
         """Expects two independent groups, so ParaView can style them
@@ -369,15 +556,42 @@ class TestWriteToVtkhdf:
         make_metadata().write_to_vtkhdf(handler)
         assert "source_ids" not in handler.fields
         assert "sources" not in handler.fields
+        assert handler.fields["source_geometry_schema_version"] == 1
 
-    def test_writes_source_fields_as_a_pair(self, make_metadata, make_view_grid):
-        """Expects names and positions together, so neither is meaningful
-        alone."""
+    def test_writes_legacy_and_typed_source_geometry_fields(
+        self, make_metadata, make_view_grid
+    ):
         g = make_view_grid()
         g.hertziandipoles = [_FakeSource("src")]
         handler = _RecordingHandler()
         make_metadata(grid=g).write_to_vtkhdf(handler)
-        assert {"source_ids", "sources"} <= set(handler.fields)
+        assert {
+            "source_ids",
+            "source_types",
+            "sources",
+            "source_geometry_schema_version",
+            "source_geometry_ids",
+            "source_geometry_types",
+            "source_geometry_kinds",
+            "source_geometry_bounds",
+        } <= set(handler.fields)
+
+    def test_zero_drive_keeps_legacy_position_but_has_no_active_source_geometry(
+        self, make_metadata, make_view_grid
+    ):
+        g = make_view_grid()
+        source = _FakeSource("voltage")
+        source.port_id = "receive_port"
+        source.waveformvalues_wholedt = np.zeros(4)
+        source.waveformvalues_halfdt = np.zeros(4)
+        g.voltagesources = [source]
+        handler = _RecordingHandler()
+        make_metadata(grid=g).write_to_vtkhdf(handler)
+
+        assert handler.fields["source_ids"] == ["voltage"]
+        assert handler.fields["source_geometry_schema_version"] == 1
+        assert "source_geometry_ids" not in handler.fields
+        assert handler.fields["receiver_geometry_ids"] == ["receive_port"]
 
     def test_writes_receiver_fields_as_a_pair(self, make_metadata, make_view_grid, make_rx):
         """Expects the receiver equivalent."""
@@ -385,7 +599,15 @@ class TestWriteToVtkhdf:
         g.rxs = [make_rx(ID="a")]
         handler = _RecordingHandler()
         make_metadata(grid=g).write_to_vtkhdf(handler)
-        assert {"receiver_ids", "receivers"} <= set(handler.fields)
+        assert {
+            "receiver_ids",
+            "receivers",
+            "receiver_geometry_schema_version",
+            "receiver_geometry_ids",
+            "receiver_geometry_types",
+            "receiver_geometry_kinds",
+            "receiver_geometry_bounds",
+        } <= set(handler.fields)
 
     def test_materials_only_writes_nothing_extra(
         self, make_metadata, pml_grid, make_view_grid, make_rx
@@ -427,7 +649,13 @@ class TestMpiMetadata:
         """Expects only the three rank-dependent methods to be overridden."""
         assert issubclass(MPIMetadata, Metadata)
         overrides = {n for n in MPIMetadata.__dict__ if not n.startswith("__")}
-        assert overrides == {"nx_ny_nz_comment", "pml_gv_comment", "srcs_rx_gv_comment"}
+        assert overrides == {
+            "nx_ny_nz_comment",
+            "pml_gv_comment",
+            "positioned_geometry_comment",
+            "srcs_rx_gv_comment",
+            "source_points_comment",
+        }
 
     def test_domain_size_is_the_global_one(self, mpi_view):
         """Expects ``grid.global_size`` rather than this rank's local size, so
@@ -508,9 +736,40 @@ class _ConcreteView(GeometryView):
 
 
 class _FakeSource:
-    def __init__(self, ID, coord=(1, 1, 1)):
+    def __init__(self, ID, coord=(1, 1, 1), excited=True):
         self.ID = ID
         self.coord = np.array(coord, dtype=np.int32)
+        self.excited = excited
+
+
+class _FakePlaneWave:
+    def __init__(self, corners):
+        self.corners = np.asarray(corners, dtype=np.int32)
+
+
+class _FakeEigenmodeSource:
+    def __init__(
+        self,
+        *,
+        normal_axis,
+        transverse_axes,
+        plane_index,
+        transverse_start,
+        transverse_stop,
+    ):
+        self.normal_axis = normal_axis
+        self.transverse_axes = transverse_axes
+        self.global_plane_index = plane_index
+        self.global_transverse_start = np.asarray(transverse_start, dtype=np.int32)
+        self.global_transverse_stop = np.asarray(transverse_stop, dtype=np.int32)
+
+
+class _FakeEigenmodeMonitor:
+    def __init__(self, port_id, port_index, owner, is_source):
+        self.port_id = port_id
+        self.port_index = port_index
+        self.owner = owner
+        self.is_source = is_source
 
 
 class _RecordingHandler:

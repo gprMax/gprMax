@@ -825,7 +825,7 @@ material uses only one pole.
 #geometry_view:
 ---------------
 
-Allows you output to file(s) information about the geometry of model. The file(s) use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. The command can be used to create several 3D views of the model which are useful for checking that it has been constructed as desired. The syntax of the command is:
+Allows you to output file(s) containing information about the geometry of a model. The file(s) use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ VTKHDF format and require ParaView 5.12 or newer for viewing. The command can be used to create several 3D views of the model which are useful for checking that it has been constructed as desired. The syntax of the command is:
 
 .. code-block:: none
 
@@ -2550,7 +2550,7 @@ of the CSV source.
 #snapshot:
 ----------
 
-Allows you to obtain information about the electromagnetic fields within a volume of the model at a given time instant. The file(s) use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. The syntax of this command is:
+Allows you to obtain information about the electromagnetic fields within a volume of the model at a given time instant. By default, the files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ VTKHDF format and require ParaView 5.12 or newer for viewing. The syntax of this command is:
 
 .. code-block:: none
 
@@ -2565,10 +2565,20 @@ or
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres.
-* ``f10`` or ``i1`` are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
+* ``f10`` or ``i1`` are the time in seconds (float) or the zero-based iteration number (integer) which denote the electric-field time level at which the snapshot will be taken.
 * ``file1`` is the name of the file where the snapshot will be stored. Snapshot files are automatically stored in a directory with the name of the input file appended with '_snaps'. For multiple model runs each model run will have its own directory, i.e. '_snaps1', 'snaps2' etc...
 
 For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
+
+Snapshot timing follows the Yee leapfrog convention. A requested real time
+is mapped to the nearest full time step :math:`n\Delta t` (a halfway value is
+mapped to the earlier step), and an integer selects that same zero-based
+time-step index :math:`n` directly. The electric fields are therefore at
+:math:`n\Delta t`; the magnetic fields are the native staggered values at
+:math:`(n-1/2)\Delta t`. No temporal averaging is applied. Valid indices run
+from zero to one less than the model's number of iterations. The existing
+spatial collocation of the Yee components is independent of this timing
+convention.
 
 In a reduced 2-D model, the invariant-axis range is collapsed to the genuine
 field plane: index zero for TM and index one for TE. The two-cell TE thickness

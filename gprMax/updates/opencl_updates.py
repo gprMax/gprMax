@@ -159,7 +159,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         """Common macros to be used in kernels."""
 
         # Set specific values for any dispersive materials
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             NX_T = self.grid.Tx.shape[1]
             NY_T = self.grid.Tx.shape[2]
@@ -174,7 +174,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             updatecoeffsE=self.grid.updatecoeffsE.ravel(),
             updatecoeffsH=self.grid.updatecoeffsH.ravel(),
             REAL=config.sim_config.dtypes["C_float_or_double"],
-            DRUDELORENTZ=config.get_model_config().materials["drudelorentz"],
+            DRUDELORENTZ=self.grid.drudelorentz,
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -241,11 +241,11 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             subs = {
                 "CUDA_IDX": "",
                 "REAL": config.sim_config.dtypes["C_float_or_double"],
-                "REALFUNC": config.get_model_config().materials["crealfunc"],
+                "REALFUNC": self.grid.crealfunc,
                 "NX_FIELDS": self.grid.nx + 1,
                 "NY_FIELDS": self.grid.ny + 1,
                 "NZ_FIELDS": self.grid.nz + 1,
@@ -262,7 +262,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 knl_fields_updates.update_electric_dispersive_A["args_opencl"].substitute(
                     {
                         "REAL": config.sim_config.dtypes["C_float_or_double"],
-                        "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+                        "COMPLEX": self.grid.dispersiveCdtype,
                     }
                 ),
                 knl_fields_updates.update_electric_dispersive_A["func"].substitute(subs),
@@ -276,7 +276,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 knl_fields_updates.update_electric_dispersive_B["args_opencl"].substitute(
                     {
                         "REAL": config.sim_config.dtypes["C_float_or_double"],
-                        "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+                        "COMPLEX": self.grid.dispersiveCdtype,
                     }
                 ),
                 knl_fields_updates.update_electric_dispersive_B["func"].substitute(subs),
@@ -288,7 +288,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         # Initialise field arrays on compute device
         self.grid.htod_geometry_arrays(self.queue)
         self.grid.htod_field_arrays(self.queue)
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             self.grid.htod_dispersive_arrays(self.queue)
 
     def _set_symmetry_boundary_knl(self):
@@ -314,7 +314,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             preamble=self.knl_common,
             options=config.sim_config.devices["compiler_opts"],
         )
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             dispersive = dict(substitutions)
             dispersive.update(
                 knl_symmetry_boundaries.dispersive_substitutions(
@@ -323,7 +323,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             )
             arguments = {
                 "REAL": config.sim_config.dtypes["C_float_or_double"],
-                "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+                "COMPLEX": self.grid.dispersiveCdtype,
             }
             self.update_electric_pmc_dispersive_dev = self.elwiseknl(
                 self.ctx,
@@ -715,7 +715,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         arguments = specification["args_opencl"].substitute(
             {
                 "REAL": config.sim_config.dtypes["C_float_or_double"],
-                "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+                "COMPLEX": self.grid.dispersiveCdtype,
             }
         )
         body = specification["func"].substitute(
@@ -1291,7 +1291,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             else:
                 material_id = dpw.material.numID
                 coefficients = self.grid.updatecoeffsdispersive_dev[material_id]
-                poles = np.int32(config.get_model_config().materials["maxpoles"])
+                poles = np.int32(self.grid.maxpoles)
                 self._launch_opencl(
                     dpw.update_1d_electric_dispersive_A_dev,
                     bulk_count,
@@ -1353,7 +1353,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                     bulk_count,
                     n,
                     m,
-                    np.int32(config.get_model_config().materials["maxpoles"]),
+                    np.int32(self.grid.maxpoles),
                     self.grid.updatecoeffsdispersive_dev[dpw.material.numID],
                     dpw.Px_dev,
                     dpw.Py_dev,
@@ -1404,7 +1404,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 *material_arrays,
             )
         else:
-            poles = np.int32(config.get_model_config().materials["maxpoles"])
+            poles = np.int32(self.grid.maxpoles)
             self._launch_opencl(
                 dpw.update_1d_electric_dispersive_axial_source_dev,
                 bulk_count,
@@ -1677,7 +1677,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
 
         sx, sy, sz = _snapshot_axis_strides()
         for i, snap in enumerate(self.grid.snapshots):
-            if snap.time == iteration + 1:
+            if snap.iteration == iteration:
                 snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
                 self.store_snapshot_dev(
                     np.int32(snapno),
@@ -2027,7 +2027,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.maxpoles == 0:
             self.update_electric_dev(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
@@ -2048,7 +2048,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
-                np.int32(config.get_model_config().materials["maxpoles"]),
+                np.int32(self.grid.maxpoles),
                 self.grid.ID_dev,
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,
@@ -2066,7 +2066,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         """Apply the PMC ghost-image correction on OpenCL."""
         if "pmc" not in self.grid.symmetry_boundaries.values():
             return
-        dispersive = config.get_model_config().materials["maxpoles"] > 0
+        dispersive = self.grid.maxpoles > 0
         kernel = (
             self.update_electric_pmc_dispersive_dev if dispersive else self.update_electric_pmc_dev
         )
@@ -2076,7 +2076,7 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
             np.int32(self.grid.nz),
         ]
         if dispersive:
-            leading.append(np.int32(config.get_model_config().materials["maxpoles"]))
+            leading.append(np.int32(self.grid.maxpoles))
         arguments = [
             *leading,
             *self._pmc_flags(),
@@ -2115,14 +2115,14 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         """Complete the dispersive PMC ADE update on OpenCL."""
         if (
             "pmc" not in self.grid.symmetry_boundaries.values()
-            or config.get_model_config().materials["maxpoles"] == 0
+            or self.grid.maxpoles == 0
         ):
             return
         self.update_electric_pmc_dispersive_b_dev(
             np.int32(self.grid.nx),
             np.int32(self.grid.ny),
             np.int32(self.grid.nz),
-            np.int32(config.get_model_config().materials["maxpoles"]),
+            np.int32(self.grid.maxpoles),
             *self._pmc_flags(),
             self.grid.ID_dev,
             self.grid.Ex_dev,
@@ -2204,12 +2204,12 @@ class OpenCLUpdates(Updates[OpenCLGrid]):
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             self.dispersive_update_b(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
-                np.int32(config.get_model_config().materials["maxpoles"]),
+                np.int32(self.grid.maxpoles),
                 self.grid.ID_dev,
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,

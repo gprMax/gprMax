@@ -64,6 +64,28 @@ def test_snapshot_runs_at_fine_time_step_and_uses_global_origin(tmp_path):
             outputs=["Ez"],
         )
     )
+    subgrid.add(
+        gprMax.Snapshot(
+            p1=(0.042, 0.042, 0.042),
+            p2=(0.049, 0.049, 0.049),
+            dl=(0.001, 0.001, 0.001),
+            filename="subgrid_fields_initial",
+            iterations=0,
+            fileext=".h5",
+            outputs=["Ez", "Hy"],
+        )
+    )
+    subgrid.add(
+        gprMax.Snapshot(
+            p1=(0.042, 0.042, 0.042),
+            p2=(0.049, 0.049, 0.049),
+            dl=(0.001, 0.001, 0.001),
+            filename="subgrid_fields_iteration",
+            iterations=10,
+            fileext=".h5",
+            outputs=["Ez"],
+        )
+    )
 
     output = tmp_path / "snapshot_model"
     gprMax.run(
@@ -76,13 +98,33 @@ def test_snapshot_runs_at_fine_time_step_and_uses_global_origin(tmp_path):
     )
 
     filename = tmp_path / "snapshot_model_snaps" / "subgrid_fields.h5"
+    iteration_filename = (
+        tmp_path / "snapshot_model_snaps" / "subgrid_fields_iteration.h5"
+    )
+    initial_filename = tmp_path / "snapshot_model_snaps" / "subgrid_fields_initial.h5"
     assert filename.exists()
-    with h5py.File(filename, "r") as snapshot:
+    assert iteration_filename.exists()
+    assert initial_filename.exists()
+    with h5py.File(filename, "r") as snapshot, h5py.File(
+        iteration_filename, "r"
+    ) as iteration_snapshot, h5py.File(initial_filename, "r") as initial_snapshot:
         np.testing.assert_allclose(snapshot.attrs["origin"], (0.042, 0.042, 0.042))
         np.testing.assert_allclose(snapshot.attrs["dx_dy_dz"], (0.001, 0.001, 0.001))
         assert snapshot.attrs["time"] == pytest.approx(2e-11, rel=0.1)
+        assert snapshot.attrs["iteration"] == 10
+        assert snapshot.attrs["magnetic_time"] == pytest.approx(0.95 * snapshot.attrs["time"])
         assert snapshot["Ez"].shape == (7, 7, 7)
         assert np.max(np.abs(snapshot["Ez"][...])) > 0
+        assert iteration_snapshot.attrs["iteration"] == snapshot.attrs["iteration"]
+        assert iteration_snapshot.attrs["time"] == snapshot.attrs["time"]
+        np.testing.assert_array_equal(iteration_snapshot["Ez"][...], snapshot["Ez"][...])
+        assert initial_snapshot.attrs["iteration"] == 0
+        assert initial_snapshot.attrs["time"] == 0.0
+        assert initial_snapshot.attrs["magnetic_time"] == pytest.approx(
+            -0.5 * snapshot.attrs["time"] / snapshot.attrs["iteration"]
+        )
+        assert not np.any(initial_snapshot["Ez"][...])
+        assert not np.any(initial_snapshot["Hy"][...])
 
 
 def _capture_grids(monkeypatch):

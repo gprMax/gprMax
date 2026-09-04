@@ -66,11 +66,6 @@ from gprMax.surface_impedance_presets import (
     fit_conductivity_surface_impedance,
     fit_metal_surface_impedance,
 )
-from gprMax.user_objects.cmds_geometry.cmds_geometry import (
-    rotate_2point_object,
-    rotate_polarisation,
-)
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GridUserObject
 from gprMax.waveforms import Waveform as WaveformUser
 
@@ -971,7 +966,7 @@ class NetworkExcitation(GridUserObject):
         )
 
 
-class VoltageSource(RotatableMixin, GridUserObject):
+class VoltageSource(GridUserObject):
     """Specifies a voltage source at an electric field location.
 
     In a 3-D model the source also owns an automatic terminal monitor. A hard
@@ -1057,14 +1052,6 @@ class VoltageSource(RotatableMixin, GridUserObject):
                 "3-D model has solved"
             )
         return self._monitor.result
-
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(
-            self.point, self.polarisation, self.axis, self.angle, grid
-        )
-        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
-        self.point = tuple(rot_pts[0, :])
 
     def _validate_parameters(
         self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
@@ -1279,9 +1266,6 @@ class VoltageSource(RotatableMixin, GridUserObject):
         self._source = None
         self._monitor = None
         self._port_output_id = None
-        if self.do_rotate:
-            self._do_rotate(grid)
-
         # Check the position of the voltage source
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)
@@ -1331,7 +1315,7 @@ class VoltageSource(RotatableMixin, GridUserObject):
             self._log(grid, voltage_source, *position)
 
 
-class HertzianDipole(RotatableMixin, GridUserObject):
+class HertzianDipole(GridUserObject):
     """Specifies a current density term at an electric field location.
 
     The simplest excitation, often referred to as an additive or soft source.
@@ -1369,14 +1353,6 @@ class HertzianDipole(RotatableMixin, GridUserObject):
         self.waveform_id = waveform_id
         self.start = start
         self.stop = stop
-
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(
-            self.point, self.polarisation, self.axis, self.angle, grid
-        )
-        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
-        self.point = tuple(rot_pts[0, :])
 
     def _validate_parameters(
         self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
@@ -1505,9 +1481,6 @@ class HertzianDipole(RotatableMixin, GridUserObject):
             )
 
     def build(self, grid: FDTDGrid):
-        if self.do_rotate:
-            self._do_rotate(grid)
-
         # Check the position of the hertzian dipole
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)
@@ -1521,7 +1494,7 @@ class HertzianDipole(RotatableMixin, GridUserObject):
             self._log(grid, hertzian_dipole, *position)
 
 
-class MagneticDipole(RotatableMixin, GridUserObject):
+class MagneticDipole(GridUserObject):
     """Simulates an infinitesimal magnetic dipole.
 
     Often referred to as an additive or soft source.
@@ -1561,9 +1534,6 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         self.stop = stop
 
     def build(self, grid: FDTDGrid):
-        if self.do_rotate:
-            self._do_rotate(grid)
-
         # Check the position of the magnetic dipole
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)
@@ -1575,14 +1545,6 @@ class MagneticDipole(RotatableMixin, GridUserObject):
             grid.add_source(magnetic_dipole)
             position = uip.round_to_grid_static_point(self.point)
             self._log(grid, magnetic_dipole, *position)
-
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(
-            self.point, self.polarisation, self.axis, self.angle, grid
-        )
-        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
-        self.point = tuple(rot_pts[0, :])
 
     def _validate_parameters(
         self, grid: FDTDGrid, discretised_point: Optional[npt.NDArray[np.int32]] = None
@@ -1692,7 +1654,7 @@ class MagneticDipole(RotatableMixin, GridUserObject):
         )
 
 
-class TransmissionLine(RotatableMixin, GridUserObject):
+class TransmissionLine(GridUserObject):
     """Specifies a one-dimensional transmission line model at an electric
         field location. The source is supported by the CPU and CUDA solvers.
 
@@ -1739,18 +1701,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         self.start = start
         self.stop = stop
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(
-            self.point, self.polarisation, self.axis, self.angle, grid
-        )
-        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
-        self.point = tuple(rot_pts[0, :])
-
     def build(self, grid: FDTDGrid):
-        if self.do_rotate:
-            self._do_rotate(grid)
-
         # Check the position of the voltage source
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)
@@ -1858,7 +1809,7 @@ class TransmissionLine(RotatableMixin, GridUserObject):
         )
 
 
-class MagneticFrillSource(RotatableMixin, GridUserObject):
+class MagneticFrillSource(GridUserObject):
     """Specifies a magnetic-frill (equivalent-feed) source at an electric
         field location, for an antenna fed through a PEC ground plane by a
         coaxial line. Complements #transmission_line: a different,
@@ -1927,18 +1878,7 @@ class MagneticFrillSource(RotatableMixin, GridUserObject):
         self.stop = stop
         self.spectrum_limit = spectrum_limit
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        rot_pol_pts, self.polarisation = rotate_polarisation(
-            self.point, self.polarisation, self.axis, self.angle, grid
-        )
-        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
-        self.point = tuple(rot_pts[0, :])
-
     def build(self, grid: FDTDGrid):
-        if self.do_rotate:
-            self._do_rotate(grid)
-
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)
         point_within_grid, discretised_point = uip.check_src_rx_point(self.point, self.params_str())
@@ -3684,7 +3624,7 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         )
 
 
-class Rx(RotatableMixin, GridUserObject):
+class Rx(GridUserObject):
     """Specifies output points in the model.
 
     These are locations where the values of the electric and magnetic field
@@ -3718,19 +3658,6 @@ class Rx(RotatableMixin, GridUserObject):
         self.point = p1
         self.id = id
         self.outputs = outputs
-
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        new_pt = self.point + grid.dl
-        pts = np.array([self.point, new_pt])
-        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.point = tuple(rot_pts[0, :])
-
-        # TODO: Why does this need resetting if rotate the receiver?
-        # If specific field components are specified, set to output all components
-        if self.outputs is not None:
-            self.outputs = None
-            self.kwargs.pop("outputs", None)
 
     def _create_receiver(self, grid: FDTDGrid, coord: npt.NDArray[np.int32]) -> RxUser:
         r = RxUser()
@@ -3771,9 +3698,6 @@ class Rx(RotatableMixin, GridUserObject):
         return r
 
     def build(self, grid: FDTDGrid):
-        if self.do_rotate:
-            self._do_rotate(grid)
-
         # Check position of the receiver
         uip = self._create_uip(grid)
         self.point = uip.resolve_inf_point(self.point)

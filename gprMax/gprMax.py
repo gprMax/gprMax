@@ -86,13 +86,12 @@ help_msg = {
     "metal": "(list/bool, opt): Flag to use Apple Metal or list of Apple Metal GPU device ID(s) for specific GPU card(s).",
     "cpu_precision": (
         "(str, opt): Precision (single/double) for the CPU solver. Defaults to single to"
-        " preserve memory - ignored if a GPU solver or sub-gridding is used (sub-gridding"
-        " always uses double, regardless of this setting)."
+        " preserve memory - ignored if a GPU solver is used. Refining subgrids force double;"
+        " ratio-one equal-resolution regions inherit this setting."
     ),
     "gpu_precision": (
         "(str, opt): Precision (single/double) for the CUDA/OpenCL/Metal solvers. Defaults"
-        " to single. Ignored if the CPU solver is used, or if sub-gridding is used"
-        " (sub-gridding always uses double and is currently CPU-only)."
+        " to single. Ignored if the CPU solver is used. Subgridding is currently CPU-only."
     ),
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
     "autotranslate": (
@@ -198,12 +197,12 @@ def run(
             Metal GPU device ID(s) for specific GPU card(s).
         cpu_precision: optional string, "single" or "double", precision
             for the CPU solver. Defaults to "single" to preserve memory -
-            ignored if a GPU solver or sub-gridding is used (sub-gridding
-            always uses double, regardless of this setting).
+            ignored if a GPU solver is used. Refining subgrids force double;
+            ratio-one equal-resolution regions inherit this setting.
         gpu_precision: optional string, "single" or "double", precision
             for the CUDA/OpenCL/Metal solvers. Defaults to "single".
-            Ignored if the CPU solver is used, or if sub-gridding is used
-            (sub-gridding always uses double and is currently CPU-only).
+            Ignored if the CPU solver is used. Subgridding is currently
+            CPU-only.
         subgrid: optional boolean to use sub-gridding.
         autotranslate: optional boolean for sub-gridding to auto
             translate objects with main grid coordinates to their

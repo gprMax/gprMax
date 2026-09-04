@@ -35,12 +35,21 @@ class SubGridBaseGrid(FDTDGrid, ABC):
             logger.exception("Subgrid Error: Only odd ratios are supported")
             raise ValueError
 
+        # ratio=1 is an equal-resolution embedded region rather than a
+        # refining subgrid. It uses the HSG ownership/coupling machinery, but
+        # needs none of the stabilisation or interpolation used at a change of
+        # resolution.
+        self.equal_resolution = self.ratio == 1
+        self.coupling_mode = (
+            "equal_resolution" if self.equal_resolution else "refining_hsg"
+        )
+
         # Name of the grid
         self.name = kwargs["id"]
         self.parent_grid: FDTDGrid
         self.iterations = 0
 
-        self.filter = kwargs["filter"]
+        self.filter = False if self.equal_resolution else kwargs["filter"]
 
         # Number of main grid cells between the IS and OS
         self.is_os_sep = kwargs["is_os_sep"]
@@ -50,12 +59,13 @@ class SubGridBaseGrid(FDTDGrid, ABC):
         # Distance from OS to PML or the edge of the grid when PML is off
         self.pml_separation = kwargs["pml_separation"]
 
-        self.pmls["thickness"]["x0"] = kwargs["subgrid_pml_thickness"]
-        self.pmls["thickness"]["y0"] = kwargs["subgrid_pml_thickness"]
-        self.pmls["thickness"]["z0"] = kwargs["subgrid_pml_thickness"]
-        self.pmls["thickness"]["xmax"] = kwargs["subgrid_pml_thickness"]
-        self.pmls["thickness"]["ymax"] = kwargs["subgrid_pml_thickness"]
-        self.pmls["thickness"]["zmax"] = kwargs["subgrid_pml_thickness"]
+        pml_thickness = 0 if self.equal_resolution else kwargs["subgrid_pml_thickness"]
+        self.pmls["thickness"]["x0"] = pml_thickness
+        self.pmls["thickness"]["y0"] = pml_thickness
+        self.pmls["thickness"]["z0"] = pml_thickness
+        self.pmls["thickness"]["xmax"] = pml_thickness
+        self.pmls["thickness"]["ymax"] = pml_thickness
+        self.pmls["thickness"]["zmax"] = pml_thickness
 
         # Number of sub cells to extend the sub grid beyond the IS boundary
         d_to_pml = self.s_is_os_sep + self.pml_separation
@@ -65,7 +75,9 @@ class SubGridBaseGrid(FDTDGrid, ABC):
         self.n_boundary_cells_y = d_to_pml + self.pmls["thickness"]["y0"]
         self.n_boundary_cells_z = d_to_pml + self.pmls["thickness"]["z0"]
 
-        self.interpolation = kwargs["interpolation"]
+        # Zero records direct one-to-one transfer; positive values are spline
+        # degrees used only by refining HSG interfaces.
+        self.interpolation = 0 if self.equal_resolution else kwargs["interpolation"]
 
     def local_to_global(self, coord):
         """Converts a local (subgrid array) cell index to a physical

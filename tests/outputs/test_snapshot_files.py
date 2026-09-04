@@ -42,6 +42,7 @@ import numpy as np
 import pytest
 
 from gprMax._version import __version__
+from gprMax.model import Model
 from gprMax.snapshots import Snapshot, save_snapshots
 
 from .conftest import DL, DL_ANISO, DT, FIELDS
@@ -139,10 +140,17 @@ class TestHdf5Attributes:
         assert attrs["dx_dy_dz"] == pytest.approx(list(DL_ANISO))
 
     def test_records_the_simulation_time_not_the_iteration(self, written_snapshot, read_h5):
-        """Expects ``time == iteration * dt`` in seconds. The constructor takes
-        an iteration index; the file carries physical time."""
+        """The legacy ``time`` attribute is the E-field time in seconds."""
         attrs, _ = read_h5(written_snapshot(time=10).filename)
         assert attrs["time"] == pytest.approx(10 * DT)
+
+    def test_records_the_zero_based_iteration(self, written_snapshot, read_h5):
+        attrs, _ = read_h5(written_snapshot(time=10).filename)
+        assert attrs["iteration"] == 10
+
+    def test_records_the_native_magnetic_field_time(self, written_snapshot, read_h5):
+        attrs, _ = read_h5(written_snapshot(time=10).filename)
+        assert attrs["magnetic_time"] == pytest.approx(9.5 * DT)
 
     def test_time_zero_is_written(self, written_snapshot, read_h5):
         """Expects a snapshot at iteration 0 to record ``0.0`` rather than
@@ -393,6 +401,69 @@ class TestSaveSnapshots:
         save_snapshots(snaps)
         assert snaps[0].filename.exists()
         assert snaps[0].filename.suffix == ".vtkhdf"
+
+
+class TestSnapshotFilenameCollisions:
+    @staticmethod
+    def _model_with_grids(main_grid, subgrids=()):
+        model = Model.__new__(Model)
+        model.G = main_grid
+        model.subgrids = list(subgrids)
+        return model
+
+    @staticmethod
+    def _add(model, grid, filename, fileext, iteration):
+        return model.add_snapshot(
+            grid,
+            np.array([0, 0, 0]),
+            np.array([4, 4, 4]),
+            np.array([1, 1, 1]),
+            iteration,
+            filename,
+            fileext,
+            dict(ALL_OUTPUTS),
+        )
+
+    def test_warns_when_two_snapshots_resolve_to_the_same_file(
+        self, make_view_grid, caplog
+    ):
+        grid = make_view_grid()
+        model = self._model_with_grids(grid)
+
+        with caplog.at_level("WARNING", logger="gprMax.model"):
+            self._add(model, grid, "fields", ".h5", 2)
+            self._add(model, grid, "fields.h5", ".h5", 4)
+
+        assert "Snapshot output filename collision" in caplog.text
+        assert "fields.h5" in caplog.text
+        assert "Only the snapshot written last will remain" in caplog.text
+
+    def test_same_base_name_with_different_extensions_does_not_warn(
+        self, make_view_grid, caplog
+    ):
+        grid = make_view_grid()
+        model = self._model_with_grids(grid)
+
+        with caplog.at_level("WARNING", logger="gprMax.model"):
+            self._add(model, grid, "fields", ".h5", 2)
+            self._add(model, grid, "fields", ".vtkhdf", 4)
+
+        assert "Snapshot output filename collision" not in caplog.text
+
+    def test_warns_across_main_grid_and_subgrid_snapshot_lists(
+        self, make_view_grid, caplog
+    ):
+        main_grid = make_view_grid(name="main_grid")
+        fine_grid = make_view_grid(name="fine_grid")
+        model = self._model_with_grids(main_grid, [fine_grid])
+
+        with caplog.at_level("WARNING", logger="gprMax.model"):
+            self._add(model, main_grid, "shared", ".h5", 2)
+            self._add(model, fine_grid, "shared", ".h5", 4)
+
+        assert "Snapshot output filename collision" in caplog.text
+        assert "grid 'main_grid', iteration 2" in caplog.text
+        assert "grid 'fine_grid', iteration 4" in caplog.text
 
 
 pytestmark = pytest.mark.unit

@@ -18,20 +18,17 @@
 import logging
 import math
 
-import numpy as np
-
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_edge_x, build_edge_y, build_edge_z
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import resolve_geometry_materials, rotate_2point_object
+from .cmds_geometry import resolve_geometry_materials
 
 logger = logging.getLogger(__name__)
 
 
-class Edge(RotatableMixin, GeometryUserObject):
+class Edge(GeometryUserObject):
     """Introduces a wire with specific properties into the model.
 
     Attributes:
@@ -48,13 +45,6 @@ class Edge(RotatableMixin, GeometryUserObject):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
-        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
-        self.kwargs["p2"] = tuple(rot_pts[1, :])
-
     def build(self, grid: FDTDGrid):
         """Creates edge and adds it to the grid."""
         try:
@@ -64,9 +54,6 @@ class Edge(RotatableMixin, GeometryUserObject):
         except KeyError:
             logger.exception(f"{self.__str__()} requires exactly 3 parameters")
             raise
-
-        if self.do_rotate:
-            self._do_rotate(grid)
 
         uip = self._create_uip(grid)
         mode = config.get_model_config().mode

@@ -121,6 +121,12 @@ class TestPmlThickness:
         sg = SubGridHSGGrid(**{**subgrid_kwargs, "subgrid_pml_thickness": 0})
         assert all(v == 0 for v in sg.pmls["thickness"].values())
 
+    def test_equal_resolution_mode_forces_zero_thickness(self, subgrid_kwargs):
+        sg = SubGridHSGGrid(
+            **{**subgrid_kwargs, "ratio": 1, "subgrid_pml_thickness": 10}
+        )
+        assert all(v == 0 for v in sg.pmls["thickness"].values())
+
 
 class TestConstructorState:
     def test_name_comes_from_the_id_kwarg(self, subgrid_kwargs):
@@ -142,6 +148,25 @@ class TestConstructorState:
 
     def test_is_os_sep_is_stored(self, subgrid_kwargs):
         assert SubGridHSGGrid(**{**subgrid_kwargs, "is_os_sep": 5}).is_os_sep == 5
+
+    def test_equal_resolution_mode_disables_refinement_controls(self, subgrid_kwargs):
+        sg = SubGridHSGGrid(
+            **{
+                **subgrid_kwargs,
+                "ratio": 1,
+                "filter": True,
+                "interpolation": 3,
+            }
+        )
+        assert sg.equal_resolution is True
+        assert sg.coupling_mode == "equal_resolution"
+        assert sg.filter is False
+        assert sg.interpolation == 0
+
+    def test_refining_mode_is_unchanged(self, subgrid_kwargs):
+        sg = SubGridHSGGrid(**subgrid_kwargs)
+        assert sg.equal_resolution is False
+        assert sg.coupling_mode == "refining_hsg"
 
 
 class TestAbstractBase:

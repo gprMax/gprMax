@@ -261,6 +261,7 @@ class FakeMPIGrid:
 
     def __init__(self, comm, size, negative_halo_offset, origin, grid_coord, arrays=None):
         self.name = "mpi_grid"
+        self.is_distributed = True
         self.comm = comm
         self.size = np.array(size, dtype=np.int32)
         self.global_size = np.array(size, dtype=np.int32)
@@ -270,6 +271,18 @@ class FakeMPIGrid:
         self.dl = np.array([DL, DL, DL], dtype=np.float64)
         self.dt = DT
         self.materials = []
+        self.hertziandipoles = []
+        self.magneticdipoles = []
+        self.voltagesources = []
+        self.transmissionlines = []
+        self.magneticfrillsources = []
+        self.networkterminals = []
+        self.discreteplanewaves = []
+        self.eigenmodeports = []
+        self.virtual_waveguide_specs = {}
+        self.virtual_waveguides = []
+        self.port_monitors = []
+        self.rxs = []
         for name, array in (arrays or {}).items():
             setattr(self, name, array)
 

@@ -95,7 +95,7 @@ class MetalUpdates(Updates[MetalGrid]):
         # Substitutions in function arguments
         self.subs_name_args = {
             "REAL": config.sim_config.dtypes["C_float_or_double"],
-            "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+            "COMPLEX": self.grid.dispersiveCdtype,
         }
         # Substitutions in function bodies
         self.subs_func = {
@@ -209,7 +209,7 @@ class MetalUpdates(Updates[MetalGrid]):
         """Common macros to be used in kernels."""
 
         # Set specific values for any dispersive materials
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             NX_T = self.grid.Tx.shape[1]
             NY_T = self.grid.Tx.shape[2]
@@ -222,7 +222,7 @@ class MetalUpdates(Updates[MetalGrid]):
 
         self.knl_common = self.env.get_template("knl_common_metal.tmpl").render(
             REAL=config.sim_config.dtypes["C_float_or_double"],
-            DRUDELORENTZ=config.get_model_config().materials["drudelorentz"],
+            DRUDELORENTZ=self.grid.drudelorentz,
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -283,11 +283,11 @@ class MetalUpdates(Updates[MetalGrid]):
         # parts as they require present and updated electric field values).
         # Mirrors CUDAUpdates/OpenCLUpdates._set_field_knls()'s equivalent
         # block exactly - same subs_func keys, same kernel-building pattern.
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             self.subs_func.update(
                 {
                     "REAL": config.sim_config.dtypes["C_float_or_double"],
-                    "REALFUNC": config.get_model_config().materials["crealfunc"],
+                    "REALFUNC": self.grid.crealfunc,
                     "NX_T": self.grid.Tx.shape[1],
                     "NY_T": self.grid.Tx.shape[2],
                     "NZ_T": self.grid.Tx.shape[3],
@@ -353,7 +353,7 @@ class MetalUpdates(Updates[MetalGrid]):
         self.pso_electric_pmc = self.dev.newComputePipelineStateWithFunction_error_(function, None)[
             0
         ]
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             substitutions = dict(self.subs_func)
             substitutions.update(
                 knl_symmetry_boundaries.dispersive_substitutions(
@@ -818,7 +818,7 @@ class MetalUpdates(Updates[MetalGrid]):
 
         sx, sy, sz = _snapshot_axis_strides()
         for i, snap in enumerate(self.grid.snapshots):
-            if snap.time == iteration + 1:
+            if snap.iteration == iteration:
                 snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
 
                 cmdbuffer_snap = self.cmdqueue.commandBuffer()
@@ -1329,7 +1329,7 @@ class MetalUpdates(Updates[MetalGrid]):
         """Updates electric field components."""
 
         # All materials are non-dispersive so do standard update.
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.maxpoles == 0:
             self.cmdbufferE = self.cmdqueue.commandBuffer()
             self.cmpencoderE = self.cmdbufferE.computeCommandEncoder()
             self.cmpencoderE.setComputePipelineState_(self.psoE)
@@ -1375,7 +1375,7 @@ class MetalUpdates(Updates[MetalGrid]):
             nx_value = np.int32(self.grid.nx)
             ny_value = np.int32(self.grid.ny)
             nz_value = np.int32(self.grid.nz)
-            maxpoles_value = np.int32(config.get_model_config().materials["maxpoles"])
+            maxpoles_value = np.int32(self.grid.maxpoles)
 
             cmpencoder.setBytes_length_atIndex_(nx_value.tobytes(), 4, 0)
             cmpencoder.setBytes_length_atIndex_(ny_value.tobytes(), 4, 1)
@@ -1417,7 +1417,7 @@ class MetalUpdates(Updates[MetalGrid]):
         """Apply the PMC ghost-image correction on Metal."""
         if "pmc" not in self.grid.symmetry_boundaries.values():
             return
-        dispersive = config.get_model_config().materials["maxpoles"] > 0
+        dispersive = self.grid.maxpoles > 0
         pipeline = self.pso_electric_pmc_dispersive if dispersive else self.pso_electric_pmc
         command = self.cmdqueue.commandBuffer()
         encoder = command.computeCommandEncoder()
@@ -1428,7 +1428,7 @@ class MetalUpdates(Updates[MetalGrid]):
             np.int32(self.grid.nz),
         ]
         if dispersive:
-            scalars.append(np.int32(config.get_model_config().materials["maxpoles"]))
+            scalars.append(np.int32(self.grid.maxpoles))
         scalars.extend(self._pmc_flags())
         for index, value in enumerate(scalars):
             encoder.setBytes_length_atIndex_(value.tobytes(), 4, index)
@@ -1665,7 +1665,7 @@ class MetalUpdates(Updates[MetalGrid]):
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             cmdbuffer = self.cmdqueue.commandBuffer()
             cmpencoder = cmdbuffer.computeCommandEncoder()
             cmpencoder.setComputePipelineState_(self.pso_dispersive_b)
@@ -1673,7 +1673,7 @@ class MetalUpdates(Updates[MetalGrid]):
             nx_value = np.int32(self.grid.nx)
             ny_value = np.int32(self.grid.ny)
             nz_value = np.int32(self.grid.nz)
-            maxpoles_value = np.int32(config.get_model_config().materials["maxpoles"])
+            maxpoles_value = np.int32(self.grid.maxpoles)
 
             cmpencoder.setBytes_length_atIndex_(nx_value.tobytes(), 4, 0)
             cmpencoder.setBytes_length_atIndex_(ny_value.tobytes(), 4, 1)
@@ -1706,7 +1706,7 @@ class MetalUpdates(Updates[MetalGrid]):
         """Complete the dispersive PMC ADE update on Metal."""
         if (
             "pmc" not in self.grid.symmetry_boundaries.values()
-            or config.get_model_config().materials["maxpoles"] == 0
+            or self.grid.maxpoles == 0
         ):
             return
         command = self.cmdqueue.commandBuffer()
@@ -1717,7 +1717,7 @@ class MetalUpdates(Updates[MetalGrid]):
             np.int32(self.grid.nx),
             np.int32(self.grid.ny),
             np.int32(self.grid.nz),
-            np.int32(config.get_model_config().materials["maxpoles"]),
+            np.int32(self.grid.maxpoles),
             *self._pmc_flags(),
         )
         for index, value in enumerate(scalars):

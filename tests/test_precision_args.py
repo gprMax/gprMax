@@ -79,6 +79,23 @@ def test_subgrid_always_forces_double_regardless_of_cpu_precision(caplog):
     assert any("overriding the requested single precision" in r.message for r in caplog.records)
 
 
+def test_ratio_one_subgrid_inherits_requested_cpu_precision():
+    scene = gprMax.Scene()
+    scene.add(
+        gprMax.SubGridHSG(
+            p1=(0.01, 0.01, 0.01),
+            p2=(0.02, 0.02, 0.02),
+            ratio=1,
+            id="local_grid",
+        )
+    )
+    sim_config = config.SimulationConfig(
+        _make_args(subgrid=True, scenes=[scene], cpu_precision="single")
+    )
+    assert sim_config.general["precision"] == "single"
+    assert sim_config.dtypes["float_or_double"] is np.float32
+
+
 def test_metal_solver_rejects_double_precision():
     """Apple GPU hardware and the Metal Shading Language have no native
     double type at all - unlike CUDA/OpenCL, double precision on Metal

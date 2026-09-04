@@ -20,9 +20,11 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
+from gprMax.config cimport float_or_double
+
 
 cpdef void update_electric_os(
-    np.float64_t[:, :] updatecoeffsE,
+    float_or_double[:, :] updatecoeffsE,
     np.uint32_t[:, :, :, :] ID,
     int face,
     int l_l,
@@ -33,8 +35,8 @@ cpdef void update_electric_os(
     size_t n_u,
     int nwn,
     size_t lookup_id,
-    np.float64_t[:, :, :] field,
-    np.float64_t[:, :, :] inc_field,
+    float_or_double[:, :, :] field,
+    float_or_double[:, :, :] inc_field,
     size_t co,
     int sign_n,
     int sign_f,
@@ -67,7 +69,7 @@ cpdef void update_electric_os(
     cdef Py_ssize_t l, m, l_s, m_s, n_s_l, n_s_r, material_e_l, material_e_r
     cdef Py_ssize_t i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3
     cdef int os
-    cdef double inc_n, inc_f
+    cdef float_or_double inc_n, inc_f
 
     # Surface normal index for the subgrid near face h nodes (left i index)
     n_s_l = nb - s * r - r + r // 2
@@ -131,7 +133,7 @@ cpdef void update_electric_os(
 
 
 cpdef void update_magnetic_os(
-    np.float64_t[:, :] updatecoeffsH,
+    float_or_double[:, :] updatecoeffsH,
     np.uint32_t[:, :, :, :] ID,
     int face,
     int l_l,
@@ -142,8 +144,8 @@ cpdef void update_magnetic_os(
     size_t n_u,
     int nwn,
     size_t lookup_id,
-    np.float64_t[:, :, :] field,
-    np.float64_t[:, :, :] inc_field,
+    float_or_double[:, :, :] field,
+    float_or_double[:, :, :] inc_field,
     size_t co,
     int sign_n,
     int sign_f,
@@ -160,7 +162,7 @@ cpdef void update_magnetic_os(
     cdef Py_ssize_t l, m, l_s, m_s, n_s_l, n_s_r, material_e_l, material_e_r
     cdef Py_ssize_t i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3
     cdef int os
-    cdef double inc_n, inc_f
+    cdef float_or_double inc_n, inc_f
 
     # i index (normal to os) for the subgrid near face e node
     n_s_l = nb - r * s
@@ -226,7 +228,7 @@ cpdef void update_is(
     int nwx,
     int nwy,
     int nwz,
-    np.float64_t[:, :] updatecoeffsE,
+    float_or_double[:, :] updatecoeffsE,
     np.uint32_t[:, :, :, :] ID,
     int n,
     int offset,
@@ -234,9 +236,9 @@ cpdef void update_is(
     int nwm,
     int nwn,
     int face,
-    np.float64_t[:, :, :] field,
-    np.float64_t[:, :] inc_field_l,
-    np.float64_t[:, :] inc_field_u,
+    float_or_double[:, :, :] field,
+    float_or_double[:, :] inc_field_l,
+    float_or_double[:, :] inc_field_u,
     Py_ssize_t lookup_id,
     int sign_l,
     int sign_u,
@@ -250,7 +252,7 @@ cpdef void update_is(
 
     cdef Py_ssize_t l, m, i1, j1, k1, i2, j2, k2
     cdef Py_ssize_t field_material_l, field_material_u, inc_i, inc_j
-    cdef double inc_l, inc_u, f_l, f_u
+    cdef float_or_double inc_l, inc_u, f_l, f_u
     # For inner faces H nodes are 1 cell before n boundary cells
     cdef int n_o = n + offset
 

@@ -389,7 +389,7 @@ def mem_check_run_all(grids):
         grid.mem_use += grid.mem_est_basic()
 
         # Additional memory required if there are any dispersive materials.
-        if config.get_model_config().materials["maxpoles"] != 0:
+        if grid.maxpoles != 0:
             config.get_model_config().mem_use += grid.mem_est_dispersive()
             grid.mem_use += grid.mem_est_dispersive()
 

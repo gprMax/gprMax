@@ -17,20 +17,17 @@
 
 import logging
 
-import numpy as np
-
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import build_face_xy, build_face_xz, build_face_yz
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import resolve_geometry_materials, rotate_2point_object
+from .cmds_geometry import resolve_geometry_materials
 
 logger = logging.getLogger(__name__)
 
 
-class Plate(RotatableMixin, GeometryUserObject):
+class Plate(GeometryUserObject):
     """Introduces a plate with specific properties into the model.
 
     Attributes:
@@ -47,13 +44,6 @@ class Plate(RotatableMixin, GeometryUserObject):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
-        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
-        self.kwargs["p2"] = tuple(rot_pts[1, :])
 
     def build(self, grid: FDTDGrid):
         try:
@@ -76,9 +66,6 @@ class Plate(RotatableMixin, GeometryUserObject):
             except KeyError:
                 logger.exception(f"{self.__str__()} No materials have been specified")
                 raise
-
-        if self.do_rotate:
-            self._do_rotate(grid)
 
         uip = self._create_uip(grid)
         # A plate must be exactly flat (zero thickness) on one axis. In 2D

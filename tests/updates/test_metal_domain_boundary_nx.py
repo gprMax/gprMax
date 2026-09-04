@@ -138,6 +138,7 @@ def _make_updates(monkeypatch, maxpoles=0):
         Tz_dev = _FakeBuffer()
 
     updates.grid = _Grid()
+    updates.grid.maxpoles = maxpoles
     return updates
 
 

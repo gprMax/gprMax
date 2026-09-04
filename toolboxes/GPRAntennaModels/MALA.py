@@ -14,7 +14,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
         The external dimensions of the antenna are 184x109x46mm.
         One output point is defined between the arms of the receiver bowtie.
         The bowties are aligned with the y axis so the output is the y component
-        of the electric field (x component if the antenna is rotated 90 degrees).
+        of the electric field.
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the

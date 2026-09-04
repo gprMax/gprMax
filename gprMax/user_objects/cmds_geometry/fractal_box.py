@@ -27,15 +27,13 @@ from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     check_averaging,
     geometry_tag_args,
     resolve_geometry_materials,
-    rotate_2point_object,
 )
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
 
 
-class FractalBox(RotatableMixin, GeometryUserObject):
+class FractalBox(GeometryUserObject):
     """Introduces an orthogonal parallelepiped with fractal distributed
         properties which are related to a mixing model or normal material into
         the model.
@@ -69,13 +67,6 @@ class FractalBox(RotatableMixin, GeometryUserObject):
         super().__init__(**kwargs)
         self.do_pre_build = True
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
-        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
-        self.kwargs["p2"] = tuple(rot_pts[1, :])
-
     def pre_build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
@@ -98,9 +89,6 @@ class FractalBox(RotatableMixin, GeometryUserObject):
                 "every time the model runs."
             )
             seed = None
-
-        if self.do_rotate:
-            self._do_rotate(grid)
 
         # Check averaging
         try:

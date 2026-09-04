@@ -43,7 +43,7 @@ class Updates(Generic[GridType], ABC):
 
     @abstractmethod
     def store_snapshots(self, iteration: int) -> None:
-        """Stores any snapshots.
+        """Store snapshots at the current electric-field time level.
 
         Args:
             iteration: int for iteration number.

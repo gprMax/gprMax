@@ -176,6 +176,7 @@ def _make_updates(monkeypatch, maxpoles):
         Tz_dev = _FakeBuffer(b"tz")
 
     updates.grid = _Grid()
+    updates.grid.maxpoles = maxpoles
     return updates
 
 
@@ -298,6 +299,8 @@ def test_set_field_knls_builds_dispersive_kernels_and_uploads_arrays_when_maxpol
 
     class _Grid:
         nx = ny = nz = 4
+        maxpoles = 1
+        crealfunc = ""
         pmls = {"slabs": []}
         rxs = []
         voltagesources = hertziandipoles = magneticdipoles = []

@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for ``gprMax.user_objects.user_objects`` and ``rotatable``.
+"""Tests for ``gprMax.user_objects.user_objects``.
 
 The base file defines five abstract classes that the rest of the package
 builds on:
@@ -27,10 +27,6 @@ builds on:
 * ``GridUserObject``    — ``build(grid)`` is abstract + ``grid_name``.
 * ``OutputUserObject``  — ``build(model, grid)`` is abstract + ``grid_name``.
 * ``GeometryUserObject``— concrete ``order = 1``.
-
-``RotatableMixin`` adds rotation state (``axis``, ``angle``, ``origin``,
-``do_rotate``) and a public ``rotate(...)`` setter that flips
-``do_rotate`` to True.
 """
 
 from types import SimpleNamespace
@@ -38,7 +34,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import (
     GeometryUserObject,
     GridUserObject,
@@ -303,55 +298,5 @@ class TestGeometryUserObject:
         # Geometry objects don't sort — they build in arrival order. The
         # base class enforces this by giving them all ``order = 1``.
         assert self._Geo().order == 1
-
-
-# ---------------------------------------------------------------------------
-# RotatableMixin
-# ---------------------------------------------------------------------------
-
-
-class _RotObj(RotatableMixin, _ConcreteUserObject):
-    """Concrete rotatable object for mixin tests."""
-
-    def _do_rotate(self, grid):
-        # Stamp something on grid so tests can verify the hook ran
-        grid.rotated = True
-
-
-class TestRotatableMixinDefaults:
-    def test_defaults(self):
-        obj = _RotObj()
-        assert obj.axis == "x"
-        assert obj.angle == 0
-        assert obj.origin is None
-        assert obj.do_rotate is False
-
-
-class TestRotatableMixinRotateSetter:
-    def test_rotate_without_origin(self):
-        obj = _RotObj()
-        obj.rotate("y", 90)
-        assert obj.axis == "y"
-        assert obj.angle == 90
-        assert obj.origin is None
-        assert obj.do_rotate is True
-
-    def test_rotate_with_origin(self):
-        obj = _RotObj()
-        obj.rotate("z", 180, origin=(0.1, 0.2, 0.3))
-        assert obj.axis == "z"
-        assert obj.angle == 180
-        assert obj.origin == (0.1, 0.2, 0.3)
-        assert obj.do_rotate is True
-
-
-class TestRotatableMixinAbstractEnforcement:
-    def test_without_do_rotate_implementation_cannot_instantiate(self):
-        class BareRot(RotatableMixin, _ConcreteUserObject):
-            pass  # _do_rotate not implemented
-
-        with pytest.raises(TypeError):
-            BareRot()
-
 
 pytestmark = pytest.mark.unit

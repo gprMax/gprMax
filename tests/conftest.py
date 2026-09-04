@@ -210,8 +210,17 @@ def fake_grid():
         magneticfrillsources=None,
         pmls=None,
         mode="3D",
+        maxpoles=None,
+        dispersivedtype=None,
         **extra,
     ):
+        from gprMax import config
+
+        materials_config = getattr(config.get_model_config(), "materials", {})
+        if maxpoles is None:
+            maxpoles = materials_config.get("maxpoles", 0)
+        if dispersivedtype is None:
+            dispersivedtype = materials_config.get("dispersivedtype")
         if timewindow is None:
             timewindow = iterations * dt
         if IDlookup is None:
@@ -238,6 +247,8 @@ def fake_grid():
             magneticfrillsources=(magneticfrillsources if magneticfrillsources is not None else []),
             pmls=pmls,
             mode=mode,
+            maxpoles=maxpoles,
+            dispersivedtype=dispersivedtype,
         )
         for key, value in extra.items():
             setattr(grid, key, value)

@@ -143,21 +143,20 @@ def create_solver(model: Model) -> Solver:
     grid = model.G
     if config.sim_config.general["subgrid"]:
         updates = create_subgrid_updates(model)
-        if config.get_model_config().materials["maxpoles"] != 0:
-            # Set dispersive update functions for both SubgridUpdates and
-            # SubgridUpdaters subclasses
+        if updates.grid.maxpoles != 0:
             updates.set_dispersive_updates()
-            for u in updates.updaters:
+        for u in updates.updaters:
+            if u.grid.maxpoles != 0:
                 u.set_dispersive_updates()
     elif type(grid) is FDTDGrid:
         updates = CPUUpdates(grid)
-        if config.get_model_config().materials["maxpoles"] != 0:
+        if grid.maxpoles != 0:
             updates.set_dispersive_updates()
     elif getattr(grid, "is_distributed", False) is True:
         from gprMax.updates.mpi_updates import MPIUpdates
 
         updates = MPIUpdates(grid)
-        if config.get_model_config().materials["maxpoles"] != 0:
+        if grid.maxpoles != 0:
             updates.set_dispersive_updates()
     elif type(grid) is CUDAGrid:
         updates = CUDAUpdates(grid)

@@ -688,6 +688,11 @@ class SubGridHSG(SubGridBaseGrid):
 
         logger.info("")
         logger.debug(f"[{self.name}] Type: {self.__class__.__name__}")
+        if self.equal_resolution:
+            logger.info(
+                f"[{self.name}] Mode: equal-resolution embedded region "
+                "(direct transfer; no subgrid PML, filtering, or interpolation)"
+            )
         logger.info(f"[{self.name}] Ratio: 1:{self.ratio}")
         logger.info(
             f"[{self.name}] Spatial discretisation: {self.dx:g} x " + f"{self.dy:g} x {self.dz:g}m"

@@ -199,7 +199,7 @@ class MetalPlaneWaveController(OpenCLUpdates):
             specification,
             self.knl_common,
             c_real,
-            config.get_model_config().materials["dispersiveCdtype"],
+            self.grid.dispersiveCdtype,
         )
         library, error = self.dev.newLibraryWithSource_options_error_(source, self.opts, None)
         if library is None:

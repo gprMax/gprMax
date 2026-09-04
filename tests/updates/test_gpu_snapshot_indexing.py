@@ -124,8 +124,8 @@ class _FakeGpuArray:
 
 
 class _FakeSnap:
-    def __init__(self, time):
-        self.time = time
+    def __init__(self, iteration):
+        self.iteration = iteration
         self.xs, self.ys, self.zs = 3, 4, 5
         self.nx, self.ny, self.nz = 6, 7, 8
         self.dx = self.dy = self.dz = 1
@@ -166,7 +166,7 @@ def _make_cuda_updates(monkeypatch, snapshots):
 
 
 def test_cuda_store_snapshots_passes_local_sample_counts_not_absolute_finish(monkeypatch):
-    snap = _FakeSnap(time=1)
+    snap = _FakeSnap(iteration=0)
     updates, calls = _make_cuda_updates(monkeypatch, [snap])
 
     updates.store_snapshots(iteration=0)
@@ -185,7 +185,7 @@ def test_cuda_store_snapshots_passes_local_sample_counts_not_absolute_finish(mon
 
 
 def test_cuda_store_snapshots_skips_untriggered_snapshot(monkeypatch):
-    snap = _FakeSnap(time=5)
+    snap = _FakeSnap(iteration=5)
     updates, calls = _make_cuda_updates(monkeypatch, [snap])
 
     updates.store_snapshots(iteration=0)
@@ -233,7 +233,7 @@ def _make_opencl_updates(monkeypatch, snapshots):
 
 
 def test_opencl_store_snapshots_passes_local_sample_counts_not_absolute_finish(monkeypatch):
-    snap = _FakeSnap(time=1)
+    snap = _FakeSnap(iteration=0)
     updates, calls = _make_opencl_updates(monkeypatch, [snap])
 
     updates.store_snapshots(iteration=0)

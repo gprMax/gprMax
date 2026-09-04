@@ -4,9 +4,7 @@ This example model demonstrates how to use one of the built-in antenna models.
 
 The geometry is 3D and the domain filled with freespace (the default). The
 antenna model method is imported from its toolbox and the objects that build the
-antenna are iteratively added to the scene. The antenna can be rotated if
-desired, by rotating the objects that it is built from before they are added to
-the scene.
+antenna are iteratively added to the scene.
 """
 
 from pathlib import Path
@@ -41,7 +39,6 @@ scene.add(time_window)
 ant_pos = (0.125, 0.094, 0.100)
 gssi_objects = antenna_like_GSSI_1500(ant_pos[0], ant_pos[1], ant_pos[2], resolution=dl)
 for obj in gssi_objects:
-    # obj.rotate('z', 90, origin=(ant_pos[0], ant_pos[1], ant_pos[2]))
     scene.add(obj)
 
 gv1 = gprMax.GeometryView(

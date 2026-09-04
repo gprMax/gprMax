@@ -322,11 +322,10 @@ class TestPrepVtk:
         view = make_line_view(grid=g, stop=(2, 2, 2))
         assert set(np.unique(view.material_data)) == {2}
 
-    def test_metadata_is_materials_only(self, make_line_view):
-        """Expects PML, source and receiver information to be skipped — this
-        exporter asks for ``materials_only``, unlike the voxel one."""
+    def test_metadata_is_the_full_form(self, make_line_view):
+        """Fine views carry the same source overlay metadata as voxel views."""
         view = make_line_view()
-        assert not hasattr(view.metadata, "pml_thickness")
+        assert hasattr(view.metadata, "pml_thickness")
 
     def test_metadata_includes_averaged_materials(self, make_line_view, make_view_grid):
         """Expects dielectric-smoothed materials in the table, because the
@@ -416,14 +415,30 @@ class TestWriteVtk:
         assert data["VTKHDF/CellData/Material"] == pytest.approx(view.material_data)
 
     def test_metadata_is_attached(self, make_line_view, read_h5):
-        """Expects the four core field-data entries and nothing more, since
-        this exporter asks for ``materials_only``."""
+        """The core metadata is present; empty optional fields remain absent."""
         view = make_line_view()
         view.write_vtk()
         _, data = read_h5(view.filename)
         names = {k.rsplit("/", 1)[-1] for k in data}
         assert {"gprMax_version", "dx_dy_dz", "nx_ny_nz", "material_ids"} <= names
         assert "pml_thickness" not in names
+
+    def test_source_geometry_is_attached_to_fine_views(
+        self, make_line_view, make_view_grid, read_h5
+    ):
+        class MagneticDipole:
+            ID = "magnetic-feed"
+            coord = np.asarray((1, 1, 1), dtype=np.int32)
+
+        grid = make_view_grid(nx=8, ny=8, nz=8)
+        grid.magneticdipoles = [MagneticDipole()]
+        view = make_line_view(grid=grid)
+        view.write_vtk()
+        _, data = read_h5(view.filename)
+
+        prefix = "VTKHDF/FieldData/"
+        assert data[prefix + "source_geometry_ids"].tolist() == [b"magnetic-feed"]
+        assert data[prefix + "source_geometry_types"].tolist() == [b"MagneticDipole"]
 
 
 class TestMpiVariant:

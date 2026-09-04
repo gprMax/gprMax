@@ -135,24 +135,27 @@ class TestInitialiseUpdateCoeffArrays:
 
 class TestInitialiseDispersiveArrays:
     def test_shape_includes_the_pole_count(self, make_grid, grid_config):
-        grid_config.model_config.materials["maxpoles"] = 2
         g = make_grid(nx=4, ny=5, nz=6)
+        g.maxpoles = 2
+        g.dispersivedtype = np.complex128
         g.initialise_dispersive_arrays()
         assert g.Tx.shape == (2, 5, 6, 7)
         assert g.Ty.shape == (2, 5, 6, 7)
         assert g.Tz.shape == (2, 5, 6, 7)
 
-    def test_dtype_comes_from_model_config(self, make_grid, grid_config):
-        grid_config.model_config.materials["maxpoles"] = 1
+    def test_dtype_comes_from_grid(self, make_grid):
         g = make_grid(nx=4, ny=4, nz=4)
+        g.maxpoles = 1
+        g.dispersivedtype = np.complex128
         g.initialise_dispersive_arrays()
         assert g.Tx.dtype == np.complex128
 
     def test_update_coeff_array_has_three_entries_per_pole(
         self, make_grid, grid_config, make_material
     ):
-        grid_config.model_config.materials["maxpoles"] = 2
         g = make_grid(nx=4, ny=4, nz=4)
+        g.maxpoles = 2
+        g.dispersivedtype = np.complex128
         g.materials = [make_material(ID="m0", numID=0), make_material(ID="m1", numID=1)]
         g.initialise_dispersive_update_coeff_array()
         assert g.updatecoeffsdispersive.shape == (2, 6)
@@ -182,9 +185,10 @@ class TestResetFields:
         g.reset_fields()
         assert g.solid[1, 1, 1] == 7
 
-    def test_allocates_dispersive_arrays_when_poles_present(self, make_grid, grid_config):
-        grid_config.model_config.materials["maxpoles"] = 1
+    def test_allocates_dispersive_arrays_when_poles_present(self, make_grid):
         g = make_grid(nx=4, ny=4, nz=4)
+        g.maxpoles = 1
+        g.dispersivedtype = np.complex128
         g.pmls["slabs"] = []
         g.reset_fields()
         assert g.Tx.shape == (1, 5, 5, 5)
@@ -211,15 +215,15 @@ class TestMemoryEstimates:
         large = make_grid(nx=8, ny=8, nz=8, pml_thickness=0)
         assert large.mem_est_basic() > small.mem_est_basic()
 
-    def test_dispersive_matches_hand_arithmetic(self, make_grid, grid_config):
-        grid_config.model_config.materials["maxpoles"] = 2
+    def test_dispersive_matches_hand_arithmetic(self, make_grid):
         nx = ny = nz = 4
         g = make_grid(nx=nx, ny=ny, nz=nz)
+        g.maxpoles = 2
+        g.dispersivedtype = np.complex128
         expected = 3 * 2 * (nx + 1) * (ny + 1) * (nz + 1) * np.dtype(np.complex128).itemsize
         assert g.mem_est_dispersive() == expected
 
-    def test_dispersive_is_zero_without_poles(self, make_grid, grid_config):
-        grid_config.model_config.materials["maxpoles"] = 0
+    def test_dispersive_is_zero_without_poles(self, make_grid):
         g = make_grid(nx=4, ny=4, nz=4)
         assert g.mem_est_dispersive() == 0
 

@@ -170,7 +170,11 @@ class SubGridHSG(SubGridBase):
         p2: list of the position of the upper right corner of the Inner Surface
             (x, y, z) in the main grid.
         ratio: int of the ratio of the main grid spatial step to the sub-grid
-                spatial step. Must be an odd integer.
+                spatial step. Must be an odd integer. ``ratio=1`` selects an
+                equal-resolution embedded region: field values are transferred
+                directly, without temporal or spatial interpolation, filtering,
+                or a subgrid-boundary PML. This mode inherits the precision of
+                the main CPU grid.
         id: string identifier for the sub-grid.
         is_os_sep: int for the number of main grid cells between the Inner
                     Surface and the Outer Surface. Defaults to 3.
@@ -180,12 +184,14 @@ class SubGridHSG(SubGridBase):
                         value is therefore ignored. Using a different value is
                         experimental and requires changing the formulation.
         subgrid_pml_thickness: int for the thickness of the PML on each of the
-                                6 sides of the sub-grid. Defaults to 6.
-        interpolation: string for the degree of the interpolation scheme used
-                        for spatial interpolation of the fields at the Inner
-                        Surface. Defaults to Linear.
+                                6 sides of the sub-grid. Defaults to 6. Ignored
+                                when ``ratio=1``.
+        interpolation: int for the degree of the interpolation scheme used for
+                        spatial interpolation of the fields at the Inner
+                        Surface. Defaults to linear (1). Ignored when
+                        ``ratio=1``, where transfer is direct.
         filter: boolean to turn on the 3-pole filter. Increases numerical
-                stability. Defaults to True.
+                stability. Defaults to True. Ignored when ``ratio=1``.
     """
 
     @property
@@ -212,6 +218,14 @@ class SubGridHSG(SubGridBase):
         # The HSG formulation fixes this separation. Keep the public argument
         # for API compatibility, but deliberately do not use a supplied value.
         pml_separation = ratio // 2 + 2
+
+        # A unity ratio is a distinct equal-resolution coupling mode. Normalise
+        # the inactive refinement/stabilisation controls here so introspection
+        # of the user object agrees with the grid that will be built.
+        if ratio == 1:
+            subgrid_pml_thickness = 0
+            interpolation = 0
+            filter = False
 
         # Copy over the optional parameters
         kwargs["p1"] = p1

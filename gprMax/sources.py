@@ -5058,11 +5058,11 @@ class DiscretePlaneWave(Source):
                 + f" and 1D vector length = {self.length} cells."
             )
 
-        # Allocate the DPW auxiliary state after the model-wide dispersive
+        # Allocate the DPW auxiliary state after the owning grid's dispersive
         # dtype has been resolved. Debye-only models use real storage;
         # Lorentz/Drude models use complex storage, exactly as the main grid.
         if self.dispersive:
-            dispersive_dtype = config.get_model_config().materials["dispersivedtype"]
+            dispersive_dtype = G.dispersivedtype
             state_shape = (self.max_poles, self.length)
             self.Px = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
             self.Py = np.zeros(state_shape, order="C", dtype=dispersive_dtype)
@@ -5153,7 +5153,7 @@ class DiscretePlaneWave(Source):
         if max_dispersive_coeffs:
             self.axial_updatecoeffsdispersive = np.zeros(
                 (table_size, max_dispersive_coeffs),
-                dtype=config.get_model_config().materials["dispersivedtype"],
+                dtype=G.dispersivedtype,
             )
         else:
             self.axial_updatecoeffsdispersive = None

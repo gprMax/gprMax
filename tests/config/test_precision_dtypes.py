@@ -347,7 +347,13 @@ class TestConsistencyWithTheKernelDispatch:
         )
         monkeypatch.setattr(config, "get_model_config", lambda: model_cfg)
 
-        updates = CPUUpdates(SimpleNamespace(ntff_monitors=[]))
+        updates = CPUUpdates(
+            SimpleNamespace(
+                ntff_monitors=[],
+                maxpoles=1,
+                dispersivedtype=sim_config.dtypes["float_or_double"],
+            )
+        )
         updates.set_dispersive_updates()
 
         assert sim_config.dtypes["float_or_double"] is expected_dtype

@@ -39,10 +39,9 @@ on every side, so it never touches a domain edge) and the 12 domain edges
   (post-PML, post-source) E. Which Cython module's functions actually run
   (gprMax.cython.symmetry_boundaries_dispersive for Debye,
   gprMax.cython.symmetry_boundaries_dispersive_complex for Lorentz/Drude) is
-  chosen per-iteration from config.get_model_config().materials["drudelorentz"]
-  - the same flag config.py itself uses to pick updatecoeffsdispersive's
-  dtype (real vs complex), so the Cython functions called always match the
-  actual dtype of grid.updatecoeffsdispersive/Tx/Ty/Tz.
+  chosen from the owning grid's ``drudelorentz`` flag, so the Cython
+  functions called always match the actual dtype of that grid's
+  updatecoeffsdispersive/Tx/Ty/Tz arrays.
 
 Ghost-node derivation: tangential H is
 odd under the PMC mirror, so the "ghost" H node just outside the domain
@@ -384,7 +383,7 @@ def build_symmetry_boundary_edges_dispersive(grid) -> list:
     """Dispersive Phase-A counterpart of build_symmetry_boundary_edges().
 
     Picks the real-pole (Debye) or complex-pole (Lorentz/Drude) edge table
-    once here, at build time, from materials["drudelorentz"] - already set
+    once here, at build time, from ``grid.drudelorentz`` - already set
     by Model._check_for_dispersive_materials() before grid.build() (and
     hence this method) runs for every grid. This matches
     grid.updatecoeffsdispersive/Tx/Ty/Tz's own dtype, chosen from the same
@@ -398,7 +397,7 @@ def build_symmetry_boundary_edges_dispersive(grid) -> list:
     """
     table = (
         _EDGE_TABLE_DISPERSIVE_COMPLEX
-        if config.get_model_config().materials["drudelorentz"]
+        if grid.drudelorentz
         else _EDGE_TABLE_DISPERSIVE
     )
     face_is_pmc = {face: grid.symmetry_boundaries.get(face) == "pmc" for face in _ALL_FACES}
@@ -429,7 +428,7 @@ def build_symmetry_boundary_edges_dispersive_b(grid) -> list:
     """
     table = (
         _EDGE_TABLE_DISPERSIVE_B_COMPLEX
-        if config.get_model_config().materials["drudelorentz"]
+        if grid.drudelorentz
         else _EDGE_TABLE_DISPERSIVE_B
     )
     face_is_pmc = {face: grid.symmetry_boundaries.get(face) == "pmc" for face in _ALL_FACES}
@@ -504,7 +503,7 @@ def update_symmetry_boundaries_electric_dispersive(grid) -> None:
     Called at the same point in the solve loop as the non-dispersive
     version (right after update_electric_a(), before PML/sources). Picks
     the real-pole (Debye) or complex-pole (Lorentz/Drude) face dict from
-    materials["drudelorentz"] - see build_symmetry_boundary_edges_dispersive()
+    ``grid.drudelorentz`` - see build_symmetry_boundary_edges_dispersive()
     for why this matches grid.updatecoeffsdispersive/Tx/Ty/Tz's own dtype.
     A plain dict lookup, done once per iteration (not per cell), so the
     cost is negligible either way.
@@ -517,10 +516,10 @@ def update_symmetry_boundaries_electric_dispersive(grid) -> None:
         return
 
     nthreads = config.get_model_config().ompthreads
-    maxpoles = config.get_model_config().materials["maxpoles"]
+    maxpoles = grid.maxpoles
     face_funcs = (
         _FACE_UPDATE_FUNCS_DISPERSIVE_COMPLEX
-        if config.get_model_config().materials["drudelorentz"]
+        if grid.drudelorentz
         else _FACE_UPDATE_FUNCS_DISPERSIVE
     )
 
@@ -592,10 +591,10 @@ def update_symmetry_boundaries_electric_dispersive_b(grid) -> None:
         return
 
     nthreads = config.get_model_config().ompthreads
-    maxpoles = config.get_model_config().materials["maxpoles"]
+    maxpoles = grid.maxpoles
     face_funcs = (
         _FACE_UPDATE_FUNCS_DISPERSIVE_B_COMPLEX
-        if config.get_model_config().materials["drudelorentz"]
+        if grid.drudelorentz
         else _FACE_UPDATE_FUNCS_DISPERSIVE_B
     )
 

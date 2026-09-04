@@ -90,8 +90,10 @@ option is ignored for a CPU solve.
     * Apple Metal supports single precision only. Requesting double precision
       with Metal is rejected before kernel compilation because the Metal
       Shading Language has no native ``double`` type.
-    * Subgridding requires double precision and overrides a requested single
-      precision. Subgridding is currently available only with the CPU solver.
+    * Refining subgrids require double precision and override a requested
+      single precision. A ``ratio=1`` equal-resolution embedded region inherits
+      the main-grid CPU precision. All subgrid modes are currently available
+      only with the CPU solver.
     * Output datasets and KSIR complex phasors use the type corresponding to
       the configured solver precision.
 

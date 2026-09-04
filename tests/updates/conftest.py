@@ -17,13 +17,13 @@
 
 """Shared fixtures for the update-dispatcher test suite.
 
-``cpu_updates.py`` reads exactly five configuration values, and that is the
-whole surface:
+``cpu_updates.py`` reads the owning grid's pole count and dispersive dtype,
+plus the model's threading, mode, and configured precision:
 
 - ``config.get_model_config().ompthreads`` — passed straight to every kernel;
-- ``config.get_model_config().materials["maxpoles"]`` — selects the plain or
+- ``grid.maxpoles`` — selects the plain or
   dispersive branch in ``update_electric_a`` and gates ``update_electric_b``;
-- ``config.get_model_config().materials["dispersivedtype"]`` and
+- ``grid.dispersivedtype`` and
   ``config.sim_config.dtypes["complex"]`` — compared against each other to
   choose a ``real`` or ``complex`` kernel;
 - ``config.sim_config.general["precision"]`` — chooses ``float`` or ``double``.
@@ -208,18 +208,18 @@ class PmlRecorder:
 class SnapshotRecorder:
     """Stand-in for a snapshot; ``store()`` takes no arguments."""
 
-    def __init__(self, time, log):
-        self.time = time
+    def __init__(self, iteration, log):
+        self.iteration = iteration
         self._log = log
         self.store_count = 0
 
     def store(self):
         self.store_count += 1
-        self._log.append(f"snap:{self.time}")
+        self._log.append(f"snap:{self.iteration}")
 
 
 @pytest.fixture
-def make_wiring_grid():
+def make_wiring_grid(updates_config):
     """Factory for a recorder-backed grid stand-in.
 
     Supplies every attribute ``CPUUpdates`` reads. The field and coefficient
@@ -264,6 +264,8 @@ def make_wiring_grid():
             updatecoeffsE="updatecoeffsE",
             updatecoeffsH="updatecoeffsH",
             updatecoeffsdispersive="updatecoeffsdispersive",
+            maxpoles=updates_config.model_config.materials["maxpoles"],
+            dispersivedtype=updates_config.model_config.materials["dispersivedtype"],
             voltagesources=list(voltagesources),
             transmissionlines=list(transmissionlines),
             hertziandipoles=list(hertziandipoles),
@@ -307,8 +309,8 @@ def make_pml_slab():
 def make_snapshot():
     """Factory for :class:`SnapshotRecorder`."""
 
-    def _make(time, log):
-        return SnapshotRecorder(time, log)
+    def _make(iteration, log):
+        return SnapshotRecorder(iteration, log)
 
     return _make
 

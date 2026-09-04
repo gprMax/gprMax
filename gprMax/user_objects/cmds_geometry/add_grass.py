@@ -24,16 +24,13 @@ from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.grass import Grass
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_grass
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 from gprMax.utilities.utilities import round_value
-
-from .cmds_geometry import rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
 
-class AddGrass(RotatableMixin, GeometryUserObject):
+class AddGrass(GeometryUserObject):
     """Adds grass with roots to a FractalBox class in the model.
 
     Attributes:
@@ -60,13 +57,6 @@ class AddGrass(RotatableMixin, GeometryUserObject):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Perform rotation."""
-        pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
-        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
-        self.kwargs["p2"] = tuple(rot_pts[1, :])
-
     def build(self, grid: FDTDGrid):
         """Add Grass to fractal box."""
         try:
@@ -89,9 +79,6 @@ class AddGrass(RotatableMixin, GeometryUserObject):
                 "every time the model runs."
             )
             seed = None
-
-        if self.do_rotate:
-            self._do_rotate(grid)
 
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]

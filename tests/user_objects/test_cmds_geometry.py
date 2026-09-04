@@ -25,7 +25,7 @@ GeometryObjectsRead) plus 3 modifiers that decorate a fractal box
 
 All extend ``GeometryUserObject``, so ``order == 1`` is inherited from
 the base class (geometry primitives build in arrival order, not by
-``order``). Most also mix in ``RotatableMixin``.
+``order``).
 
 We test:
 
@@ -115,10 +115,6 @@ class TestBox:
         b = Box(p1=(0, 0, 0), p2=(0.1, 0.1, 0.1), material_id="free_space")
         assert b.kwargs["p1"] == (0, 0, 0)
         assert b.kwargs["material_id"] == "free_space"
-
-    def test_rotatable_defaults(self):
-        b = Box(p1=(0, 0, 0), p2=(0.1, 0.1, 0.1), material_id="x")
-        assert b.do_rotate is False
 
     def test_build_missing_p1_raises(self, stub_grid):
         b = Box(material_id="free_space")
@@ -269,11 +265,6 @@ class TestEdge:
         e = Edge(p1=(0, 0, 0), p2=(0.1, 0, 0), material_id="free_space")
         assert e.kwargs["p1"] == (0, 0, 0)
         assert e.kwargs["material_id"] == "free_space"
-
-    def test_rotatable_defaults(self):
-        e = Edge(p1=(0, 0, 0), p2=(0.1, 0, 0), material_id="x")
-        assert e.do_rotate is False
-
 
 class TestPlate:
     def test_constructor_kwargs(self):

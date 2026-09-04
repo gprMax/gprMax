@@ -151,7 +151,7 @@ class TestSnapshotBuildValidation:
             with pytest.raises(ValueError):
                 s.build(stub_model, stub_grid)
 
-    def test_build_rejects_zero_iterations(self, stub_model, stub_grid):
+    def test_build_accepts_zero_as_the_initial_electric_time_level(self, stub_model, stub_grid):
         s = Snapshot(
             p1=(0, 0, 0),
             p2=(0.05, 0.05, 0.05),
@@ -159,8 +159,24 @@ class TestSnapshotBuildValidation:
             filename="x",
             iterations=0,
         )
+        stub_model.add_snapshot.return_value = None
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
-            with pytest.raises(ValueError):
+            s.build(stub_model, stub_grid)
+
+        assert stub_model.add_snapshot.call_args.args[4] == 0
+
+    def test_build_rejects_the_unreachable_iteration_at_the_loop_bound(
+        self, stub_model, stub_grid
+    ):
+        s = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=stub_grid.iterations,
+        )
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            with pytest.raises(ValueError, match="valid range"):
                 s.build(stub_model, stub_grid)
 
     def test_build_rejects_negative_time(self, stub_model, stub_grid):
@@ -173,6 +189,89 @@ class TestSnapshotBuildValidation:
         )
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
+                s.build(stub_model, stub_grid)
+
+    def test_time_maps_to_the_nearest_full_electric_timestep(self, stub_model, stub_grid):
+        stub_grid.dt = 1e-12
+        s = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            time=10.2e-12,
+        )
+        stub_model.add_snapshot.return_value = None
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            s.build(stub_model, stub_grid)
+
+        assert s.iterations == 10
+        assert stub_model.add_snapshot.call_args.args[4] == 10
+
+    def test_half_timestep_maps_to_the_earlier_electric_timestep(
+        self, stub_model, stub_grid
+    ):
+        stub_grid.dt = 1e-12
+        s = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            time=10.5e-12,
+        )
+        stub_model.add_snapshot.return_value = None
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            s.build(stub_model, stub_grid)
+
+        assert s.iterations == 10
+
+    def test_zero_time_selects_the_initial_electric_field(self, stub_model, stub_grid):
+        s = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            time=0.0,
+        )
+        stub_model.add_snapshot.return_value = None
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            s.build(stub_model, stub_grid)
+
+        assert s.iterations == 0
+
+    def test_time_and_iteration_select_the_same_field_state(self, stub_model, stub_grid):
+        stub_grid.dt = 1e-12
+        by_time = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="by_time",
+            time=10e-12,
+        )
+        by_iteration = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="by_iteration",
+            iterations=10,
+        )
+        stub_model.add_snapshot.return_value = None
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            by_time.build(stub_model, stub_grid)
+            by_iteration.build(stub_model, stub_grid)
+
+        assert by_time.iterations == by_iteration.iterations == 10
+
+    def test_build_rejects_time_that_maps_outside_the_solver_loop(self, stub_model, stub_grid):
+        stub_grid.dt = 1e-12
+        s = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            time=stub_grid.iterations * stub_grid.dt,
+        )
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            with pytest.raises(ValueError, match="valid range"):
                 s.build(stub_model, stub_grid)
 
     def test_build_rejects_missing_iterations_and_time(self, stub_model, stub_grid):
@@ -220,10 +319,14 @@ class TestSnapshotBuildValidation:
             filename="x",
             iterations=10,
         )
-        # The logging branch reads ``snapshot.time`` and ``snapshot.filename``
-        # — give the stub a real ``SimpleNamespace`` so f-string formatting
-        # works.
-        stub_model.add_snapshot.return_value = SimpleNamespace(time=10, filename="x")
+        # The logging branch reads the resolved time-level metadata and
+        # filename, so give the stub concrete values for formatting.
+        stub_model.add_snapshot.return_value = SimpleNamespace(
+            iteration=10,
+            electric_time=10 * stub_grid.dt,
+            magnetic_time=9.5 * stub_grid.dt,
+            filename="x",
+        )
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             s.build(stub_model, stub_grid)
         # ``self.file_extension`` is set during build()

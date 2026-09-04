@@ -87,6 +87,30 @@ def _resolve_device_id(devs) -> int:
     return deviceIDs[0] if deviceIDs else 0
 
 
+def _uses_only_equal_resolution_subgrids(scenes) -> bool:
+    """Return whether every declared subgrid has a spatial ratio of one.
+
+    Precision is selected before any model is built, so the only safe way to
+    retain the requested CPU precision for equal-resolution regions is to
+    inspect the API ``Scene`` objects supplied to the run.  Input-file runs do
+    not currently expose subgrids; an absent or unfamiliar scene structure is
+    nevertheless treated conservatively as a refining subgrid configuration.
+    """
+
+    if not scenes:
+        return False
+
+    subgrids = []
+    for scene in scenes:
+        if scene is None or not hasattr(scene, "subgrid_objects"):
+            return False
+        subgrids.extend(scene.subgrid_objects)
+
+    return bool(subgrids) and all(
+        getattr(subgrid, "kwargs", {}).get("ratio") == 1 for subgrid in subgrids
+    )
+
+
 class ModelConfig:
     """Configuration parameters for a model.
     N.B. Multiple models can exist within a simulation
@@ -434,14 +458,21 @@ class SimulationConfig:
         # Subgrids
         if hasattr(self.args, "subgrid") and self.args.subgrid:
             self.general["subgrid"] = self.args.subgrid
-            # Double precision should be used with subgrid for best accuracy
-            # - always wins, regardless of -cpu_precision/-gpu_precision.
-            if self.general["precision"] == "single":
-                logger.warning(
-                    "Sub-gridding requires double precision - overriding the requested"
-                    " single precision."
-                )
-            self.general["precision"] = "double"
+            equal_resolution = _uses_only_equal_resolution_subgrids(
+                getattr(self.args, "scenes", None)
+            )
+            # Refining HSG interfaces retain their established double-
+            # precision requirement. A ratio-one region has the same spatial
+            # and temporal discretisation as its parent and uses direct field
+            # transfer, so it deliberately inherits the requested CPU
+            # precision instead.
+            if not equal_resolution:
+                if self.general["precision"] == "single":
+                    logger.warning(
+                        "Refining sub-grids require double precision - overriding the"
+                        " requested single precision."
+                    )
+                self.general["precision"] = "double"
             if (self.general["subgrid"] and self.general["solver"] == "cuda") or (
                 self.general["subgrid"] and self.general["solver"] == "opencl") or (
                 self.general["subgrid"] and self.general["solver"] == "metal"

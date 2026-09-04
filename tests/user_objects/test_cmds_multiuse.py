@@ -24,9 +24,6 @@ round-trips), with two new wrinkles:
 * Most classes take ``**kwargs`` and forward to ``super().__init__`` —
   attribute mirroring happens in ``build()``, not ``__init__``. So the
   constructor test is just "kwargs survive verbatim".
-* Five classes use ``RotatableMixin``: ``VoltageSource``,
-  ``HertzianDipole``, ``MagneticDipole``, ``TransmissionLine``, ``Rx``.
-
 Four bug tripwires pin current behaviour for fixes to flip.
 """
 
@@ -208,20 +205,6 @@ class TestVoltageSource:
         v = VoltageSource(p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1")
         assert v.order == 3
         assert v.hash == "#voltage_source"
-
-    def test_rotatable_defaults(self):
-        v = VoltageSource(p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1")
-        assert v.do_rotate is False
-        assert v.axis == "x"
-        assert v.angle == 0
-        assert v.origin is None
-
-    def test_rotate_flips_do_rotate(self):
-        v = VoltageSource(p1=(0, 0, 0), polarisation="x", resistance=50, waveform_id="wf1")
-        v.rotate("z", 90, origin=(0, 0, 0))
-        assert v.do_rotate is True
-        assert v.axis == "z"
-        assert v.angle == 90
 
     def test_validate_rejects_unknown_polarisation(self, stub_grid):
         stub_grid.waveforms.append(make_waveform("wf1"))
@@ -477,11 +460,6 @@ class TestRx:
         r = Rx(p1=(0, 0, 0))
         assert r.order == 7
         assert r.hash == "#rx"
-
-    def test_rotatable_defaults(self):
-        r = Rx(p1=(0, 0, 0))
-        assert r.do_rotate is False
-
 
 # ---------------------------------------------------------------------------
 # RxArray

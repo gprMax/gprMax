@@ -118,3 +118,93 @@ def test_geometry_tags_create_hidden_thresholds_using_catalogue_ids():
     assert [threshold.UpperThreshold for threshold in thresholds] == [3, 7]
     assert all(threshold.kwargs["Scalars"] == ("CELLS", "TagID") for threshold in thresholds)
     assert [name for name, _threshold in renamed] == ["Tag - head", "Tag - eyes"]
+
+
+def test_typed_source_geometry_creates_points_boxes_and_planes():
+    """The macro renders each geometry kind and exposes its type in the name."""
+
+    boxes = []
+    planes = []
+    renamed = []
+    displays = []
+
+    def make_proxy(kind, kwargs):
+        proxy = type("SourceProxy", (), {})()
+        proxy.kind = kind
+        proxy.kwargs = kwargs
+        return proxy
+
+    def make_box(**kwargs):
+        proxy = make_proxy("box", kwargs)
+        boxes.append(proxy)
+        return proxy
+
+    def make_plane(**kwargs):
+        proxy = make_proxy("plane", kwargs)
+        planes.append(proxy)
+        return proxy
+
+    def show(source, view):
+        display = type("DisplayProxy", (), {"Representation": "Surface"})()
+        displays.append((source, view, display))
+        return display
+
+    namespace = {
+        "Proxy": object,
+        "dsa": type("DSA", (), {"VTKArray": object}),
+        "vtkStringArray": object,
+        "HaltException": RuntimeError,
+        "Box": make_box,
+        "Plane": make_plane,
+        "Show": show,
+        "RenameSource": lambda name, source: renamed.append((name, source)),
+    }
+    create_sources = _load_function("create_source_geometries", namespace)
+    view = object()
+
+    create_sources(
+        _MaterialNames(["feed", "plane_wave_1", "plane_wave_2", "port2"]),
+        _MaterialNames(
+            ["VoltageSource", "DiscretePlaneWave", "DiscretePlaneWave", "EigenmodeSource"]
+        ),
+        _MaterialNames(["point", "box", "rectangle", "plane"]),
+        [
+            [1, 2, 3, 4, 5, 6],
+            [0, 10, 0, 20, 0, 30],
+            [0, 10, 0, 20, 0, 0],
+            [4, 4, 2, 7, 3, 9],
+        ],
+        view,
+    )
+
+    assert len(boxes) == 2
+    assert boxes[0].kwargs == {
+        "Center": [1.5, 3.5, 5.5],
+        "XLength": 1.0,
+        "YLength": 1.0,
+        "ZLength": 1.0,
+    }
+    assert displays[1][2].Representation == "Wireframe"
+    assert displays[2][2].Representation == "Wireframe"
+    assert len(planes) == 2
+    assert planes[1].kwargs == {
+        "Origin": [4.0, 2.0, 3.0],
+        "Point1": [4.0, 7.0, 3.0],
+        "Point2": [4.0, 2.0, 9.0],
+    }
+    assert [name for name, _source in renamed] == [
+        "Source - VoltageSource - feed",
+        "Source - DiscretePlaneWave - plane_wave_1",
+        "Source - DiscretePlaneWave - plane_wave_2",
+        "Source - EigenmodeSource - port2",
+    ]
+
+    create_sources(
+        _MaterialNames(["receive_port"]),
+        _MaterialNames(["VoltageSourcePort"]),
+        _MaterialNames(["point"]),
+        [[1, 2, 3, 4, 5, 6]],
+        view,
+        role="Receiver",
+    )
+    assert renamed[-1][0] == "Receiver - VoltageSourcePort - receive_port"
