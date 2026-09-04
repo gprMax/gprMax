@@ -1,0 +1,242 @@
+{
+  "date": "2026-09-04",
+  "baseline_commit": "eb66454691ad3ba96ae1819493045154e30e9c42",
+  "scope": "Static dispersive-material conductivity and broadband operator-index interpolation",
+  "environment": {
+    "python": "3.14.4",
+    "numpy": "2.4.3",
+    "scipy": "1.17.1",
+    "conda_environment": "gprMax",
+    "gpu": "NVIDIA GeForce RTX 4070 Laptop GPU",
+    "device": 0,
+    "driver": "596.49",
+    "cuda_toolkit": "13.3",
+    "msvc_toolset": "14.44"
+  },
+  "tests": {
+    "focused_suite": {
+      "passed": 305,
+      "deselected_gpu": 30,
+      "seconds": 179.62
+    },
+    "material_suite": {
+      "passed": 52,
+      "note": "Includes 31 tests also in focused suite"
+    }
+  },
+  "source_sha256": {
+    "gprMax/sources.py": "b9a44c63f401247ac0241a97e0129634aab28de7b4cf5e22f19b1be509b8eb63",
+    "gprMax/eigenmode_ports.py": "a996cc0acbb8175a2849250aa0a3031b1b207e974e19268f7c68547a3481dd31",
+    "gprMax/fdfd_eigenmode_solver/numerical_dispersion.py": "109106dd268b3f00a9f483c0e7d808504dff9def9e5cb56e2030a966f480b28e"
+  },
+  "cases": [
+    {
+      "input": "testing/regression/eigenmode_sources/broadband_vs_single_frequency/broadband/broadband.in",
+      "command": "python -m gprMax testing/regression/eigenmode_sources/broadband_vs_single_frequency/broadband/broadband.in -gpu 0 --hide-progress-bars",
+      "exit_code": 0,
+      "wall_seconds": 26.5591942,
+      "csv": "testing/regression/eigenmode_sources/broadband_vs_single_frequency/broadband/broadband_sparameters.csv",
+      "csv_sha256": "7745f5571ca93fc8b5e360d9463742c61e8f13b73393e21d7b47ff669fd502db",
+      "output": "testing/regression/eigenmode_sources/broadband_vs_single_frequency/broadband/broadband.h5",
+      "output_sha256": "1308a78056411d2a0ec9027da8848cc75305d13d094b097b9e9027078bb7ad6d",
+      "s21_valid_power_bins": 126,
+      "s21_total_bins": 126,
+      "s21_mean_db": -0.0019648276195275973,
+      "s21_mean_absolute_db": 0.0020622066451742574,
+      "ports": {
+        "port1": {
+          "anchor_operator_neff_shape": [
+            12,
+            2
+          ],
+          "beta_shape": [
+            126,
+            2
+          ],
+          "beta_units": "rad/m"
+        },
+        "port2": {
+          "anchor_operator_neff_shape": [
+            12,
+            2
+          ],
+          "beta_shape": [
+            126,
+            2
+          ],
+          "beta_units": "rad/m"
+        }
+      }
+    },
+    {
+      "input": "testing/regression/eigenmode_sources/broadband_vs_single_frequency/single_frequency/single_frequency.in",
+      "command": "python -m gprMax testing/regression/eigenmode_sources/broadband_vs_single_frequency/single_frequency/single_frequency.in -gpu 0 --hide-progress-bars",
+      "exit_code": 0,
+      "wall_seconds": 8.0811244,
+      "csv": "testing/regression/eigenmode_sources/broadband_vs_single_frequency/single_frequency/single_frequency_sparameters.csv",
+      "csv_sha256": "1b6cb9fe25ef6b32dcfaeec594791c6f55c47c073c297bdab38195248648c513",
+      "output": "testing/regression/eigenmode_sources/broadband_vs_single_frequency/single_frequency/single_frequency.h5",
+      "output_sha256": "73c147f695d150fe1e977bc78f86638c86e409c90c41bb222081aeb9a48716f2",
+      "s21_valid_power_bins": 126,
+      "s21_total_bins": 126,
+      "s21_mean_db": -0.07882975561912485,
+      "s21_mean_absolute_db": 0.07883371655470765,
+      "ports": {
+        "port1": {
+          "anchor_operator_neff_shape": [
+            1,
+            2
+          ],
+          "beta_shape": [
+            126,
+            2
+          ],
+          "beta_units": "rad/m"
+        },
+        "port2": {
+          "anchor_operator_neff_shape": [
+            1,
+            2
+          ],
+          "beta_shape": [
+            126,
+            2
+          ],
+          "beta_units": "rad/m"
+        }
+      }
+    },
+    {
+      "input": "testing/regression/eigenmode_sources/loss_comparison/lossy/lossy.in",
+      "command": "python -m gprMax testing/regression/eigenmode_sources/loss_comparison/lossy/lossy.in -gpu 0 --hide-progress-bars",
+      "exit_code": 0,
+      "wall_seconds": 13.7567425,
+      "csv": "testing/regression/eigenmode_sources/loss_comparison/lossy/lossy_sparameters.csv",
+      "csv_sha256": "82ad431aa69b1dfcc2c99aa1141525306a6bdea14cc700cf8cfa97384203fe03",
+      "output": "testing/regression/eigenmode_sources/loss_comparison/lossy/lossy.h5",
+      "output_sha256": "e9d490ca24dbb10f849f0d354ee6ce4d1e721284ddd7ae9ea3dfda332647dcb5",
+      "s21_valid_power_bins": 126,
+      "s21_total_bins": 126,
+      "s21_mean_db": -6.126875521644713,
+      "s21_mean_absolute_db": 6.126875521644713,
+      "ports": {
+        "port1": {
+          "anchor_operator_neff_shape": [
+            12,
+            1
+          ],
+          "beta_shape": [
+            126,
+            1
+          ],
+          "beta_units": "rad/m"
+        },
+        "port2": {
+          "anchor_operator_neff_shape": [
+            12,
+            1
+          ],
+          "beta_shape": [
+            126,
+            1
+          ],
+          "beta_units": "rad/m"
+        }
+      }
+    },
+    {
+      "input": "testing/regression/eigenmode_sources/loss_comparison/nonlossy/nonlossy.in",
+      "command": "python -m gprMax testing/regression/eigenmode_sources/loss_comparison/nonlossy/nonlossy.in -gpu 0 --hide-progress-bars",
+      "exit_code": 0,
+      "wall_seconds": 13.632304,
+      "csv": "testing/regression/eigenmode_sources/loss_comparison/nonlossy/nonlossy_sparameters.csv",
+      "csv_sha256": "eeb78ce01ec91c38506a307dc412ac55e873215c81791f61c7c64bdca293fd43",
+      "output": "testing/regression/eigenmode_sources/loss_comparison/nonlossy/nonlossy.h5",
+      "output_sha256": "5c23d394e729ee9d358d3a6635063513acf8697f49d291746d334377f007d83a",
+      "s21_valid_power_bins": 126,
+      "s21_total_bins": 126,
+      "s21_mean_db": -0.0019648276195275973,
+      "s21_mean_absolute_db": 0.0020622066451742574,
+      "ports": {
+        "port1": {
+          "anchor_operator_neff_shape": [
+            12,
+            1
+          ],
+          "beta_shape": [
+            126,
+            1
+          ],
+          "beta_units": "rad/m"
+        },
+        "port2": {
+          "anchor_operator_neff_shape": [
+            12,
+            1
+          ],
+          "beta_shape": [
+            126,
+            1
+          ],
+          "beta_units": "rad/m"
+        }
+      }
+    },
+    {
+      "input": "testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff.in",
+      "command": "python -m gprMax testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff.in -gpu 0 --hide-progress-bars",
+      "exit_code": 0,
+      "wall_seconds": 49.8428217,
+      "csv": "testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff_sparameters.csv",
+      "csv_sha256": "eb6ccda1c80486328510441412ef38e1837fd09e1922b1c160d0fe90ae2a9e9a",
+      "output": "testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff.h5",
+      "output_sha256": "8143c427034f0f6ce79ffe487d7ea26829118dd1d500b2ae7d36b91fde36b945",
+      "s21_valid_power_bins": 93,
+      "s21_total_bins": 100,
+      "s21_mean_db": 0.001354947221785864,
+      "s21_mean_absolute_db": 0.033855880744585024,
+      "ports": {
+        "port1": {
+          "anchor_operator_neff_shape": [
+            38,
+            1
+          ],
+          "beta_shape": [
+            100,
+            1
+          ],
+          "beta_units": "rad/m"
+        },
+        "port2": {
+          "anchor_operator_neff_shape": [
+            38,
+            1
+          ],
+          "beta_shape": [
+            100,
+            1
+          ],
+          "beta_units": "rad/m"
+        }
+      }
+    }
+  ],
+  "partial_cutoff": {
+    "max_magnitude_error_db": 0.35323336857612375,
+    "max_circular_phase_error_deg": 2.1454091676391522,
+    "magnitude_limit_db": 0.45,
+    "phase_limit_deg": 3.0,
+    "all_coefficient_valid": true,
+    "power_valid_above_cutoff_only": true
+  },
+  "diagnostic_and_light_speed_follow_up": {
+    "passed": 149,
+    "seconds": 0.76,
+    "command": "python -m pytest -q --basetemp .pytest_cache/iq-diagnostics-c-consistency tests/test_eigenmode_source_broadband.py tests/test_eigenmode_ports.py tests/test_eigenmode_numerical_dispersion.py",
+    "source_sha256": {
+      "gprMax/sources.py": "5cbf1160c7c76850644195b24ea1d6fce81b75c88571daaf1cbfb61d8f0dc1e7",
+      "gprMax/eigenmode_ports.py": "04ee2a30e797daf479ee03bd01926e52e9e5808e99ed4f1e69610a87eef838f3"
+    },
+    "note": "GPU measurements and their source hashes above precede the diagnostic/light-speed consistency follow-up."
+  }
+}

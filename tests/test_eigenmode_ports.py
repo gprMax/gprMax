@@ -35,6 +35,242 @@ from gprMax.ports import evaluate_port_power_spectrum
 from gprMax.sources import EigenmodeSource
 
 
+def _dispersion_monitor(monkeypatch, frequencies, operator_indices, *, bins=None, speed=None):
+    """A one-cell TEM reference with an independently evaluated Yee phase."""
+    speed = config.c if speed is None else speed
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            dtypes={"float_or_double": np.float64, "complex": np.complex128},
+            em_consts={"z0": 1.0, "c": speed},
+        ),
+    )
+    owner = SimpleNamespace(
+        transverse_axes=(1, 2),
+        invariant_axis=None,
+        normal_axis=0,
+        normal="x",
+        direction="+",
+        plane_index=2,
+        requested_anchor_policy="explicit",
+        resolved_anchor_policy="explicit",
+        _linear_anchor_weights=EigenmodeSource._linear_anchor_weights,
+        _transverse_cell_shape=lambda: (1, 1),
+        _modal_cross_power=lambda electric, magnetic, grid: 0.5
+        * np.sum(electric[1] * np.conj(magnetic[2])),
+        _average_to_transverse_cells=lambda values, component: values,
+        _modal_basis_handedness=lambda: 1,
+    )
+    grid = SimpleNamespace(dt=6e-12, dl=np.array([5e-3, 1.0, 1.0]), eigenmodeports=[])
+    frequencies = np.asarray(frequencies, dtype=np.float64)
+    operator_indices = np.asarray(operator_indices, dtype=np.complex128)
+    omega = 2 * np.pi * frequencies
+    discrete_omega = 2 * np.sin(omega * grid.dt / 2) / grid.dt
+    beta = 2 * np.arcsin(discrete_omega / speed * operator_indices * grid.dl[0] / 2)
+    beta /= grid.dl[0]
+    beta = np.where(operator_indices.imag == 0, beta.real - 1j * np.abs(beta.imag), beta)
+    zero = np.zeros((1, 1), dtype=np.complex128)
+    one = np.full((1, 1), np.sqrt(2.0), dtype=np.complex128)
+    bins = np.asarray([10e9] if bins is None else bins, dtype=np.float64)
+    monitor = EigenmodePortMonitor(
+        owner=owner,
+        port_index=1,
+        port_id="dispersion",
+        is_source=False,
+        excitation_mode_index=None,
+        mode_indices=(1,),
+        anchor_frequencies=frequencies,
+        anchor_e=[[[zero, one, zero]] for _ in frequencies],
+        anchor_h=[[[zero, zero, one]] for _ in frequencies],
+        anchor_neff=(beta * speed / omega)[:, None],
+        anchor_operator_neff=operator_indices[:, None],
+        dft_start=bins[0],
+        dft_stop=bins[-1],
+        dft_points=bins.size,
+        dft_frequencies=bins,
+    )
+    return monitor, grid
+
+
+@pytest.mark.parametrize("operator_index", (1.0, -1.0, 1.0 - 0.1j))
+def test_monitor_interpolates_operator_before_yee_phase_inversion(monkeypatch, operator_index):
+    monitor, grid = _dispersion_monitor(
+        monkeypatch, [8e9, 12e9], [operator_index, operator_index], bins=[8e9, 10e9, 12e9]
+    )
+    monitor.prepare(grid)
+
+    omega = 2 * np.pi * monitor.frequency
+    symbol = np.sin(omega * grid.dt / 2) * grid.dl[0] / (config.c * grid.dt)
+    beta = 2 * np.arcsin(symbol * operator_index + 0j) / grid.dl[0]
+    np.testing.assert_allclose(monitor.beta[:, 0], beta, rtol=2e-14)
+    np.testing.assert_allclose(monitor.neff[:, 0], beta * config.c / omega, rtol=2e-14)
+    np.testing.assert_allclose(monitor.neff[[0, 2], 0], monitor.anchor_neff[:, 0])
+    # The old phase-index interpolation introduces curvature error even for
+    # this exactly constant TEM operator index.
+    old_beta = omega[1] / config.c * np.mean(monitor.anchor_neff[:, 0])
+    assert abs(old_beta - beta[1]) > 0.1
+
+    incident, outgoing = 0.8 + 0.35j, -0.2 + 0.1j
+    offset = monitor.magnetic_side * grid.dl[0] / 2
+    for index in range(monitor.frequency.size):
+        monitor.electric_dft[index] = monitor.electric_gram[index] @ [incident + outgoing]
+        magnetic = (
+            incident * np.exp(-1j * beta[index] * offset)
+            - outgoing * np.exp(1j * beta[index] * offset)
+        )
+        monitor.magnetic_dft[index] = monitor.magnetic_gram[index] @ [magnetic]
+    result = monitor.finalise(grid)
+    np.testing.assert_allclose(result.incident, incident, atol=1e-13)
+    np.testing.assert_allclose(result.outgoing, outgoing, atol=1e-13)
+    assert np.all(result.power_wave_valid)
+
+
+@pytest.mark.parametrize("single_anchor", (False, True))
+def test_monitor_preserves_legacy_and_one_anchor_phase_index(monkeypatch, single_anchor):
+    frequencies = [8e9] if single_anchor else [8e9, 12e9]
+    monitor, grid = _dispersion_monitor(monkeypatch, frequencies, np.ones(len(frequencies)))
+    if not single_anchor:
+        monitor.anchor_operator_neff = None
+    expected_neff = np.mean(monitor.anchor_neff[:, 0])
+
+    monitor.prepare(grid)
+
+    assert monitor.neff[0, 0] == pytest.approx(expected_neff)
+    assert monitor.beta[0, 0] == pytest.approx(2 * np.pi * 10e9 * expected_neff / config.c)
+    assert monitor.power_basis_valid[0, 0]
+
+
+@pytest.mark.parametrize("legacy_finalise", (False, True))
+def test_monitor_uses_configured_light_speed_for_phase_and_decomposition(
+    monkeypatch, legacy_finalise
+):
+    speed = 0.8 * config.c
+    monitor, grid = _dispersion_monitor(
+        monkeypatch, [8e9, 12e9], [1.0, 1.0], speed=speed
+    )
+    monitor.prepare(grid)
+
+    omega = 2 * np.pi * 10e9
+    symbol = np.sin(omega * grid.dt / 2) * grid.dl[0] / (speed * grid.dt)
+    beta = 2 * np.arcsin(symbol) / grid.dl[0]
+    assert monitor.beta[0, 0] == pytest.approx(beta)
+    assert monitor.neff[0, 0] == pytest.approx(beta * speed / omega)
+    if legacy_finalise:
+        # Older downstream monitors have phase indices but no stored beta.
+        del monitor.beta
+
+    incident, outgoing = 0.8 + 0.35j, -0.2 + 0.1j
+    offset = monitor.magnetic_side * grid.dl[0] / 2
+    monitor.electric_dft[0] = monitor.electric_gram[0] @ [incident + outgoing]
+    monitor.magnetic_dft[0] = monitor.magnetic_gram[0] @ [
+        incident * np.exp(-1j * beta * offset) - outgoing * np.exp(1j * beta * offset)
+    ]
+    result = monitor.finalise(grid)
+
+    assert result.power_wave_valid[0, 0]
+    assert result.incident[0, 0] == pytest.approx(incident)
+    assert result.outgoing[0, 0] == pytest.approx(outgoing)
+
+
+def test_monitor_stop_band_keeps_selected_fields_and_generalized_coefficients(monkeypatch):
+    monitor, grid = _dispersion_monitor(
+        monkeypatch, [4e9, 8e9, 12e9], [-0.5j, 2.35, 1.6], bins=[4e9, 10e9]
+    )
+    zero = np.zeros((1, 1), dtype=np.complex128)
+    for index, (electric, magnetic) in enumerate(((1.0, 0.05j), (1.0, 1.0), (3.0, 2.0))):
+        monitor.anchor_e[index] = [[zero, np.full((1, 1), electric), zero]]
+        monitor.anchor_h[index] = [[zero, zero, np.full((1, 1), magnetic)]]
+    monitor.anchor_mode_valid[:, 0] = [False, True, True]
+    monitor.anchor_mode_propagating[:, 0] = [False, True, True]
+    monitor._anchor_mode_propagating_explicit = True
+    monitor.anchor_balanced_power[:, 0] = [1.0, 10.0, 1000.0]
+
+    monitor.prepare(grid)
+
+    assert not np.any(monitor.power_basis_valid)
+    # The physical-cutoff reference still uses its own reactive H/E ratio.
+    assert monitor.hv[0, 0, 0, 0] / monitor.eu[0, 0, 0, 0] == pytest.approx(0.05j)
+    # The newly unresolved midpoint keeps E=2, H=1.5 from the propagating
+    # bank. Re-selecting the evanescent bank or rescaling anchors changes it.
+    assert monitor.eu[1, 0, 0, 0] == pytest.approx(1.6)
+    assert monitor.hv[1, 0, 0, 0] == pytest.approx(1.2)
+    symbol = (
+        np.sin(np.pi * 10e9 * grid.dt)
+        * grid.dl[0]
+        / (config.c * grid.dt)
+        * ((2.35 + 1.6) / 2)
+    )
+    assert symbol > 1
+    expected_beta = 2 * np.arcsin(complex(symbol)) / grid.dl[0]
+    expected_beta = expected_beta.real - 1j * abs(expected_beta.imag)
+    assert monitor.beta[1, 0] == pytest.approx(expected_beta)
+
+    incident, outgoing = 0.7 + 0.2j, -0.1 + 0.3j
+    offset = monitor.magnetic_side * grid.dl[0] / 2
+    for index in range(2):
+        beta = monitor.beta[index, 0]
+        monitor.electric_dft[index] = monitor.electric_gram[index] @ [incident + outgoing]
+        monitor.magnetic_dft[index] = monitor.magnetic_gram[index] @ [
+            incident * np.exp(-1j * beta * offset) - outgoing * np.exp(1j * beta * offset)
+        ]
+    result = monitor.finalise(grid)
+    assert np.all(result.coefficient_valid)
+    assert not np.any(result.power_wave_valid)
+    np.testing.assert_allclose(result.incident, incident, atol=1e-13)
+    np.testing.assert_allclose(result.outgoing, outgoing, atol=1e-13)
+
+
+def test_monitor_maps_only_the_selected_evanescent_reference_branch(monkeypatch):
+    monitor, grid = _dispersion_monitor(
+        monkeypatch, [4e9, 6e9, 8e9, 12e9], [-0.5j, -0.3j, 1.0, 1.0], bins=[5e9]
+    )
+    monitor.anchor_mode_valid[:, 0] = [False, False, True, True]
+    monitor.anchor_mode_propagating[:, 0] = [False, False, True, True]
+    monitor._anchor_mode_propagating_explicit = True
+    for index, admittance in enumerate((-0.5j, -0.3j, 1.0, 1.0)):
+        electric = monitor.anchor_e[index][0][1]
+        monitor.anchor_h[index][0][2] = electric * admittance
+
+    monitor.prepare(grid)
+
+    symbol = np.sin(np.pi * 5e9 * grid.dt) * grid.dl[0] / (config.c * grid.dt)
+    expected_beta = 2 * np.arcsin(symbol * -0.4j) / grid.dl[0]
+    assert monitor.beta[0, 0] == pytest.approx(expected_beta)
+    assert monitor.hv[0, 0, 0, 0] / monitor.eu[0, 0, 0, 0] == pytest.approx(-0.4j)
+    assert monitor.reference_basis_valid[0, 0]
+    assert not monitor.power_basis_valid[0, 0]
+
+
+def test_monitor_keeps_constant_phase_when_power_bank_is_trimmed_to_one_anchor(monkeypatch):
+    monitor, grid = _dispersion_monitor(
+        monkeypatch, [4e9, 8e9, 12e9], [-0.5j, 1.0, 1.0]
+    )
+    monitor.anchor_mode_valid[:, 0] = [False, True, False]
+    monitor.anchor_mode_reference_valid[:, 0] = [True, True, False]
+    monitor.anchor_mode_propagating[:, 0] = [False, True, True]
+    monitor._anchor_mode_propagating_explicit = True
+
+    monitor.prepare(grid)
+
+    assert monitor.neff[0, 0] == pytest.approx(monitor.anchor_neff[1, 0])
+    assert monitor.power_basis_valid[0, 0]
+
+
+def test_monitor_writes_operator_anchors_and_actual_bin_beta(monkeypatch, tmp_path):
+    monitor, grid = _dispersion_monitor(monkeypatch, [8e9, 12e9], [1.0, 1.0])
+    monitor.prepare(grid)
+    monitor.finalise(grid)
+
+    with h5py.File(tmp_path / "dispersion.h5", "w") as output:
+        monitor.write_hdf5(output)
+        group = output["eigenmode_ports/port1"]
+        np.testing.assert_array_equal(group["anchor_operator_neff"], monitor.anchor_operator_neff)
+        np.testing.assert_array_equal(group["anchor_complex_neff"], monitor.anchor_neff)
+        np.testing.assert_array_equal(group["beta"], monitor.beta)
+        assert group["beta"].attrs["Units"] == "rad/m"
+
+
 @pytest.mark.parametrize(
     ("real_dtype", "complex_dtype"),
     ((np.float32, np.complex64), (np.float64, np.complex128)),

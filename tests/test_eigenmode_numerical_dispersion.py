@@ -174,19 +174,106 @@ def test_conductive_material_slice_satisfies_harmonic_yee_update(monkeypatch, el
         )
 
 
-def test_dispersive_poles_are_sampled_at_physical_frequency():
-    source, grid = _source_grid()
-    material = DispersiveMaterial(0, "debye")
-    material.type = "debye"
+@pytest.fixture(params=("debye", "lorentz", "drude", "inclusive"))
+def dispersive_material(request):
+    material = DispersiveMaterial(0, request.param)
+    material.type = request.param
     material.er = 2.0
-    material.se = 0.02
     material.poles = 1
-    material.deltaer = [4.0]
-    material.tau = [8e-12]
+    if request.param == "debye":
+        material.deltaer = [4.0]
+        material.tau = [8e-12]
+    elif request.param == "lorentz":
+        material.deltaer = [3.0]
+        material.tau = [15e9]
+        material.alpha = [8e9]
+    elif request.param == "drude":
+        material.tau = [25e9]
+        material.alpha = [10e9]
+    else:
+        # Mixed Debye/Drude representation. Its constant conductivity must
+        # stay paired with the analytic Drude pole in this partial fix.
+        plasma_omega = 2 * np.pi * 25e9
+        material.poles = 2
+        material.inclusive_w = [4.0 / 8e-12, -(plasma_omega**2 / 10e9)]
+        material.inclusive_q = [-1.0 / 8e-12, -10e9]
+        material.inclusive_conductivity = config.e0 * plasma_omega**2 / 10e9
+    return material
 
-    sampled = source._complex_er(material, fdtd_dt=grid.dt)
 
-    assert sampled == pytest.approx(material.calculate_er(source.frequency), rel=1e-14)
+@pytest.mark.parametrize("mpi", (False, True))
+def test_dispersive_static_conductivity_matches_harmonic_yee_increment(
+    monkeypatch, dispersive_material, mpi
+):
+    source, grid = _source_grid()
+    material = dispersive_material
+    grid.materials[0] = material
+    grid.ID.fill(material.numID)
+    monkeypatch.setattr(
+        config,
+        "get_model_config",
+        lambda: SimpleNamespace(
+            materials={"maxpoles": material.poles, "dispersivedtype": np.complex128}
+        ),
+    )
+    if mpi:
+        monkeypatch.setitem(sys.modules, "mpi4py", SimpleNamespace(MPI=SimpleNamespace(SUM=object())))
+        grid.global_size = grid.ID.shape[1:]
+        grid.rank = 0
+        grid.get_rank_from_coordinate = lambda coordinate: 0
+        grid.global_to_local_coordinate = lambda coordinate: coordinate
+        grid.comm = SimpleNamespace(Allreduce=lambda local, total, op: np.copyto(total, local))
+        source.global_plane_index = source.plane_index
+        source.global_transverse_start = source.transverse_start.copy()
+
+    theta = 2 * np.pi * source.frequency * grid.dt
+    discrete_omega = 2 * np.sin(theta / 2) / grid.dt
+
+    def required_curl():
+        material.calculate_update_coeffsE(grid)
+        return (
+            np.exp(0.5j * theta) - material.CA * np.exp(-0.5j * theta)
+        ) / material.srce
+
+    baseline = source._extract_local_complex_property_tensors(grid, electric=True)
+    # Pole and inclusive-conductivity responses remain physical-frequency
+    # values; only the independent static conductivity is compensated.
+    for tensor in baseline:
+        np.testing.assert_allclose(tensor, material.calculate_er(source.frequency), rtol=1e-14)
+    baseline_curl = required_curl()
+    material.se = 0.2
+    conductive = source._extract_local_complex_property_tensors(grid, electric=True)
+    # Pole-state feedback is unchanged by se, so subtracting the two updates
+    # isolates the exact static-conductivity contribution to the curl.
+    curl_increment = required_curl() - baseline_curl
+    for original, updated in zip(baseline, conductive):
+        np.testing.assert_allclose(
+            1j * discrete_omega * config.e0 * (updated - original),
+            curl_increment,
+            rtol=2e-13,
+            atol=2e-14,
+        )
+    assert material.se == 0.2
+
+
+def test_dispersive_response_without_timestep_is_unchanged(dispersive_material):
+    source, _ = _source_grid()
+    dispersive_material.se = 0.2
+
+    assert source._complex_er(dispersive_material) == dispersive_material.calculate_er(source.frequency)
+
+
+@pytest.mark.parametrize("fdtd_dt", (None, 1.5e-12))
+def test_dispersive_pec_is_masked_before_sampling(monkeypatch, dispersive_material, fdtd_dt):
+    source, _ = _source_grid()
+    dispersive_material.se = np.inf
+
+    def unexpected_sampling(frequency):
+        raise AssertionError("PEC must not evaluate an infinite conductive response")
+
+    monkeypatch.setattr(dispersive_material, "calculate_er", unexpected_sampling)
+
+    assert source._complex_er(dispersive_material, fdtd_dt) == source.FDFD_PEC_PROPERTY
 
 
 def test_source_surface_row_uses_same_discrete_frequency_as_bulk_curls():

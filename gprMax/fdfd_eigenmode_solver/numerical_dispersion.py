@@ -51,3 +51,40 @@ def spatially_resolved(wavenumber, propagation_spacing):
     symbol = 0.5 * propagation_spacing * wavenumber
     lossless = np.abs(symbol.imag) <= 1e-12 * np.maximum(1.0, np.abs(symbol))
     return ~(lossless & (np.abs(symbol.real) >= 1.0))
+
+
+def modal_propagation(
+    frequencies,
+    phase_neff,
+    *,
+    operator_neff=None,
+    fdtd_dt=None,
+    propagation_spacing=None,
+    c,
+):
+    """Map interpolated modal indices to phase beta and spatial resolution.
+
+    Frequencies and indices may be broadcastable arrays. Unlike a modal
+    solve, sampling a DFT allows DC and temporal Nyquist. Callers select
+    operator interpolation only for banks with multiple retained anchors;
+    an omitted operator index preserves constant/legacy phase-index use.
+    """
+    frequencies = np.asarray(frequencies, dtype=np.float64)
+    if np.any(~np.isfinite(frequencies)) or np.any(frequencies < 0):
+        raise ValueError("Modal frequencies must be finite and nonnegative.")
+    c = positive_finite(c, "c")
+    omega = 2 * np.pi * frequencies
+    if operator_neff is None:
+        beta = omega * np.asarray(phase_neff, dtype=np.complex128) / c
+        return beta, np.ones(beta.shape, dtype=bool)
+
+    if fdtd_dt is not None:
+        fdtd_dt = positive_finite(fdtd_dt, "fdtd_dt")
+        if np.any(frequencies * fdtd_dt > 0.5):
+            raise ValueError("Modal frequencies must not exceed temporal Nyquist.")
+        omega = omega * np.sinc(frequencies * fdtd_dt)
+    wavenumber = omega * np.asarray(operator_neff, dtype=np.complex128) / c
+    return (
+        phase_propagation_constant(wavenumber, propagation_spacing),
+        spatially_resolved(wavenumber, propagation_spacing),
+    )

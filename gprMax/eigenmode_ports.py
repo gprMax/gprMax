@@ -24,6 +24,7 @@ from dataclasses import dataclass
 import numpy as np
 
 import gprMax.config as config
+from gprMax.fdfd_eigenmode_solver.numerical_dispersion import modal_propagation
 
 try:
     from gprMax.cython.eigenmode_dft import accumulate_eigenmode_dft
@@ -307,6 +308,7 @@ class EigenmodePortMonitor:
         anchor_balanced_power=None,
         mode_anchor_policies=None,
         dft_frequencies=None,
+        anchor_operator_neff=None,
     ):
         self.owner = owner
         self.port_index = int(port_index)
@@ -329,6 +331,11 @@ class EigenmodePortMonitor:
         self.anchor_e = anchor_e
         self.anchor_h = anchor_h
         self.anchor_neff = np.asarray(anchor_neff, dtype=np.complex128)
+        self.anchor_operator_neff = (
+            None
+            if anchor_operator_neff is None
+            else np.asarray(anchor_operator_neff, dtype=np.complex128)
+        )
         anchor_shape = (self.anchor_frequencies.size, len(self.mode_indices))
         self.anchor_mode_valid = (
             np.ones(anchor_shape, dtype=bool)
@@ -436,6 +443,14 @@ class EigenmodePortMonitor:
                     "Eigenmode port DFT frequencies must be unique and strictly increasing."
                 )
         expected_shape = (self.anchor_frequencies.size, len(self.mode_indices))
+        if self.anchor_operator_neff is not None:
+            if self.anchor_operator_neff.shape != expected_shape:
+                raise ValueError(
+                    "Eigenmode port anchor operator-index shape "
+                    f"{self.anchor_operator_neff.shape} does not match {expected_shape}."
+                )
+            if not np.all(np.isfinite(self.anchor_operator_neff)):
+                raise ValueError("Eigenmode port anchor operator indices must be finite.")
         if self.anchor_mode_valid.shape != expected_shape:
             raise ValueError(
                 "Eigenmode port anchor validity shape "
@@ -619,6 +634,11 @@ class EigenmodePortMonitor:
                 for mode_position in range(nm)
             )
         )
+        # Bank selection remains fixed if the interpolated Yee symbol later
+        # enters a spatial stop band. Such bins keep that tracked E/H branch
+        # but use balanced generalized coordinates instead of power waves.
+        uses_power_bank = self.power_basis_valid.copy()
+        operator_interpolation = np.zeros((nm, nf), dtype=bool)
         power_weights = np.zeros(
             (nm, self.anchor_frequencies.size, nf),
             dtype=np.float64,
@@ -630,6 +650,9 @@ class EigenmodePortMonitor:
         )
         for mode_position in range(nm):
             usable_anchors = np.flatnonzero(self.anchor_mode_valid[:, mode_position])
+            operator_interpolation[mode_position, uses_power_bank[mode_position]] = (
+                usable_anchors.size > 1
+            )
             power_weights[mode_position, usable_anchors] = self.owner._linear_anchor_weights(
                 self.frequency.astype(np.float64),
                 self.anchor_frequencies[usable_anchors],
@@ -647,6 +670,8 @@ class EigenmodePortMonitor:
             # the nearest endpoint of the complete tracked reference bank.
             below_candidate_range = generalized_frequencies < self.anchor_frequencies[0]
             above_candidate_range = generalized_frequencies > self.anchor_frequencies[-1]
+            exterior_bins = generalized_bins[below_candidate_range | above_candidate_range]
+            operator_interpolation[mode_position, exterior_bins] = reference_anchors.size > 1
             reference_weights[
                 mode_position,
                 reference_anchors[0],
@@ -679,6 +704,7 @@ class EigenmodePortMonitor:
                     if bins.size == 0:
                         continue
                     run_anchors = np.arange(start, stop + 1)
+                    operator_interpolation[mode_position, bins] = run_anchors.size > 1
                     reference_weights[mode_position][
                         np.ix_(run_anchors, bins)
                     ] = self.owner._linear_anchor_weights(
@@ -694,6 +720,9 @@ class EigenmodePortMonitor:
                     nominal_frequency[within_candidate_bins],
                     self.anchor_frequencies[reference_anchors],
                 )
+                operator_interpolation[mode_position, within_candidate_bins] = (
+                    reference_anchors.size > 1
+                )
             reference_anchor_scale[reference_anchors, mode_position] = 1.0 / np.sqrt(
                 self.anchor_balanced_power[reference_anchors, mode_position]
             )
@@ -704,6 +733,7 @@ class EigenmodePortMonitor:
         self.hu = np.empty(shape, dtype=complex_dtype)
         self.hv = np.empty(shape, dtype=complex_dtype)
         self.neff = np.empty((nf, nm), dtype=complex_dtype)
+        self.beta = np.empty((nf, nm), dtype=complex_dtype)
         self.reference_basis_valid = np.stack(
             tuple(
                 self._nondegenerate_reference_mask(
@@ -725,18 +755,43 @@ class EigenmodePortMonitor:
             measure *= 2.0
         em_consts = getattr(config.sim_config, "em_consts", config.SimulationConfig.em_consts)
         impedance = float(em_consts["z0"])
+        speed = float(em_consts.get("c", config.SimulationConfig.em_consts["c"]))
 
         for frequency_index in range(nf):
             for mode_position in range(nm):
-                uses_power_basis = bool(self.power_basis_valid[mode_position, frequency_index])
+                from_power_bank = bool(uses_power_bank[mode_position, frequency_index])
                 mode_weights = (
                     power_weights[mode_position]
-                    if uses_power_basis
+                    if from_power_bank
                     else reference_weights[mode_position]
                 )
+                weights = mode_weights[:, frequency_index]
+                phase_neff = np.sum(weights * self.anchor_neff[:, mode_position])
+                operator_neff = None
+                if (
+                    self.anchor_operator_neff is not None
+                    and operator_interpolation[mode_position, frequency_index]
+                ):
+                    operator_neff = np.sum(
+                        weights * self.anchor_operator_neff[:, mode_position]
+                    )
+                beta, resolved = modal_propagation(
+                    float(self.frequency[frequency_index]),
+                    phase_neff,
+                    operator_neff=operator_neff,
+                    fdtd_dt=grid.dt,
+                    propagation_spacing=grid.dl[self.owner.normal_axis],
+                    c=speed,
+                )
+                self.beta[frequency_index, mode_position] = beta
+                self.neff[frequency_index, mode_position] = (
+                    beta * speed / (2 * np.pi * float(self.frequency[frequency_index]))
+                )
+                self.power_basis_valid[mode_position, frequency_index] &= bool(resolved)
+                uses_power_basis = bool(self.power_basis_valid[mode_position, frequency_index])
                 anchor_scale = (
                     np.ones(self.anchor_frequencies.size, dtype=np.float64)
-                    if uses_power_basis
+                    if from_power_bank
                     else reference_anchor_scale[:, mode_position]
                 )
                 electric = []
@@ -806,9 +861,6 @@ class EigenmodePortMonitor:
                 self.ev[frequency_index, mode_position] = ev
                 self.hu[frequency_index, mode_position] = hu
                 self.hv[frequency_index, mode_position] = hv
-                self.neff[frequency_index, mode_position] = np.sum(
-                    mode_weights[:, frequency_index] * self.anchor_neff[:, mode_position]
-                )
 
         self.eu = np.ascontiguousarray(self.eu)
         self.ev = np.ascontiguousarray(self.ev)
@@ -978,7 +1030,12 @@ class EigenmodePortMonitor:
         reference_basis_valid = np.asarray(self.reference_basis_valid, dtype=bool)
         power_wave_valid = np.asarray(self.power_basis_valid, dtype=bool)
         magnetic_offset = self.magnetic_side * 0.5 * grid.dl[self.owner.normal_axis]
-        beta = 2 * np.pi * self.frequency[:, np.newaxis] * self.neff / config.c
+        beta = getattr(self, "beta", None)
+        if beta is None:
+            # Compatibility for downstream monitors assembled without prepare().
+            em_consts = getattr(config.sim_config, "em_consts", config.SimulationConfig.em_consts)
+            speed = float(em_consts.get("c", config.SimulationConfig.em_consts["c"]))
+            beta = 2 * np.pi * self.frequency[:, np.newaxis] * self.neff / speed
         forward_phase = np.exp(-1j * beta * magnetic_offset)
         backward_phase = np.exp(1j * beta * magnetic_offset)
 
@@ -1117,6 +1174,11 @@ class EigenmodePortMonitor:
         # FDTD mismatch from the cross-section discretisation error relative
         # to a continuum guide formula.
         group["anchor_complex_neff"] = self.anchor_neff
+        if getattr(self, "anchor_operator_neff", None) is not None:
+            group["anchor_operator_neff"] = self.anchor_operator_neff
+        if getattr(self, "beta", None) is not None:
+            group["beta"] = self.beta
+            group["beta"].attrs["Units"] = "rad/m"
         group["power_matrix_valid"] = self.power_matrix_valid.astype(np.uint8)
         if self.s_parameters is not None:
             group["S"] = self.s_parameters

@@ -26,7 +26,10 @@ import gprMax.config as config
 from gprMax.eigenmode_plotting import plot_eigenmode_excitation, plot_eigenmode_port_fields
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
-from gprMax.fdfd_eigenmode_solver.numerical_dispersion import discrete_angular_frequency
+from gprMax.fdfd_eigenmode_solver.numerical_dispersion import (
+    discrete_angular_frequency,
+    modal_propagation,
+)
 from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     BoundaryAmpereRow,
     BoundaryMagneticTerm,
@@ -327,6 +330,7 @@ class EigenmodeSource(Source):
         self.anchor_modal_e = None
         self.anchor_modal_h = None
         self.anchor_complex_neff = None
+        self.anchor_operator_neff = None
         self.anchor_overlaps = None
         # Rectangular candidate-anchor bank used by the modal monitor.  The
         # excitation fields above may be a per-mode subset of this bank.
@@ -334,6 +338,7 @@ class EigenmodeSource(Source):
         self.port_anchor_e = None
         self.port_anchor_h = None
         self.port_anchor_neff = None
+        self.port_anchor_operator_neff = None
         self.port_anchor_mode_valid = None
         self.port_anchor_mode_reference_valid = None
         self.port_anchor_mode_propagating = None
@@ -353,6 +358,7 @@ class EigenmodeSource(Source):
         self.complex_profile_phase = None
         self.complex_profile_residual = None
         self.uses_quadrature = False
+        self.single_frequency_iq_reasons = ()
         # None selects the default policy: write modal-field plots for a
         # geometry-only build, but not for a normal simulation. True and False
         # explicitly override that policy.
@@ -458,6 +464,7 @@ class EigenmodeSource(Source):
         self.start = 0
         self.stop = G.timewindow
         self.uses_quadrature = False
+        self.single_frequency_iq_reasons = ()
         self.broadband_e_envelopes = None
         self.broadband_h_envelopes = None
         self.broadband_modal_e_real = None
@@ -490,6 +497,11 @@ class EigenmodeSource(Source):
         self.anchor_complex_neff = np.asarray(
             [self.port_anchor_neff[index, mode_position] for index in used],
             dtype=np.complex128,
+        )
+        self.anchor_operator_neff = (
+            None
+            if self.port_anchor_operator_neff is None
+            else self.port_anchor_operator_neff[used, mode_position].copy()
         )
         self.mode_solvers = [self.port_mode_solvers[index] for index in used]
 
@@ -548,6 +560,7 @@ class EigenmodeSource(Source):
         self.anchor_modal_e = None
         self.anchor_modal_h = None
         self.anchor_complex_neff = None
+        self.anchor_operator_neff = None
         self.anchor_overlaps = None
         self._extract_frequency_dependent_materials(G)
         self._solve_eigenmode(G)
@@ -594,6 +607,7 @@ class EigenmodeSource(Source):
             anchor_e=self.port_anchor_e,
             anchor_h=self.port_anchor_h,
             anchor_neff=self.port_anchor_neff,
+            anchor_operator_neff=self.port_anchor_operator_neff,
             dft_start=self.dft_start,
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,
@@ -679,11 +693,17 @@ class EigenmodeSource(Source):
         half_cell_phase = 0.5 * beta * G.dl[self.normal_axis]
         stagger_tolerance = 64 * np.finfo(float).eps * max(1.0, abs(half_cell_phase))
         requires_complex_stagger = abs(half_cell_phase.imag) > stagger_tolerance
-        if (
-            residual <= self.COMPLEX_PROFILE_TOLERANCE
-            and not self._drive_requires_quadrature()
-            and not requires_complex_stagger
-        ):
+        reasons = []
+        if residual > self.COMPLEX_PROFILE_TOLERANCE:
+            reasons.append("complex modal profile")
+        if self._drive_requires_quadrature():
+            reasons.append("drive phase/delay")
+        if requires_complex_stagger:
+            reasons.append("complex longitudinal staggering")
+        # A negative real beta is handled by the signed real-only time shift;
+        # its sign is not itself a reason to require I/Q synthesis.
+        self.single_frequency_iq_reasons = tuple(reasons)
+        if not reasons:
             if self.mpi_coordinator:
                 logger.info(
                     "Single-frequency eigenmode tangential complex-profile residual "
@@ -704,7 +724,8 @@ class EigenmodeSource(Source):
         if self.mpi_coordinator:
             logger.info(
                 "Single-frequency eigenmode tangential complex-profile residual "
-                f"is {residual:.3e}; using in-phase/quadrature injection."
+                f"is {residual:.3e}; using in-phase/quadrature injection "
+                f"(reasons: {', '.join(self.single_frequency_iq_reasons)})."
             )
         self._prepare_broadband_time_traces(
             G,
@@ -1087,6 +1108,20 @@ class EigenmodeSource(Source):
         self.port_anchor_e = anchor_e
         self.port_anchor_h = anchor_h
         self.port_anchor_neff = np.asarray(anchor_neff, dtype=np.complex128)
+        # A downstream solver without operator metadata retains the complete
+        # legacy interpolation path; physical indices cannot identify which
+        # temporal/spatial convention that solver used.
+        self.port_anchor_operator_neff = (
+            np.asarray(
+                [
+                    [solver.operator_neff[mode_index - 1] for mode_index in mode_indices]
+                    for solver in solvers
+                ],
+                dtype=np.complex128,
+            )
+            if all(getattr(solver, "operator_neff", None) is not None for solver in solvers)
+            else None
+        )
         self.port_anchor_mode_valid = valid
         self.port_anchor_mode_reference_valid = reference_valid
         self.port_anchor_mode_propagating = propagating
@@ -1351,6 +1386,11 @@ class EigenmodeSource(Source):
         self.anchor_complex_neff = np.asarray(
             [self.port_anchor_neff[index, excitation_position] for index in used],
             dtype=np.complex128,
+        )
+        self.anchor_operator_neff = (
+            None
+            if self.port_anchor_operator_neff is None
+            else self.port_anchor_operator_neff[used, excitation_position].copy()
         )
         self.mode_solvers = [solvers[index] for index in used]
         excitation_policy = policies[excitation_position]
@@ -1918,6 +1958,38 @@ class EigenmodeSource(Source):
                 "do not form a partition of unity."
             )
         anchor_count = len(frequencies)
+        omega = 2 * np.pi * bin_frequencies
+        normal_spacing = G.dl[self.normal_axis]
+        interpolated_neff = np.einsum("kn,k->n", weights, self.anchor_complex_neff, optimize=True)
+        operator_neff = None
+        if not single_frequency_iq and anchor_count > 1 and self.anchor_operator_neff is not None:
+            operator_neff = np.einsum("kn,k->n", weights, self.anchor_operator_neff, optimize=True)
+        # Self-conjugate endpoints were discarded above. Invert the spatial
+        # symbol only at the positive-frequency bins used for synthesis.
+        usable_bins = (bin_frequencies > 0) & (bin_frequencies < 0.5 / G.dt)
+        beta = np.zeros(bin_frequencies.shape, dtype=np.complex128)
+        beta[usable_bins], resolved = modal_propagation(
+            bin_frequencies[usable_bins],
+            interpolated_neff[usable_bins],
+            operator_neff=None if operator_neff is None else operator_neff[usable_bins],
+            fdtd_dt=G.dt,
+            propagation_spacing=normal_spacing,
+            c=config.sim_config.em_consts["c"],
+        )
+        unresolved = np.zeros(bin_frequencies.shape, dtype=bool)
+        unresolved[usable_bins] = ~resolved
+        if np.any(unresolved & significant):
+            bad_frequency = float(bin_frequencies[np.flatnonzero(unresolved & significant)[0]])
+            raise ValueError(
+                "Broadband eigenmode source has significant waveform energy in the "
+                f"longitudinal spatial stop band at {bad_frequency:g} Hz. Refine the "
+                "normal grid spacing or narrow the excitation bandwidth."
+            )
+        # FFT roundoff and sub-threshold tails may reach the grid stop band
+        # during endpoint extrapolation. Preserve input_spectrum so the
+        # reconstruction diagnostic includes the effect of discarding them.
+        spectrum[unresolved] = 0
+        spectrum_magnitude = np.abs(spectrum)
         power_matrix = np.empty((anchor_count, anchor_count), dtype=np.complex128)
         for e_index in range(anchor_count):
             for h_index in range(anchor_count):
@@ -1949,10 +2021,6 @@ class EigenmodeSource(Source):
 
         normalization = np.zeros_like(interpolated_power)
         normalization[injected_bins] = 1.0 / np.sqrt(interpolated_power[injected_bins])
-        omega = 2 * np.pi * bin_frequencies
-        interpolated_neff = np.einsum("kn,k->n", weights, self.anchor_complex_neff, optimize=True)
-        beta = omega * interpolated_neff / config.sim_config.em_consts["c"]
-        normal_spacing = G.dl[self.normal_axis]
         magnetic_phase = self._magnetic_stagger_factor(omega, beta, G.dt, normal_spacing)
 
         drive_factor = self._drive_spectral_factor(bin_frequencies)
@@ -2364,17 +2432,26 @@ class EigenmodeSource(Source):
         return mask.astype(bool)
 
     def _complex_er(self, material, fdtd_dt=None):
+        conductivity = getattr(material, "se", 0)
+        if conductivity == float("inf"):
+            return self.FDFD_PEC_PROPERTY
         if hasattr(material, "calculate_er") and material.__class__.__name__ != "Material":
             # Pole responses remain evaluated at the physical frequency.
             # Matching their recursive FDTD constitutive update is separate
             # from compensation of the Maxwell time/space differences.
             er = material.calculate_er(self.frequency)
+            if conductivity != 0 and fdtd_dt is not None:
+                # calculate_er already includes physical static conductivity.
+                # Replace only that term; inclusive conductivity belongs to
+                # the analytic Drude pole representation and stays with it.
+                physical_factor = 1 / (2 * np.pi * self.frequency)
+                er = er - 1j * conductivity * (
+                    self._conductivity_frequency_factor(fdtd_dt) - physical_factor
+                ) / config.e0
         else:
             er = material.er
-            if getattr(material, "se", 0) not in [0, float("inf")]:
-                er = er - 1j * material.se * self._conductivity_frequency_factor(fdtd_dt) / config.e0
-        if getattr(material, "se", 0) == float("inf"):
-            er = self.FDFD_PEC_PROPERTY
+            if conductivity != 0:
+                er = er - 1j * conductivity * self._conductivity_frequency_factor(fdtd_dt) / config.e0
         return er
 
     def _complex_mur(self, material, fdtd_dt=None):
@@ -2730,6 +2807,7 @@ class EigenmodeReceiver(EigenmodeSource):
             anchor_e=self.port_anchor_e,
             anchor_h=self.port_anchor_h,
             anchor_neff=self.port_anchor_neff,
+            anchor_operator_neff=self.port_anchor_operator_neff,
             dft_start=self.dft_start,
             dft_stop=self.dft_stop,
             dft_points=self.dft_points,

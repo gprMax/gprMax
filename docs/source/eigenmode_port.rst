@@ -686,12 +686,167 @@ be inaccurate if the physical setup or its numerical resolution is poor.
 Complete matrices with EigenmodeStudy
 -------------------------------------
 
-Add exactly one excitation object to the scene and retain its Python handle.
-Build ``StudyCase`` objects whose ``ObjectState`` changes that excitation's
-``port`` and ``mode``, covering every declared channel once. Pass the resulting
-``EigenmodeStudy(cases)`` as ``study=study`` to ``gprMax.run``. Example 4
-contains the complete implementation. Later cases reset fields, PML histories,
-and DFT accumulators while reusing geometry and modal anchor solutions.
+An S-parameter matrix describes how waves entering a device produce waves
+leaving it. A **channel** is one ``(port, mode)`` pair: the port identifies a
+cross-section, and the mode identifies a particular field pattern at that
+cross-section. A port with two monitored modes contributes two channels.
+The complete matrix includes reflection, transmission, and conversion between
+all declared channels.
+
+Why one excitation gives one column
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Consider a device with a left port numbered 1 and a right port numbered 2,
+with one propagating mode at each. At a particular frequency, let
+:math:`a_1,a_2` be the complex amplitudes (magnitude and phase) of waves
+travelling toward the device and :math:`b_1,b_2` those travelling away from it.
+The matrix relation is
+
+.. math::
+
+   \begin{bmatrix}b_1\\b_2\end{bmatrix}
+   =
+   \begin{bmatrix}S_{11}&S_{12}\\S_{21}&S_{22}\end{bmatrix}
+   \begin{bmatrix}a_1\\a_2\end{bmatrix}.
+
+The first index of :math:`S_{ij}` names the **output** channel and the second
+names the **input** channel. Driving port 1 while no wave enters from port 2
+sets :math:`a_2=0`, giving :math:`b_1=S_{11}a_1` and
+:math:`b_2=S_{21}a_1`. Measuring both ports therefore determines the first
+column. It does not reveal how the device responds to a wave entering from
+port 2.
+
+.. list-table:: Two independent excitations for a two-channel matrix
+   :header-rows: 1
+   :widths: 25 40 35
+
+   * - FDTD case
+     - Waves observed at both ports
+     - Matrix entries determined
+   * - Drive port 1, mode 1
+     - Reflection back to port 1; transmission to port 2
+     - First column: S11 and S21
+   * - Drive port 2, mode 1
+     - Transmission to port 1; reflection back to port 2
+     - Second column: S12 and S22
+
+In each case the finite-difference time-domain (FDTD) solver advances the
+electric and magnetic fields through time. A broadband pulse excites many
+frequencies, and the port's discrete Fourier transform (DFT) extracts the
+response at every requested frequency from that time record. This gives a
+column at many frequencies; it still probes only one input channel. Adding
+DFT bins refines the frequency sampling. Adding modal anchors refines the
+frequency-dependent field profiles. Neither supplies the missing excitation
+from the other channel.
+
+Driving both ports simultaneously with one fixed combination of amplitudes
+and phases gives a combined response, such as
+:math:`b_1=S_{11}a_1+S_{12}a_2`. That single measurement cannot separate the
+two contributions. It is useful for active reflection or array radiation,
+while independent excitation cases provide the information needed for a full
+matrix. Reciprocity can relate S12 and S21 under suitable assumptions, but it
+does not generally determine S22 from S11; ``EigenmodeStudy`` measures every
+input channel instead of assuming symmetry.
+
+What the study runs and reuses
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``EigenmodeStudy`` manages these independent FDTD cases and assembles their
+results. Keep the device geometry, materials, ports, and reference planes
+fixed, and schedule each declared ``(port, mode)`` channel once. The study:
+
+1. Builds the geometry, solves the modal anchor fields for the ports, and
+   runs the first excitation through time.
+2. Moves the scene's one excitation object to the next scheduled port and
+   mode, preparing its waveform injection from the cached modal fields.
+3. Clears the electric and magnetic fields, PML absorbing-boundary histories,
+   and port DFT accumulators before advancing the next case through time.
+   Responses from different cases therefore do not overlap.
+4. Collects incoming and outgoing waves at every monitored channel and
+   assembles an S matrix at each requested frequency.
+
+Geometry and modal solves are reused, but each excitation still requires its
+own time-domain simulation. Reusing the modal basis avoids repeating the
+cross-section eigenmode calculations for an unchanged device.
+
+In the ideal two-port example above, only the driven channel has an incoming
+wave, so dividing the measured outgoing waves by that incoming amplitude
+directly gives one column. Real simulations can also measure incoming waves
+at nominally passive channels, for example from imperfect absorbing
+boundaries. The study retains these measurements. It puts the incoming
+vectors from all cases into the columns of :math:`A(f)` and the outgoing
+vectors into :math:`B(f)`, then solves :math:`B(f)=S(f)A(f)` at each frequency.
+This separates the responses using the measured excitations. Frequencies
+with missing or insufficiently independent measurements are marked invalid;
+the study also retains the measured matrices and conditioning diagnostics.
+This correction does not replace checking the mesh, absorbing boundaries,
+and simulation duration for convergence.
+
+Python example: excite each port in turn
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+After constructing a ``scene`` with geometry, materials, an ``EigenmodeBand``,
+and ports 1 and 2 each declaring ``modes=(1,)``, add the following. The scene
+must not already contain another ``EigenmodeExcitation``. Example 4 below
+provides the complete runnable geometry and script.
+
+.. code-block:: python
+
+   import gprMax
+
+   excitation = gprMax.EigenmodeExcitation(port=1, mode=1, waveform="auto")
+   scene.add(excitation)
+
+   cases = [
+       gprMax.StudyCase(
+           "drive_port_1",
+           [gprMax.ObjectState(excitation, port=1, mode=1)],
+       ),
+       gprMax.StudyCase(
+           "drive_port_2",
+           [gprMax.ObjectState(excitation, port=2, mode=1)],
+       ),
+   ]
+   study = gprMax.EigenmodeStudy(cases)
+   gprMax.run(scenes=[scene], study=study, outputfile="two_port")
+
+``StudyCase`` names one run. Its ``ObjectState`` selects the ``port`` and
+``mode`` of the same ``excitation`` object for that run; it does not add a
+second simultaneous source. Here one call to ``gprMax.run`` performs two
+FDTD cases and writes the aggregate ``two_port_study.h5``.
+
+More modes mean more channels
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If both ports instead declare ``modes=(1, 2)``, the four channels are
+``(1, 1)``, ``(1, 2)``, ``(2, 1)``, and ``(2, 2)``. Replace the two-case
+schedule above with one case for each pair:
+
+.. code-block:: python
+
+   channels = [(1, 1), (1, 2), (2, 1), (2, 2)]
+   cases = [
+       gprMax.StudyCase(
+           f"drive_port_{port}_mode_{mode}",
+           [gprMax.ObjectState(excitation, port=port, mode=mode)],
+       )
+       for port, mode in channels
+   ]
+   study = gprMax.EigenmodeStudy(cases)
+
+Pass this study to ``gprMax.run`` as above. Four FDTD cases produce a
+4 by 4 matrix, with 16 entries at each frequency. For example, the case
+driving port 1's mode 1 measures reflection into both modes of port 1 and
+transmission into both modes of port 2. Driving port 1's mode 2 is a separate
+case because its field pattern is a different input. With ``C`` declared
+channels and ``F`` DFT frequencies, the study schedules ``C`` cases and
+returns an array of shape ``(F, C, C)``. Include every declared channel exactly
+once; the study checks the schedule before running it. At a given frequency,
+use the validity masks below to distinguish usable coefficients from entries
+that support a propagating-power interpretation.
+
+Reading the assembled matrix
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``study.result`` is an ``EigenmodeStudyResult``. Its ``s``,
 ``coefficient_valid_s``, and ``power_wave_valid_s`` arrays use
@@ -703,6 +858,30 @@ and DFT accumulators while reusing geometry and modal anchor solutions.
 de-embedding diagnostics. Load it later with
 ``gprMax.EigenmodeStudyResult.from_hdf5(path)``. The Python wave-mask attributes
 have the same names as their datasets.
+
+Use the channel metadata to look up the output row and input column. After
+the two-port run, for example:
+
+.. code-block:: python
+
+   result = study.result
+   channels = list(zip(result.channel_ports, result.channel_modes))
+   left = channels.index((1, 1))
+   right = channels.index((2, 1))
+
+   s11 = result.s[:, left, left]    # reflection for excitation from the left
+   s21 = result.s[:, right, left]   # transmission from left to right
+   s12 = result.s[:, left, right]   # transmission from right to left
+   s22 = result.s[:, right, right]  # reflection for excitation from the right
+   valid_s21 = result.power_wave_valid_s[:, right, left]
+   frequency = result.frequency[valid_s21]
+   usable_s21 = s21[valid_s21]
+
+The same lookup works with multiple modes: a channel is always a port/mode
+pair, and the array indices are zero-based even though port and mode numbers
+are one-based. ``s`` contains complex amplitude ratios, including phase;
+use the coefficient mask instead when inspecting generalized below-cutoff
+responses rather than propagating power waves.
 
 Each case stores ``study/eigenmode_response/S_column`` with
 ``coefficient_valid_S_column`` and ``power_wave_valid_S_column``. Its measured
@@ -1047,11 +1226,13 @@ continuum time and longitudinal conventions of earlier low-level calls.
 Waveforms, Fourier transforms, and half-time-step phase factors always use
 the physical frequency :math:`\omega_0`.
 
-For nondispersive media, the source material extraction also includes the
-midpoint factor in electric and magnetic conductivity. Bulk dispersive
-material poles are still evaluated from their analytic physical-frequency
-response, rather than the exact FDTD ADE transfer. Such materials therefore
-retain a time-discretization mismatch that should be checked by convergence.
+The source material extraction also includes the midpoint factor in static
+electric and magnetic conductivity, including static electric conductivity
+in dispersive media. Bulk material poles and their associated Drude or
+inclusive conductivity terms are still evaluated from their analytic
+physical-frequency response, rather than the exact FDTD ADE transfer.
+Dispersive materials therefore retain a time-discretization mismatch in
+their pole response that should be checked by convergence.
 
 1D Scalar Solver for 2D Models
 ------------------------------
@@ -2025,8 +2206,22 @@ with a warning. The source-interpolated fields and propagation constant are
 
    \mathbf{E}_m &= \sum_k w_{k,m}\mathbf{E}_k,\\
    \mathbf{H}_m &= \sum_k w_{k,m}\mathbf{H}_k,\\
-   n_m &= \sum_k w_{k,m}n_k,\\
-   \beta_m &= \frac{2\pi f_m}{c}n_m.
+   n_{\mathrm{operator},m} &= \sum_k w_{k,m}n_{\mathrm{operator},k},\\
+   K_m &= \frac{\Omega(f_m)}{c}n_{\mathrm{operator},m},\\
+   \beta_m &= \frac{2}{\Delta w}\sin^{-1}\left(\frac{K_m\Delta w}{2}\right).
+
+The inverse spatial difference is evaluated at each FFT bin after operator
+index interpolation, including endpoint extrapolation. Single-frequency I/Q
+sources, banks with only one retained anchor, and downstream solvers without
+operator-index metadata retain the constant/legacy physical-index convention
+:math:`\beta_m=2\pi f_m n_m/c`. In particular, a single-frequency source holds
+its physical phase index constant across the pulse.
+
+Significant source energy in the longitudinal grid stop band is an error:
+refine the normal cell spacing or narrow the excitation bandwidth.
+Sub-threshold tails in that stop band are discarded; the scalar waveform
+reconstruction error includes their removal. DC and Nyquist bins are excluded
+before this propagation calculation.
 
 Linear interpolation of individually normalized modes does not in general
 preserve unit power. gprMax constructs the cross-power matrix
@@ -2128,6 +2323,15 @@ waveform value. For I/Q and broadband sources, each update sums all anchor and
 quadrature contributions prepared by the inverse FFT. In both cases, source
 activation is clipped to the configured waveform start and stop times.
 
+Single-frequency sources record ``single_frequency_iq_reasons`` and log the
+individual selection reasons alongside the measured modal-profile residual:
+``complex modal profile``, ``drive phase/delay``, and/or
+``complex longitudinal staggering``. A small modal residual can therefore
+coexist with I/Q injection. Negative real propagation is handled by the
+signed real-only time shift and does not itself require I/Q. Eigenmode
+solvers, source staggering, and monitor propagation use the active simulation's
+``em_consts["c"]`` for the speed of light.
+
 Virtual-guide aperture coupling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -2207,13 +2411,30 @@ selects the applicable contiguous evanescent reference run inside the solved
 candidate range; interpolation never crosses cutoff or spans disconnected
 evanescent runs. Outside that range, it uses the nearest tracked reference
 endpoint. Every selected anchor E/H pair is divided by the square root of its
-``anchor_balanced_power``, then E, H, and :math:`n_\mathrm{eff}` are
-interpolated with identical branch-local weights. The interpolated
+``anchor_balanced_power``, then E, H, and the operator index are
+interpolated with identical branch-local weights. The propagation constant is
+mapped at each DFT frequency using the same discrete symbols as source
+synthesis; branches retaining only one anchor keep their physical phase
+index constant. The interpolated
 cell-centred E/H pair is balanced once more before its Gram matrices are
 formed. Keeping all three quantities on the same tracked branch is essential
 below cutoff, where modal admittance becomes reactive; interpolating only the
 propagation constant while retaining a propagating endpoint E/H pair would
 not correctly separate forward and backward amplitudes at one plane.
+
+A bin that enters the numerical spatial stop band after interpolation loses
+power-wave validity. It retains its selected propagating-bank weights,
+fields, and propagation constant, with final cell-centred balanced
+normalization for generalized coefficients. It does not select a different
+physical-cutoff branch. Existing conditioning and separation checks still
+determine whether those coefficients can be reported.
+
+The HDF5 port group preserves ``anchor_complex_neff`` as the physical phase
+index. When available, ``anchor_operator_neff`` stores the corresponding
+dimensionless operator indices with the same anchor/mode axes. ``beta``
+records the actual propagation constant used at every DFT bin, in radians
+per metre, with frequency/mode axes. These datasets also describe runs that
+reuse cached modal anchors.
 
 For several requested modes, independent overlaps are insufficient when the
 discrete profiles are not exactly orthogonal. At each frequency gprMax forms

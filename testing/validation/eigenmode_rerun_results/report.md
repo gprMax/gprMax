@@ -1,5 +1,7 @@
 # Eigenmode solver rerun results
 
+Follow-up: [targeted validation of the remaining dispersion fixes](remaining_dispersion_fixes.md) records the five reruns and updated measurements after `eb664546`. The 57-case results below describe the earlier baseline.
+
 Status: **COMPLETE**. 57/57 maintained FDTD case runs completed. Standalone FDFD solves cover 24 frequency/geometry pairs and 30 modal rows.
 
 The final CST patch far-field simulation was completed by the user and verified from its fresh HDF5 output. Its exact simulation command and wall time were not recorded. The plotter had still selected the older `patch_recentered_closed_ntff.h5`; its default now matches the current model basename and it also accepts `--gprmax-output`. The comparison plots and numerical summary were regenerated from `patch_antenna_recentered_closed_ntff_backed_pml.h5`. The earlier setup and output-permission failures remain in the attempt history.
