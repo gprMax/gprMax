@@ -163,5 +163,7 @@ def test_magnetic_frill_template_substitutions_are_complete(backend):
     assert "$" not in arguments
     assert "$" not in body
     assert "first_active" not in body
-    assert "frill_state[i] = current_new" in body
+    assert "size_t frill = (size_t)i" in body
+    assert "frill_state[frill] = current_new" in body
+    assert "frill_state[i]" not in body
     assert "source_gain * V_ab" in body
