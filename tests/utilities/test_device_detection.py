@@ -254,21 +254,24 @@ class TestDetectCudaGpus:
 
         assert detect_cuda_gpus() == {}
 
-    def test_the_visible_devices_variable_restricts_the_list(self, cuda, monkeypatch):
-        """Schedulers set ``CUDA_VISIBLE_DEVICES``; gprMax must honour it.
-
-        Ignoring it on a shared node would mean grabbing another job's GPU.
-        """
-        cuda(count=4)
+    def test_driver_visible_devices_use_local_ordinals(self, cuda, monkeypatch):
+        """The CUDA driver applies the scheduler mask and renumbers devices."""
+        cuda(count=2)
         monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "1,2")
 
-        assert sorted(detect_cuda_gpus()) == [1, 2]
+        assert sorted(detect_cuda_gpus()) == [0, 1]
 
-    def test_a_single_visible_device_is_parsed(self, cuda, monkeypatch):
-        cuda(count=4)
+    def test_a_single_visible_device_is_local_device_zero(self, cuda, monkeypatch):
+        cuda(count=1)
         monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "3")
 
-        assert sorted(detect_cuda_gpus()) == [3]
+        assert sorted(detect_cuda_gpus()) == [0]
+
+    def test_a_uuid_visibility_mask_is_left_for_the_driver(self, cuda, monkeypatch):
+        cuda(count=1)
+        monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "GPU-deadbeef-1234")
+
+        assert sorted(detect_cuda_gpus()) == [0]
 
     def test_the_visible_devices_variable_is_ignored_when_there_are_none(
         self, cuda, monkeypatch, caplog

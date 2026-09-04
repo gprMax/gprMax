@@ -118,25 +118,28 @@ update_rational_network = {
     $CUDA_IDX
 
     if (i < NTERMINALS) {
-        int x = info[i * $NY_RNINFO + 0];
-        int y = info[i * $NY_RNINFO + 1];
-        int z = info[i * $NY_RNINFO + 2];
-        int polarisation = info[i * $NY_RNINFO + 3];
-        int pole_offset = info[i * $NY_RNINFO + 4];
-        int pole_count = info[i * $NY_RNINFO + 5];
+        size_t terminal = (size_t)i;
+        size_t info_offset = terminal * (size_t)$NY_RNINFO;
+        size_t params_offset = terminal * (size_t)$NY_RNPARAMS;
+        int x = info[info_offset + 0];
+        int y = info[info_offset + 1];
+        int z = info[info_offset + 2];
+        int polarisation = info[info_offset + 3];
+        int pole_offset = info[info_offset + 4];
+        int pole_count = info[info_offset + 5];
 
-        $REAL dl = params[i * $NY_RNPARAMS + 0];
-        $REAL area = params[i * $NY_RNPARAMS + 1];
-        $REAL source_coefficient = params[i * $NY_RNPARAMS + 2];
-        $REAL denominator = params[i * $NY_RNPARAMS + 3];
-        $REAL alpha = params[i * $NY_RNPARAMS + 4];
-        $REAL conductance = params[i * $NY_RNPARAMS + 5];
-        $REAL capacitance = params[i * $NY_RNPARAMS + 6];
+        $REAL dl = params[params_offset + 0];
+        $REAL area = params[params_offset + 1];
+        $REAL source_coefficient = params[params_offset + 2];
+        $REAL denominator = params[params_offset + 3];
+        $REAL alpha = params[params_offset + 4];
+        $REAL conductance = params[params_offset + 5];
+        $REAL capacitance = params[params_offset + 6];
 
-        int whole_offset = i * $NY_RNWAVEWHOLE;
-        int half_offset = i * $NY_RNWAVEHALF;
-        int voltage_offset = i * $NY_RNVOLTAGE;
-        int current_offset = i * $NY_RNCURRENT;
+        size_t whole_offset = terminal * (size_t)$NY_RNWAVEWHOLE;
+        size_t half_offset = terminal * (size_t)$NY_RNWAVEHALF;
+        size_t voltage_offset = terminal * (size_t)$NY_RNVOLTAGE;
+        size_t current_offset = terminal * (size_t)$NY_RNCURRENT;
         $REAL voltage_old = voltage[voltage_offset + iteration];
         $REAL generator_old = waveform_whole[whole_offset + iteration];
         $REAL generator_new = waveform_whole[whole_offset + iteration + 1];
@@ -157,7 +160,7 @@ update_rational_network = {
             history += half_real;
         }
 
-        int field_index = IDX3D_FIELDS(x,y,z);
+        size_t field_index = IDX3D_FIELDS(x,y,z);
         $REAL electric;
         if (polarisation == 0) {
             electric = (Ex[field_index] + source_coefficient * history / area) / denominator;

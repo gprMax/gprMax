@@ -187,6 +187,16 @@ class TestCheckCmdNames:
         assert all(v == [] for v in multi.values())
         assert geometry == []
 
+    def test_colons_in_single_command_parameters_are_preserved(self):
+        lines = self._essentials() + ["#title: survey: line 1\n"]
+        single, _, _ = check_cmd_names(lines)
+        assert single["#title"] == "survey: line 1"
+
+    def test_windows_drive_colon_is_not_treated_as_another_separator(self):
+        lines = self._essentials() + ["#output_dir: C:\\gprmax\\results\n"]
+        single, _, _ = check_cmd_names(lines)
+        assert single["#output_dir"] == "C:\\gprmax\\results"
+
     def test_multi_cmd_appended_to_multi_dict(self):
         lines = self._essentials() + [
             "#waveform: gaussian 1.0 1e9 wf1\n",

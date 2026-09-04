@@ -174,8 +174,11 @@ class SubGridHSG(SubGridBase):
         id: string identifier for the sub-grid.
         is_os_sep: int for the number of main grid cells between the Inner
                     Surface and the Outer Surface. Defaults to 3.
-        pml_separation: int for the number of sub-grid cells between the Outer
-                        Surface and the PML. Defaults to ratio // 2 + 2
+        pml_separation: retained for API compatibility, but the HSG formulation
+                        fixes the number of sub-grid cells between the Outer
+                        Surface and the PML at ``ratio // 2 + 2``. Any supplied
+                        value is therefore ignored. Using a different value is
+                        experimental and requires changing the formulation.
         subgrid_pml_thickness: int for the thickness of the PML on each of the
                                 6 sides of the sub-grid. Defaults to 6.
         interpolation: string for the degree of the interpolation scheme used
@@ -206,6 +209,8 @@ class SubGridHSG(SubGridBase):
         filter=True,
         **kwargs,
     ):
+        # The HSG formulation fixes this separation. Keep the public argument
+        # for API compatibility, but deliberately do not use a supplied value.
         pml_separation = ratio // 2 + 2
 
         # Copy over the optional parameters

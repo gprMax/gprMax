@@ -18,13 +18,8 @@
 """Tests for ``gprMax.model.Model``.
 
 ``Model`` is a thin owner of exactly one ``FDTDGrid``: almost every attribute
-is a property forwarding to ``self.G``. That makes it cheap to test and makes
-a forwarding slip invisible in normal use.
-
-The ``dy`` / ``dz`` *getters* are defective — they read ``dl[0]`` — so no
-assertion here reads them back. The setters are correct and are pinned, which
-is what makes the getter defect demonstrable without asserting broken
-behaviour. Write-up: ``notes/bugs/model-dy-dz-getters.md``.
+is a property forwarding to ``self.G``. That makes it cheap to test, but also
+makes an axis-forwarding slip easy to miss unless anisotropic spacing is used.
 
 ``Model.__init__`` calls ``set_omp_threads``, which reads host CPU information
 that has nothing to do with the class under test, so it is patched out here.
@@ -133,13 +128,13 @@ class TestCells:
 
 
 class TestDiscretisationForwarding:
-    def test_dx_getter_reads_the_x_spacing(self, model):
+    @pytest.mark.parametrize("axis,name", [(0, "dx"), (1, "dy"), (2, "dz")])
+    def test_getters_read_the_correct_axis(self, model, axis, name):
         model.G.dl = np.array(DL_ANISO)
-        assert model.dx == DL_ANISO[0]
+        assert getattr(model, name) == DL_ANISO[axis]
 
     @pytest.mark.parametrize("axis,name", [(0, "dx"), (1, "dy"), (2, "dz")])
     def test_setters_write_the_correct_axis(self, model, axis, name):
-        """All three *setters* are correct — only the getters are not."""
         setattr(model, name, 0.009)
         assert model.G.dl[axis] == 0.009
 

@@ -326,20 +326,24 @@ order1_xminus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA01, RB0, RE0, RF0, dEy, dEz;
     $REAL dx = d;
@@ -410,20 +414,24 @@ order2_xminus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dEy, dEz;
     $REAL dx = d;
@@ -510,20 +518,24 @@ order1_xplus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA01, RB0, RE0, RF0, dEy, dEz;
     $REAL dx = d;
@@ -594,20 +606,24 @@ order2_xplus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dEy, dEz;
     $REAL dx = d;
@@ -694,20 +710,24 @@ order1_yminus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA01, RB0, RE0, RF0, dEx, dEz;
     $REAL dy = d;
@@ -778,20 +798,24 @@ order2_yminus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dEx, dEz;
     $REAL dy = d;
@@ -877,20 +901,24 @@ order1_yplus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA01, RB0, RE0, RF0, dEx, dEz;
     $REAL dy = d;
@@ -961,20 +989,24 @@ order2_yplus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dEx, dEz;
     $REAL dy = d;
@@ -1059,20 +1091,24 @@ order1_zminus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA01, RB0, RE0, RF0, dEx, dEy;
     $REAL dz = d;
@@ -1143,20 +1179,24 @@ order2_zminus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dEx, dEy;
     $REAL dz = d;
@@ -1243,20 +1283,24 @@ order1_zplus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA01, RB0, RE0, RF0, dEx, dEy;
     $REAL dz = d;
@@ -1327,20 +1371,24 @@ order2_zplus = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
-    int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int rem1 = i % (NX_PHI1 * NY_PHI1 * NZ_PHI1);
-    int i1 = rem1 / (NY_PHI1 * NZ_PHI1);
-    int jk1 = rem1 % (NY_PHI1 * NZ_PHI1);
-    int j1 = jk1 / NZ_PHI1;
-    int k1 = jk1 % NZ_PHI1;
+    size_t phi1_plane = (size_t)NY_PHI1 * (size_t)NZ_PHI1;
+    size_t phi1_volume = (size_t)NX_PHI1 * phi1_plane;
+    size_t rem1 = (size_t)i % phi1_volume;
+    int p1 = (int)((size_t)i / phi1_volume);
+    int i1 = (int)(rem1 / phi1_plane);
+    size_t jk1 = rem1 % phi1_plane;
+    int j1 = (int)(jk1 / (size_t)NZ_PHI1);
+    int k1 = (int)(jk1 % (size_t)NZ_PHI1);
 
     // Convert the linear index to subscripts for PML PHI2 (4D) arrays
-    int p2 = i / (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int rem2 = i % (NX_PHI2 * NY_PHI2 * NZ_PHI2);
-    int i2 = rem2 / (NY_PHI2 * NZ_PHI2);
-    int jk2 = rem2 % (NY_PHI2 * NZ_PHI2);
-    int j2 = jk2 / NZ_PHI2;
-    int k2 = jk2 % NZ_PHI2;
+    size_t phi2_plane = (size_t)NY_PHI2 * (size_t)NZ_PHI2;
+    size_t phi2_volume = (size_t)NX_PHI2 * phi2_plane;
+    size_t rem2 = (size_t)i % phi2_volume;
+    int p2 = (int)((size_t)i / phi2_volume);
+    int i2 = (int)(rem2 / phi2_plane);
+    size_t jk2 = rem2 % phi2_plane;
+    int j2 = (int)(jk2 / (size_t)NZ_PHI2);
+    int k2 = (int)(jk2 % (size_t)NZ_PHI2);
 
     $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dEx, dEy;
     $REAL dz = d;

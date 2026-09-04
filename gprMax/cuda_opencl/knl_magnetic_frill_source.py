@@ -93,19 +93,20 @@ update_magnetic_frill_source = {
     $CUDA_IDX
 
     if (i < NFRILL) {
+        size_t frill = (size_t)i;
         $REAL current_bulk = ($REAL)0;
-        int nterms = frill_term_counts[i];
+        int nterms = frill_term_counts[frill];
 
         for (int term = 0; term < nterms; term++) {
-            int term_index = i * $MAX_FRILLTERMS + term;
-            int info_index = term_index * $NY_FRILLTERMINFO;
-            int param_index = term_index * $NY_FRILLTERMPARAMS;
+            size_t term_index = frill * (size_t)$MAX_FRILLTERMS + (size_t)term;
+            size_t info_index = term_index * (size_t)$NY_FRILLTERMINFO;
+            size_t param_index = term_index * (size_t)$NY_FRILLTERMPARAMS;
             int component = frill_term_info[info_index + 0];
             int x = frill_term_info[info_index + 1];
             int y = frill_term_info[info_index + 2];
             int z = frill_term_info[info_index + 3];
             $REAL weight = frill_term_params[param_index + 0];
-            int field_index = IDX3D_FIELDS(x,y,z);
+            size_t field_index = IDX3D_FIELDS(x,y,z);
 
             if (component == 0) {
                 current_bulk += weight * Hx[field_index];
@@ -118,14 +119,14 @@ update_magnetic_frill_source = {
             }
         }
 
-        int source_index = i * $NY_FRILLPARAMS;
-        int output_index = i * $NY_FRILLOUT + iteration;
+        size_t source_index = frill * (size_t)$NY_FRILLPARAMS;
+        size_t output_index = frill * (size_t)$NY_FRILLOUT + (size_t)iteration;
         $REAL Z0 = frill_params[source_index + 0];
         $REAL G = frill_params[source_index + 1];
         $REAL theta = frill_params[source_index + 2];
-        $REAL previous_current = frill_state[i];
+        $REAL previous_current = frill_state[frill];
         $REAL Vinc_value = ($REAL)0.5
-            * frill_waveform[i * $NY_FRILLWAVES + iteration];
+            * frill_waveform[frill * (size_t)$NY_FRILLWAVES + (size_t)iteration];
         $REAL zeta = G * Z0;
 
         // Hyun's time-average terminal equation is implicit because this
@@ -146,15 +147,15 @@ update_magnetic_frill_source = {
         Vtotal[output_index] = V_ab;
 
         for (int term = 0; term < nterms; term++) {
-            int term_index = i * $MAX_FRILLTERMS + term;
-            int info_index = term_index * $NY_FRILLTERMINFO;
-            int param_index = term_index * $NY_FRILLTERMPARAMS;
+            size_t term_index = frill * (size_t)$MAX_FRILLTERMS + (size_t)term;
+            size_t info_index = term_index * (size_t)$NY_FRILLTERMINFO;
+            size_t param_index = term_index * (size_t)$NY_FRILLTERMPARAMS;
             int component = frill_term_info[info_index + 0];
             int x = frill_term_info[info_index + 1];
             int y = frill_term_info[info_index + 2];
             int z = frill_term_info[info_index + 3];
             $REAL source_gain = frill_term_params[param_index + 1];
-            int field_index = IDX3D_FIELDS(x,y,z);
+            size_t field_index = IDX3D_FIELDS(x,y,z);
 
             if (component == 0) {
                 Hx[field_index] += source_gain * V_ab;
@@ -169,7 +170,7 @@ update_magnetic_frill_source = {
 
         // This state remains active after the requested waveform interval;
         // the waveform becomes zero but the passive Z0 terminal persists.
-        frill_state[i] = current_new;
+        frill_state[frill] = current_new;
     }
 """
     ),

@@ -342,7 +342,9 @@ def check_cmd_names(processedlines, checkessential=True):
     countessentialcmds = 0
     lindex = 0
     while lindex < len(processedlines):
-        cmd = processedlines[lindex].split(":")
+        # The first colon separates the command name from its parameters.
+        # Preserve any later colons in paths, URLs, titles, or identifiers.
+        cmd = processedlines[lindex].split(":", maxsplit=1)
 
         # Check the command name and parameters were both found
         if len(cmd) < 2:
@@ -387,7 +389,7 @@ def check_cmd_names(processedlines, checkessential=True):
         # Assign command parameters as values to dictionary keys
         if cmdname in singlecmds:
             if singlecmds[cmdname] is None:
-                singlecmds[cmdname] = cmd[1].strip(" \t\n")
+                singlecmds[cmdname] = cmdparams.strip(" \t\n")
             else:
                 logger.exception(
                     "You can only have a single instance of " + cmdname + " in your model"
@@ -395,7 +397,7 @@ def check_cmd_names(processedlines, checkessential=True):
                 raise SyntaxError
 
         elif cmdname in multiplecmds:
-            multiplecmds[cmdname].append(cmd[1].strip(" \t\n"))
+            multiplecmds[cmdname].append(cmdparams.strip(" \t\n"))
 
         elif cmdname in geometrycmds:
             geometry.append(processedlines[lindex].strip(" \t\n"))

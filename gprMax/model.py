@@ -113,7 +113,7 @@ class Model:
 
     @property
     def dy(self) -> float:
-        return self.G.dl[0]
+        return self.G.dl[1]
 
     @dy.setter
     def dy(self, value: float):
@@ -121,7 +121,7 @@ class Model:
 
     @property
     def dz(self) -> float:
-        return self.G.dl[0]
+        return self.G.dl[2]
 
     @dz.setter
     def dz(self, value: float):

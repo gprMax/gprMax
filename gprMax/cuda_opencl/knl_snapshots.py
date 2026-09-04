@@ -144,11 +144,13 @@ store_snapshot = {
     $CUDA_IDX
 
     // Convert the linear index to subscripts for 4D SNAPS array
-    int rem_snaps = i % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS);
-    int x = rem_snaps / ($NY_SNAPS * $NZ_SNAPS);
-    int yz_snaps = rem_snaps % ($NY_SNAPS * $NZ_SNAPS);
-    int y = yz_snaps / $NZ_SNAPS;
-    int z = yz_snaps % $NZ_SNAPS;
+    size_t snapshot_plane = (size_t)$NY_SNAPS * (size_t)$NZ_SNAPS;
+    size_t snapshot_volume = (size_t)$NX_SNAPS * snapshot_plane;
+    size_t rem_snaps = (size_t)i % snapshot_volume;
+    int x = (int)(rem_snaps / snapshot_plane);
+    size_t yz_snaps = rem_snaps % snapshot_plane;
+    int y = (int)(yz_snaps / (size_t)$NZ_SNAPS);
+    int z = (int)(yz_snaps % (size_t)$NZ_SNAPS);
 
     // Subscripts for field arrays
     int xx, yy, zz;
