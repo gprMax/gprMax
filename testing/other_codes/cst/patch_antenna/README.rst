@@ -33,8 +33,13 @@ annotations to the figures.
 
 Run from the repository root with::
 
-    conda run -n gprMax python -m gprMax testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in -outputfile testing/other_codes/cst/patch_antenna/farfield/patch_recentered_closed_ntff
+    conda run -n gprMax python -m gprMax testing/other_codes/cst/patch_antenna/farfield/patch_antenna_recentered_closed_ntff_backed_pml.in
     conda run -n gprMax python testing/other_codes/cst/patch_antenna/farfield/plot_patch_farfield_comparison.py
+
+The plotter defaults to ``patch_antenna_recentered_closed_ntff_backed_pml.h5``,
+matching the input model's output name. If the simulation uses a custom
+``-outputfile`` name, pass its HDF5 path with ``--gprmax-output``. The plotter
+prints the selected input path and records its filename in the JSON summary.
 
 The large gprMax HDF5 output and raw CST far-field exports are intentionally
 ignored. The input model, comparison script, plots, tabulated cuts, and summary

@@ -29,7 +29,7 @@
 #box: 0.0428 0.1304 0.0352 0.0776 0.1420 0.0356 pec n
 #plate: 0.0432 0.1420 0.0172 0.0772 0.1420 0.0352 pec
 
-#pml_slab: 0.0432 0.1304 0.0172 0.0772 0.1420 0.0352 ymax port_load
+#pml_slab: 0.0432 0.1304 0.0172 0.0772 0.1420 0.0352 ymax
 #eigenmode_band: patch_farfield_band 2.2e9 2.7e9 11
 #eigenmode_port: 1 0.0432 0.1304 0.0172 0.0772 0.1304 0.0352 - 1 auto n
 #eigenmode_excitation: 1 1 auto n

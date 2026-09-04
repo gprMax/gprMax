@@ -39,6 +39,12 @@ Directory layout
     fundamental-mode S21 and max-absolute, half-peak-to-peak, and RMS
     fluctuation metrics versus spacing, with a second-order convergence guide.
 
+    In the dispersion-compensated CUDA single-precision rerun on 2026-09-04,
+    maximum absolute S21 deviations were 0.000123, 0.000140, and 0.000167 dB
+    at 0.20, 0.10, and 0.05 mm respectively. These small residuals do not show
+    monotonic second-order convergence. The dashed curve is a reference
+    slope, not a fit to the measured residuals.
+
 ``legacy``
     Previous development runs moved out of the maintained matrix. This
     directory is intentionally ignored by Git and is not discovered by the

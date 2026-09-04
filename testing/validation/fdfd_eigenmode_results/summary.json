@@ -1,5 +1,5 @@
 {
-  "runtime_seconds": 0.29046310000012454,
+  "runtime_seconds": 0.32068059999983234,
   "row_count": 30,
   "cases": {
     "pec_parallel_plate_1d": {
@@ -7,7 +7,7 @@
       "frequency_samples": 6,
       "reported_modes": 1,
       "maximum_relative_error_percent": 0.002058781331523283,
-      "rms_relative_error_percent": 0.001001117264002088,
+      "rms_relative_error_percent": 0.0010011172639998419,
       "maximum_allowed_relative_error_percent": 0.1,
       "passed": true
     },
@@ -16,7 +16,7 @@
       "frequency_samples": 6,
       "reported_modes": 1,
       "maximum_relative_error_percent": 0.01005261540633815,
-      "rms_relative_error_percent": 0.004857195103867988,
+      "rms_relative_error_percent": 0.004857195103871309,
       "maximum_allowed_relative_error_percent": 0.1,
       "passed": true
     },
@@ -25,7 +25,7 @@
       "frequency_samples": 6,
       "reported_modes": 1,
       "maximum_relative_error_percent": 0.03292907061778573,
-      "rms_relative_error_percent": 0.016012753984821385,
+      "rms_relative_error_percent": 0.01601275398482157,
       "maximum_allowed_relative_error_percent": 0.1,
       "passed": true
     },
@@ -33,8 +33,8 @@
       "title": "2D PEC cylindrical guide: TE11 pair",
       "frequency_samples": 6,
       "reported_modes": 2,
-      "maximum_relative_error_percent": 1.0430500668810936,
-      "rms_relative_error_percent": 0.5264734741497042,
+      "maximum_relative_error_percent": 1.0430500668810772,
+      "rms_relative_error_percent": 0.526473474149701,
       "maximum_allowed_relative_error_percent": 1.5,
       "passed": true
     }

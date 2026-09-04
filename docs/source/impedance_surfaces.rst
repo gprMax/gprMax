@@ -339,7 +339,8 @@ forward mode, and
 .. math::
 
    \alpha=-\operatorname{Im}\beta
-          =-k_0\operatorname{Im}n_{\mathrm{eff}}.
+          =-k_0\operatorname{Im}n_{\mathrm{eff}},
+   \qquad k_0=\frac{2\pi f}{c}.
 
 Let :math:`\hat{\mathbf n}_m` point from the excluded metal into the retained
 dielectric. The surface current and scalar boundary law are
@@ -799,13 +800,14 @@ model, both :math:`f` and the bilinear-warped frequency
 must lie inside the model's declared fit band. This catches a subtle form of
 ADE extrapolation near Nyquist.
 
-Clipped row in the existing P/Q solver
---------------------------------------
+Clipped row in the P/Q solver
+-----------------------------
 
 The implemented FDFD path eliminates the scalar surface currents into the
 electric coefficient rather than appending them as eigenproblem unknowns.
 For boundary edge ``e`` with retained dual area :math:`A_e`, attached port
-lengths :math:`\ell_p`, and the same integrated masses used by FDTD, define
+lengths :math:`\ell_p`, and the same integrated masses used by FDTD, the
+dispersion-compensated solver uses
 
 .. math::
 
@@ -815,39 +817,58 @@ lengths :math:`\ell_p`, and the same integrated masses used by FDTD, define
          +c_\theta m_{\sigma,e}
          +\displaystyle\sum_p\ell_pY_{\mathrm{alg},p}
        }{
-         j\omega\epsilon_0A_e
+         j\Omega\epsilon_0A_e
        }.
 
-This makes the ordinary physical-frequency material term reproduce the exact
-discrete-time surface load:
+This makes the material term with the leapfrog temporal symbol reproduce the
+exact discrete-time surface load:
 
 .. math::
 
-   j\omega\epsilon_0A_e\epsilon_{r,e}^{\mathrm{eff}}
+   j\Omega\epsilon_0A_e\epsilon_{r,e}^{\mathrm{eff}}
       =j\Omega m_{\epsilon,e}
        +c_\theta m_{\sigma,e}
        +\sum_p\ell_p\frac{c_\theta}{Z_{\mathrm{alg},p}}.
 
 The standard rectangular finite-difference curl row is replaced by the
-compiled clipped line circulation, normalized by :math:`A_e k_0`. Independent
-retained masks remove metal-interior E and H degrees of freedom without
+compiled clipped line circulation, normalized by :math:`A_e k_{0,\mathrm{operator}}`, where
+:math:`k_{0,\mathrm{operator}}=\Omega/c` is ``solver.operator_k0``.
+Independent retained masks remove metal-interior E and H
+degrees of freedom without
 misusing PEC masks; in particular, interface-normal H can remain present when
 a collocated tangential E is a valid impedance-boundary unknown. The existing
-P/Q reduction then solves for complex :math:`n_{\mathrm{eff}}` and selects the
-passive forward branch.
+P/Q reduction solves for :math:`\lambda=-n_{\mathrm{operator}}^2`, with
+:math:`n_{\mathrm{operator}}=K_w/k_{0,\mathrm{operator}}`. The normal spacing :math:`\Delta w`
+then determines the phase propagation constant and public effective index:
+
+.. math::
+
+   \beta=\frac{2}{\Delta w}\sin^{-1}\left(\frac{K_w\Delta w}{2}\right),
+   \qquad n_{\mathrm{eff}}=\frac{\beta}{k_0}.
+
+The passive forward branch gives attenuation and evanescent decay in positive
+``w``. Modal field reconstruction uses :math:`n_{\mathrm{operator}}`; source
+and monitor spatial phases use :math:`\beta`.
+
+Low-level calls that omit ``fdtd_dt`` retain the physical-frequency P/Q
+normalization: the coefficient denominator uses :math:`j\omega\epsilon_0A_e`
+and :math:`k_{0,\mathrm{operator}}=k_0=\omega/c`, while the boundary numerator still comes from its
+exact discrete recurrence. See :doc:`eigenmode_port` for both optional grid
+parameters.
 
 .. important::
 
    The surface ADE, midpoint factor, boundary electric mass, conductivity,
    and clipped transverse curl are reduced exactly for the FDTD time step.
-   The surrounding FDFD eigensolver still uses physical :math:`\omega` and
-   :math:`k_0` in its established P/Q normalization. The effective
-   permittivity above maps the discrete boundary row into that normalization;
-   this is **not** a fully time-discrete P/Q bulk Yee eigenproblem. Keep modal
-   anchors comfortably below Nyquist and perform mesh/time-step convergence
-   when bulk numerical dispersion is material to the result.
+   Eigenmode sources also use the owning grid's leapfrog temporal symbol and
+   longitudinal spatial difference. Bulk nondispersive conductivity includes
+   its midpoint factor. Bulk dispersive material poles still use their
+   analytic physical-frequency response rather than the exact volume ADE
+   transfer, so the general dispersive bulk eigenproblem is not fully time
+   discrete. Keep modal anchors below Nyquist and check mesh/time-step
+   convergence.
 
-The longitudinal :math:`\beta` coupling remains the standard implicit P/Q
+The longitudinal :math:`K_w` coupling remains the standard implicit P/Q
 term. The source-plane mapper checks that the omitted longitudinal H weights
 form equal and opposite contributions in the two cells adjacent to the plane.
 That is why a changing wall cross-section or an impedance end cap at the
@@ -857,8 +878,9 @@ Eigenmode solution and FDTD injection
 =====================================
 
 A direct modal solve reuses the component IDs, retained masks, clipped H
-weights, dual fractions, port models, and FDTD ``dt`` from the already
-compiled three-dimensional grid. There is no separately redrawn FDFD wall.
+weights, dual fractions, port models, FDTD ``dt``, and normal cell spacing
+from the already compiled three-dimensional grid. There is no separately
+redrawn FDFD wall.
 This shared geometry is as important as sharing the exact discrete ADE law
 (``f``, ``q``, and ``Z0`` in its local Foster form): a half-cell area or sign
 mismatch would change both loss and mode phase.
@@ -995,9 +1017,9 @@ FDFD attenuation and modal launch
 ---------------------------------
 
 The focused FDFD operator test constructs a copper-lined rectangular guide,
-compares :math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` with the TE10
-perturbation result using :math:`Z_{\mathrm{alg}}/c_\theta`, and applies a 2%
-relative tolerance.
+compares :math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` with
+the TE10 perturbation result using :math:`Z_{\mathrm{alg}}/c_\theta`, and
+applies a 2% relative tolerance.
 
 ``testing.validation.impedance_surface.validate_copper_wall_waveguide`` is the
 physical common-metal case. It uses a 1.6 mm by 0.8 mm copper-lined guide on a
@@ -1026,20 +1048,21 @@ This gives the source response time to settle while retaining a causally
 isolated one-way propagation measurement.
 
 The copper release checks cover three milestones. The attenuation
-:math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` stored for each exact in-band
-FDFD anchor is compared with :math:`Q\operatorname{Re}Z_s` using a 1% relative
-L2 gate. The driven FDTD port must have maximum :math:`S_{11}<-20` dB after the
+:math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` stored for
+each exact in-band FDFD anchor is compared with :math:`Q\operatorname{Re}Z_s`
+using a 1% relative L2 gate. The driven FDTD port must have maximum
+:math:`S_{11}<-20` dB after the
 complex modal field is injected. Finally, attenuation obtained from the FDTD
 two-plane propagation factor is compared with the same perturbation theory
 using a 2% relative L2 gate. The workflow therefore exercises the copper
 preset, Foster fit, exact FDFD boundary reduction, complex modal source, FDTD
 ADE, modal projection, and propagation loss in one accepted result.
 
-In the retained double-precision four-thread result, the impedance fit error
-is 0.026023%, the FDFD and FDTD attenuation errors are 0.146829% and 0.759861%,
-and maximum reflection is -65.0005 dB. The reduced domain, record, and
-passive-anchor set complete in 86.606 s, compared with approximately 148--158 s
-for the previous validation configuration on the same four-thread workflow.
+In the retained double-precision four-thread result with bulk
+dispersion compensation, the impedance fit error is 0.026023%, the FDFD and
+FDTD attenuation errors are 0.681438% and 0.759867%,
+and maximum reflection is -101.0893 dB. The four-thread rerun on 2026-09-04
+completed in 147.019 s including analysis and plot generation.
 
 Run the validation from the repository root:
 
@@ -1279,16 +1302,17 @@ magnetic halo availability before the surface solve, and a cross-rank modal
 plane assembly. The current compiler rejects these paths rather than silently
 falling back to a different boundary.
 
-Dispersive retained media and fully discrete bulk FDFD
-------------------------------------------------------
+Dispersive retained media and volume ADEs
+-----------------------------------------
 
 Supporting a dispersive exterior requires a locally coupled row containing
 both volume-polarization and surface-current states, including corner
-averaging policy. A fully time-discrete modal solver would also replace the
-remaining physical-frequency P/Q bulk symbols by the exact leapfrog temporal
-and longitudinal spatial symbols. Those are separate extensions: the present
-solver already makes the surface ADE exact, and its physical-frequency P/Q
-bulk normalization must not be described as fully time discrete.
+averaging policy. The modal solver already uses the leapfrog temporal and
+longitudinal spatial symbols when constructed by an eigenmode source. An
+exact treatment of bulk dispersive poles would additionally replace their
+analytic physical-frequency response with the corresponding FDTD volume-ADE
+transfer. This remaining extension is separate from the exact surface-ADE
+reduction and the existing compensation of Yee numerical dispersion.
 
 References
 ==========

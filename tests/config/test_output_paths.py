@@ -63,14 +63,14 @@ class TestTheDefaultPath:
 
         assert model_config.output_file_path == Path("examples/deep/model")
 
-    def test_nothing_is_created_on_disk(self, make_model_config):
+    def test_nothing_is_created_on_disk(self, make_model_config, tmp_path):
         """Computing the path must not touch the filesystem.
 
         ``ModelConfig`` is constructed before the model is built, and may be
         constructed for a run that never completes. Only the explicit
         ``outputdir`` branch is allowed to create anything.
         """
-        model_config = make_model_config(inputfile="never-written.in")
+        model_config = make_model_config(inputfile=str(tmp_path / "never-written.in"))
 
         assert not model_config.output_file_path.exists()
 
@@ -92,8 +92,8 @@ class TestTheOutputFileArgument:
 
         assert model_config.output_file_path == Path("out")
 
-    def test_the_argument_is_not_created_on_disk(self, make_model_config):
-        model_config = make_model_config(inputfile="model.in", outputfile="out")
+    def test_the_argument_is_not_created_on_disk(self, make_model_config, tmp_path):
+        model_config = make_model_config(inputfile="model.in", outputfile=str(tmp_path / "out"))
 
         assert not model_config.output_file_path.exists()
 
@@ -242,13 +242,13 @@ class TestTheSnapshotDirectory:
 
         assert model_config.set_snapshots_dir() == tmp_path / "model_snaps"
 
-    def test_it_does_not_create_anything(self, make_model_config):
+    def test_it_does_not_create_anything(self, make_model_config, tmp_path):
         """The name is computed here; the directory is made by the writer.
 
         Unlike ``set_output_file_path``'s ``outputdir`` branch, this one is
         pure, so calling it to *inspect* the path is safe.
         """
-        model_config = make_model_config(inputfile="model.in")
+        model_config = make_model_config(inputfile=str(tmp_path / "model.in"))
 
         assert not model_config.set_snapshots_dir().exists()
 

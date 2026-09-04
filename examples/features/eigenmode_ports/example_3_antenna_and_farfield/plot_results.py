@@ -183,7 +183,7 @@ def plot_far_field_3d(far_field, frequency_index):
         pad=0.08,
     )
     colourbar.set_label("Directivity (dBi)")
-    figure.savefig(FAR_FIELD_3D_PLOT_PATH, dpi=180)
+    figure.savefig(FAR_FIELD_3D_PLOT_PATH, dpi=180, bbox_inches="tight")
     plt.close(figure)
     print(f"Wrote {FAR_FIELD_3D_PLOT_PATH}")
 

@@ -22,6 +22,7 @@ import pytest
 
 import gprMax.config as config
 import gprMax.sources as sources_module
+from gprMax.eigenmode_device import eigenmode_source_envelopes, eigenmode_source_profiles
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.sources import EigenmodeSource
 from gprMax.waveforms import Waveform
@@ -454,6 +455,222 @@ def test_magnetic_stagger_factor_uses_each_frequency_and_beta():
     assert factors[0] != pytest.approx(factors[1])
 
 
+def _coarse_tem_trace_source(monkeypatch, operator_neff=1.0, carrier=10e9):
+    """A matched TEM profile isolates the longitudinal Yee phase correction."""
+    source, grid = _trace_source(monkeypatch)
+    grid.iterations = 512
+    grid.dt = 6e-12
+    grid.dl[:] = 5e-3
+    source.spectrum_coverage_policy = "allow"
+    source.waveform = SimpleNamespace(
+        calculate_value=lambda time, dt: (
+            np.sin(2 * np.pi * carrier * time)
+            * np.exp(-((time - 1.5e-9) / 0.13e-9) ** 2)
+        ),
+    )
+    anchors = np.asarray([5e9, 15e9])
+    source.anchor_operator_neff = np.full(2, operator_neff, dtype=np.complex128)
+    anchor_symbol = (
+        2 * np.sin(np.pi * anchors * grid.dt) / grid.dt
+        * source.anchor_operator_neff / config.sim_config.em_consts["c"]
+    )
+    anchor_beta = 2 * np.arcsin(grid.dl[0] * anchor_symbol / 2) / grid.dl[0]
+    source.anchor_complex_neff = (
+        anchor_beta * config.sim_config.em_consts["c"] / (2 * np.pi * anchors)
+    )
+    times = np.arange(grid.iterations) * grid.dt
+    waveform = np.asarray([source.waveform.calculate_value(t, grid.dt) for t in times])
+    padded_count = 2 * grid.iterations
+    spectrum = np.fft.rfft(waveform, n=padded_count)
+    bins = np.fft.rfftfreq(padded_count, grid.dt)
+    return source, grid, anchors, bins, spectrum
+
+
+@pytest.mark.parametrize("operator_neff", [1.0, -1.0, 1.0 - 0.1j, -1.0 - 0.1j, 1.0 + 0.1j])
+def test_broadband_tem_stagger_obeys_yee_dispersion_between_sparse_anchors(
+    monkeypatch, operator_neff
+):
+    source, grid, anchors, bins, spectrum = _coarse_tem_trace_source(
+        monkeypatch, operator_neff
+    )
+    omega = 2 * np.pi * bins
+    # A homogeneous TEM mode has constant operator index, so this analytic
+    # dispersion relation holds at every FFT bin, including outside anchors.
+    symbol = (
+        np.sin(np.pi * bins * grid.dt) * grid.dl[0] * complex(operator_neff)
+        / (config.sim_config.em_consts["c"] * grid.dt)
+    )
+    beta = 2 * np.arcsin(symbol) / grid.dl[0]
+    retained = np.ones(bins.size, dtype=bool)
+    retained[[0, -1]] = False
+    if np.imag(operator_neff) == 0:
+        retained &= np.abs(symbol.real) < 1
+    spectrum = np.where(retained, spectrum, 0)
+    phase = np.exp(1j * (omega * grid.dt / 2 + beta * grid.dl[0] / 2))
+
+    source._prepare_broadband_time_traces(grid, anchors)
+
+    for quadrature, factor in enumerate((1, 1j)):
+        expected_e = np.fft.irfft(factor * spectrum, n=2 * grid.iterations)[:grid.iterations]
+        expected_h = np.fft.irfft(factor * spectrum * phase, n=2 * grid.iterations)[
+            :grid.iterations
+        ]
+        np.testing.assert_allclose(
+            np.sum(source.broadband_e_envelopes[:, quadrature], axis=0),
+            expected_e, rtol=2e-13, atol=2e-14,
+        )
+        np.testing.assert_allclose(
+            np.sum(source.broadband_h_envelopes[:, quadrature], axis=0),
+            expected_h, rtol=2e-13, atol=2e-14,
+        )
+    # The coarse mesh must distinguish this oracle from the old interpolation
+    # of physical index after the nonlinear arcsine conversion.
+    midpoint_beta = 2 * np.arcsin(
+        np.sin(np.pi * 10e9 * grid.dt) * grid.dl[0] * complex(operator_neff)
+        / (config.sim_config.em_consts["c"] * grid.dt)
+    ) / grid.dl[0]
+    old_midpoint_beta = (
+        2 * np.pi * 10e9 * np.mean(source.anchor_complex_neff)
+        / config.sim_config.em_consts["c"]
+    )
+    assert abs(old_midpoint_beta / midpoint_beta - 1) > 0.01
+
+
+@pytest.mark.parametrize("single_frequency_iq", [False, True])
+def test_one_anchor_with_operator_metadata_keeps_constant_physical_index(
+    monkeypatch, single_frequency_iq
+):
+    source, grid, anchors, bins, spectrum = _coarse_tem_trace_source(monkeypatch)
+    source.anchor_complex_neff = source.anchor_complex_neff[:1]
+    source.anchor_operator_neff = source.anchor_operator_neff[:1]
+    source.anchor_modal_e = source.anchor_modal_e[:1]
+    source.anchor_modal_h = source.anchor_modal_h[:1]
+    spectrum[[0, -1]] = 0
+    omega = 2 * np.pi * bins
+    beta = omega * source.anchor_complex_neff[0] / config.sim_config.em_consts["c"]
+    phase = np.exp(1j * (omega * grid.dt / 2 + beta * grid.dl[0] / 2))
+
+    source._prepare_broadband_time_traces(
+        grid, anchors[:1], single_frequency_iq=single_frequency_iq
+    )
+
+    np.testing.assert_allclose(
+        source.broadband_h_envelopes[0, 0],
+        np.fft.irfft(spectrum * phase, n=2 * grid.iterations)[:grid.iterations],
+        rtol=2e-13, atol=2e-14,
+    )
+
+
+def test_operator_interpolation_uses_field_weights_at_anchors_and_endpoints(monkeypatch):
+    source, grid, _, bins, spectrum = _coarse_tem_trace_source(monkeypatch)
+    anchors = bins[[32, 96]]
+    source.anchor_operator_neff = np.asarray([0.8, 1.05], dtype=np.complex128)
+    source.anchor_complex_neff = (
+        2 * np.arcsin(
+            np.sin(np.pi * anchors * grid.dt) * grid.dl[0]
+            * source.anchor_operator_neff / (config.sim_config.em_consts["c"] * grid.dt)
+        ) / grid.dl[0] * config.sim_config.em_consts["c"] / (2 * np.pi * anchors)
+    )
+    upper_weight = np.clip((bins - anchors[0]) / (anchors[1] - anchors[0]), 0, 1)
+    weights = np.stack((1 - upper_weight, upper_weight))
+    operator_index = 0.8 * weights[0] + 1.05 * weights[1]
+    symbol = np.sin(np.pi * bins * grid.dt) * grid.dl[0] * operator_index / (
+        config.sim_config.em_consts["c"] * grid.dt
+    )
+    retained = symbol < 1
+    retained[[0, -1]] = False
+    spectrum = np.where(retained, spectrum, 0)
+    beta = 2 * np.arcsin(symbol.astype(np.complex128)) / grid.dl[0]
+    phase = np.exp(1j * (np.pi * bins * grid.dt + beta * grid.dl[0] / 2))
+
+    source._prepare_broadband_time_traces(grid, anchors)
+
+    for anchor in range(2):
+        expected = np.fft.irfft(
+            spectrum * weights[anchor] * phase, n=2 * grid.iterations
+        )[:grid.iterations]
+        np.testing.assert_allclose(
+            source.broadband_h_envelopes[anchor, 0], expected, rtol=2e-13, atol=2e-14
+        )
+
+
+def test_legacy_broadband_without_operator_metadata_keeps_phase_interpolation(monkeypatch):
+    source, grid, anchors, bins, spectrum = _coarse_tem_trace_source(monkeypatch)
+    source.anchor_operator_neff = None
+    spectrum[[0, -1]] = 0
+    phase_index = np.interp(bins, anchors, source.anchor_complex_neff)
+    omega = 2 * np.pi * bins
+    beta = omega * phase_index / config.sim_config.em_consts["c"]
+    phase = np.exp(1j * (omega * grid.dt / 2 + beta * grid.dl[0] / 2))
+
+    source._prepare_broadband_time_traces(grid, anchors)
+
+    np.testing.assert_allclose(
+        np.sum(source.broadband_h_envelopes[:, 0], axis=0),
+        np.fft.irfft(spectrum * phase, n=2 * grid.iterations)[:grid.iterations],
+        rtol=2e-13, atol=2e-14,
+    )
+
+
+def test_broadband_significant_spatial_stop_band_energy_is_rejected(monkeypatch):
+    source, grid, anchors, _, _ = _coarse_tem_trace_source(monkeypatch, carrier=25e9)
+
+    with pytest.raises(ValueError, match="(?i)spatial.*(stop.band|unresolved)"):
+        source._prepare_broadband_time_traces(grid, anchors)
+
+
+def test_broadband_small_stop_band_tails_are_discarded_and_counted_in_error(monkeypatch):
+    source, grid, anchors, bins, original = _coarse_tem_trace_source(monkeypatch)
+    symbol = np.sin(np.pi * bins * grid.dt) * grid.dl[0] / (
+        config.sim_config.em_consts["c"] * grid.dt
+    )
+    stop_band = symbol >= 1
+    stop_band[[0, -1]] = False
+    peak = np.max(np.abs(original[1:-1]))
+    assert 0 < np.max(np.abs(original[stop_band])) < source.spectral_threshold * peak
+    filtered = original.copy()
+    filtered[stop_band] = 0
+    filtered[[0, -1]] = 0
+    expected = np.fft.irfft(filtered, n=2 * grid.iterations)[:grid.iterations]
+    input_waveform = np.fft.irfft(original, n=2 * grid.iterations)[:grid.iterations]
+    expected_error = np.max(np.abs(expected - input_waveform)) / np.max(np.abs(input_waveform))
+
+    source._prepare_broadband_time_traces(grid, anchors)
+
+    np.testing.assert_allclose(source.broadband_reconstructed_waveform, expected, atol=2e-14)
+    np.testing.assert_allclose(source.broadband_input_waveform, input_waveform, atol=2e-14)
+    assert source.broadband_waveform_error == pytest.approx(expected_error, rel=1e-8)
+    assert source.broadband_waveform_error > 1e-9
+
+
+def test_cached_mode_switch_keeps_operator_indices_with_selected_anchors(monkeypatch):
+    source, grid = _trace_source(monkeypatch)
+    grid.timewindow = grid.iterations * grid.dt
+    source.mode_indices = (1, 2)
+    source.port_anchor_frequencies = (5e9, 10e9, 15e9)
+    source.port_anchor_mode_valid = np.asarray([[True, False], [True, True], [True, True]])
+    source.port_anchor_neff = np.asarray([[1.1, 2.1], [1.2, 2.2], [1.3, 2.3]])
+    source.port_anchor_operator_neff = np.asarray([[0.9, 1.8], [1.0, 1.9], [1.1, 2.0]])
+    source.port_anchor_e = [[source.anchor_modal_e[0] for _ in range(2)] for _ in range(3)]
+    source.port_anchor_h = [[source.anchor_modal_h[0] for _ in range(2)] for _ in range(3)]
+    source.port_mode_solvers = tuple(object() for _ in range(3))
+    source.port_mode_anchor_policies = ("explicit", "explicit_nonpropagating_trimmed")
+    prepared = []
+
+    def capture_prepared(grid, frequencies):
+        prepared.append((frequencies, source.anchor_operator_neff.copy()))
+
+    monkeypatch.setattr(source, "_prepare_broadband_time_traces", capture_prepared)
+
+    source.configure_cached_excitation(grid, 2, source.waveform)
+    source.configure_cached_excitation(grid, 1, source.waveform)
+
+    assert prepared[0][0] == (10e9, 15e9)
+    np.testing.assert_array_equal(prepared[0][1], [1.9, 2.0])
+    assert prepared[1][0] == (5e9, 10e9, 15e9)
+    np.testing.assert_array_equal(prepared[1][1], [0.9, 1.0, 1.1])
+
+
 def test_modal_cross_power_is_independent_of_requested_direction(monkeypatch):
     monkeypatch.setattr(
         config,
@@ -578,6 +795,8 @@ def test_single_frequency_global_phase_shift_uses_real_profile(monkeypatch):
     source = EigenmodeSource(None)
     source.normal_axis = 0
     source.transverse_axes = (1, 2)
+    source.frequency = 5e9
+    source.complex_neff = 1.0 + 0.0j
     phase = np.exp(0.73j)
     source.modal_e = [
         1j * np.asarray([1.0, 2.0]),
@@ -590,7 +809,7 @@ def test_single_frequency_global_phase_shift_uses_real_profile(monkeypatch):
         phase * np.asarray([0.3, 0.1, -0.5]) / impedance,
     ]
 
-    source._prepare_single_frequency_injection(SimpleNamespace())
+    source._prepare_single_frequency_injection(SimpleNamespace(dl=np.full(3, 0.5e-3)))
 
     residual = source.complex_profile_residual
     assert residual < 1e-12
@@ -691,6 +910,52 @@ def test_single_frequency_spatial_phase_requires_quadrature(monkeypatch):
     assert residual > source.COMPLEX_PROFILE_TOLERANCE
 
 
+@pytest.mark.parametrize(
+    ("complex_profile", "phase", "delay", "neff", "expected_reasons"),
+    (
+        (True, 0.0, 0.0, 1.0, ("complex modal profile",)),
+        (False, 45.0, 0.0, 1.0, ("drive phase/delay",)),
+        (False, 0.0, 1e-12, 1.0, ("drive phase/delay",)),
+        (False, 0.0, 0.0, 1.0 - 0.1j, ("complex longitudinal staggering",)),
+        (
+            True, 45.0, 1e-12, 1.0 - 0.1j,
+            ("complex modal profile", "drive phase/delay", "complex longitudinal staggering"),
+        ),
+        (False, 0.0, 0.0, -1.0, ()),
+        (False, 360.0, 0.0, 1.0, ()),
+    ),
+)
+def test_single_frequency_iq_diagnostic_records_actual_reasons(
+    monkeypatch, complex_profile, phase, delay, neff, expected_reasons
+):
+    source, grid = _trace_source(monkeypatch)
+    source.transverse_axes = (1, 2)
+    source.frequency = 5e9
+    source.complex_neff = neff
+    source.drive_phase_deg, source.drive_delay_s = phase, delay
+    profile = np.asarray([1.0, 1.0j if complex_profile else 1.0])
+    zero = np.zeros_like(profile)
+    source.modal_e = [zero.copy(), profile.copy(), zero.copy()]
+    source.modal_h = [zero.copy(), zero.copy(), profile / config.sim_config.em_consts["z0"]]
+    source.single_frequency_iq_reasons = ("stale reason",)
+    messages = []
+    monkeypatch.setattr(sources_module.logger, "info", messages.append)
+
+    source._prepare_single_frequency_injection(grid)
+
+    assert source.single_frequency_iq_reasons == expected_reasons
+    assert source.uses_quadrature is bool(expected_reasons)
+    if not complex_profile:
+        assert source.complex_profile_residual < source.COMPLEX_PROFILE_TOLERANCE
+    diagnostic = next(message for message in messages if message.startswith("Single-frequency"))
+    assert "above tolerance" not in diagnostic
+    if expected_reasons:
+        assert f"(reasons: {', '.join(expected_reasons)})" in diagnostic
+    else:
+        assert "using real-only injection" in diagnostic
+        assert "reasons:" not in diagnostic
+
+
 def test_single_frequency_complex_mode_reuses_fft_quadrature(monkeypatch):
     speed = 299792458.0
     monkeypatch.setattr(
@@ -774,3 +1039,119 @@ def test_single_frequency_complex_mode_reuses_fft_quadrature(monkeypatch):
         n=padded_count,
     )[:sample_count]
     assert actual_magnetic == pytest.approx(expected_magnetic)
+
+
+@pytest.mark.parametrize("normal_axis", (0, 2))
+@pytest.mark.parametrize("speed", (299792458.0, 0.8 * 299792458.0))
+@pytest.mark.parametrize(
+    ("operator_neff", "requires_quadrature"),
+    (
+        pytest.param(1.0, False, id="positive-phase"),
+        pytest.param(-1.0, False, id="negative-phase"),
+        pytest.param(1.0 - 0.1j, True, id="lossy-real-profile"),
+        pytest.param(1.0 + 0.1j, True, id="growing-real-profile"),
+        pytest.param(1.0 - 1e-16j, False, id="roundoff-loss"),
+    ),
+)
+def test_single_frequency_real_profile_preserves_propagation_stagger(
+    monkeypatch, normal_axis, speed, operator_neff, requires_quadrature
+):
+    """CPU and device H injection must preserve phase sign and attenuation."""
+    monkeypatch.setattr(
+        config,
+        "sim_config",
+        SimpleNamespace(
+            em_consts={"z0": 1.0, "c": speed},
+            dtypes={"float_or_double": np.float64, "C_float_or_double": "double"},
+        ),
+    )
+    monkeypatch.setattr(config, "get_model_config", lambda: SimpleNamespace(ompthreads=1))
+    grid = SimpleNamespace(
+        iterations=128,
+        dt=6e-12,
+        dl=np.full(3, 1e-3),
+        updatecoeffsE=None,
+        ID=None,
+        Ex=None,
+        Ey=None,
+        Ez=None,
+    )
+    grid.dl[normal_axis] = 5e-3
+    source = EigenmodeSource(None)
+    source.normal_axis = normal_axis
+    source.transverse_axes = tuple(axis for axis in range(3) if axis != normal_axis)
+    source.transverse_start = np.zeros(2, dtype=np.int32)
+    source.transverse_stop = np.ones(2, dtype=np.int32)
+    source.plane_index = 1
+    source.direction = "+"
+    source.start, source.stop = 0.0, np.inf
+    source.frequency = 10e9
+    omega = 2 * np.pi * source.frequency
+    spacing = grid.dl[normal_axis]
+    discrete_beta = operator_neff * 2 * np.sin(omega * grid.dt / 2) / (speed * grid.dt)
+    beta = 2 * np.arcsin(discrete_beta * spacing / 2) / spacing
+    source.complex_neff = beta * speed / omega
+    source.neff = float(np.real(source.complex_neff))
+    source.mode_solver = object()
+    source.modal_e = [np.zeros((1, 1), dtype=np.complex128) for _ in range(3)]
+    source.modal_h = [np.zeros((1, 1), dtype=np.complex128) for _ in range(3)]
+    electric_axis, magnetic_axis = source.transverse_axes
+    # Matched impedance keeps both tangential profiles real even for complex beta.
+    source.modal_e[electric_axis].fill(1.0)
+    source.modal_h[magnetic_axis].fill(1.0)
+    source._modal_cross_power = lambda electric, magnetic, grid: 1.0
+    source.waveform = Waveform()
+    source.waveform.type = "user"
+    source.waveform.userfunc = lambda time: (
+        np.sin(omega * time) * np.exp(-(((time - 0.35e-9) / 0.12e-9) ** 2))
+    )
+
+    source._prepare_single_frequency_injection(grid)
+
+    assert source.complex_profile_residual < 1e-14
+    assert source.uses_quadrature is requires_quadrature
+    times = np.arange(grid.iterations) * grid.dt
+    if requires_quadrature:
+        padded_count = 2 * grid.iterations
+        waveform = np.asarray([source.waveform.calculate_value(t, grid.dt) for t in times])
+        spectrum = np.fft.rfft(waveform, n=padded_count)
+        spectrum[0] = spectrum[-1] = 0
+        bin_omega = 2 * np.pi * np.fft.rfftfreq(padded_count, d=grid.dt)
+        # The single-frequency model holds phase index constant across the pulse.
+        bin_beta = beta * bin_omega / omega
+        stagger = np.exp(1j * (bin_omega * grid.dt / 2 + bin_beta * spacing / 2))
+        expected = np.fft.irfft(spectrum * stagger, n=padded_count)[: grid.iterations]
+    else:
+        shifted_times = times + grid.dt / 2 + np.real(beta) * spacing / (2 * omega)
+        expected = np.asarray(
+            [
+                source.waveform.calculate_value(t, grid.dt) if t >= source.start else 0.0
+                for t in shifted_times
+            ]
+        )
+
+    applied = []
+
+    def capture_electric_update(*args):
+        # The electric TF/SF update consumes the incident magnetic profile.
+        applied.append(args[10] * args[11 + magnetic_axis][0, 0])
+
+    monkeypatch.setattr(
+        sources_module, "updateEigenmode_electric", {"double": capture_electric_update}
+    )
+    _, magnetic_profiles = eigenmode_source_profiles(source)
+    cpu_trace, device_trace = [], []
+    for iteration in range(grid.iterations):
+        applied.clear()
+        source.update_eigenmode_electric(iteration, grid)
+        cpu_trace.append(sum(applied))
+        device_trace.append(
+            sum(
+                magnetic_profiles[basis, magnetic_axis, 0, 0] * envelope
+                for basis, envelope in eigenmode_source_envelopes(
+                    source, grid, iteration, magnetic=False
+                )
+            )
+        )
+    np.testing.assert_allclose(cpu_trace, expected, rtol=2e-13, atol=2e-14)
+    np.testing.assert_allclose(device_trace, expected, rtol=2e-13, atol=2e-14)

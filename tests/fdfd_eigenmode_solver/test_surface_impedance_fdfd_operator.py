@@ -197,8 +197,10 @@ def _rectangular_impedance_boundary(nu, nv, du, dv, response):
     )
 
 
-def test_surface_topology_and_clipped_ampere_rows_are_installed_exactly():
+@pytest.mark.parametrize("fdtd_dt", [None, 6e-12], ids=["continuous-time", "yee-time"])
+def test_surface_topology_and_clipped_ampere_rows_are_installed_exactly(fdtd_dt):
     inputs = _solver_inputs()
+    inputs["fdtd_dt"] = fdtd_dt
     electric_retained = [
         np.ones((2, 3), dtype=bool),
         np.ones((3, 2), dtype=bool),
@@ -274,16 +276,16 @@ def test_surface_topology_and_clipped_ampere_rows_are_installed_exactly():
     hu_column = solver._flat_index(1, 0, solver.shape_hu[0])
     hv_column = solver._flat_index(0, 1, solver.shape_hv[0])
     assert _row_entries(solver.DHV_HW_TO_HV, eu_row) == pytest.approx(
-        {hw_column: 1.0e-3 / (area_u * solver.k0)}
+        {hw_column: 1.0e-3 / (area_u * solver.operator_k0)}
     )
     assert _row_entries(solver.DHU_HW_TO_HU, ev_row) == pytest.approx(
-        {hw_column: 0.6e-3 / (area_v * solver.k0)}
+        {hw_column: 0.6e-3 / (area_v * solver.operator_k0)}
     )
     assert _row_entries(solver.DHV_HU_TO_EW, ew_row) == pytest.approx(
-        {hu_column: -0.9e-3 / (area_w * solver.k0)}
+        {hu_column: -0.9e-3 / (area_w * solver.operator_k0)}
     )
     assert _row_entries(solver.DHU_HV_TO_EW, ew_row) == pytest.approx(
-        {hv_column: -0.7e-3 / (area_w * solver.k0)}
+        {hv_column: -0.7e-3 / (area_w * solver.operator_k0)}
     )
 
     unaffected = solver._flat_index(1, 0, solver.shape_eu[0])

@@ -155,6 +155,7 @@ def test_unused_builtin_pmc_does_not_block_eigenmode_material_slice():
     grid = SimpleNamespace(
         materials=[pec, pmc, free_space],
         ID=np.full((6, 3, 3, 3), free_space.numID, dtype=np.uint32),
+        dt=1e-12,
     )
     source = _source(grid)
 
@@ -171,7 +172,7 @@ def test_pmc_component_ids_become_infinite_permeability_on_source_slice():
     ids[4, 1, 0, 0] = pmc.numID
     ids[5, 1, 0, 1] = pmc.numID
     ids[3, 1, 1, 1] = pmc.numID
-    grid = SimpleNamespace(materials=[pec, pmc, free_space], ID=ids)
+    grid = SimpleNamespace(materials=[pec, pmc, free_space], ID=ids, dt=1e-12)
     source = _source(grid)
 
     mu_uu, mu_vv, mu_ww = source._extract_local_complex_property_tensors(grid, electric=False)
@@ -213,6 +214,7 @@ def test_eigenmode_source_passes_cell_pmc_masks_to_solver(monkeypatch):
         ID=np.full((6, 3, 3, 3), free_space.numID, dtype=np.uint32),
         solid=np.full((3, 3, 3), free_space.numID, dtype=np.uint32),
         dl=np.full(3, 1e-3),
+        dt=1e-12,
     )
     grid.solid[0, 0, 0] = pmc.numID
     source = _source(grid)

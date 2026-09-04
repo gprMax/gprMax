@@ -8,7 +8,7 @@ The prescribed analytical case defines a frequency-dependent two-port
 scattering matrix :math:`S`, a non-diagonal incident matrix :math:`A`, and
 forms :math:`B=SA` exactly. The production conditioned solve recovers
 :math:`S` with a maximum Frobenius-norm error of
-:math:`2.31\times10^{-16}`. Dividing each run only by its nominal source wave
+:math:`4.61\times10^{-16}`. Dividing each run only by its nominal source wave
 has an error of at least :math:`2.17\times10^{-2}` for this prescribed case.
 
 .. figure:: analytical_matrix_deembedding.png
@@ -26,12 +26,12 @@ virtual-waveguide ports. Its dominant-mode response is
    S_{21}(f)=\exp[-j\beta(f)L], \qquad
    \beta(f)=\sqrt{(2\pi f/c)^2-(\pi/a)^2}.
 
-Across 20--24 GHz the full solve has a maximum magnitude error of 0.001829 in
-linear magnitude and a maximum circular phase error of 1.243 degrees relative
+Across 20--24 GHz the full solve has a maximum magnitude error of 0.002037 in
+linear magnitude and a maximum circular phase error of 1.226 degrees relative
 to that continuum solution. Its maximum measured network-equation residual is
-:math:`2.93\times10^{-16}`; the diagonal approximation leaves a residual of
-0.0379. The largest passive-to-active incident-wave ratio is 0.0215 and the
-maximum incident-matrix condition number is 1.052.
+:math:`3.70\times10^{-16}`; the diagonal approximation leaves a residual of
+0.0399. The largest passive-to-active incident-wave ratio is 0.0228 and the
+maximum incident-matrix condition number is 1.055.
 
 .. figure:: rectangular_waveguide_deembedding.png
    :alt: Two-port gprMax de-embedding compared with analytical TE10 propagation

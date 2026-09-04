@@ -42,8 +42,8 @@ magnitude is 0 dB and the unwrapped phase is :math:`-\beta L`.
     The shaded below-cutoff coefficients are generalized modal amplitudes, not
     physical power waves.
 
-The retained 100-frequency result has maximum theory errors of 0.336 dB in
-magnitude and 2.441 degrees in phase. Seven samples lie below cutoff and
+The retained 100-frequency result has maximum theory errors of 0.353 dB in
+magnitude and 2.145 degrees in phase. Seven samples lie below cutoff and
 remain finite generalized coefficients while their separate power-wave-valid
 flags are false. The comparison uses the integrated eigenmode-port result
 directly; it does not use auxiliary receiver-derived oracle traces.
@@ -64,7 +64,7 @@ The :download:`multiport validation driver
 first prescribes an exact frequency-dependent :math:`S` and a non-diagonal
 :math:`A`, then forms :math:`B` analytically. The production conditioned solve
 recovers :math:`S` with a maximum Frobenius-norm error of
-:math:`2.31\times10^{-16}`. Dividing each case only by its nominal source wave
+:math:`4.61\times10^{-16}`. Dividing each case only by its nominal source wave
 has an error of at least :math:`2.17\times10^{-2}` in this test.
 
 .. figure:: ../../testing/validation/eigenmode_multiport_deembedding/analytical_matrix_deembedding.png
@@ -75,9 +75,9 @@ has an error of at least :math:`2.17\times10^{-2}` in this test.
 
 The end-to-end comparison uses a lossless two-port rectangular guide and the
 analytical TE10 propagation factor :math:`\exp(-j\beta L)`. Across 20--24 GHz,
-the full solve has maximum errors of 0.001829 in linear magnitude and 1.243
+the full solve has maximum errors of 0.002037 in linear magnitude and 1.226
 degrees in phase. Its maximum :math:`\|B-SA\|/\|B\|` residual is
-:math:`2.93\times10^{-16}`, compared with 0.0379 for diagonal normalisation.
+:math:`3.70\times10^{-16}`, compared with 0.0399 for diagonal normalisation.
 
 .. figure:: ../../testing/validation/eigenmode_multiport_deembedding/rectangular_waveguide_deembedding.png
     :width: 850 px
