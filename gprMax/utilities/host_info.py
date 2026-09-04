@@ -507,18 +507,16 @@ def detect_cuda_gpus():
 
         drv.init()
 
-        # Check and list any CUDA-Enabled GPUs
-        deviceIDsavail = []
-        if drv.Device.count() == 0:
+        # The CUDA driver already applies CUDA_VISIBLE_DEVICES before reporting
+        # the device count and renumbers the visible devices to local ordinals
+        # 0..count-1. Parsing the environment variable here would incorrectly
+        # pass physical indices (or GPU/MIG UUIDs) back to drv.Device.
+        device_count = drv.Device.count()
+        if device_count == 0:
             logger.warning("No NVIDIA CUDA-Enabled GPUs detected!\n" + cuda_reqs)
-        elif "CUDA_VISIBLE_DEVICES" in os.environ:
-            deviceIDsavail = os.environ.get("CUDA_VISIBLE_DEVICES")
-            deviceIDsavail = [int(s) for s in deviceIDsavail.split(",")]
-        else:
-            deviceIDsavail = range(drv.Device.count())
 
         # Gather information about detected GPUs
-        for ID in deviceIDsavail:
+        for ID in range(device_count):
             gpus[ID] = drv.Device(ID)
 
     else:

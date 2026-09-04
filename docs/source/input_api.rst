@@ -2423,6 +2423,13 @@ to the subgrid object. With ``autotranslate=True`` these objects can use main
 grid coordinates. Subgridding currently uses the double-precision CPU solver;
 CUDA, OpenCL, and Metal subgrid execution are not part of this release.
 
+.. note::
+
+    The HSG formulation fixes ``pml_separation`` at ``ratio // 2 + 2``. The
+    constructor retains the argument for API compatibility, but any supplied
+    value is intentionally ignored. Changing this separation is experimental
+    and requires modifying the formulation in the source code.
+
 .. code-block:: python
 
     subgrid = gprMax.SubGridHSG(

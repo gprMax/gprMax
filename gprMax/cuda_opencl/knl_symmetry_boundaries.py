@@ -230,7 +230,7 @@ _DISPERSION_SNIPPET = Template(
     """
         $REAL phi = ($REAL)0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            int state = IDX4D_T(pole,x,y,z);
+            size_t state = IDX4D_T(pole,x,y,z);
             phi += GPRMAX_CREAL(GPRMAX_CMUL(
                 updatecoeffsdispersive[IDX2D_MATDISP(material,pole*3)],
                 $T[state]));
@@ -315,7 +315,7 @@ kernel void update_electric_pmc_dispersive_b(
             && ex_on_pmc) {
         int material = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            int state = IDX4D_T(pole,x,y,z);
+            size_t state = IDX4D_T(pole,x,y,z);
             Tx[state] = GPRMAX_CSUB(Tx[state], GPRMAX_CRMUL(
                 updatecoeffsdispersive[IDX2D_MATDISP(material,2+pole*3)],
                 Ex[IDX3D_FIELDS(x,y,z)]));
@@ -327,7 +327,7 @@ kernel void update_electric_pmc_dispersive_b(
             && ey_on_pmc) {
         int material = ID[IDX4D_ID(1,x_ID,y_ID,z_ID)];
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            int state = IDX4D_T(pole,x,y,z);
+            size_t state = IDX4D_T(pole,x,y,z);
             Ty[state] = GPRMAX_CSUB(Ty[state], GPRMAX_CRMUL(
                 updatecoeffsdispersive[IDX2D_MATDISP(material,2+pole*3)],
                 Ey[IDX3D_FIELDS(x,y,z)]));
@@ -339,7 +339,7 @@ kernel void update_electric_pmc_dispersive_b(
             && ez_on_pmc) {
         int material = ID[IDX4D_ID(2,x_ID,y_ID,z_ID)];
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            int state = IDX4D_T(pole,x,y,z);
+            size_t state = IDX4D_T(pole,x,y,z);
             Tz[state] = GPRMAX_CSUB(Tz[state], GPRMAX_CRMUL(
                 updatecoeffsdispersive[IDX2D_MATDISP(material,2+pole*3)],
                 Ez[IDX3D_FIELDS(x,y,z)]));

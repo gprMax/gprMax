@@ -24,9 +24,9 @@ command into a wired-up ``SubGridHSG`` grid registered on the model.
 The size helpers are pure arithmetic on ``ratio`` and are asserted against
 hand-computed numbers rather than against the code's own derivation.
 
-Note the ``pml_separation`` argument is discarded by ``SubGridHSG.__init__``
-(see ``notes/bugs/subgrid-pml-separation-override.md``), so nothing here
-passes one and expects it to survive.
+The HSG formulation fixes ``pml_separation`` at ``ratio // 2 + 2``. The public
+argument is retained for compatibility but is intentionally ignored; changing
+the separation is an unsupported experimental modification to the formulation.
 """
 
 from types import SimpleNamespace
@@ -143,6 +143,10 @@ class TestKwargPassThrough:
         cmd = command()
         assert cmd.kwargs["p1"] == (0.010, 0.010, 0.010)
         assert cmd.kwargs["p2"] == (0.016, 0.016, 0.016)
+
+    def test_pml_separation_is_fixed_by_the_formulation(self, command):
+        cmd = command(ratio=5, pml_separation=99)
+        assert cmd.kwargs["pml_separation"] == 5 // 2 + 2
 
     def test_defaults_are_applied(self):
         cmd = SubGridHSG(p1=(0, 0, 0), p2=(1, 1, 1))

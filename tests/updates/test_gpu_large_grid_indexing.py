@@ -17,10 +17,22 @@
 
 """Source-generation regressions for accelerator grids above 2^31 entries."""
 
+from string import Template
+
 import pytest
 from jinja2 import Environment, PackageLoader
 
-from gprMax.cuda_opencl import knl_fields_updates, knl_symmetry_boundaries
+from gprMax.cuda_opencl import (
+    knl_fields_updates,
+    knl_magnetic_frill_source,
+    knl_pml_updates_electric_HORIPML,
+    knl_pml_updates_electric_MRIPML,
+    knl_pml_updates_magnetic_HORIPML,
+    knl_pml_updates_magnetic_MRIPML,
+    knl_rational_network,
+    knl_snapshots,
+    knl_symmetry_boundaries,
+)
 from gprMax.updates.cuda_updates import CUDA_THREAD_INDEX
 
 
@@ -107,3 +119,56 @@ def test_dispersive_coordinate_products_use_pointer_sized_arithmetic(kernel):
 
     assert "size_t T_plane" in source
     assert "size_t T_offset" in source
+
+
+def test_sparse_source_field_offsets_remain_pointer_sized():
+    rational = knl_rational_network.update_rational_network["func"].template
+    frill = knl_magnetic_frill_source.update_magnetic_frill_source["func"].template
+
+    assert rational.count("size_t field_index = IDX3D_FIELDS") == 1
+    assert frill.count("size_t field_index = IDX3D_FIELDS") == 2
+    assert "int field_index = IDX3D_FIELDS" not in rational + frill
+
+
+def test_dispersive_symmetry_state_offsets_remain_pointer_sized():
+    phase_a = knl_symmetry_boundaries._DISPERSION_SNIPPET.template
+    phase_b = knl_symmetry_boundaries.update_electric_pmc_dispersive_b["func"].template
+
+    assert phase_a.count("size_t state = IDX4D_T") == 1
+    assert phase_b.count("size_t state = IDX4D_T") == 3
+    assert "int state = IDX4D_T" not in phase_a + phase_b
+
+
+def test_snapshot_coordinate_products_use_pointer_sized_arithmetic():
+    source = knl_snapshots.store_snapshot["func"].template
+
+    assert "size_t snapshot_plane" in source
+    assert "size_t snapshot_volume" in source
+    assert "size_t rem_snaps" in source
+    assert "$NX_SNAPS * $NY_SNAPS * $NZ_SNAPS" not in source
+
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        knl_pml_updates_electric_HORIPML,
+        knl_pml_updates_electric_MRIPML,
+        knl_pml_updates_magnetic_HORIPML,
+        knl_pml_updates_magnetic_MRIPML,
+    ],
+)
+def test_pml_coordinate_products_use_pointer_sized_arithmetic(module):
+    sources = [
+        value["func"].template
+        for value in vars(module).values()
+        if isinstance(value, dict) and isinstance(value.get("func"), Template)
+    ]
+
+    assert len(sources) == 12
+    for source in sources:
+        assert "size_t phi1_plane" in source
+        assert "size_t phi1_volume" in source
+        assert "size_t phi2_plane" in source
+        assert "size_t phi2_volume" in source
+        assert "NX_PHI1 * NY_PHI1 * NZ_PHI1" not in source
+        assert "NX_PHI2 * NY_PHI2 * NZ_PHI2" not in source
