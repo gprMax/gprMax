@@ -22,7 +22,11 @@ from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 from ..updates.cpu_updates import CPUUpdates
-from .precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
+from .precursor_nodes import (
+    PrecursorNodes,
+    PrecursorNodesEqualResolution,
+    PrecursorNodesFiltered,
+)
 from .subgrid_hsg import SubGridHSG
 
 logger = logging.getLogger(__name__)
@@ -34,7 +38,9 @@ def create_updates(model: Model):
 
     for sg in model.subgrids:
         sg_type = type(sg)
-        if sg_type == SubGridHSG and sg.filter:
+        if sg_type == SubGridHSG and sg.equal_resolution:
+            precursors = PrecursorNodesEqualResolution(model.G, sg)
+        elif sg_type == SubGridHSG and sg.filter:
             precursors = PrecursorNodesFiltered(model.G, sg)
         elif sg_type == SubGridHSG:
             precursors = PrecursorNodes(model.G, sg)
@@ -88,6 +94,20 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
         self.iteration = 0
 
     def store_outputs(self):
+        """Store one complete fine-grid Yee time level.
+
+        The HSG choreography reaches this method with electric fields at
+        ``iteration * dt`` and magnetic fields at
+        ``(iteration - 1/2) * dt``.  This is the same convention used by the
+        main-grid solver and by the receiver/snapshot output metadata.
+
+        The final electric update advances the subgrid to ``iterations``
+        solely to complete the main-grid coupling step.  That time level is
+        outside the requested output range, so do not write it.
+        """
+
+        if self.iteration >= self.grid.iterations:
+            return
         super().store_outputs(self.iteration)
         super().store_snapshots(self.iteration)
         super().observe_sar_electric(self.iteration)
@@ -125,7 +145,6 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
         upper_m = int(subgrid.ratio / 2 - 0.5)
 
         for m in range(1, upper_m + 1):
-            self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
             precursors.interpolate_magnetic_in_time(int(m + subgrid.ratio / 2 - 0.5))
@@ -133,20 +152,22 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
             self.update_electric_sources()
             self.update_electric_b()
             self.update_network_terminals()
+            self.store_outputs()
             self.update_magnetic()
             self.update_magnetic_pml()
             precursors.interpolate_electric_in_time(m)
             subgrid.update_magnetic_is(precursors)
             self.update_magnetic_sources()
 
-        self.store_outputs()
         self.update_electric_a()
-        self.update_electric_pml()
+        if not subgrid.equal_resolution:
+            self.update_electric_pml()
         precursors.calc_exact_magnetic_in_time()
         subgrid.update_electric_is(precursors)
         self.update_electric_sources()
         self.update_electric_b()
         self.update_network_terminals()
+        self.store_outputs()
         subgrid.update_electric_os(G)
 
     def hsg_2(self):
@@ -161,6 +182,13 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
         # Copy the main grid magnetic fields at the IS position
         precursors.update_magnetic()
 
+        # Before the first fine-grid magnetic update the subgrid is at its
+        # initial E(0), H(-1/2) state.  Record that state explicitly; all
+        # subsequent output is recorded immediately after a complete electric
+        # update, when the same Yee staggering is present again.
+        if self.iteration == 0:
+            self.store_outputs()
+
         upper_m = int(subgrid.ratio / 2 - 0.5)
 
         for m in range(1, upper_m + 1):
@@ -169,7 +197,6 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
             precursors.interpolate_electric_in_time(int(m + subgrid.ratio / 2 - 0.5))
             subgrid.update_magnetic_is(precursors)
             self.update_magnetic_sources()
-            self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
             precursors.interpolate_magnetic_in_time(m)
@@ -177,9 +204,11 @@ class SubgridUpdater(CPUUpdates[SubGridBaseGrid]):
             self.update_electric_sources()
             self.update_electric_b()
             self.update_network_terminals()
+            self.store_outputs()
 
         self.update_magnetic()
-        self.update_magnetic_pml()
+        if not subgrid.equal_resolution:
+            self.update_magnetic_pml()
         precursors.calc_exact_electric_in_time()
         subgrid.update_magnetic_is(precursors)
         self.update_magnetic_sources()

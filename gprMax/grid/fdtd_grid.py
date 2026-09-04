@@ -108,6 +108,17 @@ class FDTDGrid:
         self.Ty: npt.NDArray[np.float32]
         self.Tz: npt.NDArray[np.float32]
 
+        # Dispersion requirements are local to this grid. ModelConfig retains
+        # a model-wide summary for reporting/backwards compatibility, but
+        # allocation and update dispatch must use these values so a
+        # dispersive subgrid does not force dense pole state onto an otherwise
+        # non-dispersive main grid.
+        self.maxpoles = 0
+        self.dispersivedtype = None
+        self.dispersiveCdtype = None
+        self.drudelorentz = False
+        self.crealfunc = None
+
         # Geometry Arrays
         self.solid: npt.NDArray[np.uint32]
         self.rigidE: npt.NDArray[np.int8]
@@ -373,7 +384,7 @@ class FDTDGrid:
         self._build_impedance_surfaces()
         self.initialise_field_arrays()
         self.initialise_std_update_coeff_arrays()
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.maxpoles > 0:
             self.initialise_dispersive_arrays()
             self.initialise_dispersive_update_coeff_array()
 
@@ -1584,30 +1595,30 @@ class FDTDGrid:
         """Initialise field arrays when there are dispersive materials present."""
         self.Tx = np.zeros(
             (
-                config.get_model_config().materials["maxpoles"],
+                self.maxpoles,
                 self.nx + 1,
                 self.ny + 1,
                 self.nz + 1,
             ),
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            dtype=self.dispersivedtype,
         )
         self.Ty = np.zeros(
             (
-                config.get_model_config().materials["maxpoles"],
+                self.maxpoles,
                 self.nx + 1,
                 self.ny + 1,
                 self.nz + 1,
             ),
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            dtype=self.dispersivedtype,
         )
         self.Tz = np.zeros(
             (
-                config.get_model_config().materials["maxpoles"],
+                self.maxpoles,
                 self.nx + 1,
                 self.ny + 1,
                 self.nz + 1,
             ),
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            dtype=self.dispersivedtype,
         )
 
     def initialise_dispersive_update_coeff_array(self):
@@ -1615,15 +1626,15 @@ class FDTDGrid:
         materials present.
         """
         self.updatecoeffsdispersive = np.zeros(
-            (len(self.materials), 3 * config.get_model_config().materials["maxpoles"]),
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            (len(self.materials), 3 * self.maxpoles),
+            dtype=self.dispersivedtype,
         )
 
     def reset_fields(self):
         """Clear arrays for field components and PMLs."""
         # Clear arrays for field components
         self.initialise_field_arrays()
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.maxpoles > 0:
             self.initialise_dispersive_arrays()
 
         # Clear arrays for fields in PML
@@ -1756,13 +1767,16 @@ class FDTDGrid:
             mem_use: int of memory (bytes).
         """
 
+        if self.maxpoles == 0:
+            return 0
+
         mem_use = (
             3
-            * config.get_model_config().materials["maxpoles"]
+            * self.maxpoles
             * (self.nx + 1)
             * (self.ny + 1)
             * (self.nz + 1)
-            * np.dtype(config.get_model_config().materials["dispersivedtype"]).itemsize
+            * np.dtype(self.dispersivedtype).itemsize
         )
         return mem_use
 

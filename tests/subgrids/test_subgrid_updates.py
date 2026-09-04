@@ -31,7 +31,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from gprMax.subgrids.precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
+from gprMax.subgrids.precursor_nodes import (
+    PrecursorNodes,
+    PrecursorNodesEqualResolution,
+    PrecursorNodesFiltered,
+)
 from gprMax.subgrids.updates import SubgridUpdater, SubgridUpdates, create_updates
 
 
@@ -70,6 +74,12 @@ class TestCreateUpdates:
         model, _ = make_model(filtered=False)
         updater = create_updates(model).updaters[0]
         assert isinstance(updater.precursors, PrecursorNodes)
+        assert not isinstance(updater.precursors, PrecursorNodesFiltered)
+
+    def test_equal_resolution_subgrid_gets_direct_precursors(self, make_model):
+        model, _ = make_model(filtered=True, ratio=1)
+        updater = create_updates(model).updaters[0]
+        assert isinstance(updater.precursors, PrecursorNodesEqualResolution)
         assert not isinstance(updater.precursors, PrecursorNodesFiltered)
 
     def test_non_subgrid_raises(self, make_model):
@@ -125,6 +135,42 @@ class TestSubgridUpdaterState:
         monkeypatch.setattr(type(u).__mro__[1], "store_outputs", lambda self, it: None)
         u.store_outputs()
         assert u.iteration == 0
+
+    def test_store_outputs_uses_the_current_complete_electric_level(
+        self, updater, monkeypatch
+    ):
+        u, c = updater
+        c.sub.iterations = 4
+        calls = []
+        parent = type(u).__mro__[1]
+        monkeypatch.setattr(parent, "store_outputs", lambda self, it: calls.append(("rx", it)))
+        monkeypatch.setattr(
+            parent, "store_snapshots", lambda self, it: calls.append(("snapshot", it))
+        )
+        monkeypatch.setattr(
+            parent, "observe_sar_electric", lambda self, it: calls.append(("sar", it))
+        )
+
+        u.iteration = 2
+        u.store_outputs()
+
+        assert calls == [("rx", 2), ("snapshot", 2), ("sar", 2)]
+
+    def test_store_outputs_ignores_the_terminal_coupling_update(
+        self, updater, monkeypatch
+    ):
+        u, c = updater
+        c.sub.iterations = 4
+        calls = []
+        parent = type(u).__mro__[1]
+        monkeypatch.setattr(parent, "store_outputs", lambda self, it: calls.append(it))
+        monkeypatch.setattr(parent, "store_snapshots", lambda self, it: calls.append(it))
+        monkeypatch.setattr(parent, "observe_sar_electric", lambda self, it: calls.append(it))
+
+        u.iteration = c.sub.iterations
+        u.store_outputs()
+
+        assert calls == []
 
 
 class TestHsgPhaseOne:
@@ -187,10 +233,25 @@ class TestHsgPhaseOne:
         assert "update_electric_pml" in calls
         assert "update_magnetic_pml" in calls
 
+    def test_equal_resolution_uses_no_temporal_interpolation_or_pml(self, phase):
+        u, calls, _ = phase(ratio=1)
+        u.hsg_1()
+        assert "precursors.interpolate_magnetic_in_time" not in calls
+        assert "precursors.interpolate_electric_in_time" not in calls
+        assert "update_electric_pml" not in calls
+        assert "update_magnetic_pml" not in calls
+
     def test_outer_surface_is_pushed_exactly_once(self, phase):
         u, calls, _ = phase(ratio=5)
         u.hsg_1()
         assert calls.count("sub.update_electric_os") == 1
+
+    def test_outputs_follow_each_complete_electric_update(self, phase):
+        u, calls, _ = phase(ratio=5)
+        u.hsg_1()
+        stores = [index for index, call in enumerate(calls) if call == "store_outputs"]
+        assert len(stores) == 3
+        assert all(calls[index - 1] == "update_network_terminals" for index in stores)
 
     def test_does_not_touch_the_magnetic_outer_surface(self, phase):
         u, calls, _ = phase()
@@ -226,11 +287,36 @@ class TestHsgPhaseTwo:
         u.hsg_2()
         assert "precursors.calc_exact_electric_in_time" in calls
 
+    def test_initial_output_precedes_the_first_magnetic_update(self, phase):
+        u, calls, _ = phase()
+        u.hsg_2()
+        assert calls.index("store_outputs") < calls.index("update_magnetic")
+
+    def test_interpolated_outputs_follow_complete_electric_updates(self, phase):
+        u, calls, _ = phase(ratio=5)
+        u.hsg_2()
+        stores = [index for index, call in enumerate(calls) if call == "store_outputs"]
+        assert len(stores) == 3
+        # The first store is E(0), H(-1/2). Later stores must follow the
+        # completed electric update rather than the preceding H update.
+        assert calls[stores[0] - 1] == "precursors.update_magnetic"
+        assert all(
+            calls[index - 1] == "update_network_terminals" for index in stores[1:]
+        )
+
     @pytest.mark.parametrize("ratio,expected", [(3, 1), (5, 2), (7, 3)])
     def test_interpolated_step_count_is_half_the_ratio(self, phase, ratio, expected):
         u, calls, _ = phase(ratio=ratio)
         u.hsg_2()
         assert calls.count("precursors.interpolate_electric_in_time") == expected
+
+    def test_equal_resolution_uses_no_temporal_interpolation_or_pml(self, phase):
+        u, calls, _ = phase(ratio=1)
+        u.hsg_2()
+        assert "precursors.interpolate_magnetic_in_time" not in calls
+        assert "precursors.interpolate_electric_in_time" not in calls
+        assert "update_electric_pml" not in calls
+        assert "update_magnetic_pml" not in calls
 
     @pytest.mark.parametrize("ratio,expected", [(3, 2), (5, 3), (7, 4)])
     def test_magnetic_substeps_equal_interpolated_plus_one(self, phase, ratio, expected):

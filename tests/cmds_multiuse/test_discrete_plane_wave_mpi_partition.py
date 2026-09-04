@@ -132,6 +132,7 @@ def test_axial_profile_zero_pads_mixed_rank_dispersive_orders(monkeypatch):
         updatecoeffsE=np.zeros((1, 5), dtype=np.float64),
         updatecoeffsH=np.zeros((1, 5), dtype=np.float64),
         updatecoeffsdispersive=np.zeros((1, 6), dtype=np.complex128),
+        dispersivedtype=np.complex128,
         comm=_Comm(),
     )
     grid.global_to_local_coordinate = lambda point: point

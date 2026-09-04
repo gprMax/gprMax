@@ -67,6 +67,9 @@ ITERATIONS = 10
 
 class _FakeGrid:
     nx = ny = nz = 4
+    maxpoles = 0
+    drudelorentz = False
+    dispersiveCdtype = None
     iterations = ITERATIONS
     rxs = []
     updatecoeffsE = np.zeros((3, 5))

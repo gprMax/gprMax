@@ -1961,6 +1961,15 @@ is interpreted against the owning subgrid's ``dt`` and iteration count.
 In a reduced 2-D model, any requested invariant-axis extent is collapsed to
 the single genuine field plane: index zero for TM or index one for TE.
 
+The snapshot ``time`` is rounded to the nearest full electric-field time
+level :math:`n\Delta t` (halfway values round to the earlier step), while
+``iterations=n`` selects the same zero-based level directly. Snapshot electric
+fields are at :math:`n\Delta t` and magnetic fields retain their native Yee
+stagger at :math:`(n-1/2)\Delta t`; there is no temporal averaging. Valid
+indices are ``0 <= n <`` the owning grid's number of iterations. This temporal
+definition is separate from the existing spatial collocation of field
+components in a snapshot cell.
+
 Reusable NTFF integration surface
 ---------------------------------
 .. autoclass:: gprMax.user_objects.cmds_output.NTFFSurface
@@ -2420,8 +2429,16 @@ Subgrid
 
 A subgrid is added to the main scene, but its materials and geometry are added
 to the subgrid object. With ``autotranslate=True`` these objects can use main
-grid coordinates. Subgridding currently uses the double-precision CPU solver;
+grid coordinates. Refining subgrids use the double-precision CPU solver.
 CUDA, OpenCL, and Metal subgrid execution are not part of this release.
+
+``ratio=1`` selects an **equal-resolution embedded region**. This is exposed
+through ``SubGridHSG`` to avoid a second, overlapping object API, but it does
+not refine space or time: values are transferred directly on the shared Yee
+lattice, the subgrid-boundary PML and filter are disabled, and no spatial or
+temporal interpolation is performed. It inherits ``cpu_precision`` from the
+main grid. This mode is useful, for example, for confining dispersive material
+storage and updates to a local part of a larger model.
 
 .. note::
 

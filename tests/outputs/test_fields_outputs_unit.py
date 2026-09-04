@@ -656,6 +656,7 @@ class TestWriteSubgrids:
             filter=True,
             ratio=3,
             interpolation=1,
+            coupling_mode="refining_hsg",
             voltagesources=[],
             hertziandipoles=[],
             magneticdipoles=[],
@@ -719,6 +720,10 @@ class TestWriteSubgrids:
         attrs, _ = read_h5(written)
         assert attrs["subgrids/sub1/interpolation"] == 1
         assert bool(attrs["subgrids/sub1/filter"])
+
+    def test_records_the_coupling_mode(self, written, read_h5):
+        attrs, _ = read_h5(written)
+        assert attrs["subgrids/sub1/coupling_mode"] == "refining_hsg"
 
     def test_a_model_with_no_subgrids_writes_no_group(
         self, make_view_grid, make_rx, tmp_path, read_h5

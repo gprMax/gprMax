@@ -17,8 +17,6 @@
 
 import logging
 
-import numpy as np
-
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import (
     build_magnetic_edge_x,
@@ -26,15 +24,14 @@ from gprMax.cython.geometry_primitives import (
     build_magnetic_edge_z,
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import resolve_geometry_materials, rotate_2point_object
+from .cmds_geometry import resolve_geometry_materials
 
 logger = logging.getLogger(__name__)
 
 
-class MagneticEdge(RotatableMixin, GeometryUserObject):
+class MagneticEdge(GeometryUserObject):
     """Introduces a single magnetic (H) edge with specific properties into
         the model - the magnetic dual of #edge.
 
@@ -52,13 +49,6 @@ class MagneticEdge(RotatableMixin, GeometryUserObject):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
-        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
-        self.kwargs["p2"] = tuple(rot_pts[1, :])
-
     def build(self, grid: FDTDGrid):
         """Creates a magnetic edge and adds it to the grid."""
         try:
@@ -75,9 +65,6 @@ class MagneticEdge(RotatableMixin, GeometryUserObject):
                 "is physically meaningful for a magnetic edge differs from "
                 "#edge's own 2D rule and has not yet been verified."
             )
-
-        if self.do_rotate:
-            self._do_rotate(grid)
 
         uip = self._create_uip(grid)
 

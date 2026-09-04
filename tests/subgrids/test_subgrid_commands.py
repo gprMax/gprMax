@@ -155,6 +155,17 @@ class TestKwargPassThrough:
         assert cmd.kwargs["subgrid_pml_thickness"] == 6
         assert cmd.kwargs["filter"] is True
 
+    def test_ratio_one_normalises_inactive_stabilisation_controls(self, command):
+        cmd = command(
+            ratio=1,
+            subgrid_pml_thickness=12,
+            interpolation=3,
+            filter=True,
+        )
+        assert cmd.kwargs["subgrid_pml_thickness"] == 0
+        assert cmd.kwargs["interpolation"] == 0
+        assert cmd.kwargs["filter"] is False
+
 
 class TestChildCollection:
     def test_starts_with_no_children(self, command):

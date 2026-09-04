@@ -338,6 +338,7 @@ class TestBinding:
         first = updates.dispersive_update_a
 
         configure(maxpoles=9)
+        updates.grid.maxpoles = 9
         updates.set_dispersive_updates()
 
         assert updates.dispersive_update_a is not first

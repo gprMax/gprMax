@@ -326,7 +326,12 @@ def make_grid():
         snapshots=None,
         fractalvolumes=None,
         mem_use=0,
+        maxpoles=None,
     ):
+        if maxpoles is None:
+            from gprMax import config
+
+            maxpoles = config.get_model_config().materials["maxpoles"]
         return SimpleNamespace(
             name=name,
             mem_use=mem_use,
@@ -335,6 +340,7 @@ def make_grid():
             mem_est_basic=lambda: basic,
             mem_est_dispersive=lambda: dispersive,
             mem_est_fractals=lambda: fractals,
+            maxpoles=maxpoles,
         )
 
     return _make

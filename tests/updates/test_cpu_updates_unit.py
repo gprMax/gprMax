@@ -129,36 +129,32 @@ class TestStoreOutputs:
 
 
 class TestStoreSnapshots:
-    """``store_snapshots`` — the deliberate off-by-one.
+    """``store_snapshots`` uses the solver's electric-field time level.
 
-    A snapshot requested for iteration *n* is stored when the loop counter
-    reads ``n - 1``, because ``store_snapshots`` runs at the *top* of the
-    iteration, before the fields advance. The gate is ``snap.time ==
-    iteration + 1``.
+    ``store_snapshots`` runs at the top of iteration *n*, where the fields are
+    E(n) and H(n-1/2). A snapshot requested for iteration *n* must therefore
+    be stored when the loop counter is exactly *n*.
     """
 
-    def test_stores_a_snapshot_whose_time_is_one_past_the_iteration(
-        self, make_wiring_grid, make_snapshot
-    ):
-        log = []
-        snap = make_snapshot(5, log)
-        grid = make_wiring_grid(snapshots=[snap], log=log)
-
-        CPUUpdates(grid).store_snapshots(4)
-
-        assert snap.store_count == 1
-
-    def test_does_not_store_when_times_are_equal(self, make_wiring_grid, make_snapshot):
-        """Equality with the raw iteration is exactly the wrong condition."""
+    def test_stores_a_snapshot_at_the_matching_iteration(self, make_wiring_grid, make_snapshot):
         log = []
         snap = make_snapshot(5, log)
         grid = make_wiring_grid(snapshots=[snap], log=log)
 
         CPUUpdates(grid).store_snapshots(5)
 
+        assert snap.store_count == 1
+
+    def test_does_not_store_one_iteration_early(self, make_wiring_grid, make_snapshot):
+        log = []
+        snap = make_snapshot(5, log)
+        grid = make_wiring_grid(snapshots=[snap], log=log)
+
+        CPUUpdates(grid).store_snapshots(4)
+
         assert snap.store_count == 0
 
-    @pytest.mark.parametrize("iteration", [0, 1, 2, 6, 100])
+    @pytest.mark.parametrize("iteration", [0, 1, 2, 4, 6, 100])
     def test_does_not_store_on_any_other_iteration(
         self, make_wiring_grid, make_snapshot, iteration
     ):
@@ -176,7 +172,7 @@ class TestStoreSnapshots:
         snaps = [make_snapshot(t, log) for t in (2, 5, 9)]
         grid = make_wiring_grid(snapshots=snaps, log=log)
 
-        CPUUpdates(grid).store_snapshots(4)
+        CPUUpdates(grid).store_snapshots(5)
 
         assert [s.store_count for s in snaps] == [0, 1, 0]
 
@@ -186,19 +182,19 @@ class TestStoreSnapshots:
         snaps = [make_snapshot(5, log), make_snapshot(5, log)]
         grid = make_wiring_grid(snapshots=snaps, log=log)
 
-        CPUUpdates(grid).store_snapshots(4)
+        CPUUpdates(grid).store_snapshots(5)
 
         assert [s.store_count for s in snaps] == [1, 1]
 
     def test_store_is_called_with_no_arguments(self, make_wiring_grid, make_snapshot):
         """``snap.store()`` takes nothing — the snapshot holds its own view."""
         log = []
-        snap = make_snapshot(1, log)
+        snap = make_snapshot(0, log)
         grid = make_wiring_grid(snapshots=[snap], log=log)
 
         CPUUpdates(grid).store_snapshots(0)
 
-        assert log == ["snap:1"]
+        assert log == ["snap:0"]
 
     def test_no_snapshots_is_a_no_op(self, make_wiring_grid):
         CPUUpdates(make_wiring_grid()).store_snapshots(0)
@@ -208,7 +204,7 @@ class TestStoreSnapshots:
         snaps = [make_snapshot(3, log), make_snapshot(3, log), make_snapshot(3, log)]
         grid = make_wiring_grid(snapshots=snaps, log=log)
 
-        CPUUpdates(grid).store_snapshots(2)
+        CPUUpdates(grid).store_snapshots(3)
 
         assert log == ["snap:3", "snap:3", "snap:3"]
 
@@ -306,6 +302,18 @@ class TestUpdateElectricA:
         CPUUpdates(make_wiring_grid()).update_electric_a()
 
         assert spy.call_count == 1
+
+    def test_plain_grid_ignores_dispersion_on_another_grid(
+        self, monkeypatch, make_wiring_grid, recorder, updates_config
+    ):
+        """A model-wide pole summary must not change this grid's dispatch."""
+        updates_config.model_config.materials["maxpoles"] = 3
+        plain = recorder("update_electric")
+        monkeypatch.setattr(cpu_updates_module, "update_electric_cpu", plain)
+
+        CPUUpdates(make_wiring_grid(maxpoles=0)).update_electric_a()
+
+        assert plain.call_count == 1
 
     def test_plain_kernel_receives_thirteen_positional_arguments(
         self, monkeypatch, make_wiring_grid, recorder, updates_config

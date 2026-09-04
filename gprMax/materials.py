@@ -312,28 +312,28 @@ class DispersiveMaterial(Material):
         # The implementation of the dispersive material modelling comes from the
         # derivation in: http://dx.doi.org/10.1109/TAP.2014.2308549
         self.w = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.maxpoles,
+            dtype=G.dispersivedtype,
         )
         self.q = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.maxpoles,
+            dtype=G.dispersivedtype,
         )
         self.zt = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.maxpoles,
+            dtype=G.dispersivedtype,
         )
         self.zt2 = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.maxpoles,
+            dtype=G.dispersivedtype,
         )
         self.eqt = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.maxpoles,
+            dtype=G.dispersivedtype,
         )
         self.eqt2 = np.zeros(
-            config.get_model_config().materials["maxpoles"],
-            dtype=config.get_model_config().materials["dispersivedtype"],
+            G.maxpoles,
+            dtype=G.dispersivedtype,
         )
 
         # The Drude susceptibility contains a constant causal term whose
@@ -1132,7 +1132,7 @@ def process_materials(G):
                         print a table.
     """
 
-    if config.get_model_config().materials["maxpoles"] == 0:
+    if G.maxpoles == 0:
         materialsdata = [
             [
                 "\nID",
@@ -1188,7 +1188,7 @@ def process_materials(G):
         # Add update coefficients to overall storage for dispersive materials
         if hasattr(material, "poles"):
             z = 0
-            for pole in range(config.get_model_config().materials["maxpoles"]):
+            for pole in range(G.maxpoles):
                 G.updatecoeffsdispersive[material.numID, z : z + 3] = (
                     config.sim_config.em_consts["e0"] * material.eqt2[pole],
                     material.eqt[pole],
@@ -1204,7 +1204,7 @@ def process_materials(G):
             f"{material.er:g}",
             f"{material.se:g}",
         ]
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if G.maxpoles > 0:
             if "debye" in material.type:
                 materialtext.append("\n".join(f"{deltaer:g}" for deltaer in material.deltaer))
                 materialtext.append("\n".join(f"{tau:g}" for tau in material.tau))

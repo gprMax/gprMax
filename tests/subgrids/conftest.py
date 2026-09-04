@@ -47,7 +47,11 @@ from scipy.constants import c as C_LIGHT
 from scipy.constants import epsilon_0, mu_0
 
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.subgrids.precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
+from gprMax.subgrids.precursor_nodes import (
+    PrecursorNodes,
+    PrecursorNodesEqualResolution,
+    PrecursorNodesFiltered,
+)
 from gprMax.subgrids.subgrid_hsg import SubGridHSG as SubGridHSGGrid
 
 DL = 0.001
@@ -219,7 +223,10 @@ def coupled_grids(make_main_grid, make_subgrid):
         sub.parent_grid = main
         sub.dt = main.dt / sub.ratio
 
-        cls = PrecursorNodesFiltered if filtered else PrecursorNodes
+        if sub.equal_resolution:
+            cls = PrecursorNodesEqualResolution
+        else:
+            cls = PrecursorNodesFiltered if filtered else PrecursorNodes
         precursors = cls(main, sub)
 
         return SimpleNamespace(main=main, sub=sub, precursors=precursors)
@@ -256,6 +263,7 @@ def spy_updater():
             "update_magnetic",
             "update_magnetic_pml",
             "update_magnetic_sources",
+            "update_network_terminals",
         ):
             record(updater, name, "")
 

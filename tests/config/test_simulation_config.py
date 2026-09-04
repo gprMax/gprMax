@@ -38,6 +38,8 @@ Precision and dtype selection is large enough to have its own file; see
 ``test_precision_dtypes.py``.
 """
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 
@@ -325,6 +327,28 @@ class TestSolverSelection:
     def test_subgrids_force_double_precision(self, make_sim_config):
         """The Huygens sub-grid coupling is too ill-conditioned for float32."""
         assert make_sim_config(subgrid=True).general["precision"] == "double"
+
+    def test_equal_resolution_regions_inherit_cpu_precision(self, make_sim_config):
+        scene = SimpleNamespace(
+            subgrid_objects=[SimpleNamespace(kwargs={"ratio": 1})]
+        )
+        sim_config = make_sim_config(
+            subgrid=True, scenes=[scene], cpu_precision="single"
+        )
+        assert sim_config.general["precision"] == "single"
+        assert sim_config.dtypes["float_or_double"] is np.float32
+
+    def test_any_refining_subgrid_keeps_the_whole_run_double(self, make_sim_config):
+        scene = SimpleNamespace(
+            subgrid_objects=[
+                SimpleNamespace(kwargs={"ratio": 1}),
+                SimpleNamespace(kwargs={"ratio": 3}),
+            ]
+        )
+        assert (
+            make_sim_config(subgrid=True, scenes=[scene]).general["precision"]
+            == "double"
+        )
 
     def test_an_empty_device_list_still_selects_the_accelerator(self, make_sim_config):
         """The branch tests ``is not None``, not truthiness.

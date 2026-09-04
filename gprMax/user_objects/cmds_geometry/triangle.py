@@ -23,20 +23,18 @@ import numpy as np
 from gprMax.cython.geometry_primitives import build_triangle
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import Material
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 from .cmds_geometry import (
     check_averaging,
     geometry_tag_args,
     resolve_geometry_materials,
-    rotate_point,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class Triangle(RotatableMixin, GeometryUserObject):
+class Triangle(GeometryUserObject):
     """Introduces a triangular patch or a triangular prism with specific
         properties into the model.
 
@@ -61,15 +59,6 @@ class Triangle(RotatableMixin, GeometryUserObject):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Performs rotation."""
-        p1 = rotate_point(self.kwargs["p1"], self.axis, self.angle, self.origin)
-        p2 = rotate_point(self.kwargs["p2"], self.axis, self.angle, self.origin)
-        p3 = rotate_point(self.kwargs["p3"], self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(p1)
-        self.kwargs["p2"] = tuple(p2)
-        self.kwargs["p3"] = tuple(p3)
-
     def build(self, grid: FDTDGrid):
         try:
             up1 = self.kwargs["p1"]
@@ -79,9 +68,6 @@ class Triangle(RotatableMixin, GeometryUserObject):
         except KeyError:
             logger.exception(f"{self.__str__()} specify 3 points and a thickness")
             raise
-
-        if self.do_rotate:
-            self._do_rotate(grid)
 
         # Check averaging
         try:

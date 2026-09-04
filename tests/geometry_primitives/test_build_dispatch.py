@@ -108,20 +108,6 @@ class TestEdgeBuild:
         with pytest.raises(KeyError):
             Edge(p1=(2 * DL, 3 * DL, 4 * DL)).build(g)
 
-    def test_do_rotate_turns_an_x_edge_into_a_y_edge(self, dispatch_grid):
-        # An x-oriented edge rotated 90 degrees about z (around its own
-        # first point) becomes y-oriented — _do_rotate rewrites the p1/p2
-        # kwargs through rotate_2point_object.
-        g = dispatch_grid()
-        edge = Edge(p1=(2 * DL, 2 * DL, 2 * DL), p2=(5 * DL, 2 * DL, 2 * DL), material_id="metal")
-        edge.rotate("z", 90, origin=(2 * DL, 2 * DL, 0.0))
-        assert edge.do_rotate
-        edge._do_rotate(g)
-
-        assert np.allclose(edge.kwargs["p1"], (2 * DL, 2 * DL, 2 * DL))
-        assert np.allclose(edge.kwargs["p2"], (2 * DL, 5 * DL, 2 * DL))
-
-
 class TestPlateBuild:
     # xy-plane plate from cell (1, 1) to (4, 3) at z-level 2: the face
     # builder runs over cells i in 1..3, j in 1..2.

@@ -123,7 +123,7 @@ class GeometryViewLines(GeometryView[GridType]):
         assert isinstance(self.material_data, np.ndarray)
 
         # Write information about any PMLs, sources, receivers
-        self.metadata = Metadata(self.grid_view, averaged_materials=True, materials_only=True)
+        self.metadata = Metadata(self.grid_view, averaged_materials=True)
 
         # Number of bytes of data to be written to file
         self.nbytes = (
@@ -195,7 +195,7 @@ class MPIGeometryViewLines(GeometryViewLines["MPIGrid"]):
         self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)
 
         # Write information about any PMLs, sources, receivers
-        self.metadata = MPIMetadata(self.grid_view, averaged_materials=True, materials_only=True)
+        self.metadata = MPIMetadata(self.grid_view, averaged_materials=True)
 
         # Number of bytes of data to be written to file
         self.nbytes = (

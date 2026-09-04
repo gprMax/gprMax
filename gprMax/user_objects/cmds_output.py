@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+from numbers import Integral, Real
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -432,8 +433,10 @@ class Snapshot(OutputUserObject):
                 in metres.
         filename: string required for name of the file to store snapshot.
         time/iterations: either a float for time or an int for iterations
-                            must be specified for point in time at which the
-                            snapshot will be taken.
+                            must be specified for the electric-field time
+                            level at which the snapshot will be taken. A time
+                            is mapped to the nearest full time step. Magnetic
+                            fields retain their native half-step staggering.
         fileext: optional string to indicate type for snapshot file, either
                             '.vtkhdf' (default) or '.h5'
         outputs: optional list of outputs for receiver. It can be any
@@ -578,21 +581,32 @@ class Snapshot(OutputUserObject):
         if self.iterations is not None and self.time is not None:
             logger.warning(f"{self.params_str()} Time and iterations were both specified, using 'iterations'")
 
-        # If number of iterations given
+        # Snapshot iteration n is the solver's zero-based electric-field time
+        # level: E is at n*dt and H is at (n-1/2)*dt. The solver visits the
+        # range 0 <= n < grid.iterations.
         if self.iterations is not None:
-            if self.iterations <= 0 or self.iterations > grid.iterations:
-                raise ValueError(f"{self.params_str()} time value is not valid.")
+            if isinstance(self.iterations, bool) or not isinstance(self.iterations, Integral):
+                raise ValueError(f"{self.params_str()} iterations must be an integer.")
+            self.iterations = int(self.iterations)
 
-        # If time value given
         elif self.time is not None:
-            if self.time > 0:
-                self.iterations = round_int((self.time / grid.dt)) + 1
-            else:
-                raise ValueError(f"{self.params_str()} time value must be greater than zero.")
+            if (
+                isinstance(self.time, bool)
+                or not isinstance(self.time, Real)
+                or not np.isfinite(self.time)
+                or self.time < 0
+            ):
+                raise ValueError(f"{self.params_str()} time must be finite and non-negative.")
+            self.iterations = round_int(float(self.time) / grid.dt)
 
-        # No iteration or time value given
         else:
             raise ValueError(f"{self} specify a time or number of iterations")
+
+        if self.iterations < 0 or self.iterations >= grid.iterations:
+            raise ValueError(
+                f"{self.params_str()} snapshot iteration {self.iterations} is outside the "
+                f"valid range 0 to {grid.iterations - 1}."
+            )
 
         if self.file_extension is None:
             self.file_extension = SnapshotUser.fileexts[0]
@@ -638,7 +652,8 @@ class Snapshot(OutputUserObject):
                 f" {p1[0]:g}m, {p1[1]:g}m, {p1[2]:g}m, to"
                 f" {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, discretisation"
                 f" {dl[0]:g}m, {dl[1]:g}m, {dl[2]:g}m, at"
-                f" {snapshot.time * grid.dt:g} secs with field outputs"
+                f" {snapshot.electric_time:g} secs (iteration {snapshot.iteration};"
+                f" magnetic fields at {snapshot.magnetic_time:g} secs) with field outputs"
                 f" {', '.join([k for k, v in outputs.items() if v])} "
                 f" and filename {snapshot.filename} will be created."
             )

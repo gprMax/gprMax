@@ -225,6 +225,8 @@ class TestBuildOrchestration:
         self, built_grid, stub_build_steps, grid_config
     ):
         grid_config.model_config.materials["maxpoles"] = 2
+        built_grid.maxpoles = 2
+        built_grid.dispersivedtype = np.complex128
         stub_build_steps(built_grid)
         built_grid.build()
         assert built_grid.Tx.shape == (2, 9, 9, 9)

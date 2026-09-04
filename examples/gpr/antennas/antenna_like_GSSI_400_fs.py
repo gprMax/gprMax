@@ -4,9 +4,7 @@ This example model demonstrates how to use one of the built-in antenna models.
 
 The geometry is 3D and the domain filled with freespace (the default). The
 antenna model method is imported from its toolbox and the objects that build the
-antenna are iteratively added to the scene. The antenna can be rotated if
-desired, by rotating the objects that it is built from before they are added to
-the scene.
+antenna are iteratively added to the scene.
 """
 
 from pathlib import Path

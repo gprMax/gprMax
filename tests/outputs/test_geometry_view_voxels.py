@@ -234,6 +234,27 @@ class TestWriteVtk:
         _, data = read_h5(view.filename)
         assert "VTKHDF/CellData/Material" in data
 
+    def test_typed_source_geometry_survives_the_vtkhdf_round_trip(
+        self, make_voxel_view, make_view_grid, read_h5
+    ):
+        class VoltageSource:
+            ID = "feed"
+            coord = np.asarray((1, 2, 3), dtype=np.int32)
+
+        grid = make_view_grid(nx=8, ny=8, nz=8)
+        grid.voltagesources = [VoltageSource()]
+        view = make_voxel_view(grid=grid)
+        view.write_vtk()
+        _, data = read_h5(view.filename)
+
+        prefix = "VTKHDF/FieldData/"
+        assert data[prefix + "source_geometry_ids"].tolist() == [b"feed"]
+        assert data[prefix + "source_geometry_types"].tolist() == [b"VoltageSource"]
+        assert data[prefix + "source_geometry_kinds"].tolist() == [b"point"]
+        assert data[prefix + "source_geometry_bounds"][0] == pytest.approx(
+            [DL, 2 * DL, 2 * DL, 3 * DL, 3 * DL, 4 * DL]
+        )
+
     def test_semantic_tags_and_registry_are_written_when_present(
         self, make_voxel_view, make_view_grid, read_h5
     ):

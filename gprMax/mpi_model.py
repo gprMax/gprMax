@@ -203,7 +203,7 @@ class MPIModel(Model):
         start: npt.NDArray[np.int32],
         stop: npt.NDArray[np.int32],
         dl: npt.NDArray[np.int32],
-        time: int,
+        iteration: int,
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
@@ -215,7 +215,8 @@ class MPIModel(Model):
             start: Lower extent of the snapshot (x, y, z).
             stop: Upper extent of the snapshot (x, y, z).
             dl: Discritisation of the snapshot (x, y, z).
-            time: Iteration number to take the snapshot on
+            iteration: Zero-based electric-field time level at which to take
+                the snapshot.
             filename: Output filename of the snapshot.
             fileext: File extension of the snapshot.
             outputs: Fields to use in the snapshot.
@@ -235,12 +236,13 @@ class MPIModel(Model):
                 dl[0],
                 dl[1],
                 dl[2],
-                time,
+                iteration,
                 filename,
                 fileext,
                 outputs,
                 grid,
             )
+            self._warn_snapshot_filename_collision(snapshot)
             # TODO: Move snapshots into the Model
             grid.snapshots.append(snapshot)
             return snapshot

@@ -115,7 +115,13 @@ def _snapshot_axis_strides():
 
 
 class Snapshot(Generic[GridType]):
-    """Snapshots of the electric and magnetic field values."""
+    """Snapshot fields at one zero-based electric-field time level.
+
+    At iteration ``n``, electric fields are at ``n*dt`` and magnetic fields
+    retain their native Yee staggering at ``(n-1/2)*dt``. Storage performs no
+    temporal averaging; the field calculation below only collocates components
+    spatially within each output cell.
+    """
 
     allowableoutputs = {
         "Ex": None,
@@ -155,7 +161,7 @@ class Snapshot(Generic[GridType]):
         dx: int,
         dy: int,
         dz: int,
-        time: int,
+        iteration: int,
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
@@ -165,7 +171,8 @@ class Snapshot(Generic[GridType]):
         Args:
             xs, xf, ys, yf, zs, zf: ints for the extent of the volume in cells.
             dx, dy, dz: ints for the spatial discretisation in cells.
-            time: int for the iteration number to take the snapshot on.
+            iteration: zero-based electric-field time level at which to take
+                the snapshot.
             filename: string for the filename to save to.
             fileext: string for the file extension.
             outputs: dict of booleans for fields to use for snapshot.
@@ -177,7 +184,7 @@ class Snapshot(Generic[GridType]):
             self.filename = self.filename.with_suffix(fileext)
         else:
             self.filename = self.filename.with_name(self.filename.name + fileext)
-        self.time = time
+        self.iteration = int(iteration)
         self.outputs = outputs
         self.grid_view = self.GRID_VIEW_TYPE(grid, xs, ys, zs, xf, yf, zf, dx, dy, dz)
 
@@ -189,6 +196,18 @@ class Snapshot(Generic[GridType]):
     @property
     def grid(self) -> GridType:
         return self.grid_view.grid
+
+    @property
+    def electric_time(self) -> float:
+        """Physical time of the electric fields in the snapshot."""
+
+        return self.iteration * self.grid.dt
+
+    @property
+    def magnetic_time(self) -> float:
+        """Physical time of the native, half-step-staggered magnetic fields."""
+
+        return (self.iteration - 0.5) * self.grid.dt
 
     # Properties for backwards compatibility
     @property
@@ -269,8 +288,8 @@ class Snapshot(Generic[GridType]):
         Hyslice = self.grid_view.get_Hy()
         Hzslice = self.grid_view.get_Hz()
 
-        # Calculate field values at points (comes from averaging field
-        # components in cells)
+        # Spatially collocate field components in snapshot cells. The E(n)
+        # and H(n-1/2) time levels are stored without temporal averaging.
         sx, sy, sz = _snapshot_axis_strides()
         calculate_snapshot_fields(
             self.nx,
@@ -344,7 +363,11 @@ class Snapshot(Generic[GridType]):
             f.attrs["nx_ny_nz"] = tuple(self.grid_view.size)
             f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
             f.attrs["origin"] = self._physical_origin()
-            f.attrs["time"] = self.time * self.grid.dt
+            f.attrs["iteration"] = self.iteration
+            # ``time`` remains the electric-field time for backwards
+            # compatibility with existing snapshot readers.
+            f.attrs["time"] = self.electric_time
+            f.attrs["magnetic_time"] = self.magnetic_time
 
             for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
                 if self.outputs[key]:
@@ -388,13 +411,15 @@ class MPISnapshot(Snapshot["MPIGrid"]):
         dx: int,
         dy: int,
         dz: int,
-        time: int,
+        iteration: int,
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
         grid: MPIGrid,
     ):
-        super().__init__(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename, fileext, outputs, grid)
+        super().__init__(
+            xs, ys, zs, xf, yf, zf, dx, dy, dz, iteration, filename, fileext, outputs, grid
+        )
 
         assert isinstance(self.grid_view, self.GRID_VIEW_TYPE)
         self.comm = self.grid_view.comm
@@ -415,7 +440,7 @@ class MPISnapshot(Snapshot["MPIGrid"]):
             G: FDTDGrid class describing a grid in a model.
         """
 
-        logger.debug(f"Saving snapshot for iteration: {self.time}")
+        logger.debug(f"Saving snapshot for iteration: {self.iteration}")
 
         # Memory views of field arrays to dimensions required for the snapshot
         Exslice = self.grid_view.get_Ex()
@@ -562,11 +587,11 @@ class MPISnapshot(Snapshot["MPIGrid"]):
             Exslice = np.concatenate((Exslice, Exzhalo), axis=Dim.Z)
             Hzslice = np.concatenate((Hzslice, Hzhalo), axis=Dim.Z)
 
-        # Calculate field values at points (comes from averaging field
-        # components in cells). No axis-stride arguments needed here (unlike
-        # the non-MPI Snapshot.store() below) - MPI only ever runs 3D models,
-        # never 2D TE mode, so the function's default strides (1, 1, 1,
-        # i.e. the original formula) are always exactly correct.
+        # Spatially collocate field components in snapshot cells without
+        # temporal averaging. No axis-stride arguments are needed here
+        # (unlike the non-MPI Snapshot.store() above): MPI only ever runs 3D
+        # models, never 2D TE mode, so the function's default strides
+        # (1, 1, 1, i.e. the original formula) are exactly correct.
         calculate_snapshot_fields(
             self.nx,
             self.ny,
@@ -626,7 +651,11 @@ class MPISnapshot(Snapshot["MPIGrid"]):
             f.attrs["nx_ny_nz"] = self.grid_view.global_size
             f.attrs["dx_dy_dz"] = self.grid_view.step * self.grid.dl
             f.attrs["origin"] = self.grid_view.global_start * self.grid.dl
-            f.attrs["time"] = self.time * self.grid.dt
+            f.attrs["iteration"] = self.iteration
+            # ``time`` remains the electric-field time for backwards
+            # compatibility with existing snapshot readers.
+            f.attrs["time"] = self.electric_time
+            f.attrs["magnetic_time"] = self.magnetic_time
 
             dset_slice = self.grid_view.get_3d_output_slice()
 

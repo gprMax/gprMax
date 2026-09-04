@@ -72,6 +72,7 @@ class _FakeMetalModule:
 def _make_grid_with_stale_device_buffers():
     class _Grid:
         nx = ny = nz = 4
+        maxpoles = 0
         pmls = {"slabs": []}
         rxs = []
         voltagesources = hertziandipoles = magneticdipoles = []

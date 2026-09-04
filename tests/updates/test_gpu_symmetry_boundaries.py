@@ -181,6 +181,7 @@ def _dispatch_grid():
         nx=4,
         ny=5,
         nz=6,
+        maxpoles=0,
         symmetry_boundaries={"x0": "pmc", "ymax": "pmc"},
         tpb=(64, 1, 1),
         bpg=(2, 1, 1),
@@ -243,6 +244,7 @@ def test_opencl_pmc_kernel_builder_substitutes_real_type(monkeypatch):
         nx=4,
         ny=5,
         nz=6,
+        maxpoles=0,
         ID=np.zeros((6, 5, 6, 7), dtype=np.uint32),
     )
     updates.ctx = object()

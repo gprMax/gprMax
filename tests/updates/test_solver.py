@@ -322,6 +322,39 @@ class TestIterationOrder:
 
         assert calls.index("store_snapshots") < calls.index("update_magnetic")
 
+    def test_snapshots_see_electric_n_and_magnetic_n_minus_half(self):
+        """Pin the Yee time levels present at the snapshot hook."""
+
+        class FieldTimeRecorder(RecordingUpdates):
+            def __init__(self):
+                super().__init__()
+                self.electric_time_level = 0.0
+                self.magnetic_time_level = -0.5
+                self.snapshot_states = []
+
+            def store_snapshots(self, iteration):
+                super().store_snapshots(iteration)
+                self.snapshot_states.append(
+                    (iteration, self.electric_time_level, self.magnetic_time_level)
+                )
+
+            def update_magnetic(self):
+                super().update_magnetic()
+                self.magnetic_time_level += 1.0
+
+            def update_electric_b(self):
+                super().update_electric_b()
+                self.electric_time_level += 1.0
+
+        updates = FieldTimeRecorder()
+        Solver(updates).solve(range(3))
+
+        assert updates.snapshot_states == [
+            (0, 0.0, -0.5),
+            (1, 1.0, 0.5),
+            (2, 2.0, 1.5),
+        ]
+
     def test_outputs_are_stored_before_snapshots(self, recording_updates):
         Solver(recording_updates).solve(range(1))
         calls = recording_updates.calls
@@ -556,6 +589,11 @@ class TestCreateSolver:
         def _make(grid, subgrid=False, maxpoles=0):
             updates_config.sim_config.general["subgrid"] = subgrid
             updates_config.model_config.materials["maxpoles"] = maxpoles
+            if hasattr(grid, "maxpoles"):
+                grid.maxpoles = maxpoles
+                grid.dispersivedtype = updates_config.model_config.materials[
+                    "dispersivedtype"
+                ]
             return SimpleNamespace(G=grid)
 
         return _make

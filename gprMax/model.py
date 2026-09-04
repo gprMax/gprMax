@@ -297,7 +297,7 @@ class Model:
         start: npt.NDArray[np.int32],
         stop: npt.NDArray[np.int32],
         dl: npt.NDArray[np.int32],
-        time: int,
+        iteration: int,
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
@@ -309,7 +309,8 @@ class Model:
             start: Lower extent of the snapshot (x, y, z).
             stop: Upper extent of the snapshot (x, y, z).
             dl: Discritisation of the snapshot (x, y, z).
-            time: Iteration number to take the snapshot on
+            iteration: Zero-based electric-field time level at which to take
+                the snapshot.
             filename: Output filename of the snapshot.
             fileext: File extension of the snapshot.
             outputs: Fields to use in the snapshot.
@@ -327,15 +328,48 @@ class Model:
             dl[0],
             dl[1],
             dl[2],
-            time,
+            iteration,
             filename,
             fileext,
             outputs,
             grid,
         )
+        self._warn_snapshot_filename_collision(snapshot)
         # TODO: Move snapshots into the Model
         grid.snapshots.append(snapshot)
         return snapshot
+
+    def _warn_snapshot_filename_collision(self, snapshot: Snapshot) -> None:
+        """Warn when snapshots will resolve to the same output file.
+
+        Snapshot paths supplied by users are reduced to their basename when
+        files are placed in the model's common snapshot directory. Compare
+        that final name, including its extension, across every grid owned by
+        the model.
+        """
+
+        filename = snapshot.filename.name
+        conflicts = [
+            existing
+            for known_grid in [self.G] + self.subgrids
+            for existing in known_grid.snapshots
+            if existing.filename.name == filename
+        ]
+        if not conflicts:
+            return
+
+        output_path = config.get_model_config().set_snapshots_dir() / filename
+
+        def description(item: Snapshot) -> str:
+            return f"grid {item.grid.name!r}, iteration {item.iteration}"
+
+        previous = ", ".join(description(existing) for existing in conflicts)
+        logger.warning(
+            f"Snapshot output filename collision for '{output_path}': already used by "
+            f"{previous}; {description(snapshot)} resolves to the same file. Only the "
+            "snapshot written last will remain. Use a unique filename or a different "
+            "file extension."
+        )
 
     def build(self):
         """Builds the Yee cells for a model."""
@@ -493,8 +527,8 @@ class Model:
         self._check_stateful_sources_with_geometry_fixed(grids)
         # The arithmetic average of several dispersive media can contain more
         # inclusive terms than any constituent. Resolve electric compound
-        # materials before selecting dispersive storage and checking memory
-        # so the dense model-wide maxpoles allocation is estimated correctly.
+        # materials before selecting per-grid dispersive storage and checking
+        # memory so every grid's maximum pole count is final.
         if config.get_model_config().dispersive_averaging:
             for grid in grids:
                 if any(
@@ -582,50 +616,57 @@ class Model:
                 )
 
     def _check_for_dispersive_materials(self, grids: Sequence[FDTDGrid]):
-        # Check for dispersive materials (and specific type)
-        if config.get_model_config().materials["maxpoles"] != 0:
-            # dispersivedtype/dispersiveCdtype are single, model-wide
-            # settings (not per-grid) - every grid's dispersive arrays are
-            # allocated using them (FDTDGrid.initialise_dispersive_arrays()),
-            # so drudelorentz must be True if ANY grid (main or subgrid)
-            # contains a Drude/Lorentz material, not just the last one
-            # checked. Getting this wrong doesn't just pick the wrong
-            # update kernel - it allocates a real-dtype updatecoeffsdispersive
-            # array for a grid whose materials need complex pole
-            # coefficients, silently truncating them (numpy raises only a
-            # ComplexWarning on such an assignment, not an error).
-            def requires_complex_coefficients(material):
-                if "drude" in material.type or "lorentz" in material.type:
-                    return True
-                return any(
-                    complex(value).imag != 0
-                    for value in (
-                        *getattr(material, "inclusive_w", ()),
-                        *getattr(material, "inclusive_q", ()),
-                    )
-                )
+        """Resolve pole count, arithmetic type, and kernel syntax per grid.
 
-            config.get_model_config().materials["drudelorentz"] = any(
-                requires_complex_coefficients(material)
-                for grid in grids
-                for material in grid.materials
+        The material catalogue belongs to a grid, so a dispersive material in
+        a subgrid must not make a free-space main grid allocate pole-history
+        arrays or run dispersive kernels. The ModelConfig values remain a
+        conservative union for reporting and compatibility with callers that
+        only need to know whether dispersion exists anywhere in the model.
+        """
+
+        def requires_complex_coefficients(material):
+            if "drude" in material.type or "lorentz" in material.type:
+                return True
+            return any(
+                complex(value).imag != 0
+                for value in (
+                    *getattr(material, "inclusive_w", ()),
+                    *getattr(material, "inclusive_q", ()),
+                )
             )
 
-            # Set data type if any dispersive materials (must be done before memory checks)
-            config.get_model_config().set_dispersive_material_types()
+        for grid in grids:
+            grid.maxpoles = max(
+                (getattr(material, "poles", 0) for material in grid.materials),
+                default=0,
+            )
+            grid.drudelorentz = grid.maxpoles > 0 and any(
+                requires_complex_coefficients(material) for material in grid.materials
+            )
+            if grid.maxpoles > 0:
+                if grid.drudelorentz:
+                    grid.crealfunc = ".real()"
+                    grid.dispersivedtype = config.sim_config.dtypes["complex"]
+                    grid.dispersiveCdtype = config.sim_config.dtypes["C_complex"]
+                else:
+                    grid.crealfunc = ""
+                    grid.dispersivedtype = config.sim_config.dtypes["float_or_double"]
+                    grid.dispersiveCdtype = config.sim_config.dtypes["C_float_or_double"]
+            else:
+                grid.crealfunc = None
+                grid.dispersivedtype = None
+                grid.dispersiveCdtype = None
 
-            # TODO: This is the correct, model-wide-safe fix (every grid
-            # gets a dtype capable of any dispersive material present
-            # anywhere), but it's not the ideal one. A Debye-only subgrid
-            # still pays for complex-arithmetic dispersive kernels/arrays
-            # just because the main grid (or another subgrid) has a
-            # Lorentz/Drude material. Doing this properly would mean
-            # making drudelorentz/dispersivedtype/dispersiveCdtype/
-            # crealfunc per-grid attributes instead of singleton
-            # ModelConfig ones, and updating every backend's dispersive
-            # kernel-selection code (e.g. CPUUpdates.set_dispersive_updates(),
-            # the CUDA/OpenCL/Metal equivalents) to read the owning grid's
-            # own flag rather than the global one.
+        materials_config = config.get_model_config().materials
+        materials_config["maxpoles"] = max((grid.maxpoles for grid in grids), default=0)
+        materials_config["drudelorentz"] = any(grid.drudelorentz for grid in grids)
+        if materials_config["maxpoles"] > 0:
+            config.get_model_config().set_dispersive_material_types()
+        else:
+            materials_config["crealfunc"] = None
+            materials_config["dispersivedtype"] = None
+            materials_config["dispersiveCdtype"] = None
 
     def _check_accelerator_symmetry_boundaries(self, grids: Sequence[FDTDGrid]):
         """Reserved parity check after material dispersion is resolved."""

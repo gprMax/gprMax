@@ -32,15 +32,12 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
-
-from .cmds_geometry import rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
 
-class ThinWire(RotatableMixin, GeometryUserObject):
+class ThinWire(GeometryUserObject):
     """Introduces an axis-aligned PEC thin wire with physical radius ``a``.
 
     The logarithmic radius factor follows Umashankar, Taflove, and Beker
@@ -66,13 +63,6 @@ class ThinWire(RotatableMixin, GeometryUserObject):
         self.stop = None
         self.radius = None
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Rotate the endpoints before discretisation."""
-        points = np.array([self.kwargs["p1"], self.kwargs["p2"]])
-        rotated = rotate_2point_object(points, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rotated[0, :])
-        self.kwargs["p2"] = tuple(rotated[1, :])
-
     def build(self, grid: FDTDGrid):
         """Validate and register the wire for post-component construction."""
         try:
@@ -87,11 +77,6 @@ class ThinWire(RotatableMixin, GeometryUserObject):
             raise ValueError(f"{self.__str__()} is not yet supported in 2D mode.")
         if not math.isfinite(radius) or radius <= 0:
             raise ValueError(f"{self.__str__()} requires a finite radius greater than zero.")
-
-        if self.do_rotate:
-            self._do_rotate(grid)
-            p1 = self.kwargs["p1"]
-            p2 = self.kwargs["p2"]
 
         uip = self._create_uip(grid)
         if hasattr(grid, "comm"):

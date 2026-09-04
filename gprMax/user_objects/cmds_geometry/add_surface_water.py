@@ -21,15 +21,12 @@ import numpy as np
 
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_water
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
-
-from .cmds_geometry import rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
 
-class AddSurfaceWater(RotatableMixin, GeometryUserObject):
+class AddSurfaceWater(GeometryUserObject):
     """Adds surface water to a FractalBox class in the model.
 
     Attributes:
@@ -51,13 +48,6 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Perform rotation."""
-        pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
-        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
-        self.kwargs["p2"] = tuple(rot_pts[1, :])
-
     def build(self, grid: FDTDGrid):
         """ "Create surface water on fractal box."""
         try:
@@ -68,9 +58,6 @@ class AddSurfaceWater(RotatableMixin, GeometryUserObject):
         except KeyError:
             logger.exception(f"{self.__str__()} requires exactly eight parameters")
             raise
-
-        if self.do_rotate:
-            self._do_rotate(grid)
 
         if volumes := [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]:
             volume = volumes[0]

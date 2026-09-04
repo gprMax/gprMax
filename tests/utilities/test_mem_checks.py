@@ -235,16 +235,21 @@ class TestDispersiveMaterials:
 
         assert grid.mem_use == 3000
 
-    def test_the_pole_count_is_read_once_per_model_not_per_grid(
+    def test_each_grid_uses_its_own_pole_count(
         self, install_host_config, install_model_config, make_grid
     ):
-        """``maxpoles`` is a model-wide property; subgrids share it."""
+        """Only grids with local dispersive materials pay for their state."""
         install_host_config()
         model_config = install_model_config(maxpoles=2)
 
-        mem_check_run_all([make_grid(basic=0, dispersive=100), make_grid(basic=0, dispersive=200)])
+        mem_check_run_all(
+            [
+                make_grid(basic=0, dispersive=100, maxpoles=0),
+                make_grid(basic=0, dispersive=200, maxpoles=2),
+            ]
+        )
 
-        assert model_config.mem_use == 300
+        assert model_config.mem_use == 200
 
 
 class TestSnapshots:

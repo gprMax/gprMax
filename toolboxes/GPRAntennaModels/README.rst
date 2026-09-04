@@ -61,8 +61,6 @@ To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.12
     gssi_objects = antenna_like_GSSI_1500(ant_pos[0], ant_pos[1], ant_pos[2],
                                           resolution=dl)
     for obj in gssi_objects:
-        # Rotate antenna model if desired
-        # obj.rotate('z', 90, origin=(ant_pos[0], ant_pos[1], ant_pos[2]))
         scene.add(obj)
 
 .. figure:: ../../images_shared/antenna_like_GSSI_1500.png

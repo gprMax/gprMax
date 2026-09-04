@@ -104,7 +104,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         # Substitutions in function arguments
         self.subs_name_args = {
             "REAL": config.sim_config.dtypes["C_float_or_double"],
-            "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+            "COMPLEX": self.grid.dispersiveCdtype,
         }
         # Substitutions in function bodies
         self.subs_func = {
@@ -191,7 +191,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         """Common macros to be used in kernels."""
 
         # Set specific values for any dispersive materials
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             NX_T = self.grid.Tx.shape[1]
             NY_T = self.grid.Tx.shape[2]
@@ -204,7 +204,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         self.knl_common = self.env.get_template("knl_common_cuda.tmpl").render(
             REAL=config.sim_config.dtypes["C_float_or_double"],
-            DRUDELORENTZ=config.get_model_config().materials["drudelorentz"],
+            DRUDELORENTZ=self.grid.drudelorentz,
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -257,11 +257,11 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             self.subs_func.update(
                 {
                     "REAL": config.sim_config.dtypes["C_float_or_double"],
-                    "REALFUNC": config.get_model_config().materials["crealfunc"],
+                    "REALFUNC": self.grid.crealfunc,
                     "NX_T": self.grid.Tx.shape[1],
                     "NY_T": self.grid.Tx.shape[2],
                     "NZ_T": self.grid.Tx.shape[3],
@@ -286,7 +286,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         self.grid.set_blocks_per_grid()
         self.grid.htod_geometry_arrays()
         self.grid.htod_field_arrays()
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             self.grid.htod_dispersive_arrays()
 
     def _set_symmetry_boundary_knl(self):
@@ -301,7 +301,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
         self.update_electric_pmc_dev = module.get_function("update_electric_pmc")
         self._copy_mat_coeffs(module, module)
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             substitutions = dict(self.subs_func)
             substitutions.update(
                 knl_symmetry_boundaries.dispersive_substitutions(
@@ -1326,7 +1326,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
 
         sx, sy, sz = _snapshot_axis_strides()
         for i, snap in enumerate(self.grid.snapshots):
-            if snap.time == iteration + 1:
+            if snap.iteration == iteration:
                 snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
                 self.store_snapshot_dev(
                     np.int32(snapno),
@@ -1684,7 +1684,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.maxpoles == 0:
             self.update_electric_dev(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
@@ -1707,7 +1707,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
-                np.int32(config.get_model_config().materials["maxpoles"]),
+                np.int32(self.grid.maxpoles),
                 self.grid.updatecoeffsdispersive_dev.gpudata,
                 self.grid.Tx_dev.gpudata,
                 self.grid.Ty_dev.gpudata,
@@ -1727,7 +1727,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
         """Apply the PMC ghost-image correction on CUDA."""
         if "pmc" not in self.grid.symmetry_boundaries.values():
             return
-        dispersive = config.get_model_config().materials["maxpoles"] > 0
+        dispersive = self.grid.maxpoles > 0
         kernel = (
             self.update_electric_pmc_dispersive_dev if dispersive else self.update_electric_pmc_dev
         )
@@ -1737,7 +1737,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
             np.int32(self.grid.nz),
         ]
         if dispersive:
-            leading.append(np.int32(config.get_model_config().materials["maxpoles"]))
+            leading.append(np.int32(self.grid.maxpoles))
         arguments = [
             *leading,
             *self._pmc_flags(),
@@ -1772,14 +1772,14 @@ class CUDAUpdates(Updates[CUDAGrid]):
         """Complete the dispersive PMC ADE update on CUDA."""
         if (
             "pmc" not in self.grid.symmetry_boundaries.values()
-            or config.get_model_config().materials["maxpoles"] == 0
+            or self.grid.maxpoles == 0
         ):
             return
         self.update_electric_pmc_dispersive_b_dev(
             np.int32(self.grid.nx),
             np.int32(self.grid.ny),
             np.int32(self.grid.nz),
-            np.int32(config.get_model_config().materials["maxpoles"]),
+            np.int32(self.grid.maxpoles),
             *self._pmc_flags(),
             self.grid.updatecoeffsdispersive_dev.gpudata,
             self.grid.Tx_dev.gpudata,
@@ -2367,7 +2367,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     CBy = REAL(mat[2])
                     CBz = REAL(mat[3])
                     srce = REAL(mat[4])
-                    num_poles = np.int32(config.get_model_config().materials["maxpoles"])
+                    num_poles = np.int32(self.grid.maxpoles)
 
                     Ex_ptr = dpw.E_fields_dev[0]
                     Ey_ptr = dpw.E_fields_dev[1]
@@ -2686,7 +2686,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 # Sequence: source bulk - source PML - source T - inject - main bulk - main PML end - main PML start - main T
                 # Non-dispersive source/inject/PML kernels are reused where the math is identical.
                 if dpw.dispersive:
-                    num_poles = np.int32(config.get_model_config().materials["maxpoles"])
+                    num_poles = np.int32(self.grid.maxpoles)
                     matD = self.grid.updatecoeffsdispersive_dev
 
                     # Source grid dispersive bulk
@@ -2935,12 +2935,12 @@ class CUDAUpdates(Updates[CUDAGrid]):
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             self.dispersive_update_b(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
-                np.int32(config.get_model_config().materials["maxpoles"]),
+                np.int32(self.grid.maxpoles),
                 self.grid.updatecoeffsdispersive_dev.gpudata,
                 self.grid.Tx_dev.gpudata,
                 self.grid.Ty_dev.gpudata,

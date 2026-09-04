@@ -1534,7 +1534,21 @@ strictly enclose the complete subgrid coupling region.
 Snapshots
 ---------
 
-Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default, snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired. HDF5 snapshots include ``origin`` (global x, y, z coordinates), ``dx_dy_dz``, ``nx_ny_nz``, and ``time`` attributes. A snapshot owned by an HSG subgrid is sampled at the fine-grid time step and is still positioned in this global coordinate frame.
+Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default, snapshot files use version 2.2 of the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ VTKHDF format. ParaView 5.12 or newer is required to view these files; the gprMax macro has been tested directly with ParaView 6.0.1. ParaView is an open-source, multi-platform data analysis and visualization application available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired. HDF5 snapshots include ``origin`` (global x, y, z coordinates), ``dx_dy_dz``, ``nx_ny_nz``, ``iteration``, ``time``, and ``magnetic_time`` attributes. ``time`` is the electric-field time :math:`n\Delta t`, and ``magnetic_time`` is the native staggered magnetic-field time :math:`(n-1/2)\Delta t`; no temporal averaging is applied. A snapshot owned by an HSG subgrid uses its fine-grid iteration and time step and is still positioned in this global coordinate frame.
+
+A requested real time is rounded to the nearest full electric-field step
+(halfway values round to the earlier step). An integer iteration selects that
+same zero-based level directly, so the two input forms produce the same field
+state. Valid indices are zero through one less than the owning grid's number
+of iterations. Spatial collocation of the staggered Yee components within a
+snapshot cell is a separate operation and is unchanged by this timing rule.
+
+All main-grid and subgrid snapshots for a model are written into the same
+snapshot directory. If two snapshots resolve to exactly the same filename,
+gprMax issues a warning because the later output will overwrite the earlier
+one. The comparison includes the file extension, so the same base name may be
+used safely for different formats, for example ``fields.h5`` and
+``fields.vtkhdf``.
 
 For a reduced 2-D model, a snapshot contains only the genuine invariant-axis
 field plane: index zero for TM and index one for TE. Bounds spanning the full
@@ -1574,7 +1588,7 @@ The following are steps to get started with viewing snapshot files in Paraview:
 Geometry output
 ===============
 
-Geometry files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format (specifically VTKHDF) which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows.
+Geometry files use version 2.2 of the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ VTKHDF format. ParaView 5.12 or newer is required to view these files; the gprMax macro and its source/receiver representations have been tested directly with ParaView 6.0.1. ParaView is an open-source, multi-platform data analysis and visualization application available for Linux, macOS, and Windows.
 
 The ``#geometry_view:`` command produces either ImageData for a per-cell geometry view, or UnstructuredGrid for a per-cell-edge geometry view. The following are steps to get started with viewing geometry files in Paraview:
 
@@ -1586,6 +1600,32 @@ overwrites and is not affected by dielectric smoothing. It is omitted
 entirely for models without tags. Per-cell-edge geometry views do not export
 tags because zero-thickness edge and plate objects do not yet have tag
 semantics.
+
+Both normal and fine geometry views contain typed catalogues of active sources
+and receivers. Localised sources and receiver ports are represented by one
+cell-sized marker at their grid position. A discrete plane-wave source is
+represented by the boundary of its TFSF box (a rectangle in a reduced 2-D
+model), while an eigenmode port is represented by its aperture plane. Virtual
+waveguides use that same physical aperture and are identified as virtual-
+waveguide interfaces.
+
+Port roles are determined from the resolved excitation used by that model run.
+A voltage-source, transmission-line, magnetic-frill, or network port whose
+resolved drive is identically zero is a receiver, not a source. An active
+eigenmode port is a source and a passive eigenmode port is a receiver. Ordinary
+``Rx`` points, including points expanded from an ``RxArray``, are receivers;
+the private sampling receiver belonging to a voltage-source port is not shown
+again at the same position. NTFF and KSIR observation locations are deliberately
+omitted because they describe transformations or observation points outside
+the FDTD geometry rather than receiver placement within the model.
+
+The source catalogue is stored in the ``source_geometry_ids``,
+``source_geometry_types``, ``source_geometry_kinds``, and
+``source_geometry_bounds`` field arrays. The receiver catalogue uses the
+corresponding ``receiver_geometry_*`` names. The gprMax ParaView macro creates
+the point boxes, wireframe TFSF boundaries, and port plates, and prefixes each
+Pipeline Browser name with ``Source`` or ``Receiver`` followed by its type and
+ID.
 
 .. _pv_toolbar:
 

@@ -35,6 +35,7 @@ import pytest
 
 from gprMax.subgrids.precursor_nodes import (
     PrecursorNodes,
+    PrecursorNodesEqualResolution,
     PrecursorNodesFiltered,
     calculate_weighting_coefficients,
 )
@@ -449,6 +450,34 @@ class TestUpdateFromMainGrid:
 
         assert np.allclose(c.precursors.hx_front_1, 2.0)
 
+    def test_unity_ratio_copies_without_constructing_spline_coordinates(
+        self, coupled_grids
+    ):
+        c = coupled_grids(ratio=1)
+        assert isinstance(c.precursors, PrecursorNodesEqualResolution)
+        assert all(obj[1] is None for obj in c.precursors.electric_slices)
+        assert all(obj[1] is None for obj in c.precursors.magnetic_slices)
+
+        c.main.Ex[:] = 1.0
+        c.main.Ey[:] = 2.0
+        c.main.Ez[:] = 3.0
+        c.precursors.update_electric()
+
+        assert np.array_equal(
+            c.precursors.ex_front_1,
+            c.main.Ex[c.precursors.electric_slices[0][2]],
+        )
+
+    def test_precursors_inherit_the_main_field_dtype(self, coupled_grids):
+        c = coupled_grids(ratio=1)
+        for name in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz"):
+            setattr(c.main, name, getattr(c.main, name).astype(np.float32))
+
+        precursors = PrecursorNodesEqualResolution(c.main, c.sub)
+
+        for name in precursors.fn_e + precursors.fn_m:
+            assert getattr(precursors, f"{name}_1").dtype == np.float32
+
     def test_zero_main_grid_gives_zero_precursors(self, coupled_grids):
         c = coupled_grids()
         c.precursors.update_electric()
@@ -471,6 +500,11 @@ class TestPrecursorTypes:
 
     def test_filtered_type(self, coupled_grids):
         assert isinstance(coupled_grids(filtered=True).precursors, PrecursorNodesFiltered)
+
+    def test_equal_resolution_type(self, coupled_grids):
+        assert isinstance(
+            coupled_grids(ratio=1).precursors, PrecursorNodesEqualResolution
+        )
 
     def test_both_share_the_same_field_shapes(self, coupled_grids):
         plain = coupled_grids(filtered=False).precursors

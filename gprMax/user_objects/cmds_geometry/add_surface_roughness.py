@@ -21,15 +21,12 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_objects.rotatable import RotatableMixin
 from gprMax.user_objects.user_objects import GeometryUserObject
-
-from .cmds_geometry import rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
 
-class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
+class AddSurfaceRoughness(GeometryUserObject):
     """Adds surface roughness to a FractalBox class in the model.
 
     Attributes:
@@ -57,13 +54,6 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def _do_rotate(self, grid: FDTDGrid):
-        """Perform rotation."""
-        pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
-        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs["p1"] = tuple(rot_pts[0, :])
-        self.kwargs["p2"] = tuple(rot_pts[1, :])
-
     def build(self, grid: FDTDGrid):
         try:
             p1 = self.kwargs["p1"]
@@ -85,9 +75,6 @@ class AddSurfaceRoughness(RotatableMixin, GeometryUserObject):
                 "every time the model runs."
             )
             seed = None
-
-        if self.do_rotate:
-            self._do_rotate(grid)
 
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]

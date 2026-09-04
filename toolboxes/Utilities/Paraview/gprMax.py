@@ -27,6 +27,7 @@ from paraview.simple import (
     GetDisplayProperties,
     GetParaViewVersion,
     Hide,
+    Plane,
     RenameSource,
     RenderAllViews,
     SetActiveSource,
@@ -138,6 +139,65 @@ def create_box_sources(
         )
         RenameSource(name, src)
         Show(src, view)
+
+
+def create_source_geometries(
+    names: vtkStringArray,
+    source_types: vtkStringArray,
+    kinds: vtkStringArray,
+    bounds: dsa.VTKArray,
+    view: Proxy,
+    role: str = "Source",
+):
+    """Create typed source or receiver geometry representations."""
+
+    count = names.GetNumberOfValues()
+    if (
+        source_types.GetNumberOfValues() != count
+        or kinds.GetNumberOfValues() != count
+        or len(bounds) != count
+    ):
+        raise HaltException("ERROR: Source geometry metadata arrays have different lengths.")
+
+    for index in range(count):
+        name = names.GetValue(index)
+        source_type = source_types.GetValue(index)
+        kind = kinds.GetValue(index)
+        xmin, xmax, ymin, ymax, zmin, zmax = (float(value) for value in bounds[index])
+        lower = [xmin, ymin, zmin]
+        upper = [xmax, ymax, zmax]
+        lengths = [upper[axis] - lower[axis] for axis in range(3)]
+
+        if kind in ("point", "box"):
+            source = Box(
+                Center=[lower[axis] + lengths[axis] / 2 for axis in range(3)],
+                XLength=lengths[0],
+                YLength=lengths[1],
+                ZLength=lengths[2],
+            )
+            display = Show(source, view)
+            if kind == "box":
+                display.Representation = "Wireframe"
+        elif kind in ("plane", "rectangle"):
+            varying_axes = [axis for axis, length in enumerate(lengths) if length != 0]
+            if len(varying_axes) != 2:
+                raise HaltException(
+                    f"ERROR: Source {name!r} plane bounds must vary on exactly two axes."
+                )
+            point1 = lower.copy()
+            point2 = lower.copy()
+            point1[varying_axes[0]] = upper[varying_axes[0]]
+            point2[varying_axes[1]] = upper[varying_axes[1]]
+            source = Plane(Origin=lower, Point1=point1, Point2=point2)
+            display = Show(source, view)
+            if kind == "rectangle":
+                display.Representation = "Wireframe"
+        else:
+            raise HaltException(
+                f"ERROR: Source {name!r} has unknown geometry kind {kind!r}."
+            )
+
+        RenameSource(f"{role} - {source_type} - {name}", source)
 
 
 def display_pmls(
@@ -359,15 +419,52 @@ try:
 
     # Display any sources
     print("Loading sources... ", end="\t\t")
-    if is_valid_key("source_ids", data.FieldData) and is_valid_key("sources", data.FieldData):
+    source_geometry_keys = (
+        "source_geometry_ids",
+        "source_geometry_types",
+        "source_geometry_kinds",
+        "source_geometry_bounds",
+    )
+    if is_valid_key("source_geometry_schema_version", data.FieldData):
+        if all(is_valid_key(key, data.FieldData) for key in source_geometry_keys):
+            create_source_geometries(
+                data.FieldData["source_geometry_ids"],
+                data.FieldData["source_geometry_types"],
+                data.FieldData["source_geometry_kinds"],
+                data.FieldData["source_geometry_bounds"],
+                pv_view,
+            )
+            print("Done.")
+        else:
+            print("No active sources to load.")
+    elif is_valid_key("source_ids", data.FieldData) and is_valid_key("sources", data.FieldData):
         create_box_sources(data.FieldData["source_ids"], data.FieldData["sources"], dl, pv_view)
         print("Done.")
     else:
         print("No sources to load.")
 
-    # Display any receivers
+    # Display any receivers and passive ports
     print("Loading receivers... ", end="\t")
-    if is_valid_key("receiver_ids", data.FieldData) and is_valid_key("receivers", data.FieldData):
+    receiver_geometry_keys = (
+        "receiver_geometry_ids",
+        "receiver_geometry_types",
+        "receiver_geometry_kinds",
+        "receiver_geometry_bounds",
+    )
+    if is_valid_key("receiver_geometry_schema_version", data.FieldData):
+        if all(is_valid_key(key, data.FieldData) for key in receiver_geometry_keys):
+            create_source_geometries(
+                data.FieldData["receiver_geometry_ids"],
+                data.FieldData["receiver_geometry_types"],
+                data.FieldData["receiver_geometry_kinds"],
+                data.FieldData["receiver_geometry_bounds"],
+                pv_view,
+                role="Receiver",
+            )
+            print("Done.")
+        else:
+            print("No receivers to load.")
+    elif is_valid_key("receiver_ids", data.FieldData) and is_valid_key("receivers", data.FieldData):
         create_box_sources(data.FieldData["receiver_ids"], data.FieldData["receivers"], dl, pv_view)
         print("Done.")
     else:

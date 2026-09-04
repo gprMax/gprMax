@@ -45,6 +45,7 @@ class PrecursorNodesBase:
         self.Ex = fdtd_grid.Ex
         self.Ey = fdtd_grid.Ey
         self.Ez = fdtd_grid.Ez
+        self.dtype = self.Ex.dtype
 
         # Main grid indices of subgrids
         self.i0 = sub_grid.i0
@@ -79,9 +80,9 @@ class PrecursorNodesBase:
         # them on the fly.
 
         # Front face
-        self.ex_front_1 = np.zeros((self.nwx, self.nwz + 1))
+        self.ex_front_1 = np.zeros((self.nwx, self.nwz + 1), dtype=self.dtype)
         self.ex_front_0 = np.copy(self.ex_front_1)
-        self.ez_front_1 = np.zeros((self.nwx + 1, self.nwz))
+        self.ez_front_1 = np.zeros((self.nwx + 1, self.nwz), dtype=self.dtype)
         self.ez_front_0 = np.copy(self.ez_front_1)
 
         # The same as the opposite face
@@ -90,9 +91,9 @@ class PrecursorNodesBase:
         self.ez_back_1 = np.copy(self.ez_front_1)
         self.ez_back_0 = np.copy(self.ez_front_1)
 
-        self.ey_left_1 = np.zeros((self.nwy, self.nwz + 1))
+        self.ey_left_1 = np.zeros((self.nwy, self.nwz + 1), dtype=self.dtype)
         self.ey_left_0 = np.copy(self.ey_left_1)
-        self.ez_left_1 = np.zeros((self.nwy + 1, self.nwz))
+        self.ez_left_1 = np.zeros((self.nwy + 1, self.nwz), dtype=self.dtype)
         self.ez_left_0 = np.copy(self.ez_left_1)
 
         self.ey_right_1 = np.copy(self.ey_left_1)
@@ -100,9 +101,9 @@ class PrecursorNodesBase:
         self.ez_right_1 = np.copy(self.ez_left_1)
         self.ez_right_0 = np.copy(self.ez_left_1)
 
-        self.ex_bottom_1 = np.zeros((self.nwx, self.nwy + 1))
+        self.ex_bottom_1 = np.zeros((self.nwx, self.nwy + 1), dtype=self.dtype)
         self.ex_bottom_0 = np.copy(self.ex_bottom_1)
-        self.ey_bottom_1 = np.zeros((self.nwx + 1, self.nwy))
+        self.ey_bottom_1 = np.zeros((self.nwx + 1, self.nwy), dtype=self.dtype)
         self.ey_bottom_0 = np.copy(self.ey_bottom_1)
 
         self.ex_top_1 = np.copy(self.ex_bottom_1)
@@ -512,6 +513,34 @@ class PrecursorNodes(PrecursorNodesBase):
         f_1 = obj[-1][obj[2]]
         f_2 = obj[-1][obj[3]]
         return f_1, f_2
+
+
+class PrecursorNodesEqualResolution(PrecursorNodes):
+    """Direct precursor transfer for a ratio-one embedded region.
+
+    Main-grid and embedded-grid nodes share the same sampling lattice, so
+    constructing spline coordinates or evaluating a spatial interpolant is
+    unnecessary. Magnetic components are selected from the exactly
+    co-located side of the staggered pair.
+    """
+
+    def create_interpolated_coords(self, mid, field):
+        return None
+
+    def update_electric(self):
+        self.update_previous_timestep_fields(self.fn_e)
+        for obj in self.electric_slices:
+            setattr(self, obj[0], np.copy(self.get_transverse_e(obj)))
+
+    def update_magnetic(self):
+        self.update_previous_timestep_fields(self.fn_m)
+        for obj in self.magnetic_slices:
+            f_1, f_2 = self.get_transverse_h(obj)
+            if "left" in obj[0] or "bottom" in obj[0] or "front" in obj[0]:
+                field = f_1
+            else:
+                field = f_2
+            setattr(self, obj[0], np.copy(field))
 
 
 class PrecursorNodesFiltered(PrecursorNodesBase):

@@ -17,7 +17,7 @@
 
 """``Snapshot`` — freezing the fields inside a window at one iteration.
 
-A snapshot is a ``GridView`` plus six output flags plus a time. Construction
+A snapshot is a ``GridView`` plus six output flags plus an iteration. Construction
 and property access are thin delegation; the interesting part is ``store()``,
 which drives a real OpenMP Cython kernel.
 
@@ -131,8 +131,13 @@ class TestConstruction:
         assert snap.grid_view.stop.tolist() == [5, 6, 7]
 
     def test_stores_the_iteration(self, make_snapshot):
-        """Expects ``time`` to be the iteration index, kept verbatim."""
-        assert make_snapshot(time=42).time == 42
+        """Expects the zero-based E-field iteration to be kept verbatim."""
+        assert make_snapshot(time=42).iteration == 42
+
+    def test_reports_the_staggered_field_times(self, make_snapshot):
+        snap = make_snapshot(time=42)
+        assert snap.electric_time == pytest.approx(42 * DT)
+        assert snap.magnetic_time == pytest.approx(41.5 * DT)
 
     def test_stores_the_output_flags(self, make_snapshot):
         """Expects the outputs dict as given, so a caller can request a subset."""

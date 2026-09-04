@@ -567,7 +567,7 @@ class TestProcessMaterials:
     """Smoke test for the loop over G.materials that fills updatecoeffs*."""
 
     def _grid_with_coeff_arrays(self, fake_grid, n_materials, maxpoles=0):
-        G = fake_grid()
+        G = fake_grid(maxpoles=maxpoles)
         G.updatecoeffsE = np.zeros((n_materials, 5))
         G.updatecoeffsH = np.zeros((n_materials, 5))
         G.updatecoeffsdispersive = np.zeros((n_materials, 3 * max(maxpoles, 1)))

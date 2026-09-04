@@ -434,6 +434,9 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         basegrp.attrs["filter"] = grid.filter
         basegrp.attrs["ratio"] = grid.ratio
         basegrp.attrs["interpolation"] = grid.interpolation
+        basegrp.attrs["coupling_mode"] = getattr(
+            grid, "coupling_mode", "refining_hsg"
+        )
 
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = (

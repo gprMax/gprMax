@@ -76,6 +76,8 @@ class VirtualWaveguide:
         self.aux_updates = (
             CPUUpdates(self.aux_grid) if config.sim_config.general["solver"] == "cpu" else None
         )
+        if self.aux_updates is not None and self.aux_grid.maxpoles > 0:
+            self.aux_updates.set_dispersive_updates()
 
         # A virtual split makes only the main-domain side of the H plane a
         # valid sampling plane. This is already the source-monitor policy;
@@ -350,6 +352,13 @@ class VirtualWaveguide:
         aux.iterations = main.iterations
         aux.timewindow = main.timewindow
         aux.materials = copy.deepcopy(self._mpi_materials) if self.mpi else main.materials
+        # The detached guide uses the same material catalogue and arithmetic
+        # requirements as its owning grid, but maintains independent state.
+        aux.maxpoles = main.maxpoles
+        aux.drudelorentz = main.drudelorentz
+        aux.dispersivedtype = main.dispersivedtype
+        aux.dispersiveCdtype = main.dispersiveCdtype
+        aux.crealfunc = main.crealfunc
 
         formulation, cfs = self._resolve_pml_profile()
         aux.pmls["formulation"] = formulation
@@ -377,14 +386,14 @@ class VirtualWaveguide:
         aux.initialise_field_arrays()
         if self.mpi:
             aux.initialise_std_update_coeff_arrays()
-            if config.get_model_config().materials["maxpoles"] > 0:
+            if aux.maxpoles > 0:
                 aux.initialise_dispersive_arrays()
                 aux.initialise_dispersive_update_coeff_array()
             process_materials(aux)
         else:
             aux.updatecoeffsE = np.array(main.updatecoeffsE, copy=True)
             aux.updatecoeffsH = np.array(main.updatecoeffsH, copy=True)
-            if config.get_model_config().materials["maxpoles"] > 0:
+            if aux.maxpoles > 0:
                 aux.initialise_dispersive_arrays()
                 aux.updatecoeffsdispersive = np.array(main.updatecoeffsdispersive, copy=True)
         return aux
@@ -451,6 +460,8 @@ class VirtualWaveguide:
         self.aux_grid.reset_fields()
         if config.sim_config.general["solver"] == "cpu":
             self.aux_updates = CPUUpdates(self.aux_grid)
+            if self.aux_grid.maxpoles > 0:
+                self.aux_updates.set_dispersive_updates()
         else:
             # Device update objects share their parent's context/queue.  A new
             # parent is created for every reused run, so the auxiliary object

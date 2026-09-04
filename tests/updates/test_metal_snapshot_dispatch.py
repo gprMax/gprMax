@@ -126,8 +126,8 @@ class _FakeMetalModule:
 
 
 class _FakeSnap:
-    def __init__(self, time):
-        self.time = time
+    def __init__(self, iteration):
+        self.iteration = iteration
         self.xs = self.ys = self.zs = 0
         self.nx = self.ny = self.nz = 2
         self.dx = self.dy = self.dz = 1
@@ -177,7 +177,7 @@ def _make_updates(snapshots, snapsgpu2cpu, monkeypatch):
 
 
 def test_store_snapshots_dispatches_with_correct_buffer_order(monkeypatch):
-    snap = _FakeSnap(time=1)
+    snap = _FakeSnap(iteration=0)
     updates, _ = _make_updates([snap], snapsgpu2cpu=False, monkeypatch=monkeypatch)
 
     updates.store_snapshots(iteration=0)
@@ -210,7 +210,7 @@ def test_store_snapshots_dispatches_with_correct_buffer_order(monkeypatch):
 
 
 def test_store_snapshots_skips_untriggered_snapshot(monkeypatch):
-    snap = _FakeSnap(time=5)
+    snap = _FakeSnap(iteration=5)
     updates, _ = _make_updates([snap], snapsgpu2cpu=False, monkeypatch=monkeypatch)
 
     updates.store_snapshots(iteration=0)
@@ -219,7 +219,7 @@ def test_store_snapshots_skips_untriggered_snapshot(monkeypatch):
 
 
 def test_store_snapshots_immediate_readback_when_snapsgpu2cpu(monkeypatch):
-    snap = _FakeSnap(time=1)
+    snap = _FakeSnap(iteration=0)
     updates, known = _make_updates([snap], snapsgpu2cpu=True, monkeypatch=monkeypatch)
 
     updates.store_snapshots(iteration=0)
@@ -284,7 +284,7 @@ def test_set_snapshot_knl_passes_snapshots_list_not_grid(monkeypatch):
     class _Grid:
         pass
 
-    sentinel_snapshots = [_FakeSnap(time=1)]
+    sentinel_snapshots = [_FakeSnap(iteration=1)]
     grid = _Grid()
     grid.snapshots = sentinel_snapshots
     updates.grid = grid
@@ -296,8 +296,8 @@ def test_set_snapshot_knl_passes_snapshots_list_not_grid(monkeypatch):
 
 
 def test_finalise_populates_each_snapshot_from_its_own_page(monkeypatch):
-    snap0 = _FakeSnap(time=1)
-    snap1 = _FakeSnap(time=2)
+    snap0 = _FakeSnap(iteration=1)
+    snap1 = _FakeSnap(iteration=2)
     updates, known = _make_updates(
         [snap0, snap1], snapsgpu2cpu=False, monkeypatch=monkeypatch
     )

@@ -62,13 +62,13 @@ class CPUUpdates(Updates[GridType]):
         store_outputs_cpu(self.grid, iteration)
 
     def store_snapshots(self, iteration):
-        """Stores any snapshots.
+        """Store snapshots at the current electric-field time level.
 
         Args:
             iteration: int for iteration number.
         """
         for snap in self.grid.snapshots:
-            if snap.time == iteration + 1:
+            if snap.iteration == iteration:
                 snap.store()
 
     def observe_ntff_electric(self, iteration):
@@ -207,7 +207,7 @@ class CPUUpdates(Updates[GridType]):
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.maxpoles == 0:
             update_electric_cpu(
                 self.grid.nx,
                 self.grid.ny,
@@ -233,7 +233,7 @@ class CPUUpdates(Updates[GridType]):
                 self.grid.nz,
                 self.mode2d,
                 config.get_model_config().ompthreads,
-                config.get_model_config().materials["maxpoles"],
+                self.grid.maxpoles,
                 self.grid.updatecoeffsE,
                 self.grid.updatecoeffsdispersive,
                 self.grid.ID,
@@ -250,14 +250,14 @@ class CPUUpdates(Updates[GridType]):
 
     def update_symmetry_boundaries_electric(self):
         """Apply the PMC ghost-node E update on CPU symmetry faces."""
-        if config.get_model_config().materials["maxpoles"] == 0:
+        if self.grid.maxpoles == 0:
             update_symmetry_boundaries_electric_normal(self.grid)
         else:
             update_symmetry_boundaries_electric_dispersive(self.grid)
 
     def update_symmetry_boundaries_electric_b(self):
         """Complete the dispersive PMC ghost-node update's second phase."""
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             update_symmetry_boundaries_electric_dispersive_b(self.grid)
 
     def update_electric_pml(self):
@@ -289,14 +289,14 @@ class CPUUpdates(Updates[GridType]):
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] > 0:
+        if self.grid.maxpoles > 0:
             self.dispersive_update_b(
                 self.grid.nx,
                 self.grid.ny,
                 self.grid.nz,
                 self.mode2d,
                 config.get_model_config().ompthreads,
-                config.get_model_config().materials["maxpoles"],
+                self.grid.maxpoles,
                 self.grid.updatecoeffsdispersive,
                 self.grid.ID,
                 self.grid.Tx,
@@ -323,7 +323,7 @@ class CPUUpdates(Updates[GridType]):
     def set_dispersive_updates(self):
         """Sets dispersive update functions."""
 
-        maxpoles = config.get_model_config().materials["maxpoles"]
+        maxpoles = self.grid.maxpoles
         if maxpoles < 1:
             raise RuntimeError(
                 "Dispersive update kernels cannot be selected without at least one pole."
@@ -339,7 +339,7 @@ class CPUUpdates(Updates[GridType]):
                 f"{configured_precision!r}."
             ) from exc
 
-        dispersive_dtype = config.get_model_config().materials["dispersivedtype"]
+        dispersive_dtype = self.grid.dispersivedtype
         if dispersive_dtype is None:
             raise RuntimeError(
                 "Dispersive material dtype has not been initialised before solver creation."
