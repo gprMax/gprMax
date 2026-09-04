@@ -339,8 +339,8 @@ forward mode, and
 .. math::
 
    \alpha=-\operatorname{Im}\beta
-          =-k_{0,\mathrm{physical}}\operatorname{Im}n_{\mathrm{eff}},
-   \qquad k_{0,\mathrm{physical}}=\frac{2\pi f}{c}.
+          =-k_0\operatorname{Im}n_{\mathrm{eff}},
+   \qquad k_0=\frac{2\pi f}{c}.
 
 Let :math:`\hat{\mathbf n}_m` point from the excluded metal into the retained
 dielectric. The surface current and scalar boundary law are
@@ -831,19 +831,20 @@ exact discrete-time surface load:
        +\sum_p\ell_p\frac{c_\theta}{Z_{\mathrm{alg},p}}.
 
 The standard rectangular finite-difference curl row is replaced by the
-compiled clipped line circulation, normalized by :math:`A_e k_0`, where
-:math:`k_0=\Omega/c`. Independent retained masks remove metal-interior E and H
+compiled clipped line circulation, normalized by :math:`A_e k_{0,\mathrm{operator}}`, where
+:math:`k_{0,\mathrm{operator}}=\Omega/c` is ``solver.operator_k0``.
+Independent retained masks remove metal-interior E and H
 degrees of freedom without
 misusing PEC masks; in particular, interface-normal H can remain present when
 a collocated tangential E is a valid impedance-boundary unknown. The existing
 P/Q reduction solves for :math:`\lambda=-n_{\mathrm{operator}}^2`, with
-:math:`n_{\mathrm{operator}}=K_w/k_0`. The normal spacing :math:`\Delta w`
+:math:`n_{\mathrm{operator}}=K_w/k_{0,\mathrm{operator}}`. The normal spacing :math:`\Delta w`
 then determines the phase propagation constant and public effective index:
 
 .. math::
 
    \beta=\frac{2}{\Delta w}\sin^{-1}\left(\frac{K_w\Delta w}{2}\right),
-   \qquad n_{\mathrm{eff}}=\frac{\beta}{k_{0,\mathrm{physical}}}.
+   \qquad n_{\mathrm{eff}}=\frac{\beta}{k_0}.
 
 The passive forward branch gives attenuation and evanescent decay in positive
 ``w``. Modal field reconstruction uses :math:`n_{\mathrm{operator}}`; source
@@ -851,7 +852,7 @@ and monitor spatial phases use :math:`\beta`.
 
 Low-level calls that omit ``fdtd_dt`` retain the physical-frequency P/Q
 normalization: the coefficient denominator uses :math:`j\omega\epsilon_0A_e`
-and :math:`k_0=\omega/c`, while the boundary numerator still comes from its
+and :math:`k_{0,\mathrm{operator}}=k_0=\omega/c`, while the boundary numerator still comes from its
 exact discrete recurrence. See :doc:`eigenmode_port` for both optional grid
 parameters.
 
@@ -1016,7 +1017,7 @@ FDFD attenuation and modal launch
 ---------------------------------
 
 The focused FDFD operator test constructs a copper-lined rectangular guide,
-compares :math:`-k_{0,\mathrm{physical}}\operatorname{Im}n_{\mathrm{eff}}` with
+compares :math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` with
 the TE10 perturbation result using :math:`Z_{\mathrm{alg}}/c_\theta`, and
 applies a 2% relative tolerance.
 
@@ -1047,7 +1048,7 @@ This gives the source response time to settle while retaining a causally
 isolated one-way propagation measurement.
 
 The copper release checks cover three milestones. The attenuation
-:math:`-k_{0,\mathrm{physical}}\operatorname{Im}n_{\mathrm{eff}}` stored for
+:math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` stored for
 each exact in-band FDFD anchor is compared with :math:`Q\operatorname{Re}Z_s`
 using a 1% relative L2 gate. The driven FDTD port must have maximum
 :math:`S_{11}<-20` dB after the

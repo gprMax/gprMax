@@ -52,8 +52,11 @@ class FDFD_1D_mode_solver:
 
     ``dt`` is the transverse cell spacing, in metres. Optional ``fdtd_dt``
     (seconds) and ``propagation_spacing`` (metres) match the time and normal
-    spatial difference symbols to FDTD. ``operator_neff`` controls field
-    reconstruction; public ``complex_neff`` is phase beta / physical_k0.
+    spatial difference symbols to FDTD. ``omega`` and ``k0`` are the physical
+    angular frequency and vacuum wavenumber; ``operator_omega`` and
+    ``operator_k0`` are the temporal difference symbol and its normalization
+    by c. ``operator_neff`` controls field reconstruction; public
+    ``complex_neff`` is phase beta / k0.
 
     After :meth:`solve`, ``raw_powers`` contains the complex Poynting power
     before normalization. ``forward_power_metrics`` is its real part divided
@@ -109,12 +112,12 @@ class FDFD_1D_mode_solver:
         self.propagation_spacing = (
             None if propagation_spacing is None else positive_finite(propagation_spacing, "propagation_spacing")
         )
-        self.physical_omega = 2 * np.pi * self.frequency
-        self.physical_k0 = self.physical_omega / self.c
-        self.omega = discrete_angular_frequency(self.frequency, self.fdtd_dt)
+        self.omega = 2 * np.pi * self.frequency
         self.k0 = self.omega / self.c
+        self.operator_omega = discrete_angular_frequency(self.frequency, self.fdtd_dt)
+        self.operator_k0 = self.operator_omega / self.c
         self.dt = positive_finite(dt, "dt")
-        self.normalized_dt = self.k0 * self.dt
+        self.normalized_dt = self.operator_k0 * self.dt
         self.mode_index = int(mode_index)
         self.num_modes = self.mode_index + 1
         self.polarization = str(polarization).upper()
@@ -270,9 +273,9 @@ class FDFD_1D_mode_solver:
         self._calculate_fields(longitudinal_inverse)
         self._zero_constrained_fields()
         self._orient_backward_modes_to_forward_power(longitudinal_inverse)
-        wavenumber = self.k0 * self.operator_neff
+        wavenumber = self.operator_k0 * self.operator_neff
         self.beta = phase_propagation_constant(wavenumber, self.propagation_spacing)
-        self.complex_neff = self.beta / self.physical_k0
+        self.complex_neff = self.beta / self.k0
         self.real_neff = np.real(self.complex_neff)
         self.spatially_resolved = spatially_resolved(wavenumber, self.propagation_spacing)
         self._normalize_modes_to_power()

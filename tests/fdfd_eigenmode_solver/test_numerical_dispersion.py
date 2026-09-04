@@ -209,16 +209,40 @@ def test_spatial_stop_band_uses_decaying_branch():
 
 
 @pytest.mark.parametrize("factory", [_one_dimensional, _rectangular_guide], ids=["1d", "2d"])
+@pytest.mark.parametrize("fdtd_dt", [None, FDTD_DT], ids=["continuous-time", "yee-time"])
+def test_physical_and_operator_frequency_conventions(factory, fdtd_dt):
+    solver = factory(fdtd_dt=fdtd_dt, propagation_spacing=PROPAGATION_SPACING)
+    omega = 2 * np.pi * FREQUENCY
+    operator_omega = omega if fdtd_dt is None else 2 * np.sin(omega * fdtd_dt / 2) / fdtd_dt
+
+    assert solver.omega == pytest.approx(omega, rel=1e-14)
+    assert solver.k0 == pytest.approx(omega / C, rel=1e-14)
+    assert solver.operator_omega == pytest.approx(operator_omega, rel=1e-14)
+    assert solver.operator_k0 == pytest.approx(operator_omega / C, rel=1e-14)
+    if fdtd_dt is not None:
+        assert solver.operator_omega < solver.omega
+        assert solver.operator_k0 < solver.k0
+
+    solver.solve()
+    np.testing.assert_allclose(solver.beta, solver.k0 * solver.complex_neff, rtol=1e-13)
+    np.testing.assert_allclose(
+        2 * np.sin(solver.beta * PROPAGATION_SPACING / 2) / PROPAGATION_SPACING,
+        operator_omega / C * solver.operator_neff,
+        rtol=1e-13,
+    )
+
+
+@pytest.mark.parametrize("factory", [_one_dimensional, _rectangular_guide], ids=["1d", "2d"])
 def test_legacy_defaults_and_fine_step_limit(factory):
     legacy = factory()
     fine = factory(fdtd_dt=2e-17, propagation_spacing=1e-8)
     legacy.solve()
     fine.solve()
 
-    assert legacy.physical_omega == pytest.approx(2 * np.pi * FREQUENCY)
-    assert legacy.physical_k0 == pytest.approx(2 * np.pi * FREQUENCY / C)
-    assert legacy.omega == legacy.physical_omega
-    assert legacy.k0 == legacy.physical_k0
+    assert legacy.omega == pytest.approx(2 * np.pi * FREQUENCY)
+    assert legacy.k0 == pytest.approx(2 * np.pi * FREQUENCY / C)
+    assert legacy.operator_omega == legacy.omega
+    assert legacy.operator_k0 == legacy.k0
     np.testing.assert_allclose(legacy.complex_neff, legacy.operator_neff, rtol=1e-13)
     np.testing.assert_allclose(legacy.beta, legacy.k0 * legacy.complex_neff, rtol=1e-13)
     np.testing.assert_allclose(fine.complex_neff, legacy.complex_neff, rtol=1e-10)

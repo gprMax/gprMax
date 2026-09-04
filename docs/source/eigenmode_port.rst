@@ -1182,28 +1182,29 @@ of the FDTD differences. At each modal solve frequency,
 
 .. math::
 
-   \omega_0 = 2\pi f, \qquad k_{0,\mathrm{physical}} = \frac{\omega_0}{c}.
+   \omega = 2\pi f, \qquad k_0 = \frac{\omega}{c}.
+
+These physical quantities are exposed as ``solver.omega`` and ``solver.k0``.
 
 Given the owning grid's time step :math:`\Delta t`, the eigenproblem and
 field reconstruction use the leapfrog temporal symbol
 
 .. math::
 
-   \Omega = \frac{2}{\Delta t}\sin\left(\frac{\omega_0\Delta t}{2}\right),
-   \qquad k_0 = \frac{\Omega}{c}.
+   \Omega = \frac{2}{\Delta t}\sin\left(\frac{\omega\Delta t}{2}\right),
+   \qquad k_{0,\mathrm{operator}} = \frac{\Omega}{c}.
 
-These are exposed as ``solver.omega`` and ``solver.k0``; the physical values
-are ``solver.physical_omega`` and ``solver.physical_k0``. The transverse
-operators retain their component-sampled Yee differences. The eigenvalue
+These are exposed as ``solver.operator_omega`` and ``solver.operator_k0``.
+The transverse operators retain their component-sampled Yee differences. The eigenvalue
 determines the longitudinal difference symbol :math:`K_w`, rather than the
 phase propagation constant :math:`\beta` directly:
 
 .. math::
 
    \lambda&=-n_{\mathrm{operator}}^2,
-   \qquad n_{\mathrm{operator}}=\frac{K_w}{k_0},\\
+   \qquad n_{\mathrm{operator}}=\frac{K_w}{k_{0,\mathrm{operator}}},\\
    \beta&=\frac{2}{\Delta w}\sin^{-1}\left(\frac{K_w\Delta w}{2}\right),
-   \qquad n_{\mathrm{eff}}=\frac{\beta}{k_{0,\mathrm{physical}}}.
+   \qquad n_{\mathrm{eff}}=\frac{\beta}{k_0}.
 
 Here :math:`\Delta w` is the normal cell spacing. The inverse-sine branch is
 chosen for passive forward propagation, including decay for evanescent
@@ -1220,11 +1221,11 @@ Lossless modes at or beyond the longitudinal spatial band edge
 Eigenmode sources pass the owning grid's time step and normal spacing
 automatically, including a subgrid's own values. Direct low-level callers
 enable the same convention with ``fdtd_dt`` and ``propagation_spacing``.
-Omitting ``fdtd_dt`` uses :math:`\Omega=\omega_0`; omitting
-``propagation_spacing`` uses :math:`\beta=K_w`. Omitting both preserves the
+Omitting ``fdtd_dt`` uses :math:`\Omega=\omega` and makes ``operator_k0`` equal
+to ``k0``; omitting ``propagation_spacing`` uses :math:`\beta=K_w`. Omitting both preserves the
 continuum time and longitudinal conventions of earlier low-level calls.
 Waveforms, Fourier transforms, and half-time-step phase factors always use
-the physical frequency :math:`\omega_0`.
+the physical frequency :math:`\omega`.
 
 The source material extraction also includes the midpoint factor in static
 electric and magnetic conductivity, including static electric conductivity
@@ -1941,7 +1942,7 @@ For a forward passive mode,
 
 .. math::
 
-   \beta=k_{0,\mathrm{physical}}n_{\mathrm{eff}}=\beta_r-j\alpha,
+   \beta=k_0n_{\mathrm{eff}}=\beta_r-j\alpha,
    \qquad \alpha\geq 0,
 
 and therefore
@@ -1973,7 +1974,7 @@ As a continuum example, at 5 GHz a homogeneous material with
    \qquad
    n\simeq 3.203-j1.122.
 
-This gives :math:`\alpha=-k_{0,\mathrm{physical}}\operatorname{Im}(n)\simeq
+This gives :math:`\alpha=-k_0\operatorname{Im}(n)\simeq
 117.6\ \mathrm{m}^{-1}`. The field magnitude after 0.5 mm is approximately
 ``exp(-alpha * 0.5e-3) = 0.943``.
 

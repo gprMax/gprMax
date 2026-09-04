@@ -72,8 +72,11 @@ class FDFD_2D_mode_solver:
 
     Optional ``fdtd_dt`` (seconds) and ``propagation_spacing`` (metres)
     match the time and normal spatial difference symbols to FDTD.
+    ``omega`` and ``k0`` are the physical angular frequency and vacuum
+    wavenumber; ``operator_omega`` and ``operator_k0`` are the temporal
+    difference symbol and its normalization by c.
     ``operator_neff`` controls field reconstruction; public ``complex_neff``
-    is phase beta / physical_k0. Material arrays use the solver's omega
+    is phase beta / k0. Material arrays use the solver's ``operator_omega``
     normalization, including the supplied surface-boundary coefficients.
 
     After :meth:`solve`, ``raw_powers`` contains the complex Poynting power
@@ -117,15 +120,15 @@ class FDFD_2D_mode_solver:
         self.propagation_spacing = (
             None if propagation_spacing is None else positive_finite(propagation_spacing, "propagation_spacing")
         )
-        self.physical_omega = 2 * np.pi * self.frequency
-        self.physical_k0 = self.physical_omega / self.c
-        self.omega = discrete_angular_frequency(self.frequency, self.fdtd_dt)
+        self.omega = 2 * np.pi * self.frequency
         self.k0 = self.omega / self.c
+        self.operator_omega = discrete_angular_frequency(self.frequency, self.fdtd_dt)
+        self.operator_k0 = self.operator_omega / self.c
 
         self.du = positive_finite(du, "du")
         self.dv = positive_finite(dv, "dv")
-        self.normalized_du = self.k0 * self.du
-        self.normalized_dv = self.k0 * self.dv
+        self.normalized_du = self.operator_k0 * self.du
+        self.normalized_dv = self.operator_k0 * self.dv
         self.mode_index = int(mode_index)
         self.num_modes = self.mode_index + 1
 
@@ -487,7 +490,7 @@ class FDFD_2D_mode_solver:
             electric_axis = boundary_row.electric_axis
             electric_shape = (self.shape_eu, self.shape_ev, self.shape_ew)[electric_axis]
             row_index = self._flat_index(*boundary_row.electric_index, electric_shape[0])
-            denominator = boundary_row.retained_dual_area * self.k0
+            denominator = boundary_row.retained_dual_area * self.operator_k0
 
             # A longitudinal electric row contains both transverse magnetic
             # derivatives; replacing only one would leave part of the old,
@@ -618,9 +621,9 @@ class FDFD_2D_mode_solver:
             eps_ww_inv,
             mu_ww_inv,
         )
-        wavenumber = self.k0 * self.operator_neff
+        wavenumber = self.operator_k0 * self.operator_neff
         self.beta = phase_propagation_constant(wavenumber, self.propagation_spacing)
-        self.complex_neff = self.beta / self.physical_k0
+        self.complex_neff = self.beta / self.k0
         self.real_neff = np.real(self.complex_neff)
         self.spatially_resolved = spatially_resolved(wavenumber, self.propagation_spacing)
         self._normalize_modes_to_power()
