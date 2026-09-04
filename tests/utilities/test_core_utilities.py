@@ -54,6 +54,7 @@ def test_opencl_without_snapshots_skips_device_snapshot_check(monkeypatch):
         snapshots=[],
         mem_est_basic=lambda: 10,
         mem_est_dispersive=lambda: 0,
+        maxpoles=0,
         name="main_grid",
     )
     host_info.mem_check_run_all([grid])

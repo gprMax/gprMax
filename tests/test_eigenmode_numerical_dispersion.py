@@ -209,6 +209,8 @@ def test_dispersive_static_conductivity_matches_harmonic_yee_increment(
     material = dispersive_material
     grid.materials[0] = material
     grid.ID.fill(material.numID)
+    grid.maxpoles = material.poles
+    grid.dispersivedtype = np.complex128
     monkeypatch.setattr(
         config,
         "get_model_config",

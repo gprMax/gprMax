@@ -270,6 +270,12 @@ class FakeMPIGrid:
         self._grid_coord = np.array(grid_coord, dtype=np.int32)
         self.dl = np.array([DL, DL, DL], dtype=np.float64)
         self.dt = DT
+        self.pmls = {
+            "slabs": [],
+            "thickness": dict.fromkeys(
+                ("x0", "y0", "z0", "xmax", "ymax", "zmax"), 0
+            ),
+        }
         self.materials = []
         self.hertziandipoles = []
         self.magneticdipoles = []
