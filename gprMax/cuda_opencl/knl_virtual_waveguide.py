@@ -20,7 +20,7 @@
 from string import Template
 
 
-def _args(name, backend, *, electric):
+def _args(name, backend, *, electric, field_kind="H"):
     prefix = {"cuda": "__global__ void", "opencl": "", "metal": "kernel void"}[backend]
     integer = "device const int&" if backend == "metal" else "int"
     real_const = {
@@ -64,7 +64,11 @@ def _args(name, backend, *, electric):
             "aux_Hz",
         )
     else:
-        names = ("main_Hx", "main_Hy", "main_Hz", "aux_Hx", "aux_Hy", "aux_Hz")
+        names = tuple(
+            f"{owner}_{field_kind}{axis}"
+            for owner in ("main", "aux")
+            for axis in "xyz"
+        )
     values.extend(f"{real} {value}" for value in names)
     suffix = ", uint i [[thread_position_in_grid]]" if backend == "metal" else ""
     if backend == "opencl":
@@ -88,7 +92,7 @@ couple_magnetic = {
         int aperture = direction_sign < 0 ? 0 :
             (normal_axis == 0 ? aux_nx : (normal_axis == 1 ? aux_ny : aux_nz));
         int aux_index;
-        int main_index;
+        size_t main_index;
         if (u < nu && v < nv) {
             if (normal_axis == 0) {
                 aux_index = aperture * (aux_ny + 1) * (aux_nz + 1) + u * (aux_nz + 1) + v;
@@ -120,37 +124,41 @@ clear_rear_magnetic = {
         """
     $CUDA_IDX
     if (i < NPOINTS) {
-        int x = i / ($NY_FIELDS * $NZ_FIELDS);
-        int remainder = i - x * $NY_FIELDS * $NZ_FIELDS;
-        int y = remainder / $NZ_FIELDS;
-        int z = remainder - y * $NZ_FIELDS;
-        bool rear, tangent_plane;
+        int nu = u1 - u0;
+        int nv = v1 - v0;
+        size_t uv_plane = (size_t)(nu + 1) * (size_t)(nv + 1);
+        int normal_offset = (int)((size_t)i / uv_plane);
+        size_t uv = (size_t)i % uv_plane;
+        int u = (int)(uv / (size_t)(nv + 1));
+        int v = (int)(uv % (size_t)(nv + 1));
+        int normal_cells = normal_axis == 0 ? $NX_FIELDS - 1 :
+            (normal_axis == 1 ? $NY_FIELDS - 1 : $NZ_FIELDS - 1);
+        int normal = (direction_sign < 0 ? plane_index : 0) + normal_offset;
+        int x = normal_axis == 0 ? normal : u0 + u;
+        int y = normal_axis == 1 ? normal : (normal_axis == 0 ? u0 + u : v0 + v);
+        int z = normal_axis == 2 ? normal : v0 + v;
+        size_t main_index = IDX3D_FIELDS(x,y,z);
+
+        bool clear_normal = u < nu && v < nv &&
+            (direction_sign > 0 || normal > plane_index);
+        bool clear_tangential = direction_sign > 0 || normal < normal_cells;
+        bool clear_u = clear_tangential && u <= nu && v < nv;
+        bool clear_v = clear_tangential && u < nu && v <= nv;
+
         if (normal_axis == 0) {
-            rear = direction_sign < 0 ? x >= plane_index : x < plane_index;
-            tangent_plane = direction_sign < 0 ? x < $NX_FIELDS - 1 : true;
-            if (rear) {
-                if ((direction_sign > 0 || x > plane_index) && y >= u0 && y < u1 && z >= v0 && z < v1) main_Hx[i] = 0;
-                if (tangent_plane && y >= u0 && y <= u1 && z >= v0 && z < v1) main_Hy[i] = 0;
-                if (tangent_plane && y >= u0 && y < u1 && z >= v0 && z <= v1) main_Hz[i] = 0;
-            }
+            if (clear_normal) main_Hx[main_index] = 0;
+            if (clear_u) main_Hy[main_index] = 0;
+            if (clear_v) main_Hz[main_index] = 0;
         }
         else if (normal_axis == 1) {
-            rear = direction_sign < 0 ? y >= plane_index : y < plane_index;
-            tangent_plane = direction_sign < 0 ? y < $NY_FIELDS - 1 : true;
-            if (rear) {
-                if ((direction_sign > 0 || y > plane_index) && x >= u0 && x < u1 && z >= v0 && z < v1) main_Hy[i] = 0;
-                if (tangent_plane && x >= u0 && x <= u1 && z >= v0 && z < v1) main_Hx[i] = 0;
-                if (tangent_plane && x >= u0 && x < u1 && z >= v0 && z <= v1) main_Hz[i] = 0;
-            }
+            if (clear_normal) main_Hy[main_index] = 0;
+            if (clear_u) main_Hx[main_index] = 0;
+            if (clear_v) main_Hz[main_index] = 0;
         }
         else {
-            rear = direction_sign < 0 ? z >= plane_index : z < plane_index;
-            tangent_plane = direction_sign < 0 ? z < $NZ_FIELDS - 1 : true;
-            if (rear) {
-                if ((direction_sign > 0 || z > plane_index) && x >= u0 && x < u1 && y >= v0 && y < v1) main_Hz[i] = 0;
-                if (tangent_plane && x >= u0 && x <= u1 && y >= v0 && y < v1) main_Hx[i] = 0;
-                if (tangent_plane && x >= u0 && x < u1 && y >= v0 && y <= v1) main_Hy[i] = 0;
-            }
+            if (clear_normal) main_Hz[main_index] = 0;
+            if (clear_u) main_Hx[main_index] = 0;
+            if (clear_v) main_Hy[main_index] = 0;
         }
     }
 """
@@ -174,7 +182,8 @@ couple_electric = {
         int aperture = direction_sign < 0 ? 0 :
             (normal_axis == 0 ? aux_nx : (normal_axis == 1 ? aux_ny : aux_nz));
         int inside = direction_sign < 0 ? 0 : aperture - 1;
-        int aidx = 0, midx = 0, material;
+        int aidx = 0, material;
+        size_t midx = 0;
         $REAL cross_field;
 
         if (normal_axis == 0) {
@@ -259,17 +268,61 @@ couple_electric = {
 
 
 clear_rear_electric = {
-    "args_cuda": _args("clear_virtual_waveguide_rear_electric", "cuda", electric=False),
-    "args_opencl": _args("clear_virtual_waveguide_rear_electric", "opencl", electric=False),
-    "args_metal": _args("clear_virtual_waveguide_rear_electric", "metal", electric=False),
+    "args_cuda": _args(
+        "clear_virtual_waveguide_rear_electric",
+        "cuda",
+        electric=False,
+        field_kind="E",
+    ),
+    "args_opencl": _args(
+        "clear_virtual_waveguide_rear_electric",
+        "opencl",
+        electric=False,
+        field_kind="E",
+    ),
+    "args_metal": _args(
+        "clear_virtual_waveguide_rear_electric",
+        "metal",
+        electric=False,
+        field_kind="E",
+    ),
     "func": Template(
         """
     $CUDA_IDX
-    if(i<NPOINTS){
-        int x=i/($NY_FIELDS*$NZ_FIELDS);int r=i-x*$NY_FIELDS*$NZ_FIELDS;int y=r/$NZ_FIELDS;int z=r-y*$NZ_FIELDS;bool rear;
-        if(normal_axis==0){rear=direction_sign<0?x>plane_index:x<plane_index;if(rear){if((direction_sign<0||x<plane_index-1)&&y>=u0&&y<=u1&&z>=v0&&z<=v1)main_Hx[i]=0;if(y>=u0&&y<u1&&z>=v0&&z<=v1)main_Hy[i]=0;if(y>=u0&&y<=u1&&z>=v0&&z<v1)main_Hz[i]=0;}}
-        else if(normal_axis==1){rear=direction_sign<0?y>plane_index:y<plane_index;if(rear){if((direction_sign<0||y<plane_index-1)&&x>=u0&&x<=u1&&z>=v0&&z<=v1)main_Hy[i]=0;if(x>=u0&&x<u1&&z>=v0&&z<=v1)main_Hx[i]=0;if(x>=u0&&x<=u1&&z>=v0&&z<v1)main_Hz[i]=0;}}
-        else{rear=direction_sign<0?z>plane_index:z<plane_index;if(rear){if((direction_sign<0||z<plane_index-1)&&x>=u0&&x<=u1&&y>=v0&&y<=v1)main_Hz[i]=0;if(x>=u0&&x<u1&&y>=v0&&y<=v1)main_Hx[i]=0;if(x>=u0&&x<=u1&&y>=v0&&y<v1)main_Hy[i]=0;}}
+    if (i < NPOINTS) {
+        int nu = u1 - u0;
+        int nv = v1 - v0;
+        size_t uv_plane = (size_t)(nu + 1) * (size_t)(nv + 1);
+        int normal_offset = (int)((size_t)i / uv_plane);
+        size_t uv = (size_t)i % uv_plane;
+        int u = (int)(uv / (size_t)(nv + 1));
+        int v = (int)(uv % (size_t)(nv + 1));
+        int normal = (direction_sign < 0 ? plane_index + 1 : 0) + normal_offset;
+        int x = normal_axis == 0 ? normal : u0 + u;
+        int y = normal_axis == 1 ? normal : (normal_axis == 0 ? u0 + u : v0 + v);
+        int z = normal_axis == 2 ? normal : v0 + v;
+        size_t main_index = IDX3D_FIELDS(x,y,z);
+
+        bool clear_normal = u <= nu && v <= nv &&
+            (direction_sign < 0 || normal < plane_index - 1);
+        bool clear_u = u < nu && v <= nv;
+        bool clear_v = u <= nu && v < nv;
+
+        if (normal_axis == 0) {
+            if (clear_normal) main_Ex[main_index] = 0;
+            if (clear_u) main_Ey[main_index] = 0;
+            if (clear_v) main_Ez[main_index] = 0;
+        }
+        else if (normal_axis == 1) {
+            if (clear_normal) main_Ey[main_index] = 0;
+            if (clear_u) main_Ex[main_index] = 0;
+            if (clear_v) main_Ez[main_index] = 0;
+        }
+        else {
+            if (clear_normal) main_Ez[main_index] = 0;
+            if (clear_u) main_Ex[main_index] = 0;
+            if (clear_v) main_Ey[main_index] = 0;
+        }
     }
 """
     ),

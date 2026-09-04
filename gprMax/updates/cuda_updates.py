@@ -1622,11 +1622,11 @@ class CUDAUpdates(Updates[CUDAGrid]):
             *main_h,
             *aux_h,
         )
-        nmain = self.grid.Ex.size
+        nrear = guide._rear_clear_points(magnetic=True)
         self._virtual_launch(
             self.clear_virtual_magnetic_dev,
-            nmain,
-            *self._virtual_scalars(guide, nmain),
+            nrear,
+            *self._virtual_scalars(guide, nrear),
             *main_h,
             *aux_h,
         )
@@ -1669,11 +1669,11 @@ class CUDAUpdates(Updates[CUDAGrid]):
             *main_fields,
             *aux_fields,
         )
-        nmain = self.grid.Ex.size
+        nrear = guide._rear_clear_points(magnetic=False)
         self._virtual_launch(
             self.clear_virtual_electric_dev,
-            nmain,
-            *self._virtual_scalars(guide, nmain),
+            nrear,
+            *self._virtual_scalars(guide, nrear),
             *(field.gpudata for field in (self.grid.Ex_dev, self.grid.Ey_dev, self.grid.Ez_dev)),
             *(
                 field.gpudata

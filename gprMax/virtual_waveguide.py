@@ -102,7 +102,7 @@ class VirtualWaveguide:
                 f"clearance + 3 cells ({minimum_length} cells for this request)."
             )
         domain_size = np.asarray(
-            getattr(self.main_grid, "global_size", self.main_grid.size), dtype=np.int32
+            getattr(self.main_grid, "global_size", self.main_grid.size), dtype=object
         )
         normal_cells = int(domain_size[self.normal_axis])
         if not 1 <= self.plane_index < normal_cells:
@@ -113,10 +113,15 @@ class VirtualWaveguide:
                 "along each transverse axis."
             )
         int32_max = np.iinfo(np.int32).max
-        main_points = int(np.prod(np.asarray(domain_size, dtype=object) + 1))
         auxiliary_size = [self.nu, self.nv, self.spec.length_cells]
         auxiliary_points = int(np.prod(np.asarray(auxiliary_size, dtype=object) + 1))
-        if max(main_points, auxiliary_points, (self.nu + 1) * (self.nv + 1)) > int32_max:
+        device_counts = (
+            auxiliary_points,
+            (self.nu + 1) * (self.nv + 1),
+            self._rear_clear_points(magnetic=True),
+            self._rear_clear_points(magnetic=False),
+        )
+        if config.sim_config.general["solver"] != "cpu" and max(device_counts) > int32_max:
             raise ValueError("Virtual-waveguide device indexing exceeds the signed 32-bit range.")
 
         if self.mpi:
@@ -145,6 +150,23 @@ class VirtualWaveguide:
                 "Virtual-waveguide aperture coupling does not yet support "
                 "dispersive guide materials; found " + ", ".join(dispersive) + "."
             )
+
+    def _rear_clear_points(self, *, magnetic):
+        """Return the compact accelerator dispatch size for the detached rear.
+
+        The rear occupies only the aperture cross-section extruded from the
+        split plane to the relevant main-domain boundary. Magnetic Yee
+        components on the far normal boundary require one additional plane;
+        the component-specific bounds remain in the device kernel.
+        """
+
+        domain_size = getattr(self.main_grid, "global_size", self.main_grid.size)
+        normal_cells = int(domain_size[self.normal_axis])
+        if self.direction_sign < 0:
+            normal_points = normal_cells - self.plane_index + int(magnetic)
+        else:
+            normal_points = self.plane_index
+        return normal_points * (self.nu + 1) * (self.nv + 1)
 
     def _adjacent_solids(self):
         if self.mpi:
