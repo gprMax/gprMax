@@ -22,7 +22,7 @@ from gprMax.cython.geometry_primitives import build_face_xy, build_face_xz, buil
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import resolve_geometry_materials
+from .cmds_geometry import resolve_geometry_materials, validate_geometry_rasterisation
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,9 @@ class Plate(GeometryUserObject):
         p2: list of the upper right (x,y,z) coordinates of the plate.
         material_id: string for the material identifier that must correspond
                         to material that has already been defined.
-        material_ids: list of material identifiers in the x, y, z directions.
+        material_ids: two material identifiers for the plate's tangential
+            directions: y/z for a yz-plane plate, x/z for an xz-plane plate,
+            or x/y for an xy-plane plate.
     """
 
     @property
@@ -91,6 +93,8 @@ class Plate(GeometryUserObject):
         # Exit early if none of the plate is in this grid as there is
         # nothing else to do.
         if not plate_within_grid:
+            if getattr(grid, "is_distributed", False) is True:
+                validate_geometry_rasterisation(grid, 0, geometry=self.params_str())
             return
 
         xs, ys, zs = p1
@@ -122,7 +126,10 @@ class Plate(GeometryUserObject):
             geometry=self.params_str(),
             cell_volume=False,
             directional="material_id" not in self.kwargs,
+            directional_count=2,
         )
+
+        occupied = 0
 
         # yz-plane plate
         if xs == xf:
@@ -138,6 +145,7 @@ class Plate(GeometryUserObject):
             for j in range(ys, yf):
                 for k in range(zs, zf):
                     build_face_yz(xs, j, k, numIDy, numIDz, grid.rigidE, grid.rigidH, grid.ID)
+                    occupied += 1
 
         # xz-plane plate
         elif ys == yf:
@@ -153,6 +161,7 @@ class Plate(GeometryUserObject):
             for i in range(xs, xf):
                 for k in range(zs, zf):
                     build_face_xz(i, ys, k, numIDx, numIDz, grid.rigidE, grid.rigidH, grid.ID)
+                    occupied += 1
 
         # xy-plane plate
         elif zs == zf:
@@ -168,6 +177,9 @@ class Plate(GeometryUserObject):
             for i in range(xs, xf):
                 for j in range(ys, yf):
                     build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID)
+                    occupied += 1
+
+        validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
 
         logger.info(
             f"{self.grid_name(grid)}Plate from {p3[0]:g}m, {p3[1]:g}m, "

@@ -191,3 +191,63 @@ def test_missing_anisotropic_material_error_names_only_missing_id(monkeypatch, t
             outputfile=tmp_path / "missing_material",
             hide_progress_bars=True,
         )
+
+
+@pytest.mark.parametrize(
+    "geometry,expected_count",
+    (
+        (
+            gprMax.Box(
+                p1=(0.008, 0.008, 0.008),
+                p2=(0.016, 0.016, 0.016),
+                material_ids=MATERIAL_IDS[:2],
+            ),
+            3,
+        ),
+        (
+            gprMax.Plate(
+                p1=(0.008, 0.008, 0.012),
+                p2=(0.016, 0.016, 0.012),
+                material_ids=MATERIAL_IDS,
+            ),
+            2,
+        ),
+    ),
+)
+def test_invalid_directional_material_count_is_reported(geometry, expected_count, tmp_path):
+    scene = _base_scene()
+    scene.add(geometry)
+
+    with pytest.raises(ValueError, match=rf"requires exactly {expected_count}"):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / f"count_{expected_count}",
+            hide_progress_bars=True,
+        )
+
+
+def test_anisotropic_surface_sector_accepts_typed_material_id(tmp_path):
+    scene = _base_scene()
+    scene.add(
+        gprMax.CylindricalSector(
+            normal="z",
+            ctr1=0.014,
+            ctr2=0.014,
+            extent1=0.012,
+            extent2=0.012,
+            r=0.004,
+            start=0,
+            end=90,
+            material_ids=MATERIAL_IDS,
+        )
+    )
+
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "anisotropic_surface_sector",
+        hide_progress_bars=True,
+    )

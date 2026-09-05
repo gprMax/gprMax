@@ -504,7 +504,7 @@ cpdef void build_voxel(
             ID[5, i, j, k + 1] = numIDz
 
 
-cpdef void build_triangle(
+cpdef Py_ssize_t build_triangle(
     double x1,
     double y1,
     double z1,
@@ -552,7 +552,7 @@ cpdef void build_triangle(
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
-    cdef Py_ssize_t i, j, k
+    cdef Py_ssize_t i, j, k, occupied = 0
     cdef int i1, i2, j1, j2, levelcells, thicknesscells
     cdef int u1, v1, u2, v2, u3, v3
     cdef long long bu, bv, cu, cv, qu2, qv2
@@ -614,7 +614,7 @@ cpdef void build_triangle(
     cu, cv = u3 - u1, v3 - v1
     denominator = bu * cv - bv * cu
     if denominator == 0:
-        return
+        return 0
 
     for i in range(i1, i2):
         for j in range(j1, j2):
@@ -650,6 +650,7 @@ cpdef void build_triangle(
                     elif normal == 'z':
                         build_face_xy(i, j, levelcells, numIDx, numIDy,
                                       rigidE, rigidH, ID)
+                    occupied += 1
                 else:
                     for k in range(levelcells, levelcells + thicknesscells):
                         if normal == 'x':
@@ -673,9 +674,12 @@ cpdef void build_triangle(
                             if tag_itemsize:
                                 set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
                                                  solid.shape[2], i, j, k, tag_id)
+                        occupied += 1
+
+    return occupied
 
 
-cpdef void build_cylindrical_sector(
+cpdef Py_ssize_t build_cylindrical_sector(
     double ctr1,
     double ctr2,
     double level,
@@ -727,7 +731,7 @@ cpdef void build_cylindrical_sector(
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
-    cdef Py_ssize_t x, y, z
+    cdef Py_ssize_t x, y, z, occupied = 0
     cdef int x1, x2, y1, y2, z1, z2, thicknesscells, ctr1cell, ctr2cell
     cdef int radiuscells1, radiuscells2
     cdef double rel1, rel2
@@ -771,6 +775,7 @@ cpdef void build_cylindrical_sector(
                     if thicknesscells == 0:
                         build_face_yz(levelcells, y, z, numIDy, numIDz,
                                       rigidE, rigidH, ID)
+                        occupied += 1
                     else:
                         for x in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
@@ -779,6 +784,7 @@ cpdef void build_cylindrical_sector(
                             if tag_itemsize:
                                 set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
                                                  solid.shape[2], x, y, z, tag_id)
+                            occupied += 1
 
     elif normal == 'y':
         # Angles are defined from zero degrees on the positive x-axis going
@@ -807,6 +813,7 @@ cpdef void build_cylindrical_sector(
                     if thicknesscells == 0:
                         build_face_xz(x, levelcells, z, numIDx, numIDz,
                                       rigidE, rigidH, ID)
+                        occupied += 1
                     else:
                         for y in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
@@ -815,6 +822,7 @@ cpdef void build_cylindrical_sector(
                             if tag_itemsize:
                                 set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
                                                  solid.shape[2], x, y, z, tag_id)
+                            occupied += 1
 
     elif normal == 'z':
         # Angles are defined from zero degrees on the positive x-axis going
@@ -843,6 +851,7 @@ cpdef void build_cylindrical_sector(
                     if thicknesscells == 0:
                         build_face_xy(x, y, levelcells, numIDx, numIDy,
                                       rigidE, rigidH, ID)
+                        occupied += 1
                     else:
                         for z in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
@@ -851,9 +860,12 @@ cpdef void build_cylindrical_sector(
                             if tag_itemsize:
                                 set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
                                                  solid.shape[2], x, y, z, tag_id)
+                            occupied += 1
+
+    return occupied
 
 
-cpdef void build_box(
+cpdef Py_ssize_t build_box(
     int xs,
     int xf,
     int ys,
@@ -975,8 +987,10 @@ cpdef void build_box(
                         set_rigid_Hz(i, j, k, rigidH)
                         ID[5, i, j, k] = numIDz
 
+    return <Py_ssize_t>(xf - xs) * (yf - ys) * (zf - zs)
 
-cpdef void build_cylinder(
+
+cpdef Py_ssize_t build_cylinder(
     double x1,
     double y1,
     double z1,
@@ -1018,7 +1032,7 @@ cpdef void build_cylinder(
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
-    cdef Py_ssize_t i, j, k
+    cdef Py_ssize_t i, j, k, occupied = 0
     cdef int xs, xf, ys, yf, zs, zf
     cdef int ix1, iy1, iz1, ix2, iy2, iz2
     cdef int rx, ry, rz
@@ -1042,7 +1056,7 @@ cpdef void build_cylinder(
     ax, ay, az = (ix2 - ix1) * dx, (iy2 - iy1) * dy, (iz2 - iz1) * dz
     axis2 = ax * ax + ay * ay + az * az
     if axis2 == 0:
-        return
+        return 0
 
     rx, ry, rz = <int>ceil(r / dx), <int>ceil(r / dy), <int>ceil(r / dz)
     xs, xf = max(0, min(ix1, ix2) - rx - 1), min(solid.shape[0], max(ix1, ix2) + rx + 1)
@@ -1065,9 +1079,12 @@ cpdef void build_cylinder(
                         if tag_itemsize:
                             set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
                                              solid.shape[2], i, j, k, tag_id)
+                        occupied += 1
+
+    return occupied
 
 
-cpdef void build_cone(
+cpdef Py_ssize_t build_cone(
     double x1,
     double y1,
     double z1,
@@ -1111,7 +1128,7 @@ cpdef void build_cone(
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
-    cdef Py_ssize_t i, j, k
+    cdef Py_ssize_t i, j, k, occupied = 0
     cdef int xs, xf, ys, yf, zs, zf
     cdef int ix1, iy1, iz1, ix2, iy2, iz2
     cdef int rx, ry, rz
@@ -1135,7 +1152,7 @@ cpdef void build_cone(
     ax, ay, az = (ix2 - ix1) * dx, (iy2 - iy1) * dy, (iz2 - iz1) * dz
     axis2 = ax * ax + ay * ay + az * az
     if axis2 == 0:
-        return
+        return 0
 
     Rmax = max(r1, r2)
     rx, ry, rz = <int>ceil(Rmax / dx), <int>ceil(Rmax / dy), <int>ceil(Rmax / dz)
@@ -1159,9 +1176,12 @@ cpdef void build_cone(
                         if tag_itemsize:
                             set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
                                              solid.shape[2], i, j, k, tag_id)
+                        occupied += 1
+
+    return occupied
 
 
-cpdef void build_sphere(
+cpdef Py_ssize_t build_sphere(
     int xc,
     int yc,
     int zc,
@@ -1199,7 +1219,7 @@ cpdef void build_sphere(
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
-    cdef Py_ssize_t i, j, k
+    cdef Py_ssize_t i, j, k, occupied = 0
     cdef int xs, xf, ys, yf, zs, zf, rx, ry, rz
     cdef double qx, qy, qz
     cdef int tag_itemsize = 0
@@ -1246,9 +1266,12 @@ cpdef void build_sphere(
                     if tag_itemsize:
                         set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
                                          solid.shape[2], i, j, k, tag_id)
+                    occupied += 1
+
+    return occupied
 
 
-cpdef void build_ellipsoid(
+cpdef Py_ssize_t build_ellipsoid(
     int xc,
     int yc,
     int zc,
@@ -1290,7 +1313,7 @@ cpdef void build_ellipsoid(
         solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
     """
 
-    cdef Py_ssize_t i, j, k
+    cdef Py_ssize_t i, j, k, occupied = 0
     cdef int xs, xf, ys, yf, zs, zf, rxcells, rycells, rzcells
     cdef double qx, qy, qz
     cdef int tag_itemsize = 0
@@ -1337,6 +1360,9 @@ cpdef void build_ellipsoid(
                     if tag_itemsize:
                         set_geometry_tag(tag_bytes, tag_itemsize, solid.shape[1],
                                          solid.shape[2], i, j, k, tag_id)
+                    occupied += 1
+
+    return occupied
 
 
 cpdef void build_voxels_from_array(

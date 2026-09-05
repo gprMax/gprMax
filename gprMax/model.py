@@ -49,6 +49,23 @@ from gprMax.utilities.utilities import get_terminal_width
 logger = logging.getLogger(__name__)
 
 
+def _process_memory_bytes(process):
+    """Return the best available host-memory estimate for a process.
+
+    USS is preferred, but querying it can be denied by the operating system
+    even after a model has solved successfully. RSS is a portable fallback;
+    if both queries fail, reporting memory must not fail the simulation.
+    """
+
+    try:
+        return process.memory_full_info().uss
+    except (psutil.Error, AttributeError, OSError, NotImplementedError):
+        try:
+            return process.memory_info().rss
+        except (psutil.Error, AttributeError, OSError, NotImplementedError):
+            return None
+
+
 class Model:
     """Builds and runs (solves) a model."""
 
@@ -857,10 +874,11 @@ class Model:
         elif config.sim_config.general["solver"] == "opencl":
             mem_str = f" host + unknown for device"
 
-        logger.info(
-            f"Memory used (estimated): "
-            + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}"
+        host_memory = _process_memory_bytes(self.p)
+        host_memory_str = (
+            f"~{humanize.naturalsize(host_memory)}" if host_memory is not None else "unknown"
         )
+        logger.info(f"Memory used (estimated): {host_memory_str}{mem_str}")
         logger.info(
             f"Time taken: "
             + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}\n"

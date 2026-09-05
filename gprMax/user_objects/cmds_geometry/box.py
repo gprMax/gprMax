@@ -29,6 +29,7 @@ from .cmds_geometry import (
     check_averaging,
     geometry_tag_args,
     resolve_geometry_materials,
+    validate_geometry_rasterisation,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,11 +92,18 @@ class Box(GeometryUserObject):
         # Exit early if none of the box is in this grid as there is
         # nothing else to do.
         if not grid_contains_box:
+            if getattr(grid, "is_distributed", False) is True:
+                validate_geometry_rasterisation(grid, 0, geometry=self.params_str())
             return
 
         # Find nearest point on grid without translation
         p5 = uip.round_to_grid_static_point(p1)
         p6 = uip.round_to_grid_static_point(p2)
+        if np.any(p6 <= p5):
+            raise ValueError(
+                f"{self.params_str()} must have positive cell extent on every axis "
+                "after spatial discretisation"
+            )
         xs, ys, zs = p3
         xf, yf, zf = p4
 
@@ -105,13 +113,6 @@ class Box(GeometryUserObject):
             geometry=self.params_str(),
             directional="material_id" not in self.kwargs,
         )
-        uses_surface_impedance = hasattr(materials[0], "surface_impedance_id")
-        if uses_surface_impedance and any(stop <= start for start, stop in zip(p3, p4)):
-            raise ValueError(
-                f"{self.params_str()} surface impedance requires positive cell extent "
-                "on every axis"
-            )
-
         # Isotropic case
         if len(materials) == 1:
             averaging = materials[0].averagable and averagebox
@@ -145,7 +146,7 @@ class Box(GeometryUserObject):
                 grid.materials.append(m)
 
         tag_data, tag_id = geometry_tag_args(grid, self.kwargs.get("tag"))
-        build_box(
+        occupied = build_box(
             xs,
             xf,
             ys,
@@ -167,6 +168,7 @@ class Box(GeometryUserObject):
             tag_data,
             tag_id,
         )
+        validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
 
         dielectricsmoothing = "on" if averaging else "off"
 

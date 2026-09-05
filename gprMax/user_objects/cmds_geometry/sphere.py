@@ -26,6 +26,7 @@ from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     check_averaging,
     geometry_tag_args,
     resolve_geometry_materials,
+    validate_geometry_rasterisation,
 )
 from gprMax.user_objects.user_objects import GeometryUserObject
 
@@ -130,7 +131,7 @@ class Sphere(GeometryUserObject):
                 grid.materials.append(m)
 
         tag_data, tag_id = geometry_tag_args(grid, self.kwargs.get("tag"))
-        build_sphere(
+        occupied = build_sphere(
             xc,
             yc,
             zc,
@@ -153,6 +154,7 @@ class Sphere(GeometryUserObject):
             tag_data,
             tag_id,
         )
+        validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
 
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
