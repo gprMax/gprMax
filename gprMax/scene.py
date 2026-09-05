@@ -30,6 +30,9 @@ from gprMax.user_objects.cmds_geometry.add_grass import AddGrass
 from gprMax.user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from gprMax.user_objects.cmds_geometry.add_surface_water import AddSurfaceWater
 from gprMax.user_objects.cmds_geometry.fractal_box import FractalBox
+from gprMax.user_objects.cmds_geometry.cmds_geometry import (
+    validate_distributed_geometry_rasterisation,
+)
 from gprMax.user_objects.cmds_singleuse import Discretisation, Domain, TimeWindow
 from gprMax.user_objects.user_objects import (
     GeometryUserObject,
@@ -302,6 +305,8 @@ class Scene:
         # Initialise geometry arrays for main and subgrids
         for grid in [model.G] + model.subgrids:
             grid.initialise_geometry_arrays()
+            if getattr(grid, "is_distributed", False) is True:
+                grid.geometry_rasterisation_records = []
 
         # Process the main grid geometry commands
         self.process_geometry_objects(self.geometry_objects, model.G)
@@ -309,3 +314,5 @@ class Scene:
 
         # Process all the commands for subgrids
         self.process_subgrid_objects(model)
+
+        validate_distributed_geometry_rasterisation(model.G)

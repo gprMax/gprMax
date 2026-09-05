@@ -29,6 +29,7 @@ from .cmds_geometry import (
     check_averaging,
     geometry_tag_args,
     resolve_geometry_materials,
+    validate_geometry_rasterisation,
 )
 
 logger = logging.getLogger(__name__)
@@ -142,6 +143,8 @@ class Triangle(GeometryUserObject):
         # Exit early if none of the triangle is in this grid as there is
         # nothing else to do.
         if not triangle_within_grid:
+            if getattr(grid, "is_distributed", False) is True:
+                validate_geometry_rasterisation(grid, 0, geometry=self.params_str())
             return
 
         # Update start bound of the triangle
@@ -220,7 +223,7 @@ class Triangle(GeometryUserObject):
         if tag is not None and thickness <= 0:
             raise ValueError(f"{self.params_str()} a cell-centred tag requires a volumetric prism")
         tag_data, tag_id = geometry_tag_args(grid, tag)
-        build_triangle(
+        occupied = build_triangle(
             x1,
             y1,
             z1,
@@ -250,6 +253,7 @@ class Triangle(GeometryUserObject):
             tag_data,
             tag_id,
         )
+        validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
 
         p4 = uip.round_to_grid_static_point(up1)
         p5 = uip.round_to_grid_static_point(up2)

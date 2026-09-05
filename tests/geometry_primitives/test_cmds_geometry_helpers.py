@@ -18,12 +18,20 @@
 """Unit tests for the shared helpers in
 ``gprMax/user_objects/cmds_geometry/cmds_geometry.py``.
 
-``check_averaging`` converts the hash-command averaging flag.
+``check_averaging`` converts the hash-command averaging flag, while the
+rasterisation helpers combine per-rank object occupancy.
 """
 
+from types import SimpleNamespace
+
+import numpy as np
 import pytest
 
-from gprMax.user_objects.cmds_geometry.cmds_geometry import check_averaging
+from gprMax.user_objects.cmds_geometry.cmds_geometry import (
+    check_averaging,
+    validate_distributed_geometry_rasterisation,
+    validate_geometry_rasterisation,
+)
 
 
 class TestCheckAveraging:
@@ -34,6 +42,40 @@ class TestCheckAveraging:
     @pytest.mark.parametrize("value", ["n", "N"])
     def test_no_maps_to_false(self, value):
         assert check_averaging(value) is False
+
+    @pytest.mark.parametrize("value", [True, False, np.bool_(True), np.bool_(False)])
+    def test_boolean_values_are_accepted(self, value):
+        assert check_averaging(value) is bool(value)
+
+    @pytest.mark.parametrize("value", ["yes", "", 1, None])
+    def test_invalid_values_are_rejected(self, value):
+        with pytest.raises(ValueError, match="Averaging should be"):
+            check_averaging(value)
+
+
+class _SingleRankComm:
+    def allgather(self, value):
+        return [value]
+
+    def Allreduce(self, send, receive):
+        receive[:] = send
+
+
+class TestGeometryRasterisationReporting:
+    def test_distributed_counts_are_deferred_then_validated(self):
+        grid = SimpleNamespace(is_distributed=True, comm=_SingleRankComm())
+
+        validate_geometry_rasterisation(grid, 2, geometry="#sphere")
+        validate_distributed_geometry_rasterisation(grid)
+
+        assert grid.geometry_rasterisation_records == [(2, "#sphere")]
+
+    def test_distributed_empty_object_is_rejected(self):
+        grid = SimpleNamespace(is_distributed=True, comm=_SingleRankComm())
+        validate_geometry_rasterisation(grid, 0, geometry="#sphere")
+
+        with pytest.raises(ValueError, match="does not occupy any Yee cells or faces"):
+            validate_distributed_geometry_rasterisation(grid)
 
 
 pytestmark = pytest.mark.unit

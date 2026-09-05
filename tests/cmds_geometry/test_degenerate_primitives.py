@@ -149,6 +149,82 @@ def _scene():
             ),
             "finite",
         ),
+        (
+            "flat_box",
+            gprMax.Box(
+                p1=(0.005, 0.005, 0.005),
+                p2=(0.005, 0.010, 0.010),
+                material_id="pec",
+            ),
+            "positive cell extent",
+        ),
+        (
+            "underresolved_sphere",
+            gprMax.Sphere(
+                p1=(0.010, 0.010, 0.010),
+                r=0.0004,
+                material_id="pec",
+            ),
+            "does not occupy any Yee cells or faces",
+        ),
+        (
+            "underresolved_ellipsoid",
+            gprMax.Ellipsoid(
+                p1=(0.010, 0.010, 0.010),
+                xr=0.0004,
+                yr=0.0004,
+                zr=0.0004,
+                material_id="pec",
+            ),
+            "does not occupy any Yee cells or faces",
+        ),
+        (
+            "underresolved_cylinder",
+            gprMax.Cylinder(
+                p1=(0.008, 0.010, 0.010),
+                p2=(0.012, 0.010, 0.010),
+                r=0.0004,
+                material_id="pec",
+            ),
+            "does not occupy any Yee cells or faces",
+        ),
+        (
+            "underresolved_cone",
+            gprMax.Cone(
+                p1=(0.008, 0.010, 0.010),
+                p2=(0.012, 0.010, 0.010),
+                r1=0.0004,
+                r2=0.0004,
+                material_id="pec",
+            ),
+            "does not occupy any Yee cells or faces",
+        ),
+        (
+            "underresolved_sector",
+            gprMax.CylindricalSector(
+                normal="z",
+                ctr1=0.010,
+                ctr2=0.010,
+                extent1=0.008,
+                extent2=0.012,
+                r=0.0004,
+                start=0,
+                end=90,
+                material_id="pec",
+            ),
+            "does not occupy any Yee cells or faces",
+        ),
+        (
+            "underresolved_triangle",
+            gprMax.Triangle(
+                p1=(0.005, 0.005, 0.010),
+                p2=(0.006, 0.005, 0.010),
+                p3=(0.005, 0.006, 0.010),
+                thickness=0.001,
+                material_id="pec",
+            ),
+            "does not occupy any Yee cells or faces",
+        ),
     ],
 )
 def test_degenerate_geometry_is_rejected(name, geometry, error, tmp_path):

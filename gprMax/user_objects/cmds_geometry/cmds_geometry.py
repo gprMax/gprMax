@@ -68,6 +68,7 @@ def resolve_geometry_materials(
     geometry,
     cell_volume=True,
     directional=False,
+    directional_count=3,
 ):
     """Resolve bulk or surface-impedance IDs for a geometry object only."""
 
@@ -107,6 +108,14 @@ def resolve_geometry_materials(
             "material_id; directional material_ids are unsupported"
         )
 
+    expected_count = directional_count if directional else 1
+    if len(requested) != expected_count:
+        argument = "material_ids" if directional else "material_id"
+        raise ValueError(
+            f"{geometry} {argument} requires exactly {expected_count} material "
+            f"identifier{'s' if expected_count != 1 else ''}; got {len(requested)}"
+        )
+
     materials = [
         create_impedance_marker_material(grid, value.ID) if kind == "surface" else value
         for kind, value in resolved
@@ -135,18 +144,83 @@ def check_averaging(averaging):
     """Check and set material averaging value.
 
     Args:
-        averaging: string for input value from hash command - should be 'y'
-                    or 'n'.
+        averaging: boolean API value or a case-insensitive ``'y'``/``'n'``
+            string from a hash command.
 
     Returns:
         averaging: boolean for geometry object material averaging.
     """
 
-    if averaging.lower() == "y":
-        averaging = True
-    elif averaging.lower() == "n":
-        averaging = False
-    else:
-        logger.exception("Averaging should be either y or n")
+    if isinstance(averaging, (bool, np.bool_)):
+        return bool(averaging)
 
-    return averaging
+    if isinstance(averaging, str):
+        value = averaging.strip().lower()
+        if value == "y":
+            return True
+        if value == "n":
+            return False
+
+    message = f"Averaging should be 'y', 'n', True, or False; got {averaging!r}"
+    logger.error(message)
+    raise ValueError(message)
+
+
+def validate_geometry_rasterisation(grid, count, *, geometry):
+    """Reject geometry that does not select any Yee cells or faces.
+
+    Curved objects can have valid continuous dimensions but still disappear
+    when their cell-centre inclusion test is applied. Distributed grids build
+    each local portion independently, so combine the local counts before
+    deciding whether the complete object is empty.
+    """
+
+    count = int(count)
+    if getattr(grid, "is_distributed", False) is True:
+        # Defer the collective until every geometry object has been processed.
+        # This avoids deadlocking ranks that legitimately return early because
+        # a particular object does not overlap their local partition.
+        records = getattr(grid, "geometry_rasterisation_records", None)
+        if records is None:
+            records = []
+            grid.geometry_rasterisation_records = records
+        records.append((count, geometry))
+        return count
+
+    if count == 0:
+        raise ValueError(
+            f"{geometry} does not occupy any Yee cells or faces after spatial "
+            "discretisation; increase its dimensions or adjust its position"
+        )
+
+    return count
+
+
+def validate_distributed_geometry_rasterisation(grid):
+    """Validate the accumulated local geometry counts on an MPI grid."""
+
+    if getattr(grid, "is_distributed", False) is not True:
+        return
+
+    records = getattr(grid, "geometry_rasterisation_records", [])
+    lengths = grid.comm.allgather(len(records))
+    if len(set(lengths)) != 1:
+        raise RuntimeError(
+            "MPI ranks recorded different numbers of geometry objects during rasterisation"
+        )
+    if not records:
+        return
+
+    local_counts = np.asarray([count for count, _ in records], dtype=np.int64)
+    global_counts = np.empty_like(local_counts)
+    grid.comm.Allreduce(local_counts, global_counts)
+    empty = [
+        geometry
+        for (_, geometry), count in zip(records, global_counts)
+        if int(count) == 0
+    ]
+    if empty:
+        raise ValueError(
+            f"{empty[0]} does not occupy any Yee cells or faces after spatial "
+            "discretisation; increase its dimensions or adjust its position"
+        )

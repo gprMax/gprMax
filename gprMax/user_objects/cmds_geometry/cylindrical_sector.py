@@ -27,6 +27,7 @@ from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     check_averaging,
     geometry_tag_args,
     resolve_geometry_materials,
+    validate_geometry_rasterisation,
 )
 from gprMax.user_objects.user_objects import GeometryUserObject
 
@@ -149,6 +150,8 @@ class CylindricalSector(GeometryUserObject):
         # Exit early if none of the cylindrical sector is in this grid
         # as there is nothing else to do.
         if not sector_within_grid:
+            if getattr(grid, "is_distributed", False) is True:
+                validate_geometry_rasterisation(grid, 0, geometry=self.params_str())
             return
 
         # Check averaging
@@ -237,8 +240,9 @@ class CylindricalSector(GeometryUserObject):
 
             # Uniaxial anisotropic case
             elif len(materials) == 3:
-                # numID requires a value but it will not be used
-                numID = None
+                # The typed volumetric ID is unused for a surface sector, but
+                # the Python/Cython boundary still requires a valid integer.
+                numID = materials[0].numID
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
@@ -250,7 +254,7 @@ class CylindricalSector(GeometryUserObject):
         if tag is not None and thickness <= 0:
             raise ValueError(f"{self.params_str()} a cell-centred tag requires a volumetric sector")
         tag_data, tag_id = geometry_tag_args(grid, tag)
-        build_cylindrical_sector(
+        occupied = build_cylindrical_sector(
             ctr1,
             ctr2,
             level,
@@ -277,6 +281,7 @@ class CylindricalSector(GeometryUserObject):
             tag_data,
             tag_id,
         )
+        validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
 
         if thickness > 0:
             dielectricsmoothing = "on" if averaging else "off"
