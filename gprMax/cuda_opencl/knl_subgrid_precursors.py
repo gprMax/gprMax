@@ -24,7 +24,7 @@ Three kernels cover all of it:
 
     gather_taps      slice extraction, the 3-tap stabilising filter and the
                      transverse blend, collapsed into one weighted sum
-    bilinear_interp  main grid -> subgrid spatial interpolation, replacing
+    bilinear_interp  main grid - subgrid spatial interpolation, replacing
                      scipy.interpolate.RectBivariateSpline
     time_blend       linear weighting between the previous and current main
                      grid timesteps
@@ -43,9 +43,9 @@ from string import Template
 # with scalar weights. The slices are described by their flat base offsets and
 # two strides, so one kernel serves every face orientation without branching:
 #
-#   normal x -> stride_a = NY*NZ apart between slices, in-plane (NZ, 1)
-#   normal y -> in-plane (NY*NZ, 1)
-#   normal z -> in-plane (NY*NZ, NZ)
+#   normal x - stride_a = NY*NZ apart between slices, in-plane (NZ, 1)
+#   normal y - in-plane (NY*NZ, 1)
+#   normal z - in-plane (NY*NZ, NZ)
 #
 # Weights encode the operation:
 #   filtered H : 0.25*c1, 0.5*c1 + 0.25*c2, 0.25*c1 + 0.5*c2, 0.25*c2
@@ -119,7 +119,7 @@ gather_taps = {
 }
 
 
-# BILINEAR INTERPOLATION, MAIN GRID -> SUBGRID
+# BILINEAR INTERPOLATION, MAIN GRID - SUBGRID
 #
 # Replaces interpolate_to_sub_grid(). RectBivariateSpline with kx=ky=1 is
 # exactly piecewise bilinear on a rectilinear grid, and FITPACK clamps to the
