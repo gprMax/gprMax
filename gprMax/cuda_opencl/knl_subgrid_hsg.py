@@ -31,12 +31,12 @@ from string import Template
 # thread handles one (l, m) pair. Each thread writes two distinct elements,
 # so no atomics are needed.
 #
-#   face = 1 -> bottom/top   (normal z)
-#   face = 2 -> left/right   (normal x)
-#   face = 3 -> front/back   (normal y)
+#   face = 1 - bottom/top   (normal z)
+#   face = 2 - left/right   (normal x)
+#   face = 3 - front/back   (normal y)
 #
 # Array dimensions are passed as runtime arguments rather than baked in as
-# macros: the subgrid's dimensions differ from the main grid's, and one
+# macros- the subgrid's dimensions differ from the main grid's, and one
 # model may hold several subgrids with different sizes.
 #
 #   coeffs   : updatecoeffsE or updatecoeffsH, shape [nmat, NY_MATCOEFFS]
