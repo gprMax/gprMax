@@ -1,7 +1,7 @@
 """Physical time-domain histories shared by plotting and trace exporters.
 
 Raw source buffers are not always physical output histories: magnetic frills
-have an extra allocation endpoint, and source-terminal currents need not lie
+and transmission lines have an extra allocation endpoint, and currents need not lie
 on the receiver H/current lattice. Do not infer source timing from 'I' alone.
 """
 
@@ -42,7 +42,7 @@ def read_time_history(dataset, *, allow_matrix=False):
     Dataset metadata is authoritative; native terminal time vectors and group
     offsets are checked for consistency. Missing interval metadata falls back
     to the nearest owning grid, not unconditionally the root grid. Only native
-    frill buffers may have their extra endpoint trimmed. Merged frill matrices
+    frill/TL buffers may have their extra endpoint trimmed. Merged matrices
     already contain physical samples and are never trimmed.
     """
     if not isinstance(dataset, h5py.Dataset):
@@ -74,15 +74,6 @@ def read_time_history(dataset, *, allow_matrix=False):
         time_name = "time"
         offset = group.attrs.get("TimeOffset")
         fallback = 0.0
-        if values.ndim == 1:
-            iterations = _nearest_attribute(group, "Iterations")
-            if iterations is None and time_name in group:
-                iterations = group[time_name].shape[0]
-            if iterations is not None:
-                count = int(iterations)
-                if count <= 0 or count != iterations or values.shape[0] not in (count, count + 1):
-                    raise ValueError(f"Invalid physical frill history length for {dataset.name}")
-                values = values[:count]
     elif family == "ports":
         current = component.startswith("I")
         time_name = "time_current" if current and "time_current" in group else "time"
@@ -92,6 +83,16 @@ def read_time_history(dataset, *, allow_matrix=False):
         fallback = 0.0
     else:
         fallback = receiver_time_offset(component, dt)
+    if family in ("tls", "frills") and values.ndim == 1:
+        iterations = _nearest_attribute(group, "Iterations")
+        if iterations is None and time_name in group:
+            iterations = group[time_name].shape[0]
+        if iterations is not None:
+            count = int(iterations)
+            if count <= 0 or count != iterations or values.shape[0] not in (count, count + 1):
+                kind = "frill" if family == "frills" else "transmission-line"
+                raise ValueError(f"Invalid physical {kind} history length for {dataset.name}")
+            values = values[:count]
     offset = dataset.attrs.get("TimeSampleOffset", offset)
     if time_name is not None and time_name in group:
         axis = np.asarray(group[time_name])

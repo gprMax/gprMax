@@ -193,6 +193,22 @@ def test_transmission_line_diagnostics_are_preserved(port_file):
     assert "Vreflected_current_spectrum" in [trace.name for trace in port.spectral_traces]
 
 
+def test_native_transmission_line_extra_endpoint_can_be_plotted(port_file):
+    with h5py.File(port_file, "a") as output:
+        group = output["tls/tl1"]
+        for name in ("Vinc", "Vtotal", "Iinc", "Itotal"):
+            values = group[name][...]
+            del group[name]
+            group[name] = np.append(values, np.nan)  # nonphysical allocation endpoint
+    port = read_port_output(port_file, "tl1")
+    assert len(port.time_traces) == 4
+    for trace in port.time_traces:
+        assert len(trace.values) == len(trace.time) == 8
+        assert np.isfinite(trace.values).all()
+    figure = plot_port_signals(port)
+    plt.close(figure)
+
+
 def test_frill_voltage_and_current_histories_are_adaptive(port_file):
     port = read_port_output(port_file, "frill1")
 
