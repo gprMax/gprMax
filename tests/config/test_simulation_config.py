@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
+
 """``SimulationConfig`` — ``gprMax/config.py:196``.
 
 The object built once per run, from the argument namespace the CLI or the API
@@ -223,12 +224,17 @@ class TestValidation:
         with pytest.raises(ValueError):
             make_sim_config(mpi=[2], subgrid=True)
 
-    def test_subgrid_with_an_accelerator_is_rejected(self, make_sim_config):
-        """Sub-gridding needs double precision, which the GPU paths force
-        to single — so the combination is refused rather than silently
-        downgraded."""
+    def test_subgrid_with_cuda_is_accepted(self, make_sim_config):
+        """Sub-gridding runs on CUDA. The subgrid block overrides
+        gpu_precision to double, as it already does for the CPU."""
+        cfg = make_sim_config(subgrid=True, gpu=[0])
+        assert cfg.general["solver"] == "cuda"
+
+    @pytest.mark.parametrize("backend", [{"opencl": [0]}, {"metal": [0]}])
+    def test_subgrid_with_unsupported_accelerator_is_rejected(self, make_sim_config, backend):
+        """OpenCL and Metal have no subgrid kernels."""
         with pytest.raises(ValueError):
-            make_sim_config(subgrid=True, gpu=[0])
+            make_sim_config(subgrid=True, **backend)
 
     @pytest.mark.parametrize(
         "kwargs",
