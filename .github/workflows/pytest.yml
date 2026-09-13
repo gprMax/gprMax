@@ -18,7 +18,8 @@ jobs:
   cpu-tests:
     name: CPU tests
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Includes dependency installation and the full CPU integration suite.
+    timeout-minutes: 60
     env:
       FI_PROVIDER: shm
       # These tests use local ranks, not RDMA. Avoid probing the hosted
@@ -28,10 +29,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
