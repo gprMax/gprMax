@@ -513,7 +513,21 @@ far-field traces on the device until finalisation.
 Subgridding
 ===========
 
-Including finely detailed objects or regions of high dielectric strength in FDTD modeling can dramatically increase the computational burden of the method. This is because the conditionally stable nature of the algorithm requires a minimum time step for a given spatial discretization. Thus, when the spatial discretization is lowered, either to reduce numerical dispersion or include small-sized features, the time step must be reduced. Also, the number of spatial cells is increased. One approach to reducing the overall computational cost is to introduce local finely discretized regions into a coarser finite-difference grid. This approach is known as subgridding. The computing time is reduced since there are fewer cells to solve. Also, there are fewer iterations since the coarse time step is maintained in the coarse region. Early gprMax subgridding research used an ADI-FDTD formulation developed by Diamanti and Giannopoulos [DIA2009]_. The current code uses a Huygens subgridding (HSG) algorithm with an artificial-loss mechanism called switched Huygens subgridding (SHSG), developed by Hartley *et al.* [HAR2021]_. Refining HSG regions (``ratio`` greater than one) use double precision. Setting ``ratio=1`` instead creates an equal-resolution embedded region: the HSG ownership and coupling machinery is retained, but field transfer is direct and no subgrid-boundary PML, filter, spatial interpolation, or temporal interpolation/subcycling is used. An equal-resolution region inherits the selected precision of the main CPU grid. All HSG modes are currently available only with the CPU solver; accelerator support is not part of this release. Examples of how to use the current subgridding functionality can be found in the :ref:`Advanced features <examples-subgrid>` section.
+Including finely detailed objects or regions of high dielectric strength in FDTD modeling can dramatically increase the computational burden of the method. This is because the conditionally stable nature of the algorithm requires a minimum time step for a given spatial discretization. Thus, when the spatial discretization is lowered, either to reduce numerical dispersion or include small-sized features, the time step must be reduced. Also, the number of spatial cells is increased. One approach to reducing the overall computational cost is to introduce local finely discretized regions into a coarser finite-difference grid. This approach is known as subgridding. The computing time is reduced since there are fewer cells to solve. Also, there are fewer iterations since the coarse time step is maintained in the coarse region. Early gprMax subgridding research used an ADI-FDTD formulation developed by Diamanti and Giannopoulos [DIA2009]_. The current code uses a Huygens subgridding (HSG) algorithm with an artificial-loss mechanism called switched Huygens subgridding (SHSG), developed by Hartley *et al.* [HAR2021]_.
+
+HSG supports CPU and CUDA execution. Refining regions (``ratio`` greater than
+one) use double precision. The default linear interpolation and stabilising
+filter are retained; the Python API also exposes experimental spline degrees
+2–5 with matching CPU/CUDA interpolation. OpenCL, Metal, and distributed MPI
+HSG execution are not supported.
+
+Setting ``ratio=1`` creates an equal-resolution embedded region: the HSG
+ownership and coupling machinery is retained, but field transfer is direct
+and no subgrid-boundary PML, filter, spatial interpolation, or temporal
+interpolation/subcycling is used. This mode inherits the selected CPU or CUDA
+precision of the main grid. Explicit internal PML slabs remain active.
+Examples are in :ref:`Advanced features <examples-subgrid>`; configuration
+details and restrictions are in :doc:`input_api`.
 
 Dispersive materials
 ====================

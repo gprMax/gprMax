@@ -55,3 +55,11 @@ def test_enabled_subgrid_accepts_cuda(make_sim_config):
     assert cfg.general["solver"] == "cuda"
     # The subgrid block overrides gpu_precision, as it does for the CPU.
     assert cfg.general["precision"] == "double"
+
+
+@pytest.mark.parametrize("precision", ["single", "double"])
+def test_equal_resolution_cuda_subgrid_preserves_requested_precision(make_sim_config, precision):
+    cfg = make_sim_config(scenes=[scene_with("fine", ratio=1)], subgrid=True,
+                          gpu=[0], gpu_precision=precision)
+    assert cfg.general["solver"] == "cuda"
+    assert cfg.general["precision"] == precision

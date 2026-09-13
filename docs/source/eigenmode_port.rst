@@ -251,7 +251,7 @@ physical transverse direction. Reduced 2D TE/TM guides use the CPU solver.
 SIBC walls, including surface dispersion and exact PMC, are supported with
 the retained-host and extrusion restrictions described in :ref:`sibc-pml`.
 Main-grid CPU, CUDA, OpenCL, Metal, and domain-decomposed MPI CPU paths are
-supported; HSG subgrid virtual ports use the CPU fine-grid update cycle.
+supported; HSG subgrid virtual ports use the CPU or CUDA fine-grid update cycle.
 
 For an antenna, enclose the entire physical antenna and feed aperture with
 the NTFF box. Keep every face in the intended homogeneous background, clear
@@ -1287,8 +1287,10 @@ network cannot span different grids because its band and normalization are
 local to the owning grid. Results appear under
 ``/subgrids/<subgrid ID>/eigenmode_ports/portN`` with fine ``dx_dy_dz`` and
 ``dt`` metadata; the CSV ends in ``_<subgrid ID>_sparameters.csv``.
-Direct HSG ports and their optional virtual guides use the CPU update cycle
-and do not support MPI. See :doc:`input_api` for subgrid construction.
+Direct HSG ports and their optional virtual guides use the CPU or CUDA update
+cycle and do not support MPI. CUDA auxiliary guides share their owner's device
+context and local timestep; their fields remain on the device during updates.
+See :doc:`input_api` for subgrid construction.
 
 Supported configurations
 ------------------------
@@ -1296,7 +1298,7 @@ Supported configurations
 Ordinary eigenmode injection and monitoring support CPU, CUDA, OpenCL, and
 Metal, including 2D TE/TM models. Main-grid direct ports and virtual guides
 also support domain-decomposed MPI CPU models. Direct HSG ports and their
-virtual guides run on CPU and do not support MPI. An SIBC wall imposes the
+virtual guides run on CPU or CUDA and do not support MPI. An SIBC wall imposes the
 stricter CPU main-grid restrictions in :doc:`impedance_surfaces`.
 
 An ``EigenmodeStudy`` reuses one fixed model through independent cases; its

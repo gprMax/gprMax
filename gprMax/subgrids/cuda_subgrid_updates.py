@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 
-
 import logging
 
 import gprMax.config as config
@@ -39,18 +38,20 @@ INTERFACE_KNLS = {
 PRECURSOR_KNLS = {
     "gather_taps": knl_subgrid_precursors.gather_taps,
     "bilinear_interp": knl_subgrid_precursors.bilinear_interp,
+    "spline_rows": knl_subgrid_precursors.spline_rows,
+    "spline_columns": knl_subgrid_precursors.spline_columns,
     "time_blend": knl_subgrid_precursors.time_blend,
 }
 
 
 def _upload_mat_coeffs(grid):
-    """Put updatecoeffsE/H in global memory, once per grid.
+    """Put updatecoeffsE/H in global memory for the current solver context.
 
-    The plane-wave setup uploads these too, so skip it when they are already
-    there rather than paying for a second transfer.
+    A reused grid can retain attributes referencing a previous CUDA context.
+    Their presence does not mean that they are valid in this run. These small
+    tables must be refreshed before the HSG interface kernels use them.
     """
-    if getattr(grid, "updatecoeffsE_dev", None) is None:
-        grid.htod_mat_coeff_arrays()
+    grid.htod_mat_coeff_arrays()
 
 
 class CUDASubgridUpdater(CUDAUpdates):
@@ -64,8 +65,7 @@ class CUDASubgridUpdater(CUDAUpdates):
     below stays textually identical to the CPU original.
     """
 
-    def __init__(self, subgrid: SubGridBaseGrid, precursors: PrecursorNodes,
-                 G: FDTDGrid, shared=None):
+    def __init__(self, subgrid: SubGridBaseGrid, precursors: PrecursorNodes, G: FDTDGrid, shared=None):
         """
         Args:
             subgrid: SubGrid3d instance to be updated.
@@ -111,6 +111,10 @@ class CUDASubgridUpdater(CUDAUpdates):
 
         self.knls_precursor = {}
         for name, knl in PRECURSOR_KNLS.items():
+            if name == "bilinear_interp" and self.grid.interpolation != 1:
+                continue
+            if name.startswith("spline_") and self.grid.interpolation <= 1:
+                continue
             bld = self._build_knl(knl, self.subs_name_args, self.subs_func)
             module = self.source_module(bld, options=opts)
             self.knls_precursor[name] = module.get_function(name)
@@ -241,8 +245,9 @@ class CUDASubgridUpdates(CUDAUpdates):
     """
 
     def __init__(self, G, updaters):
-        super().__init__(G)
+        # CUDAUpdates.__init__ calls our cleanup if main/auxiliary setup fails.
         self.updaters = updaters
+        super().__init__(G)
 
     def hsg_1(self):
         """Updates the subgrids over the first phase."""
@@ -270,12 +275,14 @@ class CUDASubgridUpdates(CUDAUpdates):
     def cleanup(self):
         """Release the sub-grid updaters before the shared context.
 
-        Safe to fan out: the updaters have _owns_context False, so they clear
-        their reference without popping the context the main grid owns.
+        The children do not own the context. Always release the owner's
+        context, including when a child's cleanup raises an exception.
         """
-        for sg_updater in self.updaters:
-            sg_updater.cleanup()
-        super().cleanup()
+        try:
+            for sg_updater in self.updaters:
+                sg_updater.cleanup()
+        finally:
+            super().cleanup()
 
 
 def create_cuda_updates(model, subgrid_hsg_cls):
@@ -295,46 +302,44 @@ def create_cuda_updates(model, subgrid_hsg_cls):
     """
     from .cuda_precursor_nodes import (
         CUDAPrecursorNodes,
+        CUDAPrecursorNodesEqualResolution,
         CUDAPrecursorNodesFiltered,
     )
 
-    updates = CUDASubgridUpdates(model.G, [])
-
-    # The OS kernels read the MAIN grid's coefficients as pointer arguments
-    _upload_mat_coeffs(model.G)
-
+    # Reject unsupported configurations before allocating a CUDA context.
     for sg in model.subgrids:
-        if not issubclass(type(sg), subgrid_hsg_cls):
-            logger.exception(f"{str(sg)} is not a subgrid type")
-            raise ValueError
+        if not isinstance(sg, subgrid_hsg_cls):
+            raise ValueError(f"{sg} is not a subgrid type")
 
-        # Upstream added a third precursor class for ratio-one embedded
-        # regions, where the two grids share a lattice and no spatial
-        # interpolation is needed. The device path has no equivalent yet,
-        # so refuse it rather than silently running the wrong precursors.
-        if getattr(sg, "equal_resolution", False):
-            raise NotImplementedError(
-                f"{sg} uses equal_resolution, which the CUDA sub-grid path "
-                "does not support yet - run this model on the CPU solver."
-            )
+    updates = CUDASubgridUpdates(model.G, [])
+    try:
+        # The OS kernels read the MAIN grid's coefficients as pointer arguments.
+        _upload_mat_coeffs(model.G)
 
-        cls = CUDAPrecursorNodesFiltered if sg.filter else CUDAPrecursorNodes
-        precursors = cls(model.G, sg)
+        for sg in model.subgrids:
+            if sg.equal_resolution:
+                cls = CUDAPrecursorNodesEqualResolution
+            else:
+                cls = CUDAPrecursorNodesFiltered if sg.filter else CUDAPrecursorNodes
+            precursors = cls(model.G, sg)
 
-        sgu = CUDASubgridUpdater(sg, precursors, model.G, shared=updates)
+            sgu = CUDASubgridUpdater(sg, precursors, model.G, shared=updates)
+            # Register immediately so subsequent setup errors clean up this child.
+            updates.updaters.append(sgu)
 
-        # Both grids' arrays are on the device by now, so the interface and
-        # the precursor descriptors can be built against them.
-        sg.setup_cuda_interface(sgu.knls_interface, model.G)
-        precursors.setup_device(sgu.knls_precursor, sg.gpuarray, tpb=sg.tpb[0])
+            # Both grids' arrays are on the device by now, so the interface and
+            # the precursor descriptors can be built against them.
+            sg.setup_cuda_interface(sgu.knls_interface, model.G)
+            precursors.setup_device(sgu.knls_precursor, sg.gpuarray, tpb=sg.tpb[0])
 
-        # Mirrors create_updates() on the CPU: the main grid may now carry a
-        # nonzero hard-source E(0), so seed the current electric precursor
-        # level before hsg_2 first reads it. Unlike the CPU, this has to come
-        # after setup_device() - there are no device buffers to gather into
-        # until then.
-        precursors.update_electric()
-
-        updates.updaters.append(sgu)
+            # Seed any nonzero hard-source E(0) before hsg_2 first reads it.
+            # Device buffers must exist before the first gather.
+            precursors.update_electric()
+    except BaseException:
+        try:
+            updates.cleanup()
+        except Exception:
+            logger.exception("CUDA cleanup failed after a subgrid initialisation error")
+        raise
 
     return updates

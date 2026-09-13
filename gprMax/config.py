@@ -488,8 +488,7 @@ class SimulationConfig:
             # Refining HSG interfaces retain their established double-
             # precision requirement. A ratio-one region has the same spatial
             # and temporal discretisation as its parent and uses direct field
-            # transfer, so it deliberately inherits the requested CPU
-            # precision instead.
+            # transfer, so it inherits the requested CPU or CUDA precision.
             if not equal_resolution:
                 if self.general["precision"] == "single":
                     logger.warning(

@@ -87,7 +87,7 @@ class Scene:
     def validate_subgrids(self, *, enabled):
         """Validate the Scene's execution requirement and output namespace."""
         if self.subgrid_objects and not enabled:
-            raise ValueError("Scene contains subgrids; run with subgrid=True (CPU only).")
+            raise ValueError("Scene contains subgrids; run with subgrid=True (CPU or CUDA).")
         identifiers = set()
         for subgrid in self.subgrid_objects:
             identifier = subgrid.kwargs.get("id")

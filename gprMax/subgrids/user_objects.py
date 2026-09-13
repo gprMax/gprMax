@@ -190,8 +190,8 @@ class SubGridHSG(SubGridBase):
                 spatial step. Must be an odd integer. ``ratio=1`` selects an
                 equal-resolution embedded region: field values are transferred
                 directly, without temporal or spatial interpolation, filtering,
-                or a subgrid-boundary PML. This mode inherits the precision of
-                the main CPU grid.
+                or a subgrid-boundary PML. It inherits the precision of the
+                main CPU or CUDA grid.
         id: required nonempty string identifier, unique within the Scene.
             Path separators, NUL, '.' and '..' are not allowed.
         is_os_sep: int for the number of main grid cells between the Inner
@@ -206,7 +206,11 @@ class SubGridHSG(SubGridBase):
                                 when ``ratio=1``.
         interpolation: int for the degree of the interpolation scheme used for
                         spatial interpolation of the fields at the Inner
-                        Surface. Defaults to linear (1). Ignored when
+                        Surface on CPU and CUDA. FITPACK spline degrees 1–5
+                        are supported when each coarse precursor axis has more
+                        samples than the degree. Defaults to linear (1), the
+                        standard HSG choice. Higher degrees are experimental;
+                        matching the CPU does not guarantee stability. Ignored when
                         ``ratio=1``, where transfer is direct.
         filter: boolean to turn on the 3-pole filter. Increases numerical
                 stability. Defaults to True. Ignored when ``ratio=1``.

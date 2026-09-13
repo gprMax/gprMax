@@ -18,12 +18,13 @@
 """Device-side precursor node operations for the HSG subgrid.
 
 Ports the parts of subgrids/precursor_nodes.py that run every timestep.
-Three kernels cover all of it:
+The following kernels cover the CPU operations:
 
     gather_taps      slice extraction, the 3-tap stabilising filter and the
                      transverse blend, collapsed into one weighted sum
     bilinear_interp  main grid - subgrid spatial interpolation, replacing
-                     scipy.interpolate.RectBivariateSpline
+                     degree-one scipy.interpolate.RectBivariateSpline
+    spline_rows/columns  separable FITPACK interpolation for degrees 2-5
     time_blend       linear weighting between the previous and current main
                      grid timesteps
 
@@ -31,6 +32,8 @@ gather_taps subsumes both PrecursorNodes and PrecursorNodesFiltered: the
 filtered class applies 0.25/0.5/0.25 across three adjacent nodes and the
 unfiltered one takes a single node, which is the same weighted sum with
 different constants. Setting unused weights to zero covers the plain case.
+Equal-resolution grids gather directly into their output buffer; no spatial
+interpolation kernel is used.
 """
 
 from string import Template
@@ -57,12 +60,12 @@ gather_taps = {
         __global__ void gather_taps(
             const int n_a,
             const int n_b,
-            const long base0,
-            const long base1,
-            const long base2,
-            const long base3,
-            const long stride_a,
-            const long stride_b,
+            const long long base0,
+            const long long base1,
+            const long long base2,
+            const long long base3,
+            const long long stride_a,
+            const long long stride_b,
             const $REAL w0,
             const $REAL w1,
             const $REAL w2,
@@ -106,7 +109,7 @@ gather_taps = {
 
     int a = i / n_b;
     int b = i % n_b;
-    long off = (long)a * stride_a + (long)b * stride_b;
+    ptrdiff_t off = (ptrdiff_t)a * stride_a + (ptrdiff_t)b * stride_b;
 
     dst[i] = w0 * src[base0 + off]
            + w1 * src[base1 + off]
@@ -181,8 +184,8 @@ bilinear_interp = {
     $REAL WX = wx[a];
     $REAL WZ = wz[b];
 
-    long r0 = (long)P * n_b + Q;
-    long r1 = r0 + n_b;
+    ptrdiff_t r0 = (ptrdiff_t)P * n_b + Q;
+    ptrdiff_t r1 = r0 + n_b;
 
     $REAL f00 = src[r0];
     $REAL f10 = src[r1];
@@ -194,6 +197,63 @@ bilinear_interp = {
            + (1 - WX) * WZ * f01
            + WX * WZ * f11;
     """
+    ),
+}
+
+
+# SEPARABLE HIGHER-ORDER FITPACK INTERPOLATION
+#
+# Geometry-dependent matrices are formed once on the host. Two device passes
+# apply Wx @ field @ Wz.T. This reproduces the CPU's global spline fit, not
+# merely a local quadratic/cubic polynomial approximation.
+
+spline_rows = {
+    "args_cuda": Template(
+        """
+        __global__ void spline_rows(
+            const int N_a, const int n_a, const int n_b,
+            const $REAL* __restrict__ weights,
+            const $REAL* __restrict__ src,
+            $REAL* __restrict__ dst
+        )
+        """
+    ),
+    "func": Template(
+        """
+        $CUDA_IDX
+        if (i >= (size_t)N_a * n_b) return;
+        size_t a = i / n_b;
+        size_t b = i % n_b;
+        $REAL value = 0;
+        for (int j = 0; j < n_a; ++j)
+            value += weights[a * n_a + j] * src[(size_t)j * n_b + b];
+        dst[i] = value;
+        """
+    ),
+}
+
+spline_columns = {
+    "args_cuda": Template(
+        """
+        __global__ void spline_columns(
+            const int N_a, const int N_b, const int n_b,
+            const $REAL* __restrict__ weights,
+            const $REAL* __restrict__ src,
+            $REAL* __restrict__ dst
+        )
+        """
+    ),
+    "func": Template(
+        """
+        $CUDA_IDX
+        if (i >= (size_t)N_a * N_b) return;
+        size_t a = i / N_b;
+        size_t b = i % N_b;
+        $REAL value = 0;
+        for (int j = 0; j < n_b; ++j)
+            value += weights[b * n_b + j] * src[a * n_b + j];
+        dst[i] = value;
+        """
     ),
 }
 

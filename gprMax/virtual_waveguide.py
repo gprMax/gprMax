@@ -33,7 +33,6 @@ from gprMax.cython.virtual_waveguide import (
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import process_materials
 from gprMax.mode2d import mode2d_geometry
-from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.updates.cpu_updates import CPUUpdates
 
 logger = logging.getLogger(__name__)
@@ -624,7 +623,18 @@ class VirtualWaveguide:
         # second SubGridHSG would incorrectly require an HSG coupling region
         # and a parent coarse grid around a guide that is deliberately
         # detached from the physical domain.
-        aux = FDTDGrid() if self.mpi or isinstance(main, SubGridBaseGrid) else type(main)()
+        solver = config.sim_config.general["solver"]
+        if self.mpi or solver == "cpu":
+            AuxiliaryGrid = FDTDGrid
+        elif solver == "cuda":
+            from gprMax.grid.cuda_grid import CUDAGrid as AuxiliaryGrid
+        elif solver == "opencl":
+            from gprMax.grid.opencl_grid import OpenCLGrid as AuxiliaryGrid
+        elif solver == "metal":
+            from gprMax.grid.metal_grid import MetalGrid as AuxiliaryGrid
+        else:
+            raise ValueError(f"Unsupported virtual-waveguide backend: {solver}")
+        aux = AuxiliaryGrid()
         aux.name = f"virtual_waveguide_port_{self.spec.port}"
         aux.size[:] = 1
         aux.size[self.normal_axis] = self.spec.length_cells
@@ -775,8 +785,21 @@ class VirtualWaveguide:
 
         if self.aux_updates is not None:
             return
-        self.aux_updates = type(parent_updates)(self.aux_grid, shared=parent_updates)
         solver = config.sim_config.general["solver"]
+        # The auxiliary grid is an ordinary Yee grid even when its owner is
+        # an HSG subgrid or orchestrator. Those specialised updater classes
+        # have different constructors and time-stepping responsibilities.
+        # Select the plain backend, retaining the owner's context/queue and
+        # the auxiliary grid's own (possibly fine-grid) timestep.
+        if solver == "cuda":
+            from gprMax.updates.cuda_updates import CUDAUpdates as AuxiliaryUpdates
+        elif solver == "opencl":
+            from gprMax.updates.opencl_updates import OpenCLUpdates as AuxiliaryUpdates
+        elif solver == "metal":
+            from gprMax.updates.metal_updates import MetalUpdates as AuxiliaryUpdates
+        else:
+            raise ValueError(f"Unsupported virtual-waveguide device backend: {solver}")
+        self.aux_updates = AuxiliaryUpdates(self.aux_grid, shared=parent_updates)
         # Always refresh these arrays: a geometry-reuse run creates a new
         # accelerator context/queue, while Python attributes from the former
         # context may still exist on the persistent auxiliary grid.

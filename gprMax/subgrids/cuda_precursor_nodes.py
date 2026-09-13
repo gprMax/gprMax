@@ -19,17 +19,17 @@
 Subclasses the existing precursor classes rather than replacing them, so the
 slice tables, field names and interpolation coordinates are inherited from the
 shipped code instead of being transcribed. Only the per-timestep arithmetic is
-overridden, and each override maps onto one of the three validated kernels:
+overridden, and each override maps onto a device operation:
 
     gather_taps      slice extraction + FIR filter + transverse blend
     bilinear_interp  coarse main grid values -> fine subgrid resolution
+    spline_rows/columns  separable higher-order FITPACK interpolation
     time_blend       previous/current main grid timestep weighting
 
-The flat device descriptors are DERIVED from the parent's numpy slice tuples
-rather than written out by hand: an index array of the same shape as the field
-is sliced with the parent's own slice object, and the resulting base offset and
-strides are read straight off it. A transcription error is therefore impossible
-- if the parent's slices change, these follow automatically.
+Flat device descriptors are derived from the CPU's basic slices using scalar
+offset/stride arithmetic; setup never allocates a main-grid-sized index array.
+Higher-order interpolation uses precomputed separable FITPACK interpolation
+matrices. Field gathering, interpolation and time blending stay on the GPU.
 
 Collapsing the filter and the transverse blend:
 
@@ -46,11 +46,14 @@ both field types; the unused taps simply carry zero weight.
 """
 
 import logging
+from operator import index
 
 import numpy as np
+from scipy.interpolate import InterpolatedUnivariateSpline
 
 from gprMax.subgrids.precursor_nodes import (
     PrecursorNodes,
+    PrecursorNodesEqualResolution,
     PrecursorNodesFiltered,
     calculate_weighting_coefficients,
 )
@@ -61,8 +64,8 @@ logger = logging.getLogger(__name__)
 def _descriptor(shape, slc):
     """Flat base offset, strides and extents for a numpy basic-slice tuple.
 
-    Derived by slicing an index array with the parent's own slice object, so
-    the descriptor cannot disagree with what the CPU path does.
+    Normalise the CPU's own basic slices just as NumPy does, without allocating
+    or visiting any field cells. Offsets remain Python integers until upload.
 
     Args:
         shape: shape of the field array being sliced.
@@ -71,17 +74,43 @@ def _descriptor(shape, slc):
     Returns:
         (base, stride_a, stride_b, n_a, n_b)
     """
-    idx = np.arange(int(np.prod(shape)), dtype=np.int64).reshape(shape)
-    view = idx[slc]
-    if view.ndim != 2:
-        logger.exception(f"precursor slice is not 2D: {slc} -> {view.shape}")
-        raise ValueError
-
-    n_a, n_b = view.shape
-    base = int(view[0, 0])
-    stride_a = int(view[1, 0] - view[0, 0]) if n_a > 1 else 0
-    stride_b = int(view[0, 1] - view[0, 0]) if n_b > 1 else 0
+    if len(shape) != 3 or len(slc) != 3:
+        raise ValueError(f"Expected a 3D field and basic-slice tuple, got {shape}, {slc}")
+    shape = tuple(index(size) for size in shape)
+    strides = (shape[1] * shape[2], shape[2], 1)
+    base, axes = 0, []
+    for size, stride, selection in zip(shape, strides, slc):
+        if isinstance(selection, slice):
+            start, stop, step = selection.indices(size)
+            count = len(range(start, stop, step))
+            if count == 0:
+                raise ValueError(f"Empty precursor slice: {slc}")
+            base += start * stride
+            axes.append((count, step * stride if count > 1 else 0))
+        else:
+            position = index(selection)
+            if position < 0:
+                position += size
+            if not 0 <= position < size:
+                raise IndexError(f"Precursor index {selection} outside axis of size {size}")
+            base += position * stride
+    if len(axes) != 2:
+        raise ValueError(f"Precursor slice is not 2D: {slc}")
+    (n_a, stride_a), (n_b, stride_b) = axes
     return base, stride_a, stride_b, n_a, n_b
+
+
+def _spline_axis_weights(source, target, order):
+    """Linear map from samples to FITPACK spline values on one fixed axis.
+
+    RectBivariateSpline is a tensor product of interpolating splines. Evaluate
+    the same univariate FITPACK interpolant on an identity basis once at setup,
+    including its constant extension outside the sampled interval. A local
+    polynomial stencil would NOT reproduce the CPU's global spline fit.
+    """
+    basis = np.eye(len(source))
+    weights = [InterpolatedUnivariateSpline(source, row, k=order, ext=3)(target) for row in basis]
+    return np.ascontiguousarray(np.asarray(weights).T)
 
 
 def _axis_weights(src, tgt):
@@ -121,30 +150,38 @@ class CUDAPrecursorMixin:
         and interpolation coordinates.
 
         Args:
-            kernels: dict of built CUDA functions keyed 'gather_taps',
-                        'bilinear_interp', 'time_blend'.
+            kernels: built gather/time kernels and the selected interpolation
+                        kernels (bilinear or separable spline).
             gpuarray: the pycuda.gpuarray module.
             tpb: threads per block.
         """
         self.k_gather = kernels["gather_taps"]
-        self.k_interp = kernels["bilinear_interp"]
+        self.k_interp = kernels.get("bilinear_interp")
+        self.k_rows = kernels.get("spline_rows")
+        self.k_columns = kernels.get("spline_columns")
         self.k_blend = kernels["time_blend"]
         self.gpuarray = gpuarray
         self.tpb = tpb
+        self.real = self.dtype.type
 
         # Main grid field arrays, resident on the device. The precursors read
         # them; the main grid's own updates write them.
         self.main_dev = {
-            "Ex": self.G.Ex_dev, "Ey": self.G.Ey_dev, "Ez": self.G.Ez_dev,
-            "Hx": self.G.Hx_dev, "Hy": self.G.Hy_dev, "Hz": self.G.Hz_dev,
+            "Ex": self.G.Ex_dev,
+            "Ey": self.G.Ey_dev,
+            "Ez": self.G.Ez_dev,
+            "Hx": self.G.Hx_dev,
+            "Hy": self.G.Hy_dev,
+            "Hz": self.G.Hz_dev,
         }
         self._field_id = {id(getattr(self.G, n)): n for n in self.main_dev}
 
-        self.dev = {}          # name -> current-value buffer (fine)
-        self.dev_0 = {}        # name -> previous main timestep (fine)
-        self.dev_1 = {}        # name -> current main timestep (fine)
-        self.scratch = {}      # name -> coarse gather output
-        self.desc = {}         # name -> launch descriptor
+        self.dev = {}  # name -> current-value buffer (fine)
+        self.dev_0 = {}  # name -> previous main timestep (fine)
+        self.dev_1 = {}  # name -> current main timestep (fine)
+        self.scratch = {}  # name -> coarse gather output
+        self.desc = {}  # name -> launch descriptor
+        self.spline_scratch = {}
 
         self._prepare(self.magnetic_slices, self.N_TAPS_H)
         self._prepare(self.electric_slices, self.N_TAPS_E)
@@ -155,9 +192,9 @@ class CUDAPrecursorMixin:
         A row is [name_1, coords, tap_0, ..., tap_{n-1}, field_array].
         """
         for obj in slices:
-            name = obj[0][:-2]                 # strip the trailing "_1"
+            name = obj[0][:-2]  # strip the trailing "_1"
             coords = obj[1]
-            taps = obj[2:2 + n_taps]
+            taps = obj[2 : 2 + n_taps]
             field = obj[-1]
 
             bases, sa, sb, n_a, n_b = [], None, None, None, None
@@ -167,51 +204,50 @@ class CUDAPrecursorMixin:
                 if sa is None:
                     sa, sb, n_a, n_b = s_a, s_b, na, nb
                 elif (s_a, s_b, na, nb) != (sa, sb, n_a, n_b):
-                    logger.exception(
-                        f"{name}: taps disagree on stride or extent")
+                    logger.exception(f"{name}: taps disagree on stride or extent")
                     raise ValueError
             # Unused taps repeat the first base; their weight is zero
             while len(bases) < 4:
                 bases.append(bases[0])
 
-            x, z, x_sg, z_sg = coords
-            p, wx = _axis_weights(x, x_sg)
-            q, wz = _axis_weights(z, z_sg)
-
             fine = getattr(self, f"{name}_1")
-            if fine.shape != (len(x_sg), len(z_sg)):
-                logger.exception(
-                    f"{name}: interpolated shape {(len(x_sg), len(z_sg))} "
-                    f"does not match the precursor array {fine.shape}")
-                raise ValueError
+            shape = (n_a, n_b) if coords is None else (len(coords[2]), len(coords[3]))
+            if fine.shape != shape:
+                raise ValueError(f"{name}: interpolated shape {shape} does not match precursor {fine.shape}")
 
             self.desc[name] = {
                 "src": self._field_id[id(field)],
                 "bases": bases,
-                "stride_a": sa, "stride_b": sb,
-                "n_a": n_a, "n_b": n_b,
-                "N_a": len(x_sg), "N_b": len(z_sg),
-                "n_src_b": len(z),
-                "p": self.gpuarray.to_gpu(p),
-                "wx": self.gpuarray.to_gpu(wx),
-                "q": self.gpuarray.to_gpu(q),
-                "wz": self.gpuarray.to_gpu(wz),
-                "mid": bool(coords is not None and self._mid_of(obj)),
+                "stride_a": sa,
+                "stride_b": sb,
+                "n_a": n_a,
+                "n_b": n_b,
+                "N_a": shape[0],
+                "N_b": shape[1],
             }
+            d = self.desc[name]
+            if coords is not None:
+                x, z, x_sg, z_sg = coords
+                if self.interpolation == 1:
+                    p, wx = _axis_weights(x, x_sg)
+                    q, wz = _axis_weights(z, z_sg)
+                    d.update(
+                        {
+                            key: self.gpuarray.to_gpu(values)
+                            for key, values in (("p", p), ("wx", wx), ("q", q), ("wz", wz))
+                        }
+                    )
+                else:
+                    d["wx"] = self.gpuarray.to_gpu(_spline_axis_weights(x, x_sg, self.interpolation))
+                    d["wz"] = self.gpuarray.to_gpu(_spline_axis_weights(z, z_sg, self.interpolation))
+                    self.spline_scratch[name] = self.gpuarray.zeros((shape[0], n_b), fine.dtype)
 
-            self.scratch[name] = self.gpuarray.zeros((n_a, n_b), fine.dtype)
             self.dev[name] = self.gpuarray.to_gpu(np.ascontiguousarray(fine))
             self.dev_0[name] = self.gpuarray.to_gpu(np.ascontiguousarray(fine))
             self.dev_1[name] = self.gpuarray.to_gpu(np.ascontiguousarray(fine))
-
-    @staticmethod
-    def _mid_of(obj):
-        """The parent replaces obj[1] with the coords tuple at setup, so the
-        original mid flag is no longer stored. It is not needed at launch -
-        it only affected which coordinate set was built - so this is kept
-        purely for diagnostics.
-        """
-        return False
+            # Ratio one gathers directly into the current precursor buffer:
+            # there is no interpolation, filtering or extra device copy.
+            self.scratch[name] = self.dev_1[name] if coords is None else self.gpuarray.zeros((n_a, n_b), fine.dtype)
 
     # ------------------------------------------------------------ launching
     def _grid(self, total):
@@ -224,37 +260,80 @@ class CUDAPrecursorMixin:
         total = d["n_a"] * d["n_b"]
 
         self.k_gather(
-            np.int32(d["n_a"]), np.int32(d["n_b"]),
-            np.int64(d["bases"][0]), np.int64(d["bases"][1]),
-            np.int64(d["bases"][2]), np.int64(d["bases"][3]),
-            np.int64(d["stride_a"]), np.int64(d["stride_b"]),
-            np.float64(w[0]), np.float64(w[1]),
-            np.float64(w[2]), np.float64(w[3]),
-            self.main_dev[d["src"]].gpudata, self.scratch[name].gpudata,
-            block=(self.tpb, 1, 1), grid=self._grid(total),
+            np.int32(d["n_a"]),
+            np.int32(d["n_b"]),
+            np.int64(d["bases"][0]),
+            np.int64(d["bases"][1]),
+            np.int64(d["bases"][2]),
+            np.int64(d["bases"][3]),
+            np.int64(d["stride_a"]),
+            np.int64(d["stride_b"]),
+            self.real(w[0]),
+            self.real(w[1]),
+            self.real(w[2]),
+            self.real(w[3]),
+            self.main_dev[d["src"]].gpudata,
+            self.scratch[name].gpudata,
+            block=(self.tpb, 1, 1),
+            grid=self._grid(total),
         )
 
     def _interpolate(self, name):
         """Coarse scratch -> fine _1 buffer."""
         d = self.desc[name]
         total = d["N_a"] * d["N_b"]
+        if self.interpolation == 0:
+            return
+        if self.interpolation > 1:
+            intermediate = self.spline_scratch[name]
+            self.k_rows(
+                np.int32(d["N_a"]),
+                np.int32(d["n_a"]),
+                np.int32(d["n_b"]),
+                d["wx"].gpudata,
+                self.scratch[name].gpudata,
+                intermediate.gpudata,
+                block=(self.tpb, 1, 1),
+                grid=self._grid(intermediate.size),
+            )
+            self.k_columns(
+                np.int32(d["N_a"]),
+                np.int32(d["N_b"]),
+                np.int32(d["n_b"]),
+                d["wz"].gpudata,
+                intermediate.gpudata,
+                self.dev_1[name].gpudata,
+                block=(self.tpb, 1, 1),
+                grid=self._grid(total),
+            )
+            return
 
         self.k_interp(
-            np.int32(d["N_a"]), np.int32(d["N_b"]), np.int32(d["n_src_b"]),
-            d["p"].gpudata, d["wx"].gpudata,
-            d["q"].gpudata, d["wz"].gpudata,
-            self.scratch[name].gpudata, self.dev_1[name].gpudata,
-            block=(self.tpb, 1, 1), grid=self._grid(total),
+            np.int32(d["N_a"]),
+            np.int32(d["N_b"]),
+            np.int32(d["n_b"]),
+            d["p"].gpudata,
+            d["wx"].gpudata,
+            d["q"].gpudata,
+            d["wz"].gpudata,
+            self.scratch[name].gpudata,
+            self.dev_1[name].gpudata,
+            block=(self.tpb, 1, 1),
+            grid=self._grid(total),
         )
 
     def _blend(self, name, c1, c2):
         """Weight the previous and current main grid timesteps."""
         n = self.dev[name].size
         self.k_blend(
-            np.int32(n), np.float64(c1), np.float64(c2),
-            self.dev_0[name].gpudata, self.dev_1[name].gpudata,
+            np.int32(n),
+            self.real(c1),
+            self.real(c2),
+            self.dev_0[name].gpudata,
+            self.dev_1[name].gpudata,
             self.dev[name].gpudata,
-            block=(self.tpb, 1, 1), grid=self._grid(n),
+            block=(self.tpb, 1, 1),
+            grid=self._grid(n),
         )
 
     # ------------------------------------------------------------ overrides
@@ -271,8 +350,7 @@ class CUDAPrecursorMixin:
 
         for obj in self.magnetic_slices:
             name = obj[0][:-2]
-            w = self.l_weight if ("left" in name or "bottom" in name
-                                  or "front" in name) else self.r_weight
+            w = self.l_weight if ("left" in name or "bottom" in name or "front" in name) else self.r_weight
             c1, c2 = calculate_weighting_coefficients(w, self.ratio)
             self._gather(name, self._h_weights(c1, c2))
             self._interpolate(name)
@@ -297,8 +375,7 @@ class CUDAPrecursorMixin:
     # ------------------------------------------------------------ accessors
     def device_slices(self):
         """{name: (device pointer, row length)} for the IS launches."""
-        return {n: (buf.gpudata, self.desc[n]["N_b"])
-                for n, buf in self.dev.items()}
+        return {n: (buf.gpudata, self.desc[n]["N_b"]) for n, buf in self.dev.items()}
 
     def download(self, name):
         """Copy one precursor slice back to the host. Debugging only."""
@@ -323,6 +400,19 @@ class CUDAPrecursorNodes(CUDAPrecursorMixin, PrecursorNodes):
         return (1.0,)
 
 
+class CUDAPrecursorNodesEqualResolution(CUDAPrecursorMixin, PrecursorNodesEqualResolution):
+    """Select exactly co-located Yee samples, without spline or FIR filtering."""
+
+    @staticmethod
+    def _h_weights(c1, c2):
+        # ratio=1 gives (1, 0) on lower faces and (0, 1) on upper faces.
+        return (c1, c2)
+
+    @staticmethod
+    def _e_weights():
+        return (1.0,)
+
+
 class CUDAPrecursorNodesFiltered(CUDAPrecursorMixin, PrecursorNodesFiltered):
     """Filtered precursors on the GPU - the default path.
 
@@ -335,10 +425,7 @@ class CUDAPrecursorNodesFiltered(CUDAPrecursorMixin, PrecursorNodesFiltered):
 
     @staticmethod
     def _h_weights(c1, c2):
-        return (0.25 * c1,
-                0.5 * c1 + 0.25 * c2,
-                0.25 * c1 + 0.5 * c2,
-                0.25 * c2)
+        return (0.25 * c1, 0.5 * c1 + 0.25 * c2, 0.25 * c1 + 0.5 * c2, 0.25 * c2)
 
     @staticmethod
     def _e_weights():

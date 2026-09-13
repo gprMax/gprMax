@@ -141,21 +141,21 @@ update_is = {
 
     int inc_i = l - n;
     int inc_j = m - n;
-    long inc_idx = (long)inc_i * INC_NY + inc_j;
+    ptrdiff_t inc_idx = (ptrdiff_t)inc_i * INC_NY + inc_j;
 
     // Lower face
     // 64-bit index arithmetic: 6*NX*NY*NZ can exceed 2^31 on large grids,
     // matching the Py_ssize_t indexing the Cython version uses.
-    long id_l = (((long)lookup_id * ID_NX + i1) * ID_NY + j1) * ID_NZ + k1;
+    ptrdiff_t id_l = (((ptrdiff_t)lookup_id * ID_NX + i1) * ID_NY + j1) * ID_NZ + k1;
     int mat_l = ID[id_l];
-    $REAL f_l = coeffs[(long)mat_l * NY_MATCOEFFS + co] * inc_l[inc_idx] * sign_l;
-    field[((long)i1 * F_NY + j1) * F_NZ + k1] += f_l;
+    $REAL f_l = coeffs[(ptrdiff_t)mat_l * NY_MATCOEFFS + co] * inc_l[inc_idx] * sign_l;
+    field[((ptrdiff_t)i1 * F_NY + j1) * F_NZ + k1] += f_l;
 
     // Upper face
-    long id_u = (((long)lookup_id * ID_NX + i2) * ID_NY + j2) * ID_NZ + k2;
+    ptrdiff_t id_u = (((ptrdiff_t)lookup_id * ID_NX + i2) * ID_NY + j2) * ID_NZ + k2;
     int mat_u = ID[id_u];
-    $REAL f_u = coeffs[(long)mat_u * NY_MATCOEFFS + co] * inc_u[inc_idx] * sign_u;
-    field[((long)i2 * F_NY + j2) * F_NZ + k2] += f_u;
+    $REAL f_u = coeffs[(ptrdiff_t)mat_u * NY_MATCOEFFS + co] * inc_u[inc_idx] * sign_u;
+    field[((ptrdiff_t)i2 * F_NY + j2) * F_NZ + k2] += f_u;
     """
     ),
 }
@@ -296,16 +296,16 @@ update_electric_os = {
     }
 
     // Near face
-    long id_n = (((long)lookup_id * ID_NX + i0) * ID_NY + j0) * ID_NZ + k0;
+    ptrdiff_t id_n = (((ptrdiff_t)lookup_id * ID_NX + i0) * ID_NY + j0) * ID_NZ + k0;
     int mat_n = ID[id_n];
-    $REAL inc_n = inc_field[((long)i1 * S_NY + j1) * S_NZ + k1] * sign_n;
-    field[((long)i0 * F_NY + j0) * F_NZ + k0] += coeffs[(long)mat_n * NY_MATCOEFFS + co] * inc_n;
+    $REAL inc_n = inc_field[((ptrdiff_t)i1 * S_NY + j1) * S_NZ + k1] * sign_n;
+    field[((ptrdiff_t)i0 * F_NY + j0) * F_NZ + k0] += coeffs[(ptrdiff_t)mat_n * NY_MATCOEFFS + co] * inc_n;
 
     // Far face
-    long id_f = (((long)lookup_id * ID_NX + i2) * ID_NY + j2) * ID_NZ + k2;
+    ptrdiff_t id_f = (((ptrdiff_t)lookup_id * ID_NX + i2) * ID_NY + j2) * ID_NZ + k2;
     int mat_f = ID[id_f];
-    $REAL inc_f = inc_field[((long)i3 * S_NY + j3) * S_NZ + k3] * sign_f;
-    field[((long)i2 * F_NY + j2) * F_NZ + k2] += coeffs[(long)mat_f * NY_MATCOEFFS + co] * inc_f;
+    $REAL inc_f = inc_field[((ptrdiff_t)i3 * S_NY + j3) * S_NZ + k3] * sign_f;
+    field[((ptrdiff_t)i2 * F_NY + j2) * F_NZ + k2] += coeffs[(ptrdiff_t)mat_f * NY_MATCOEFFS + co] * inc_f;
     """
     ),
 }
@@ -446,16 +446,16 @@ update_magnetic_os = {
     }
 
     // Near face
-    long id_n = (((long)lookup_id * ID_NX + i0) * ID_NY + j0) * ID_NZ + k0;
+    ptrdiff_t id_n = (((ptrdiff_t)lookup_id * ID_NX + i0) * ID_NY + j0) * ID_NZ + k0;
     int mat_n = ID[id_n];
-    $REAL inc_n = inc_field[((long)i1 * S_NY + j1) * S_NZ + k1] * sign_n;
-    field[((long)i0 * F_NY + j0) * F_NZ + k0] += coeffs[(long)mat_n * NY_MATCOEFFS + co] * inc_n;
+    $REAL inc_n = inc_field[((ptrdiff_t)i1 * S_NY + j1) * S_NZ + k1] * sign_n;
+    field[((ptrdiff_t)i0 * F_NY + j0) * F_NZ + k0] += coeffs[(ptrdiff_t)mat_n * NY_MATCOEFFS + co] * inc_n;
 
     // Far face
-    long id_f = (((long)lookup_id * ID_NX + i2) * ID_NY + j2) * ID_NZ + k2;
+    ptrdiff_t id_f = (((ptrdiff_t)lookup_id * ID_NX + i2) * ID_NY + j2) * ID_NZ + k2;
     int mat_f = ID[id_f];
-    $REAL inc_f = inc_field[((long)i3 * S_NY + j3) * S_NZ + k3] * sign_f;
-    field[((long)i2 * F_NY + j2) * F_NZ + k2] += coeffs[(long)mat_f * NY_MATCOEFFS + co] * inc_f;
+    $REAL inc_f = inc_field[((ptrdiff_t)i3 * S_NY + j3) * S_NZ + k3] * sign_f;
+    field[((ptrdiff_t)i2 * F_NY + j2) * F_NZ + k2] += coeffs[(ptrdiff_t)mat_f * NY_MATCOEFFS + co] * inc_f;
     """
     ),
 }
