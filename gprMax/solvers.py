@@ -99,7 +99,7 @@ class Solver:
             # Modal H projections also require the completed magnetic halos.
             self.updates.observe_eigenmode_ports(iteration)
 
-            if isinstance(self.updates, SubgridUpdates):
+            if hasattr(self.updates, "hsg_2"):
                 self.updates.hsg_2()
 
             self.updates.observe_ntff_magnetic(iteration)
@@ -116,7 +116,7 @@ class Solver:
             self.updates.update_plane_waves_electric(iteration)
 
             # TODO: Increment iteration here if add Model to Solver
-            if isinstance(self.updates, SubgridUpdates):
+            if hasattr(self.updates, "hsg_1"):
                 self.updates.hsg_1()
 
             # Complete the dispersive PMC correction after PML and sources,
@@ -173,11 +173,14 @@ def create_solver(model: Model) -> Solver:
 
     if config.sim_config.general["subgrid"]:
         updates = create_subgrid_updates(model)
-        if updates.grid.maxpoles != 0:
-            updates.set_dispersive_updates()
-        for u in updates.updaters:
-            if u.grid.maxpoles != 0:
-                u.set_dispersive_updates()
+        # CPU only: the CUDA path picks its dispersive kernels at build
+        # time, and this would replace them with Cython function pointers.
+        if config.sim_config.general["solver"] == "cpu":
+            if updates.grid.maxpoles != 0:
+                updates.set_dispersive_updates()
+            for u in updates.updaters:
+                if u.grid.maxpoles != 0:
+                    u.set_dispersive_updates()
     elif type(grid) is FDTDGrid:
         updates = CPUUpdates(grid)
         if grid.maxpoles != 0:

@@ -92,8 +92,9 @@ option is ignored for a CPU solve.
       Shading Language has no native ``double`` type.
     * Refining subgrids require double precision and override a requested
       single precision. A ``ratio=1`` equal-resolution embedded region inherits
-      the main-grid CPU precision. All subgrid modes are currently available
-      only with the CPU solver.
+      the main grid's selected CPU or CUDA precision. HSG subgrids support
+      CPU and CUDA, but not OpenCL, Metal, or distributed MPI execution.
+      See :ref:`input-api` for interpolation options and placement restrictions.
     * Output datasets and KSIR complex phasors use the type corresponding to
       the configured solver precision.
 

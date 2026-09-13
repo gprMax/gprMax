@@ -42,7 +42,24 @@ def test_ids_may_repeat_in_independent_scenes(make_sim_config):
     assert cfg.general["subgrid"] is True
 
 
-@pytest.mark.parametrize("backend", [{"gpu": [0]}, {"opencl": [0]}, {"metal": [0]}, {"mpi": [1, 1, 1]}])
+@pytest.mark.parametrize("backend", [{"opencl": [0]}, {"metal": [0]}, {"mpi": [1, 1, 1]}])
 def test_enabled_subgrid_still_rejects_incompatible_backend(make_sim_config, backend):
     with pytest.raises(ValueError):
         make_sim_config(scenes=[scene_with("fine")], subgrid=True, **backend)
+
+
+def test_enabled_subgrid_accepts_cuda(make_sim_config):
+    """CUDA has subgrid kernels; ratio 3 selects the refining HSG path."""
+    cfg = make_sim_config(scenes=[scene_with("fine", ratio=3)], subgrid=True, gpu=[0])
+    assert cfg.general["subgrid"] is True
+    assert cfg.general["solver"] == "cuda"
+    # The subgrid block overrides gpu_precision, as it does for the CPU.
+    assert cfg.general["precision"] == "double"
+
+
+@pytest.mark.parametrize("precision", ["single", "double"])
+def test_equal_resolution_cuda_subgrid_preserves_requested_precision(make_sim_config, precision):
+    cfg = make_sim_config(scenes=[scene_with("fine", ratio=1)], subgrid=True,
+                          gpu=[0], gpu_precision=precision)
+    assert cfg.general["solver"] == "cuda"
+    assert cfg.general["precision"] == precision

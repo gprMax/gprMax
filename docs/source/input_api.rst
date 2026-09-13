@@ -1450,7 +1450,7 @@ varying voltage, rather than estimated by averaging its two integer-time
 values. State is stored only for placed terminals. Independent one-port
 rational networks are supported in 3-D on the CPU, CUDA, OpenCL, and Metal
 solvers, including domain-decomposed MPI CPU models; terminals inside
-subgrids currently use the CPU solver. An MPI terminal is advanced only on
+HSG subgrids use the CPU or CUDA solver. An MPI terminal is advanced only on
 the rank that owns its electric edge, and its histories are gathered for port
 post-processing. Device runs keep the network recurrence and field correction
 on the compute device
@@ -1849,7 +1849,7 @@ lambda/8 criterion. ``spectrum_limit='nyquist'`` is an explicit research
 override: it retains the requested frequencies but does not imply spatial
 accuracy. Three- and two-dimensional CPU, CUDA, OpenCL, and Metal models are
 supported on the main grid. MPI domain-decomposed CPU models and
-three-dimensional CPU HSG subgrids are also supported. Under MPI, source and
+three-dimensional CPU and CUDA HSG subgrids are also supported. Under MPI, source and
 port normalisation and any requested spatial mass averaging are completed
 globally on the coordinator, so tag volumes and averaging cubes may cross rank
 boundaries. See :ref:`sar-output` for the formulation and HDF5 schema.
@@ -2433,8 +2433,8 @@ Subgrid
 
 A subgrid is added to the main scene, but its materials and geometry are added
 to the subgrid object. With ``autotranslate=True`` these objects can use main
-grid coordinates. Refining subgrids use the double-precision CPU solver.
-CUDA, OpenCL, and Metal subgrid execution are not part of this release.
+grid coordinates. Refining subgrids support the double-precision CPU and CUDA
+solvers. OpenCL, Metal, and distributed MPI subgrid execution are not supported.
 
 Pass ``subgrid=True`` even for a geometry-only preview; a Scene containing
 subgrids without that flag is rejected before model construction. Every subgrid
@@ -2445,12 +2445,21 @@ separators or NUL, or be ``.`` or ``..``, because they identify HDF5 groups.
 through ``SubGridHSG`` to avoid a second, overlapping object API, but it does
 not refine space or time: values are transferred directly on the shared Yee
 lattice, the subgrid-boundary PML and filter are disabled, and no spatial or
-temporal interpolation is performed. It inherits ``cpu_precision`` from the
-main grid. This mode is useful, for example, for confining dispersive material
+temporal interpolation is performed. It inherits ``cpu_precision`` or
+``gpu_precision`` from the main CPU or CUDA grid respectively. This mode is
+useful, for example, for confining dispersive material
 storage and updates to a local part of a larger model.
 
 Only the auxiliary PML around the embedded region is disabled at ``ratio=1``.
 Explicitly added ``PMLSlab`` absorbers remain active at each local time step.
+
+For refining grids, ``interpolation=1`` (linear) and ``filter=True`` are the
+standard defaults. The API also accepts FITPACK spline degrees 2–5 on both CPU
+and CUDA, provided each coarse precursor axis contains more samples than the
+chosen degree. CUDA uses the same spline boundary behaviour as CPU and keeps
+field interpolation on the device. Higher degrees are experimental: numerical
+parity does not establish stability or improve accuracy for every model. Both
+options are ignored for ``ratio=1``.
 
 .. note::
 
@@ -2633,7 +2642,7 @@ invariant through the slab.
 When ``id`` is omitted, gprMax assigns ``internal_pml_1``,
 ``internal_pml_2``, and so on. Internal slabs support the CPU, CUDA, OpenCL,
 and Metal solvers on the main 3D grid. A slab may also be added to an HSG
-subgrid, where it uses the CPU solver and the local-grid update cycle,
+subgrid, where it uses the CPU or CUDA solver and the local-grid update cycle,
 including equal-resolution regions with ``ratio=1``. A
 subgrid-owned slab must lie wholly within the working region: overlap with its
 HSG coupling or auxiliary-PML regions is rejected.

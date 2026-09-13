@@ -363,8 +363,12 @@ class SimulationConfig:
             logger.error("You cannot use combinations of CUDA, OpenCl and Apple Metal solvers simultaneously.")
             raise ValueError
 
-        if getattr(args, "subgrid", False) and any(solver is not None for solver in non_cpu_solvers):
-            raise ValueError("Subgrids require the CPU solver; CUDA, OpenCL and Metal are unsupported.")
+        if getattr(args, "subgrid", False) and any(
+            solver is not None for solver in (self.args.opencl, self.args.metal)
+        ):
+            raise ValueError(
+                "Subgrids require the CPU or CUDA solver; OpenCL and Metal are unsupported."
+            )
 
         if self.mpi and hasattr(self.args, "subgrid") and self.args.subgrid:
             logger.error("You cannot use subgrids with MPI.")
@@ -484,8 +488,7 @@ class SimulationConfig:
             # Refining HSG interfaces retain their established double-
             # precision requirement. A ratio-one region has the same spatial
             # and temporal discretisation as its parent and uses direct field
-            # transfer, so it deliberately inherits the requested CPU
-            # precision instead.
+            # transfer, so it inherits the requested CPU or CUDA precision.
             if not equal_resolution:
                 if self.general["precision"] == "single":
                     logger.warning(

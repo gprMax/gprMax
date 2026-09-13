@@ -1656,7 +1656,8 @@ solvers, including domain-decomposed MPI CPU models, and a nondispersive
 terminal edge; dispersive materials may exist elsewhere in the model. In an
 MPI model the sparse terminal state is advanced only by the rank that owns its
 electric edge, then gathered for final port processing. A terminal may be
-placed in a CPU subgrid, where it uses the fine spatial and temporal steps. On
+placed in a CPU or CUDA HSG subgrid through the Python API, where it uses the
+fine spatial and temporal steps. On
 an accelerator the complete recurrence and local field correction remain
 device-resident during time
 stepping. Several independent terminals may be used, but a coupled multiport
@@ -1704,7 +1705,7 @@ prescribe only the initial impulse and then release the edge, use
 ``f5=0`` and :math:`0<f6<\Delta t` (the source's local time step, if inside
 a subgrid). ``f6=\Delta t`` includes a second, zero-valued prescription.
 This initialisation occurs once per run, including geometry reuse, on CPU,
-CUDA, OpenCL, Metal, MPI CPU grids, and supported CPU subgrids.
+CUDA, OpenCL, Metal, MPI CPU grids, and supported CPU or CUDA HSG subgrids.
 
 Every 3-D voltage source automatically stores its terminal voltage and
 frequency-domain ``S11``, ``Zin``, and ``Yin``. No separate receiver-port
@@ -3872,7 +3873,7 @@ An automatically generated internal identifier is reported in the log. The
 hash command defines a slab on the main 3D grid. With the Python API a slab may
 instead be added to an HSG subgrid, provided the complete slab lies inside its
 working region and does not overlap the HSG coupling or auxiliary-PML regions.
-Subgrid slabs use the CPU solver and the subgrid's finer spatial and temporal
+Subgrid slabs use the CPU or CUDA solver and the subgrid's local spatial and temporal
 discretisation. Domain-decomposed MPI CPU models are also supported. A slab may
 cross any number of rank boundaries. Its CFS grading is evaluated over the
 complete global thickness and sliced consistently between ranks, while each

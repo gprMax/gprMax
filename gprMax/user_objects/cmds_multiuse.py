@@ -1829,7 +1829,7 @@ class MagneticFrillSource(GridUserObject):
         well-established formulation (not a variant of the two-wire line -
         no 1D line, no ABC, no magic timestep). The corrected Hyun feed-cell
         formulation is supported by the CPU, CUDA, OpenCL, and Metal solvers,
-        and by the CPU subgrid updater.
+        and by the CPU and CUDA subgrid updaters.
 
     Attributes:
         polarisation: string required for polarisation of the source - x, y,
