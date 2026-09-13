@@ -27,6 +27,7 @@ class Waveform:
 
     types = [
         "gaussian",
+        "gauspulse",
         "gaussiandot",
         "gaussiandotnorm",
         "gaussiandotdot",
@@ -77,6 +78,13 @@ class Waveform:
         elif self.type in ["gaussiandotdot", "gaussiandotdotnorm", "ricker"]:
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
+        elif self.type == "gauspulse":
+            # MATLAB gauspuls / scipy.signal.gausspulse defaults: fractional
+            # bandwidth 0.5 at -6 dB. Shift the zero-centred cosine to the
+            # -60 dB envelope cutoff so both halves fit at positive times.
+            # Keep the analytic DPW evaluator in cython/plane_wave.pyx in sync.
+            self.zeta = -(np.pi * self.freq * 0.5) ** 2 / (4 * np.log(10 ** (-6 / 20)))
+            self.chi = np.sqrt(-np.log(10 ** (-60 / 20)) / self.zeta)
 
     def calculate_value(self, time, dt):
         """Calculates the value of the waveform at a specific time.
@@ -95,6 +103,10 @@ class Waveform:
         if self.type == "gaussian":
             delay = time - self.chi
             ampvalue = np.exp(-self.zeta * delay**2)
+
+        elif self.type == "gauspulse":
+            delay = time - self.chi
+            ampvalue = np.exp(-self.zeta * delay**2) * np.cos(2 * np.pi * self.freq * delay)
 
         elif self.type in ["gaussiandot", "gaussianprime"]:
             delay = time - self.chi

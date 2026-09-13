@@ -42,8 +42,7 @@ Together with Antonis Giannopoulos, they described this generation in the
 <https://doi.org/10.1016/j.cpc.2016.08.020>`_.
 
 The subgridding lineage of gprMax includes the early `ADI-FDTD research of
-Nectaria Diamanti and Antonis Giannopoulos
-<https://doi.org/10.1016/j.jappgeo.2008.07.004>`_. This work influenced the
+Nectaria Diamanti <https://doi.org/10.1016/j.jappgeo.2008.07.004>`_. This work influenced the
 subsequent `doctoral research of John Hartley
 <https://era.ed.ac.uk/items/d253612b-7c1e-4adf-9a39-d730bbe76a95>`_, through
 which version 4 was initiated and the current FDTD subgridding and

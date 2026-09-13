@@ -1,0 +1,9 @@
+#title: Built-in Gaussian-modulated cosine waveform
+#domain: 0.06 0.06 0.06
+#dx_dy_dz: 0.002 0.002 0.002
+#time_window: 6e-9
+#pml_cells: 6
+#omp_threads: 1
+#waveform: gauspulse 1 1e9 pulse
+#voltage_source: z 0.030 0.030 0.030 50 pulse 0 6e-9 feed 10
+#rx: 0.034 0.030 0.030 probe Ez

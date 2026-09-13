@@ -1,0 +1,15 @@
+.. rubric:: Port and outputs
+
+The source automatically writes ``/frills/frillN`` in creation order, or
+``/subgrids/<subgrid ID>/frills/frillN`` for a CPU or CUDA HSG source. ``Vinc`` is
+half the generator waveform (V), ``Vtotal`` is the solved terminal voltage
+(V), and ``Itot`` is the feed current (A), centred using adjacent magnetic
+half steps. ``Zcoax`` is the wave-reference impedance. This continuous-wire,
+through-ground-plane feed is not an electric gap source.
+
+``frequency``, ``S11``, ``Zin``, ``Yin`` and their per-quantity validity masks
+are stored directly. Use
+``python -m toolboxes.Plotting.plot_port model.h5 --port frills/frill1 --save``;
+see :ref:`frill-port-output` for the sampling convention and full schema.
+A zero generator leaves the frill termination present; :ref:`study-source`
+can vary the drive without rebuilding its physical definition.

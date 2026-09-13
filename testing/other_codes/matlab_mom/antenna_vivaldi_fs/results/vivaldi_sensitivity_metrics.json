@@ -1,0 +1,148 @@
+{
+  "matlab_mesh_8mm_vs_6mm": {
+    "complex_s11_max_absolute_difference": 0.010761534976926718,
+    "impedance_relative_l2_difference": 0.019386860971048848,
+    "reference_8mm": {
+      "matlab_version": "24.2.0.2712019 (R2024b)",
+      "max_edge_m": 0.008,
+      "mesh_points": 1628,
+      "mesh_triangles": 2746,
+      "elapsed_seconds": 85.633015,
+      "pattern_frequency_hz": [
+        1000000000.0,
+        1500000000.0,
+        2000000000.0
+      ],
+      "peak_directivity_dbi": [
+        3.1663434036845257,
+        5.706678695496363,
+        7.188184201573753
+      ],
+      "peak_realized_gain_dbi": [
+        -0.11606747149042906,
+        4.009593955067709,
+        6.392227456687233
+      ]
+    },
+    "reference_6mm": {
+      "matlab_version": "24.2.0.2712019 (R2024b)",
+      "max_edge_m": 0.006,
+      "mesh_points": 2048,
+      "mesh_triangles": 3557,
+      "elapsed_seconds": 133.254494,
+      "pattern_frequency_hz": [
+        1000000000.0,
+        1500000000.0,
+        2000000000.0
+      ],
+      "peak_directivity_dbi": [
+        3.193354768776015,
+        5.734222112589345,
+        7.221434626050041
+      ],
+      "peak_realized_gain_dbi": [
+        -0.06412424243714154,
+        4.01335881144016,
+        6.405773321585245
+      ]
+    }
+  },
+  "coarse_time_window": {
+    "Zin_max_absolute_difference": 0.07893637316429844,
+    "S11_max_absolute_difference": 0.0001674971586069594,
+    "xy_max_directivity_difference_db_above_minus20": 0.03615140914916992,
+    "xz_max_directivity_difference_db_above_minus20": 0.02164459228515625,
+    "long_run_voltage_tail_fraction": 9.514441785540839e-07,
+    "long_run": {
+      "geometry_translation_m": [
+        0.2205,
+        0.11225,
+        0.072
+      ],
+      "feed_node_m": [
+        0.116,
+        0.112,
+        0.072
+      ],
+      "feed_ey_centre_m": [
+        0.116,
+        0.11225,
+        0.072
+      ],
+      "discretisation_m": [
+        0.002,
+        0.0005,
+        0.002
+      ],
+      "domain_m": [
+        0.44,
+        0.226,
+        0.144
+      ],
+      "time_window_s": 4e-08,
+      "cell_count": 7159680,
+      "pec_edge_counts": [
+        33294,
+        33296
+      ],
+      "geometry_commands": 295,
+      "pattern_frequency_hz": [
+        1000000000.0,
+        1500000000.0,
+        2000000000.0
+      ],
+      "elapsed_seconds": 134.02804701402783,
+      "backend": "CUDA",
+      "precision": "single",
+      "geometry_only": false
+    },
+    "baseline_run": {
+      "geometry_translation_m": [
+        0.2205,
+        0.11225,
+        0.072
+      ],
+      "feed_node_m": [
+        0.116,
+        0.112,
+        0.072
+      ],
+      "feed_ey_centre_m": [
+        0.116,
+        0.11225,
+        0.072
+      ],
+      "discretisation_m": [
+        0.002,
+        0.0005,
+        0.002
+      ],
+      "domain_m": [
+        0.44,
+        0.226,
+        0.144
+      ],
+      "time_window_s": 2e-08,
+      "cell_count": 7159680,
+      "pec_edge_counts": [
+        33294,
+        33296
+      ],
+      "geometry_commands": 295,
+      "pattern_frequency_hz": [
+        1000000000.0,
+        1500000000.0,
+        2000000000.0
+      ],
+      "elapsed_seconds": 88.88654595054686,
+      "backend": "CUDA",
+      "precision": "single",
+      "geometry_only": false
+    }
+  },
+  "pattern_frequency_hz": [
+    1000000000.0,
+    1500000000.0,
+    2000000000.0
+  ]
+}

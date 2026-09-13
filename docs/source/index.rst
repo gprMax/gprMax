@@ -18,6 +18,8 @@ gprMax User Guide
 
     input_hash_cmds
     input_api
+    sources_ports
+    studies
     material_databases
     impedance_surfaces
     eigenmode_port

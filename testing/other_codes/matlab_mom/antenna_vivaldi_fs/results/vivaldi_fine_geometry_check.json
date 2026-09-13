@@ -1,0 +1,10 @@
+{
+  "mesh": "fine",
+  "inspected_file": "vivaldi_fine_geometry.vtkhdf",
+  "pec_ex_edges": 66640,
+  "pec_ey_edges": 66345,
+  "pec_ez_edges": 0,
+  "all_pec_edges_match_expected": true,
+  "feed_gap_unshorted": true,
+  "feed_banks_connected": true
+}

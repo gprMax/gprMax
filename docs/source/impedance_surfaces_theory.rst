@@ -4,7 +4,7 @@
 Surface impedance: theory and validation
 ****************************************
 
-For API choices, model setup, and remedies, start with
+For API parameters, model setup, and troubleshooting, start with
 :doc:`impedance_surfaces`. This page defines the boundary model and its
 discrete implementation, then records the validation evidence. Runtime
 restrictions are listed once in the practical guide; a derivation here is
@@ -65,8 +65,9 @@ is represented by the surface current :math:`\mathbf K` and coupled to the
 boundary E degree of freedom through the clipped circulation and local ADE
 update described below.
 
-For an electric edge with unit tangent :math:`\hat{\mathbf t}_p`, one compiled
-port uses
+Here, a *surface-current port* is an internal boundary coupling, not a
+user-defined voltage or eigenmode measurement port. For an electric edge
+with unit tangent :math:`\hat{\mathbf t}_p`, it uses
 
 .. math::
 
@@ -74,7 +75,7 @@ port uses
    \qquad
    k_p=\hat{\mathbf t}_p\cdot\mathbf K.
 
-This convention makes the time-average surface loss
+With this convention, the time-averaged power dissipated at the surface is
 
 .. math::
 
@@ -99,14 +100,14 @@ current in the local boundary relation avoids fitting a very large
 :math:`1/Z_s` for a good conductor. The implementation accepts a proper real
 realization internally: there is no proportional :math:`sE` term. Users
 select resistance, a preset, or conductivity rather than supplying the
-realization coefficients. Every fitted model has a finite mandatory validity
+realization coefficients. Every fitted model must specify a finite validity
 band. FDTD can advance the passive realization over its whole discrete
-spectrum, but accuracy is advertised only inside that band. An
+spectrum, but the specified fit accuracy applies only inside that band. An
 impedance-aware FDFD solve refuses to extrapolate a declared physical or
 bilinear-warped evaluation frequency.
 
 At construction time gprMax verifies that the generated coefficients are
-finite, dimensions agree, every eigenvalue of ``A`` has strictly negative
+finite, their dimensions are consistent, every eigenvalue of ``A`` has strictly negative
 real part, and the direct term is non-negative. At the actual FDTD time step
 the code additionally checks the mapped unit-circle response for negative
 real impedance. Active surface impedances are not part of the public API.
@@ -124,7 +125,7 @@ For a thick good conductor, the target under the stated time convention is
       =(1+j)\sqrt{\frac{\omega\mu_0}{2\sigma}}
       =(1+j)\sqrt{\pi f\mu_0\rho}.
 
-The stored 293 K bulk-pure-metal resistivities are:
+The stored resistivities for pure bulk metals at 293 K are:
 
 .. list-table:: Common-metal preset data at 293 K
    :class: api-parameters
@@ -187,13 +188,13 @@ slightly overcomplete grids supply additional non-uniform starting points.
 The pole locations are then refined in logarithmic frequency by deterministic
 bounded Powell searches. At every nonlinear evaluation, column-scaled bounded
 least squares fits the direct term and Foster residues to the real and
-imaginary target with relative-error weighting. The residues remain
+imaginary parts of the target with relative-error weighting. The residues remain
 non-negative, so the result is passive over the complete frequency axis, not
 only at the sample points. A separate grid of at least 16,385 points certifies
 the reported maximum and RMS errors.
 
-Automatic order tests one, two, and then increasing actual Foster state counts
-through 64. It stops at the first count whose deterministic local searches
+Automatic order selection tests Foster models with 1 through 64 poles in
+ascending order. It stops at the first count whose deterministic local searches
 produce a certified maximum complex relative error no larger than
 ``fit_tolerance``. This is a sequential local model-order search, rather than a
 claim of a mathematical global optimum over all possible pole locations. An
@@ -204,7 +205,7 @@ is cached and scaled to the requested band and metal. That realization is
 independent of the requested tolerance; tolerance is used only to accept or
 reject its certified error during order selection. Consequently every
 common-metal preset selects the same pole count for the same frequency ratio
-and tolerance. The advertised error still applies only inside the requested
+and tolerance. The reported fit error still applies only inside the requested
 band.
 
 For the default 0.2% tolerance, representative selections are:
@@ -302,7 +303,7 @@ The impedance output is centred at the same half time as the surface current:
    Z_0=D+\frac12CG.
 
 ``F``, ``G``, ``L``, and ``Z0`` define the exact discrete law used by both the
-FDTD kernel and FDFD reduction. The FDTD pack stores its diagonal local form
+FDTD kernel and FDFD reduction. The packed FDTD coefficients store its diagonal local form
 described below. gprMax requires ``Z0`` to be finite and strictly positive. A
 constant resistance is the order-zero case: ``F``, ``G``, and ``L`` are empty
 and ``Z0`` is the resistance.
@@ -664,7 +665,7 @@ surface-port geometry are unchanged.
 Packed data and update order
 ----------------------------
 
-The compiler packs:
+The geometry compiler stores:
 
 * boundary edge component/index, H range, and port range;
 * :math:`a_+`, :math:`a_-`, and retained dual-area fraction;
@@ -726,7 +727,7 @@ The discrete state recurrence has the exact harmonic response
    Z_{\mathrm{alg}}(f,\Delta t)
       =Z_0+L(zI-F)^{-1}G.
 
-For the diagonal Foster pack this is equivalently the local pole sum
+For the diagonal Foster representation this is equivalently the local pole sum
 
 .. math::
 
@@ -998,8 +999,8 @@ That reference replaces :math:`\beta_0` by :math:`\beta_Y` in the phase term
 while retaining the continuum perturbation factor :math:`Q`. The pure
 continuum result is written separately so mesh dispersion remains visible
 rather than being mistaken for a copper-boundary error. The FDTD attenuation
-comparison uses :math:`-\ln|S_{21}|/L`, so its loss gate is independent of this
-phase correction.
+comparison uses :math:`-\ln|S_{21}|/L`, so its loss acceptance criterion is
+independent of this phase correction.
 
 
 .. _impedance-pmc-theory:
@@ -1201,11 +1202,11 @@ isolated one-way propagation measurement.
 The copper release checks cover three milestones. The attenuation
 :math:`-k_0\operatorname{Im}n_{\mathrm{eff}}` stored for
 each exact in-band FDFD anchor is compared with :math:`Q\operatorname{Re}Z_s`
-using a 1% relative L2 gate. The driven FDTD port must have maximum
+using a 1% relative L2 error threshold. The driven FDTD port must have maximum
 :math:`S_{11}<-20` dB after the
 complex modal field is injected. Finally, attenuation obtained from the FDTD
 two-plane propagation factor is compared with the same perturbation theory
-using a 2% relative L2 gate. The workflow therefore exercises the copper
+using a 2% relative L2 error threshold. The workflow therefore exercises the copper
 preset, Foster fit, exact FDFD boundary reduction, complex modal source, FDTD
 ADE, modal projection, and propagation loss in one accepted result.
 
@@ -1306,7 +1307,7 @@ full homogeneous conducting-sphere Mie series. Conductivities are
 :math:`10^3` and :math:`5.8\times10^7` S/m. Refining the staircased boundary
 from 1.5 to 0.75 mm reduces backscatter RMS errors from 1.30/1.26 dB to
 0.855/0.832 dB. Both fine meshes pass the 1 dB RMS, 2 dB maximum and 15%
-complex angular-pattern error gates. The coarse results are convergence
+complex angular-pattern error thresholds. The coarse results are convergence
 diagnostics. The bulk reference evaluates scaled Bessel ratios, so the
 copper interior does not overflow or require numerical skin-depth cells.
 
@@ -1324,11 +1325,11 @@ symbol remove the 30 mm receiver-to-wall propagation phase. Transverse
 PEC/PMC symmetry faces generate a uniform TEM wave; remote end boundaries
 cannot return within the 4 ns analysis record. The 0.5 mm mesh has a maximum
 continuum phase RMS error of 0.001497 degree across the four host/conductivity
-pairs. Both 1 and 0.5 mm meshes pass all plane-wave gates. The additional
+pairs. Both 1 and 0.5 mm meshes pass all plane-wave acceptance checks. The additional
 discrete prediction includes time staggering, the retained half-cell mass,
 Debye recurrence and bilinear impedance realization; its maximum phase RMS
 error is 0.00005387 degree. A negative-control regression removes the
-boundary polarization history and fails the 0.0002 degree discrete gate.
+boundary polarisation history and fails the 0.0002 degree discrete error threshold.
 
 Both drivers return a nonzero status on failed acceptance checks and support
 ``--reuse`` for compatible local caches. Retained CSV, figures and summaries
@@ -1347,7 +1348,7 @@ coefficients, fit provenance, and modal anchor metadata.
 Implementation map
 ==================
 
-The main implementation seams are:
+The main implementation files are:
 
 .. list-table:: Surface-impedance implementation files
    :class: api-parameters
@@ -1382,6 +1383,11 @@ The main implementation seams are:
 
 Internal realization diagnostics
 ================================
+
+These checks concern generated coefficients and low-level implementation
+work; the public API does not accept arbitrary state-space coefficients.
+If a preset or conductivity fit fails one of these checks, report the input
+and fit band rather than editing the internal coefficients to bypass it.
 
 ``A must be strictly Hurwitz``
     Move every continuous pole into the open left half-plane. A pole on the

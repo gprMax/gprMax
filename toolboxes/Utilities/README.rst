@@ -10,7 +10,7 @@ Information
 This package contains various scripts and helper functions.
 
 Receiver identity and numbering
-------------------------------
+-------------------------------
 
 Public receiver numbering follows construction order, not alphabetical Names.
 Merge and SEG-Y/SEG-2/DT1 collection match receiver identities across files;

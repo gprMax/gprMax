@@ -1,0 +1,9 @@
+#domain: 0.048 0.048 0.048
+#dx_dy_dz: 0.002 0.002 0.002
+#time_window: 1e-9
+#pml_cells: 3
+#omp_threads: 1
+#waveform: ricker 1 5e9 pulse
+#waveform: ricker 0 5e9 off
+#voltage_source: z 0.020 0.024 0.024 50 pulse 0 1e-9 feed 10
+#voltage_source: z 0.028 0.024 0.024 50 off 0 1e-9 receive 10

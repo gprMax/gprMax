@@ -1,0 +1,354 @@
+{
+  "comparison_type": "independent numerical solvers; neither is ground truth",
+  "matlab": {
+    "matlab_version": "24.2.0.2712019 (R2024b)",
+    "max_edge_m": 0.008,
+    "mesh_points": 1628,
+    "mesh_triangles": 2746,
+    "elapsed_seconds": 85.633015,
+    "pattern_frequency_hz": [
+      1000000000.0,
+      1500000000.0,
+      2000000000.0
+    ],
+    "peak_directivity_dbi": [
+      3.1663434036845257,
+      5.706678695496363,
+      7.188184201573753
+    ],
+    "peak_realized_gain_dbi": [
+      -0.11606747149042906,
+      4.009593955067709,
+      6.392227456687233
+    ]
+  },
+  "meshes": {
+    "coarse": {
+      "complex_s11_max_absolute_difference": 0.538728681149725,
+      "complex_s11_rms_absolute_difference": 0.420255940057511,
+      "impedance_relative_l2_difference": 0.5954701530338904,
+      "antenna_metrics": {
+        "voltage_tail_peak_fraction": 2.1520620054666212e-05,
+        "independent_frequency_resolution_hz": 49996528.301977195,
+        "dt_s": 1.572436224499789e-12,
+        "pattern_frequency_hz": [
+          1000000000.0,
+          1500000000.0,
+          2000000000.0
+        ],
+        "peak_directivity_dbi": [
+          2.8774328231811523,
+          5.738442420959473,
+          7.701539039611816
+        ],
+        "peak_gain_dbi": [
+          2.8790295124053955,
+          5.736207485198975,
+          7.70023250579834
+        ],
+        "peak_realized_gain_dbi": [
+          2.055697202682495,
+          5.2017822265625,
+          7.24002742767334
+        ],
+        "radiation_efficiency": [
+          1.0003677606582642,
+          0.9994853734970093,
+          0.9996992945671082
+        ],
+        "total_efficiency": [
+          0.8276113271713257,
+          0.883759081363678,
+          0.89918452501297
+        ]
+      },
+      "run": {
+        "geometry_translation_m": [
+          0.2205,
+          0.11225,
+          0.072
+        ],
+        "feed_node_m": [
+          0.116,
+          0.112,
+          0.072
+        ],
+        "feed_ey_centre_m": [
+          0.116,
+          0.11225,
+          0.072
+        ],
+        "discretisation_m": [
+          0.002,
+          0.0005,
+          0.002
+        ],
+        "domain_m": [
+          0.44,
+          0.226,
+          0.144
+        ],
+        "time_window_s": 2e-08,
+        "cell_count": 7159680,
+        "pec_edge_counts": [
+          33294,
+          33296
+        ],
+        "geometry_commands": 295,
+        "pattern_frequency_hz": [
+          1000000000.0,
+          1500000000.0,
+          2000000000.0
+        ],
+        "elapsed_seconds": 88.88654595054686,
+        "backend": "CUDA",
+        "precision": "single",
+        "geometry_only": false
+      },
+      "patterns": {
+        "1GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.8736252628516278,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1GHz_xz": {
+          "rms_absolute_directivity_difference_db": 3.3010921281060583,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1.5GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.7445136306426126,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1.5GHz_xz": {
+          "rms_absolute_directivity_difference_db": 3.1766783189006813,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "2GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.6692405774698272,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "2GHz_xz": {
+          "rms_absolute_directivity_difference_db": 3.306771755825241,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        }
+      }
+    },
+    "fine": {
+      "complex_s11_max_absolute_difference": 0.3077190676422874,
+      "complex_s11_rms_absolute_difference": 0.2362548019824707,
+      "impedance_relative_l2_difference": 0.40157899679609127,
+      "antenna_metrics": {
+        "voltage_tail_peak_fraction": 8.97266527428267e-05,
+        "independent_frequency_resolution_hz": 49999220.455828756,
+        "dt_s": 1.361769716247708e-12,
+        "pattern_frequency_hz": [
+          1000000000.0,
+          1500000000.0,
+          2000000000.0
+        ],
+        "peak_directivity_dbi": [
+          3.078446865081787,
+          5.772063732147217,
+          7.620199203491211
+        ],
+        "peak_gain_dbi": [
+          3.0797972679138184,
+          5.770937919616699,
+          7.62054443359375
+        ],
+        "peak_realized_gain_dbi": [
+          1.38118577003479,
+          4.921714782714844,
+          6.964097023010254
+        ],
+        "radiation_efficiency": [
+          1.000311017036438,
+          0.9997408390045166,
+          1.0000795125961304
+        ],
+        "total_efficiency": [
+          0.6765094995498657,
+          0.8221766948699951,
+          0.8597848415374756
+        ]
+      },
+      "run": {
+        "geometry_translation_m": [
+          0.2205,
+          0.11225,
+          0.072
+        ],
+        "feed_node_m": [
+          0.116,
+          0.112,
+          0.072
+        ],
+        "feed_ey_centre_m": [
+          0.116,
+          0.11225,
+          0.072
+        ],
+        "discretisation_m": [
+          0.001,
+          0.0005,
+          0.001
+        ],
+        "domain_m": [
+          0.44,
+          0.226,
+          0.144
+        ],
+        "time_window_s": 2e-08,
+        "cell_count": 28638720,
+        "pec_edge_counts": [
+          66640,
+          66345
+        ],
+        "geometry_commands": 592,
+        "pattern_frequency_hz": [
+          1000000000.0,
+          1500000000.0,
+          2000000000.0
+        ],
+        "elapsed_seconds": 232.70382001437247,
+        "backend": "CUDA",
+        "precision": "single",
+        "geometry_only": false
+      },
+      "patterns": {
+        "1GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.508012048750888,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1GHz_xz": {
+          "rms_absolute_directivity_difference_db": 1.7987930032732846,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1.5GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.5142736677497035,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1.5GHz_xz": {
+          "rms_absolute_directivity_difference_db": 1.7912054053238562,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "2GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.5697605752892374,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "2GHz_xz": {
+          "rms_absolute_directivity_difference_db": 2.267567470087609,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        }
+      }
+    },
+    "finer": {
+      "complex_s11_max_absolute_difference": 0.304554001572406,
+      "complex_s11_rms_absolute_difference": 0.232722656575034,
+      "impedance_relative_l2_difference": 0.3942310508921773,
+      "antenna_metrics": {
+        "voltage_tail_peak_fraction": 7.93940137569403e-05,
+        "independent_frequency_resolution_hz": 49998742.161440976,
+        "dt_s": 1.111880317327173e-12,
+        "pattern_frequency_hz": [
+          1000000000.0,
+          1500000000.0,
+          2000000000.0
+        ],
+        "peak_directivity_dbi": [
+          3.039492607116699,
+          5.719803810119629,
+          7.576992988586426
+        ],
+        "peak_gain_dbi": [
+          3.0410032272338867,
+          5.718988418579102,
+          7.5775604248046875
+        ],
+        "peak_realized_gain_dbi": [
+          1.3570897579193115,
+          4.832999229431152,
+          6.925203323364258
+        ],
+        "radiation_efficiency": [
+          1.0003478527069092,
+          0.9998123049736023,
+          1.0001306533813477
+        ],
+        "total_efficiency": [
+          0.6788279414176941,
+          0.8153040409088135,
+          0.8606388568878174
+        ]
+      },
+      "run": {
+        "geometry_translation_m": [
+          0.2205,
+          0.11225,
+          0.072
+        ],
+        "feed_node_m": [
+          0.116,
+          0.112,
+          0.072
+        ],
+        "feed_ey_centre_m": [
+          0.116,
+          0.11225,
+          0.072
+        ],
+        "discretisation_m": [
+          0.0005,
+          0.0005,
+          0.001
+        ],
+        "domain_m": [
+          0.44,
+          0.226,
+          0.144
+        ],
+        "time_window_s": 2e-08,
+        "cell_count": 57277440,
+        "pec_edge_counts": [
+          132946,
+          132063
+        ],
+        "geometry_commands": 1180,
+        "pattern_frequency_hz": [
+          1000000000.0,
+          1500000000.0,
+          2000000000.0
+        ],
+        "elapsed_seconds": 492.94138471223414,
+        "backend": "CUDA",
+        "precision": "single",
+        "geometry_only": false
+      },
+      "patterns": {
+        "1GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.5394577030864997,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1GHz_xz": {
+          "rms_absolute_directivity_difference_db": 1.9673033484718743,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1.5GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.5351496705299594,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "1.5GHz_xz": {
+          "rms_absolute_directivity_difference_db": 1.926139675584855,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "2GHz_xy": {
+          "rms_absolute_directivity_difference_db": 0.4728468804451445,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        },
+        "2GHz_xz": {
+          "rms_absolute_directivity_difference_db": 2.2570760411980335,
+          "comparison_region": "MATLAB cut above its peak minus 20 dB; no fitted normalization"
+        }
+      }
+    }
+  }
+}

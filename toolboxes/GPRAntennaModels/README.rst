@@ -34,6 +34,42 @@ Package contents
 
 Descriptions of how the models were created can be found in the aforementioned attributions.
 
+GSSI 2 GHz receiver-port update
+-------------------------------
+
+``antenna_like_GSSI_2000`` now uses a zero-amplitude voltage source with the
+original 200008.0107 Ohm receiver resistance. Its rigid gap retains er=1.056;
+only the resistance has moved from material conductivity to the source, so
+the original loading and ``gssi2000_rxbowtie`` Ey output are preserved.
+The automatic voltage-source ports now have explicit IDs ``gssi2000_tx``
+and ``gssi2000_rx`` (update references to the former automatic Tx ``portN``).
+Receiver voltage is saved in ``/ports/gssi2000_rx/Vtotal`` with its own
+half-step time axis. Zero amplitude does not mean zero resistance or a clamp.
+
+Use the driven Tx port for its input impedance and S11. The passive receiver's
+generator is zero, so its own input S11/impedance cannot be inferred from this
+run; drive Rx separately with Tx terminated to characterise that input.
+For NTFF gain/efficiency, associate **both** physical ports, including the
+passive receiver, e.g. after declaring an NTFF transform ``antenna_band``:
+
+.. code-block:: python
+
+    scene.add(gprMax.NTFFAntennaPorts(
+        transform_id='antenna_band',
+        port_ids=('gssi2000_tx', 'gssi2000_rx'),
+    ))
+
+Radiation-efficiency normalisation treats the Rx termination as an external
+port load rather than internal material loss, using both ports' net accepted
+power. This changes the power-accounting boundary, not the solved fields.
+
+The default ``spectrum_limit=10`` retains normal mesh-validity checks. The
+legacy highly conducting materials may leave no valid positive-frequency
+bins. ``spectrum_limit='nyquist'`` explicitly requests research spectra/power
+normalisation, not a mesh-convergence certificate; respect validity metadata
+and validate numerical convergence before interpreting impedance or efficiency.
+No NTFF surface or frequency band is added automatically.
+
 How to use the package
 ======================
 

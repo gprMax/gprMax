@@ -24,7 +24,9 @@ The output file has the following HDF5 attributes at the root (``/``):
 - ``rxsteps`` is the spatial increment used to move all receivers between model runs.
 - ``nsrc`` is the total number of sources in the model.
 - ``nrx`` is the total number of receievers in the model.
-- ``nports`` is the number of voltage-source S11/impedance outputs.
+- ``nports`` counts voltage-source and explicitly requested rational-network
+  port outputs in ``ports``; it does not include ``tls``, ``frills`` or
+  ``eigenmode_ports``.
 - ``neigenmodeports`` is the number of eigenmode source/receiver port
   monitors.
 - ``SourceExcitationSchemaVersion`` identifies the schema used for exact
@@ -37,7 +39,7 @@ The output file has the following HDF5 attributes at the root (``/``):
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines
 (``tls``), magnetic frill sources (``frills``), receivers (``rxs``),
-voltage-source ports (``ports``), SAR outputs (``sar``), radiometric
+voltage-source and rational-network ports (``ports``), SAR outputs (``sar``), radiometric
 absorption outputs (``radiometry``), and KSIR outputs (``ntff``) when
 requested. Eigenmode sources and receivers add ``eigenmode_ports``. Within these are
 further groups for each named or numbered output.
@@ -378,6 +380,11 @@ combine them with physical temperature, receiver bandwidth, receiver noise,
 or a radiative-transfer model to produce brightness or antenna temperature;
 those are separate measurement-model inputs rather than FDTD field
 quantities.
+
+.. _study-output:
+
+Study outputs
+-------------
 
 Reusable parameter studies add a root ``study`` group. Its attributes are
 ``Type``, ``CaseID``, ``CaseIndex`` (one based), ``CaseCount``,
@@ -874,6 +881,8 @@ Within each individual ``frill`` group are the following datasets:
   ``incident_relative_dB``/``cells_per_minimum_wavelength`` diagnostics have
   the same meaning as the corresponding ``tl`` datasets.
 
+.. _tl-port-output:
+
 Transmission-line S11 and impedance output
 ------------------------------------------
 
@@ -924,6 +933,8 @@ For example, the valid S11 and impedance bins can be read directly:
     resistance = zin.real[valid]
     reactance = zin.imag[valid]
 
+.. _frill-port-output:
+
 Magnetic-frill-source S11 and impedance output
 ----------------------------------------------
 
@@ -965,6 +976,8 @@ histories satisfy
 
 Set ``spectrum_limit`` directly on the magnetic-frill source when a limit
 other than the default lambda/10 band is required.
+
+.. _network-port-output:
 
 Rational-network port output
 ----------------------------
@@ -1032,6 +1045,8 @@ A terminal owned by a subgrid is stored beneath
 and space increments.
 
 
+.. _voltage-port-output:
+
 Voltage-source S11 and impedance output
 ---------------------------------------
 
@@ -1051,7 +1066,7 @@ receiver, and port histories have been gathered on the coordinator. All
 For a zero-resistance hard source, :math:`Z_0` is supplied by the voltage
 source (50 Ohms by default) and
 the terminal quantities are calculated from the prescribed voltage and
-time-centred Ampere-loop current. Both paths remove the effective Yee-edge
+Ampere-loop current with its explicit half-step time offset. Both paths remove the effective Yee-edge
 background capacitance and conductance before reporting ``S11``, ``Zin``, and
 ``Yin``:
 
@@ -1160,6 +1175,8 @@ the terminal calculation:
 The same command supports rational-network, transmission-line, and
 magnetic-frill port groups, including ports owned by subgrids. Multiple
 ``--port`` options may be supplied, or omitted to plot every discovered port.
+
+.. _eigenmode-port-output:
 
 Eigenmode-port and S-parameter output
 -------------------------------------

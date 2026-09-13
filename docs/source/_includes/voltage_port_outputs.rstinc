@@ -1,0 +1,31 @@
+.. rubric:: Port and outputs
+
+In a supported 3-D model this source automatically writes
+``/ports/<id>`` (default ID ``portN``); no extra ``Rx`` is needed. A CPU or CUDA HSG
+port is below ``/subgrids/<subgrid ID>/ports/<id>``. A hard source on a
+domain-minimum transverse boundary remains an excitation but has no automatic
+port because its full magnetic-current loop is unavailable. Reduced 2-D
+sources do not provide this port output.
+
+``Vtotal`` is gap voltage in volts, with sign opposite to the electric-field
+component along the source edge. Use its stored ``time`` axis. Finite-resistance
+ports use half-step-aligned voltage histories; hard ports retain voltage at
+time zero and a separately staggered ``Iloop`` history on ``time_current``.
+``frequency``, ``S11``, ``Zin`` and ``Yin`` are the corrected terminal spectra,
+with separate ``valid_S11``, ``valid_Zin`` and ``valid_Yin`` masks.
+
+The Python source's ``result`` provides ``time``, ``total_voltage``,
+``frequency``, ``s11``, ``zin``, ``yin`` and their lowercase validity masks
+after solving. The finite source's resistance is its reference impedance;
+a hard source's independent reference impedance defaults to 50 Ohms.
+A zero-amplitude finite-resistance source remains a passive load and reports
+received voltage, but its own source-normalised S11/impedance is not a valid
+input characterisation. Zero amplitude with zero resistance is a clamp.
+
+.. code-block:: console
+
+    python -m toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
+
+Replace ``feed`` with the actual ID. See :ref:`voltage-port-theory` for
+correction, timing and support details, :ref:`voltage-port-output` for the
+schema, and :ref:`study-port` for a complete multiport matrix.

@@ -1,0 +1,13 @@
+#domain: 0.048 0.048 0.048
+#dx_dy_dz: 0.002 0.002 0.002
+#time_window: 1e-9
+#pml_cells: 3
+#omp_threads: 1
+#waveform: ricker 1 5e9 pulse
+#plane_wave_angles: 0.018 0.018 0.018 0.030 0.030 0.030 90 0 90 pulse
+#sphere: 0.024 0.024 0.024 0.004 pec
+#ntff_surface: 0.012 0.012 0.012 0.036 0.036 0.036 surface
+#ksir_frequency: surface band 5e9
+#ksir_far_field: 90 180 band back_x rcs
+#ksir_far_field: 90 270 band back_y rcs
+#study: plane_wave plane_wave.csv

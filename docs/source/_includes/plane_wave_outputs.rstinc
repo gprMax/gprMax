@@ -1,0 +1,8 @@
+.. rubric:: Outputs (no circuit port)
+
+A discrete plane wave does not create voltage/current ports or S-parameters.
+Use receivers inside/outside the TFSF box for total/scattered fields and
+NTFF outputs for scattering/RCS. The incident-wave normalisation is not
+antenna-port accepted-power normalisation. See :ref:`output-ntff` and
+:ref:`study-plane-wave` for angle/polarisation studies; every observation
+direction must be requested in the fixed output definition.

@@ -1,0 +1,4 @@
+case_id,object_id,scale
+feed_only,network_excitation_1,1
+opposed,network_excitation_1,1
+opposed,network_excitation_2,-1

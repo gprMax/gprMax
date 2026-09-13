@@ -20,7 +20,7 @@ import numpy as np
 cimport numpy as np
 
 cimport cython
-from libc.math cimport M_PI, abs, atan2, ceil, cos, exp, floor, pow, round, sin, sqrt, tan
+from libc.math cimport M_PI, abs, atan2, ceil, cos, exp, floor, log, pow, round, sin, sqrt, tan
 from libc.stdio cimport FILE, fclose, fopen, fwrite
 from libc.string cimport strcmp
 
@@ -2368,6 +2368,13 @@ cpdef double getSource(
         zeta = 2 * pow(M_PI,2) * pow(freq,2)
         delay = time - chi
         return exp(-zeta * pow(delay,2))
+
+    elif (strcmp(wavetype, "gauspulse") == 0):
+        # Same MATLAB-default bandwidth and -60 dB delay as waveforms.py.
+        zeta = -pow(M_PI * freq * 0.5, 2) / (4 * log(pow(10.0, -6.0 / 20.0)))
+        chi = sqrt(-log(pow(10.0, -60.0 / 20.0)) / zeta)
+        delay = time - chi
+        return exp(-zeta * pow(delay, 2)) * cos(2 * M_PI * freq * delay)
 
     elif (strcmp(wavetype, "gaussiandot") == 0 or strcmp(wavetype, "gaussianprime") == 0):
         #return -4.0 * M_PI * M_PI * freq * (time * freq - 1.0

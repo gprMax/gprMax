@@ -476,7 +476,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     return scene_objects
 
 
-def antenna_like_GSSI_2000(x, y, z, resolution=0.001):
+def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10):
     """Insert a model similar to the GSSI 2 GHz palm antenna.
 
     The model is based on the optimised unit No. 1 parameters reported by
@@ -484,14 +484,20 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001):
     with a 1 mm cubic spatial discretisation. The nominal antenna dimensions
     are 86 x 86 x 68 mm; in the discretised model the skid projects 2 mm
     beyond each side of the case in the y direction. A Gaussian voltage source
-    excites the transmitter and an ``Ey`` receiver is placed across the
-    resistively loaded receiver gap.
+    excites the transmitter. A zero-amplitude, finite-resistance voltage
+    source terminates the receiver with the original load and owns its port
+    output. The original ``Ey`` receiver is retained for compatibility.
+    The voltage-source ports are named ``gssi2000_tx`` and ``gssi2000_rx``.
 
     Args:
         x, y, z (float): Coordinates of the geometric centre of the antenna
             in the x-y plane and the bottom of the antenna skid in z.
         resolution (float): Spatial resolution of the antenna model. Only
             1 mm is supported.
+        spectrum_limit: Port-spectrum cells-per-wavelength limit (default
+            10), or explicit ``"nyquist"`` for research output. The legacy
+            highly conducting materials can leave no resolved positive
+            frequency bins under the default criterion.
 
     Returns:
         scene_objects (list): All objects required to add the antenna to a
@@ -533,8 +539,8 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001):
         scene_objects.append(gprMax.Edge(p1=q1, p2=q2, material_id=material_id))
 
     # Optimised material and equivalent-edge parameters for unit No. 1. The
-    # absorber and receiver resistances are converted to bulk conductivity
-    # exactly as in the original 1 mm model.
+    # absorber resistances are converted to bulk conductivity exactly as in
+    # the original 1 mm model. The receiver resistance is now a passive source.
     absorber1_resistance = 920.0
     absorber2_resistance = 790.0
     source_resistance = 560.0
@@ -542,7 +548,9 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001):
     edge_to_bulk = dy / (dx * dz)
 
     material_properties = (
-        ("gssi2000_rxres", 1.0560, (1 / receiver_resistance) * edge_to_bulk),
+        # Retain the legacy material ID and rigid dielectric gap, but let the
+        # zero-amplitude source supply its resistance without double loading.
+        ("gssi2000_rxres", 1.0560, 0),
         ("gssi2000_plastic", 6.10, 0.0029),
         ("gssi2000_skid", 2.6792, 0.0050),
         ("gssi2000_pcb", 1.5220, 0.0231),
@@ -675,8 +683,8 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001):
     add_box((0.009, 0.030, 0.051), (0.035, 0.056, 0.052), "gssi2000_gasket")
     add_box((0.051, 0.026, 0.051), (0.077, 0.056, 0.052), "gssi2000_gasket")
 
-    # Resistively loaded receiver gap.
-    add_edge((0.063, 0.042, 0.064), (0.063, 0.043, 0.064), "free_space")
+    # Rigid receiver-gap dielectric: preserve er=1.056 (do not average the
+    # surrounding PCB/air into it). Resistance is supplied by the source below.
     add_edge((0.063, 0.042, 0.064), (0.063, 0.043, 0.064), "gssi2000_rxres")
 
     # Metallic divider and its apertures.
@@ -693,9 +701,24 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001):
         p1=source_point,
         resistance=source_resistance,
         waveform_id="gssi2000_gaussian",
+        id="gssi2000_tx",
+        spectrum_limit=spectrum_limit,
+    )
+    # Receiver-port update: zero amplitude with the original finite resistance
+    # is the same passive load, not a zero-resistance electric-field clamp.
+    receiver_waveform = gprMax.Waveform(
+        wave_type="gaussian", amp=0, freq=2.12e9, id="gssi2000_rx_zero"
+    )
+    receiver_source = gprMax.VoltageSource(
+        polarisation="y",
+        p1=receiver_point,
+        resistance=receiver_resistance,
+        waveform_id="gssi2000_rx_zero",
+        id="gssi2000_rx",
+        spectrum_limit=spectrum_limit,
     )
     receiver = gprMax.Rx(p1=receiver_point, id="gssi2000_rxbowtie", outputs=["Ey"])
-    scene_objects.extend((waveform, source, receiver))
+    scene_objects.extend((waveform, receiver_waveform, source, receiver_source, receiver))
 
     return scene_objects
 

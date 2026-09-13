@@ -1,0 +1,3 @@
+case_id,object_id,scale
+drive_feed,voltage_source_1,1
+drive_receive,voltage_source_2,1

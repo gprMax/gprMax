@@ -1,0 +1,23 @@
+.. rubric:: Port and outputs
+
+Output is explicit: add ``#network_port: feed`` or
+``scene.add(gprMax.NetworkPort(terminal_id='feed'))`` for terminal ``feed``.
+The network and its excitation alone do not request port results. Output is
+``/ports/feed``, or ``/subgrids/<subgrid ID>/ports/feed`` for a CPU or CUDA HSG port.
+
+``time``, ``Vgenerator``, ``Vtotal`` and ``Inetwork`` describe the generator,
+gap voltage (V) and network current (A). Terminal-current spectra remove the
+background Yee-gap admittance and are distinct from the external-network
+current. ``frequency``, ``S11``, ``Zin`` and ``Yin`` have independent validity
+masks. Reference impedance defaults to 50 Ohms; it does not replace the
+physical network admittance.
+
+Keep the ``NetworkPort`` object to read ``port.result.total_voltage``,
+``port.result.s11``, ``port.result.zin`` and the other result arrays after
+solving. Omitting ``NetworkExcitation`` leaves a passive measurable load:
+its received voltage/current remain useful, but source-normalised S11 is
+undefined. Impedance/admittance are available where their own masks permit.
+
+Use ``python -m toolboxes.Plotting.plot_port model.h5 --port feed --save``.
+See :ref:`network-port-output` for the schema, :ref:`study-source` for
+fixed-network drive studies and :ref:`port-power-accounting` for NTFF use.

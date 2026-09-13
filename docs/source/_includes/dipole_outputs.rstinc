@@ -1,0 +1,7 @@
+.. rubric:: Outputs (no circuit port)
+
+This ideal impressed-current source does not create a circuit port, S11 or
+input impedance. Add ``Rx`` / ``#rx`` for field or Ampere-loop observations,
+or an NTFF request for transformed fields. Raw field/source ratios are not
+power-wave S-parameters. See :doc:`sources_ports` for source selection and
+:ref:`study-gpr` for point-source acquisition schedules.

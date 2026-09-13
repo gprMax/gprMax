@@ -1,0 +1,43 @@
+{
+  "geometry_translation_m": [
+    0.2205,
+    0.11225,
+    0.072
+  ],
+  "feed_node_m": [
+    0.116,
+    0.112,
+    0.072
+  ],
+  "feed_ey_centre_m": [
+    0.116,
+    0.11225,
+    0.072
+  ],
+  "discretisation_m": [
+    0.002,
+    0.0005,
+    0.002
+  ],
+  "domain_m": [
+    0.44,
+    0.226,
+    0.144
+  ],
+  "time_window_s": 2e-08,
+  "cell_count": 7159680,
+  "pec_edge_counts": [
+    33294,
+    33296
+  ],
+  "geometry_commands": 295,
+  "pattern_frequency_hz": [
+    1000000000.0,
+    1500000000.0,
+    2000000000.0
+  ],
+  "elapsed_seconds": 88.88654595054686,
+  "backend": "CUDA",
+  "precision": "single",
+  "geometry_only": false
+}

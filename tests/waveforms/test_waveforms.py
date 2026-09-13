@@ -186,6 +186,7 @@ class TestUser:
 class TestAmplitudeScaling:
     ALL_TYPES = [
         "gaussian",
+        "gauspulse",
         "gaussiandot",
         "gaussiandotnorm",
         "gaussiandotdot",
