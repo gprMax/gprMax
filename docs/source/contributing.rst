@@ -16,16 +16,34 @@ If you are new to contributing to `open source <https://opensource.guide/how-to-
 Building the documentation
 --------------------------
 
-Install the Python documentation dependencies into the active development
-environment and build the HTML User Guide with:
+The User Guide can be built from a source checkout without installing or
+compiling gprMax. A separate Python 3.12 environment is recommended: using a
+full development environment can hide missing documentation dependencies.
+From the repository root on Linux or macOS:
 
 .. code-block:: console
 
+    $ python3.12 -m venv .venv-docs
+    $ source .venv-docs/bin/activate
     $ python -m pip install -r docs/requirements.txt
     $ make -C docs html
 
 The build treats Sphinx warnings as errors. The generated HTML starts at
 ``docs/build/index.html``.
+
+On Windows, create the environment with ``py -3.12 -m venv .venv-docs`` and
+activate it with ``.venv-docs\Scripts\Activate.ps1`` in PowerShell. After
+installing the same requirements, build HTML with
+``python -m sphinx -b html -aE -W --keep-going docs/source docs/build``.
+
+The ``Documentation`` GitHub Actions workflow builds HTML and LaTeX sources
+using only ``docs/requirements.txt``, matching Read the Docs' Python version.
+It does not install the solver or the test dependencies. Both CI and Read
+the Docs treat Sphinx warnings as errors, so a missing API import cannot
+silently produce incomplete reference pages. A successful CI build provides
+a downloadable ``documentation-preview`` artifact; it does not publish the
+hosted documentation. That deployment is performed separately by Read the
+Docs after a successful build of the selected branch or tag.
 
 A PDF version can be generated from the same sources. A TeX distribution that
 provides XeLaTeX and ``latexmk`` is additionally required (for example, TeX

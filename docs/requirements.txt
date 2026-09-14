@@ -1,6 +1,8 @@
 cython>=0.20
 numpy>=1.9
 colorama
+# Importing the API and ReFrame helpers loads the eigenmode plotting modules.
+matplotlib
 reframe-hpc
 scipy
 typing_extensions

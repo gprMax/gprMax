@@ -6,17 +6,18 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-import os
+from pathlib import Path
 import re
 import sys
 import time
 
-sys.path.insert(0, os.path.abspath("../.."))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 
 project = "gprMax"
 copyright = f'2015-{time.strftime("%Y")}, The University of Edinburgh, United Kingdom. gprMax authors and contributors'
 author = "Antonis Giannopoulos, Craig Warren, Iraklis Giannakis, John Hartley, and Nathan Mannall"
-with open("../../gprMax/_version.py", "r") as fd:
+with (ROOT / "gprMax/_version.py").open(encoding="utf-8") as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE).group(1)
 
 # -- General configuration ---------------------------------------------------
