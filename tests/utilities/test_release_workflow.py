@@ -17,6 +17,7 @@ import yaml
 
 pytestmark = pytest.mark.unit
 ROOT = Path(__file__).resolve().parents[2]
+BASH = shutil.which("bash")
 spec = importlib.util.spec_from_file_location("release_checks", ROOT / "packaging/release_checks.py")
 checks = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checks)
@@ -320,9 +321,29 @@ def test_no_mixed_testpypi_dependency_index():
     assert 'cd "$RUNNER_TEMP"' in commands
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="Release jobs run on Linux with Bash")
+@pytest.mark.skipif(BASH is None, reason="Release jobs run on Linux with Bash")
 def test_release_shell_steps_parse():
     for job in workflow("release")["jobs"].values():
         for step in job.get("steps", []):
             if "run" in step:
-                subprocess.run(["bash", "-n"], input=step["run"], text=True, check=True)
+                # On Windows, a bare "bash" can launch the System32 WSL stub
+                # instead of the Git Bash found on PATH. Bytes preserve the
+                # workflow's LF line endings rather than translating to CRLF.
+                subprocess.run([BASH, "-n"], input=step["run"].encode("utf-8"), check=True, timeout=10)
+
+
+@pytest.mark.parametrize("bash", ["/opt/release tools/bash", "C:/Program Files/Git/bin/bash.exe"])
+def test_release_shell_check_uses_resolved_executable_and_lf_bytes(monkeypatch, bash):
+    script = "if true; then\n  echo 'caf\u00e9'\nfi\n"
+    monkeypatch.setitem(globals(), "BASH", bash)
+    monkeypatch.setitem(
+        globals(),
+        "workflow",
+        lambda name: {"jobs": {"check": {"steps": [{"uses": "actions/checkout@v6"}, {"run": script}]}}},
+    )
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda args, **kwargs: calls.append((args, kwargs)))
+
+    test_release_shell_steps_parse()
+
+    assert calls == [([bash, "-n"], {"input": script.encode("utf-8"), "check": True, "timeout": 10})]
