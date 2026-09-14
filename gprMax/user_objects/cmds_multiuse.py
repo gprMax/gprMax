@@ -301,10 +301,16 @@ class Waveform(GridUserObject):
     """Create waveform to use with sources in the model.
 
     Attributes:
-        wave_type (str): Waveform type. Can should be one of 'gaussian',
+        wave_type (str): Waveform type. One of 'gaussian', 'gauspulse',
             'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot',
             'gaussiandotdotnorm', 'ricker', 'gaussianprime',
-            'gaussiandoubleprime', 'sine', 'contsine'.
+            'gaussiandoubleprime', 'sine', 'contsine', 'impulse', or 'user'.
+            The continuous sine ramps over four cycles. An impulse is one
+            nonzero sample on the source's update lattice, not a unit-area
+            continuous-time delta; its required positive frequency is unused.
+            The Gaussian-modulated cosine 'gauspulse' uses fractional bandwidth
+            0.5 at -6 dB, matching MATLAB gauspuls defaults, and is delayed to
+            start at the -60 dB envelope level. See :ref:`waveform-modulated-gaussian`.
         amp (float): Factor to scale the maximum amplitude of the
             waveform by. (For a #hertzian_dipole the units will be Amps,
             for a #voltage_source or #transmission_line the units will
@@ -576,13 +582,13 @@ class SurfaceImpedance(GridUserObject):
     directional ``material_ids`` assignments are unsupported.
 
     Select exactly one of a constant ``resistance``, a named bulk-metal
-    ``preset``, or a user-supplied bulk-metal ``conductivity``. Fitted sources
+    ``preset``, or a user-supplied bulk-metal ``conductivity``. Fitted models
     require ``fit_frequency_range=(fmin, fmax)`` and are converted internally
     to a passive Foster realization. ``fit_order='auto'`` tests increasing
     actual runtime pole counts and chooses the first deterministic local fit
     independently certified to reach ``fit_tolerance``. An integer asks for
     exactly that many Foster poles. The constant-resistance form is an
-    idealized broadband boundary rather than a complete physical material
+    idealised broadband boundary rather than a complete physical material
     model and emits a warning when built. ``resistance=float('inf')`` selects
     the exact voxel-face PMC limit with zero tangential surface admittance.
     Passive impedance walls can continue uniformly along a PML absorption

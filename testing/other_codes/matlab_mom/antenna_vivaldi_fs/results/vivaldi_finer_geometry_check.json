@@ -1,0 +1,10 @@
+{
+  "mesh": "finer",
+  "inspected_file": "vivaldi_finer_geometry.vtkhdf",
+  "pec_ex_edges": 132946,
+  "pec_ey_edges": 132063,
+  "pec_ez_edges": 0,
+  "all_pec_edges_match_expected": true,
+  "feed_gap_unshorted": true,
+  "feed_banks_connected": true
+}

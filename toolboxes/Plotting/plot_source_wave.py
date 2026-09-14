@@ -104,6 +104,10 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
     elif w.type in ["gaussiandotdot", "gaussiandotdotnorm", "ricker"]:
         delay = np.sqrt(2) / w.freq
         logger.info(f"Time to centre of pulse: {delay:g} s")
+    elif w.type == "gauspulse":
+        w.calculate_coefficients()
+        logger.info(f"Time to centre of pulse: {w.chi:g} s")
+        logger.info("Fractional bandwidth: 0.5 at -6 dB; initial envelope: -60 dB")
 
     logger.info(f"Time window: {timewindow:g} s ({iterations} iterations)")
     logger.info(f"Time step: {dt:g} s")

@@ -1,0 +1,22 @@
+{
+  "matlab_version": "24.2.0.2712019 (R2024b)",
+  "max_edge_m": 0.008,
+  "mesh_points": 1628,
+  "mesh_triangles": 2746,
+  "elapsed_seconds": 85.633015,
+  "pattern_frequency_hz": [
+    1.0E+9,
+    1.5E+9,
+    2.0E+9
+  ],
+  "peak_directivity_dbi": [
+    3.1663434036845257,
+    5.7066786954963629,
+    7.1881842015737529
+  ],
+  "peak_realized_gain_dbi": [
+    -0.11606747149042906,
+    4.0095939550677091,
+    6.392227456687233
+  ]
+}

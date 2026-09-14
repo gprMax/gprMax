@@ -1,13 +1,16 @@
 .. _impedance-surfaces:
 
-*************************
-Surface-impedance volumes
-*************************
+********************************************
+Surface impedance and impedance volumes
+********************************************
 
-A surface-impedance boundary models conductor loss without resolving the
-metal's skin depth with tiny mesh cells. Define a ``SurfaceImpedance`` and
-assign its ID to ordinary volume geometry. gprMax excludes the interior
-fields and applies the boundary response at the voxel faces.
+A surface-impedance boundary condition (SIBC) models losses in a thick
+conductor without meshing its skin depth. ``SurfaceImpedance`` defines the
+boundary response and its identifier; it does not create geometry. Assign
+that ID to a supported volume primitive, such as a box or sphere, to create
+an **impedance volume**. gprMax excludes fields inside the volume and applies
+the specified response at its voxel boundary. It does not assign the fitted
+bulk conductivity to interior cells and solve the fields inside the metal.
 
 This is a **closed, electrically opaque volume**, not a transmissive sheet.
 Choose it for thick conductors with a local scalar surface response. A
@@ -29,8 +32,8 @@ The existing rectangular-waveguide example compares identical PEC and copper
 guides. It is a useful first check for someone accustomed to assigning a
 finite-conductivity wall in a frequency-domain simulator.
 
-The following is the material-and-geometry part of that workflow. It assumes
-``scene`` already contains a domain and mesh, and ``lower``/``upper`` are the
+The following defines the surface model and geometry for that workflow.
+It assumes ``scene`` already contains a domain and mesh, and ``lower``/``upper`` are the
 corners of a finite-thickness wall; the runnable script below supplies them.
 Lengths are in metres, frequencies in Hz, and conductivity in S/m.
 
@@ -48,7 +51,7 @@ Lengths are in metres, frequencies in Hz, and conductivity in S/m.
 The model measures 130--150 GHz. The wider 80--200 GHz fit covers its pulse
 and modal anchors; a fit band is the range over which the boundary model is
 accurate, not the list of output frequencies. gprMax also checks the
-time-discrete response at the modal anchors. If that check reports an
+discrete-time response at the modal anchor frequencies. If that check reports an
 out-of-band frequency, follow :ref:`impedance-fit-band-help` rather than
 ignoring the warning or forcing a lower fit order.
 
@@ -109,14 +112,15 @@ and the fit construction are derived in :ref:`impedance-metal-theory`.
 The selected pole count is available as ``fit_pole_count`` and
 ``fit_result.selected_pole_count``. More poles cost memory and update time;
 the automatic setting avoids an unnecessarily high order for a narrow band.
-For example, the default tolerance needs two poles over 8--12 GHz.
+For example, automatic fitting selects two poles over 8--12 GHz at the
+default tolerance.
 State-space coefficients are internal and cannot be supplied to the public
 constructor. They are saved for reproducibility in :ref:`impedance-output`.
 
 Ideal resistance and exact PMC
 ------------------------------
 
-Use a constant resistance for an idealized boundary experiment:
+Use a constant resistance for an idealised boundary experiment:
 
 .. code-block:: python
 
@@ -136,10 +140,10 @@ grid. Unused declarations, internal TE constraints, and PMC symmetry planes
 do not trigger that geometry warning. See :ref:`impedance-pmc-theory` for
 the exact update and reflection-plane validation.
 
-Hash equivalents
-----------------
+Equivalent hash commands
+------------------------
 
-The material choice and geometry assignment are the same in hash input:
+The same surface models and geometry can be specified with hash commands:
 
 .. code-block:: text
 
@@ -150,17 +154,18 @@ The material choice and geometry assignment are the same in hash input:
    #box: 0.10 0.07 0.05 0.20 0.13 0.10 copper_wall n
 
 These are definitions and a geometry fragment, not a complete input file.
-For fitted surfaces, final ``y`` writes fit plots during full runs as well
-as geometry-only runs; ``n`` keeps geometry-only plotting. See
-:ref:`input-hash-cmds` for the full command grammar and :ref:`input-api` for
-the Python constructor reference.
+For fitted surfaces, the optional final ``y`` enables fit plots during full
+runs as well as geometry-only runs. The default, ``n``, writes fit plots
+only during geometry-only runs. See :ref:`input-hash-cmds` for the full
+command syntax and :ref:`input-api` for the Python constructor reference.
 
 Building geometry
 =================
 
-Geometry uses the normal last-object-wins drawing order. Several primitives
-with the same surface ID can form a body; a later air or dielectric object
-can cut a cavity. Tags are optional metadata, not a way to assign impedance.
+Geometry follows declaration order: later objects overwrite earlier ones.
+Several primitives with the same surface-impedance ID can form a body;
+a later air or dielectric object can cut a cavity. Tags are optional
+metadata, not a way to assign impedance.
 The final voxel geometry determines which faces receive the boundary law.
 Refine curved or oblique walls until both their staircase representation and
 the result of interest converge; avoiding skin-depth cells does not remove
@@ -170,16 +175,17 @@ Supported geometry
 ------------------
 
 Surface-impedance IDs can be assigned directly to boxes, spheres,
-ellipsoids, axis-aligned and oblique cylinders and cones when their rasterized
-boundaries are manifold, finite-thickness cylindrical sectors, and
-finite-thickness triangular prisms. A ``FractalBox`` can also use a
+ellipsoids, cylinders and cones (axis-aligned or oblique), finite-thickness
+cylindrical sectors, and finite-thickness triangular prisms. Their final
+voxel boundaries must satisfy the connectivity checks described below.
+A ``FractalBox`` can also use a
 surface-impedance ID as its ``mixing_model_id``, but it must set
 ``n_materials=1`` because one opaque volume cannot contain a graded set of
 surface models, and it must be used with a roughness, grass, or water
-modifier. An unmodified one-material ``FractalBox`` retains its existing
-instruction to use ``Box`` instead.
+modifier. For an unmodified single-material volume, use ``Box`` instead.
 
-The assignment must be scalar. In the Python API, use ``material_id`` rather
+Assign one scalar surface-impedance model, not a different model for each
+direction. In the Python API, use ``material_id`` rather
 than directional ``material_ids``. Hash-command geometry must likewise use
 the surface-impedance ID as its sole material identifier. Surface-impedance
 geometry is not dielectric-smoothed.
@@ -190,7 +196,7 @@ Those sheet and line objects have retained fields on both sides and require a
 two-sided sheet transition condition rather than the implemented one-sided
 opaque-volume boundary.
 
-Impedance geometry cannot yet be round-tripped through
+Impedance geometry cannot currently be exported and reimported using
 ``GeometryObjectsWrite`` and ``GeometryObjectsRead``. Recreate the
 ``SurfaceImpedance`` definition and native geometry in the destination scene.
 
@@ -200,15 +206,15 @@ each non-symmetry domain boundary. The region may extend to a declared PEC or
 PMC symmetry plane, or continue uniformly through a longitudinal PML to its
 outer boundary, subject to the requirements in :ref:`sibc-pml`.
 
-Rasterized topology
--------------------
+Voxel-boundary topology
+-----------------------
 
 The final voxel geometry, after all drawing and cutout operations, must have
 an unambiguous boundary. Cells belonging to one body must meet through full
 faces, not only through an edge or corner. Both the opaque body and the
 surrounding retained field region must remain locally connected. Separate
-bodies are allowed; a contact between different surface IDs is still checked
-as part of the same excluded geometry, with no surface response on an
+bodies are allowed; a contact between different surface-impedance IDs is
+still checked as part of the same excluded geometry, with no surface response on an
 internal metal-to-metal face.
 
 When an error identifies a bad edge or vertex, inspect that part of the
@@ -222,8 +228,8 @@ Contacts and symmetry
 
 Isotropic PEC, PMC, and impedance volumes may touch. PEC forces a shared
 tangential electric component to zero regardless of adjacent-object drawing
-order. A diagonal PEC/SIBC contact with separating retained cells warns;
-face-sharing contacts do not. Use isotropic materials: directional PEC/PMC
+order. A diagonal PEC/SIBC contact with separating retained cells produces
+a warning; face-sharing contacts do not. Use isotropic materials: directional PEC/PMC
 mixtures at an impedance boundary are rejected.
 
 Legacy PMC contacts keep their existing reflection-plane limitation. They
@@ -260,20 +266,20 @@ Running reliably
 
 .. _impedance-automatic-timestep:
 
-Automatic timestep margin
--------------------------
+Automatic time-step margin
+--------------------------
 
 FDTD advances fields in small time steps. The mesh imposes a maximum
-Courant--Friedrichs--Lewy (CFL) timestep; the usual stability-factor command
+Courant--Friedrichs--Lewy (CFL) time step; the usual stability-factor command
 scales that limit. Declaring any ``SurfaceImpedance`` caps the factor at
 **0.99**, preserving a smaller user setting. It does not multiply a factor
 of 0.8 by 0.99: the result remains 0.8.
 
 The cap applies before time windows and sources are built, even for an
 unused surface declaration. If it reduces the requested factor, the build
-log explains the change and reports the effective timestep. Geometry reuse
+log explains the change and reports the effective time step. Geometry reuse
 does not apply the cap twice, and the original Scene objects are unchanged.
-Models without a surface declaration keep their ordinary timestep behaviour.
+Models without a surface declaration keep their ordinary time-step behaviour.
 
 To request more margin, use the existing command:
 
@@ -281,7 +287,7 @@ To request more margin, use the existing command:
 
    scene.add(gprMax.TimeStepStabilityFactor(f=0.9))
 
-The hash equivalent is ``#time_step_stability_factor: 0.9``. A time window
+The equivalent hash command is ``#time_step_stability_factor: 0.9``. A time window
 in seconds keeps its duration and adjusts the iteration count. A window
 specified as an iteration count instead becomes shorter in physical time.
 Use the same explicit factor in comparative PEC runs if samples must share
@@ -325,7 +331,7 @@ A direct :class:`gprMax.EigenmodePort` in 3D or 2D may cross an
 impedance guide. The guide boundary must be invariant along the propagation
 direction through both cells adjacent to the modal plane, and the modal
 window must contain the complete retained aperture and every required
-boundary H degree of freedom. A guide end cap normal to the propagation axis
+boundary magnetic-field component. A guide end cap normal to the propagation axis
 therefore cannot cross the solve plane.
 
 .. _sibc-pml:
@@ -339,7 +345,7 @@ Either extend the physical guide into domain PML or attach a
 setup, port directions, and active/passive choices. The additional SIBC
 requirements are collected here:
 
-* Keep the wall and retained host uniformly extruded along every intersecting
+* Keep the wall and the surrounding host medium uniformly extruded along every intersecting
   PML absorption direction, including neighbouring stencil cells. Wall faces
   must be tangent to that direction; end caps, steps, and changes of surface
   model inside the absorber are rejected.
@@ -378,7 +384,7 @@ Custom PML errors
 
 The demonstrated unstable second-order HORIPML product profiles are rejected
 during coefficient construction. The error identifies the profile and the
-offending electric or magnetic sample. **Reducing the timestep does not
+offending electric or magnetic sample. **Reducing the time step does not
 cure this profile instability.** Use one CFS factor, or apply the specific
 second-alpha repair described in :ref:`pml-higher-order-stability` for the
 investigated unit-kappa, unshifted-first-factor configuration. The repair
@@ -395,7 +401,7 @@ Results and troubleshooting
 Use the fit plot to check the surface model over its fit band, modal plots to
 check the field pattern, and modal coefficients or receiver traces to check
 the simulated response. These answer different questions. The HDF5 surface
-metadata records the chosen model and time-discrete coefficients; see
+metadata records the chosen model and discrete-time coefficients; see
 :ref:`impedance-output`. For modal S-parameters, also apply the validity
 masks explained in :ref:`eigenmode-results`.
 
@@ -407,7 +413,7 @@ masks explained in :ref:`eigenmode-results`.
 .. _impedance-fit-band-help:
 
 ``frequency is outside ... fit band``
-    Expand the preset or conductivity fit band to include every eigenmode anchor and
+    Expand the preset or conductivity fit band to include every eigenmode anchor frequency and
     its bilinear-warped frequency. Close to Nyquist the warped frequency can
     be much higher than the physical anchor. Reducing ``dt`` also reduces the
     difference.
@@ -449,7 +455,7 @@ Large source-plane reflection
     Confirm that source and monitor anchors cover the significant waveform
     band, the guide is uniform at the source plane, wall-end returns are
     outside the measurement gate, and the modal window contains all boundary
-    DOFs. Then refine the Yee grid and repeat. Do not infer boundary failure
+    degrees of freedom. Then refine the Yee grid and repeat. Do not infer boundary failure
     from a trace contaminated by a nearby open guide end.
 
 Metal result disagrees with measurement

@@ -131,7 +131,10 @@ suitable engineering units.
 ``--list-ports`` prints all discoverable paths. The internal plotting data
 model stores a collection of named S-parameter traces. It currently contains
 S11 because local gprMax terminal outputs are one-port results; it can accept
-additional Sij traces when an authoritative multiport output schema is added.
+additional Sij traces in future. Complete multiport matrices already exist in
+``PortStudy`` and ``EigenmodeStudy`` aggregate files; use the study result
+readers and examples in :doc:`studies` rather than treating a local S11 trace
+as a matrix column.
 
 The former ``plot_antenna_params`` entry point remains as a compatibility
 alias for the new plotter. Its legacy reconstruction of S11, Zin, and a
@@ -145,7 +148,8 @@ corrections, and a field-to-source ratio is not a power-wave S-parameter.
 plot_source_wave.py
 --------------------
 
-This module uses matplotlib to plot one of the built-in waveforms in the time and frequency domain. Usage (from the top-level gprMax directory) is:
+This module uses Matplotlib to plot built-in waveforms in the time domain
+and, optionally, their power spectra. Run it from the repository root:
 
 .. code-block:: none
 
@@ -153,18 +157,22 @@ This module uses matplotlib to plot one of the built-in waveforms in the time an
 
 where:
 
-* ``type`` is the type of waveform, e.g. gaussian, ricker etc...
+* ``type`` is a built-in waveform name, such as ``gaussian`` or ``ricker``.
 * ``amp`` is the amplitude of the waveform
 * ``freq`` is the centre frequency of the waveform (Hertz). In the case of the Gaussian waveform it is related to the pulse width.
 * ``timewindow`` is the time window (seconds) to view the waveform, i.e. the time window of the proposed simulation
 * ``dt`` is the time step (seconds) to view waveform, i.e. the time step of the proposed simulation
 
-There is an optional command line argument:
+Optional command-line arguments are:
 
-* ``-fft`` to plot the Fast Fourier Transform (FFT) of the waveform
+* ``-fft`` to include the waveform's power spectrum, calculated using the FFT.
+* ``-save`` to save a PNG without opening a plot window.
 
 
 Definitions of the built-in waveforms and example plots are shown using the parameters: amplitude of one, centre frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
+
+The :ref:`modulated Gaussian example <waveform-modulated-gaussian>` below
+also shows how to choose a custom bandwidth with a user-defined waveform.
 
 gaussian
 ^^^^^^^^
@@ -178,6 +186,91 @@ where :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the f
 .. figure:: ../../images_shared/gaussian.png
 
     Example of the ``gaussian`` waveform - time domain and power spectrum.
+
+.. _waveform-modulated-gaussian:
+
+gauspulse (modulated Gaussian)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A cosine carrier is multiplied by a Gaussian envelope. The built-in
+``gauspulse`` uses the default bandwidth of MATLAB's
+`gauspuls <https://www.mathworks.com/help/signal/ref/gauspuls.html>`_:
+fractional bandwidth :math:`b=0.5` at :math:`r=-6` dB. Only amplitude and
+carrier frequency are supplied in the waveform command.
+
+.. math::
+
+    W(t)=A e^{-a(t-t_0)^2}\cos\left[2\pi f_0(t-t_0)\right],
+    \qquad a=-\frac{(\pi f_0 b)^2}{4\ln(10^{r/20})},
+    \qquad t_0=\sqrt{-\frac{\ln(10^{-60/20})}{a}}.
+
+MATLAB's pulse is centred at zero. gprMax shifts it by :math:`t_0`, the
+default -60 dB envelope cutoff, so the leading half is present after the
+source starts. At 1 GHz the peak is at approximately 2.781 ns and the
+-6 dB band extends from 0.75 to 1.25 GHz. The envelope at time zero is
+:math:`10^{-3}` of its peak, **not exactly zero**. The analytic trailing
+tail is not truncated automatically; the source's start/stop window still
+applies. A source start time adds to this intrinsic delay. Use a time window
+of at least :math:`2t_0` to include the pulse down to -60 dB on both sides,
+plus enough time to record the model's response.
+
+.. figure:: ../../images_shared/modulated_gaussian.png
+    :alt: Gaussian-modulated cosine at 1 GHz with its envelope and normalised power spectrum.
+
+    Built-in ``gauspulse``: time trace with its envelope and power spectrum
+    normalised to 0 dB at the peak. Zero padding smooths the plotted spectrum
+    but does not increase its physical frequency resolution.
+
+Use the existing waveform hash command:
+
+.. code-block:: none
+
+    #waveform: gauspulse 1 1e9 pulse
+
+The equivalent Python API definition is:
+
+.. code-block:: python
+
+    scene.add(gprMax.Waveform(wave_type='gauspulse', amp=1, freq=1e9, id='pulse'))
+
+Assign ``pulse`` to a source as usual. A :download:`complete hash-command
+model <../../examples/features/waveforms/gauspulse.in>` uses a resistive
+voltage source and records its automatic port and a nearby receiver.
+To plot the waveform with the standard plotting command:
+
+.. code-block:: console
+
+    python -m toolboxes.Plotting.plot_source_wave gauspulse 1 1e9 6e-9 1.926e-12 -fft -save
+
+The :download:`gallery plotting script
+<../../examples/features/waveforms/modulated_gaussian.py>` adds the envelope
+and bandwidth markers shown above. It also exports a two-column sample
+table, if needed for comparison with another tool:
+
+.. code-block:: console
+
+    python -m examples.features.waveforms.modulated_gaussian --output-dir waveform_preview
+
+For a different bandwidth, reference level, phase or delay, use the existing
+user-defined interface instead of extending the hash-command syntax. For
+example, a 70%-bandwidth pulse with the same -6 dB reference level:
+
+.. code-block:: python
+
+    from scipy.signal import gausspulse
+
+    delay = gausspulse('cutoff', fc=1e9, bw=0.7, bwr=-6, tpr=-60)
+
+    def custom_pulse(time):
+        return float(gausspulse(time - delay, fc=1e9, bw=0.7, bwr=-6))
+
+    scene.add(gprMax.Waveform(wave_type='user', user_func=custom_pulse, id='custom'))
+
+SciPy spells this function ``gausspulse``; MATLAB spells it ``gauspuls``;
+the gprMax built-in type is ``gauspulse``. A callable returns the complete
+amplitude. For custom samples in a hash-command model, use
+``#excitation_file``. User-defined waveforms cannot drive discrete plane
+waves, but the built-in ``gauspulse`` can.
 
 
 gaussiandot
@@ -277,7 +370,8 @@ and
 contsine
 ^^^^^^^^
 
-A continuous sine waveform. In order to avoid introducing noise into the calculation the amplitude of the waveform is modulated for the first cycle of the sine wave (ramp excitation).
+A continuous sine waveform with a linear amplitude ramp over the first four
+cycles. The ramp reaches one at :math:`t=4/f`, not at the end of the first cycle.
 
 .. math:: W(t) = R\sin(2\pi ft)
 
@@ -287,8 +381,8 @@ and
 
     R =
     \begin{cases}
-    R_cft &\text{if $R\leq 1$}, \\
-    1 &\text{if $R>1$}.
+    R_cft &\text{if $R_cft\leq 1$}, \\
+    1 &\text{if $R_cft>1$}.
     \end{cases}
 
 where :math:`R_c` is set to :math:`0.25` and :math:`f` is the frequency.
@@ -301,17 +395,21 @@ where :math:`R_c` is set to :math:`0.25` and :math:`f` is the frequency.
 impulse
 ^^^^^^^
 
-A unit impulse or dirac delta waveform.
+A unit-amplitude discrete impulse, not a unit-area continuous-time Dirac
+delta. Within the source's active time window it is evaluated as:
 
 .. math::
 
     W(t) =
     \begin{cases}
-    1 &\text{if $dt\leq 0$}, \\
-    0 &\text{if $dt>1$}.
+    1 &\text{if $0\leq t<\Delta t$}, \\
+    0 &\text{if $t\geq\Delta t$}.
     \end{cases}
 
-where :math:`dt` is the temporal resolution (timestep) of the model.
+Here :math:`t` is time relative to the source start and :math:`\Delta t` is
+the model's time step. This gives one nonzero sample on either the whole-
+or half-step source lattice. A hard voltage source still clamps its edge
+to zero after that sample until its stop time; see :ref:`voltage_source`.
 
 .. figure:: ../../images_shared/impulse.png
     :width: 350 px

@@ -1,0 +1,3 @@
+case_id,object_id,theta_deg,phi_deg,psi_deg
+from_x,plane_wave_1,90,0,90
+from_y,plane_wave_1,90,90,90

@@ -34,6 +34,9 @@ physical optics where appropriate, from the `MATLAB Antenna Toolbox
     * - Triangular bow tie
       - Planar PEC rasterisation, source-edge current, S11, impedance, and
         principal-plane patterns
+    * - Vivaldi tapered slot
+      - Exported MATLAB PEC outline, narrow voltage gap, complex S11 and
+        impedance, full-circle patterns, gain, and mesh sensitivity
     * - Rectangular patch
       - Dielectric substrate, finite ground plane, probe-feed alternatives,
         mesh convergence, gain, and efficiency
@@ -91,6 +94,63 @@ interpolated S11 minima are 0.800 GHz for gprMax and 0.825 GHz for MATLAB. The
 offset is approximately two independent FFT bins and is consistent with the
 one-cell FDTD gap and edge-rasterised conductor differing from the MoM delta
 gap and continuous triangular surfaces.
+
+Vivaldi tapered-slot antenna
+============================
+
+This comparison reproduces the default free-space PEC ``vivaldi`` from
+MATLAB Antenna Toolbox. The finite sheet measures 300 by 125 mm, with a
+243 mm exponential taper, a 105 mm aperture, a 24 mm circular cavity and a
+0.5 mm feed slot. The actual MATLAB polygon is retained as JSON and tiled
+with zero-thickness gprMax PEC plates. Both models use a 50 ohm port
+reference. The sheet is translated into the FDTD domain without changing
+its physical dimensions.
+
+* :download:`gprMax model <../../testing/other_codes/matlab_mom/antenna_vivaldi_fs/vivaldi_antenna_gprmax.py>`
+* :download:`MATLAB model <../../testing/other_codes/matlab_mom/antenna_vivaldi_fs/vivaldi_antenna_matlab.m>`
+* :download:`comparison and plotting script <../../testing/other_codes/matlab_mom/antenna_vivaldi_fs/plot_vivaldi_comparison.py>`
+* :download:`geometry inspection script <../../testing/other_codes/matlab_mom/antenna_vivaldi_fs/inspect_vivaldi_geometry.py>`
+* :download:`case description and run instructions <../../testing/other_codes/matlab_mom/antenna_vivaldi_fs/README.md>`
+
+.. figure:: ../../images_shared/matlab_vivaldi_geometry_comparison.png
+    :width: 800 px
+
+    Actual gprMax PEC-edge geometry overlaid on the exported MATLAB outline,
+    with a close-up of the voltage gap.
+
+.. figure:: ../../images_shared/matlab_vivaldi_pattern_comparison.png
+    :width: 800 px
+
+    Absolute directivity at 1, 1.5 and 2 GHz. Both principal cuts are full
+    circles, with angle zero towards the aperture (+x). No fitted pattern
+    normalisation is applied; values below -25 dBi are clipped only for display.
+
+.. figure:: ../../images_shared/matlab_vivaldi_port_comparison.png
+    :width: 750 px
+
+    Native voltage-port S11 and input impedance compared on the MATLAB
+    frequency grid. The retained complex CSV values also permit phase comparisons.
+
+The cases exercise directional mesh refinement, not isotropic convergence:
+the transverse spacing remains 0.5 mm to preserve a one-edge feed. MATLAB's
+delta-gap excitation and gprMax's finite Yee-edge source differ, and the
+curved slot is staircased in FDTD. Port agreement must therefore be judged
+separately from the main-beam pattern and from numerical power balance.
+The case README and machine-readable results record these limitations and
+the measured differences; this example is not an analytical acceptance test.
+
+In the retained finest directional-refinement run, peak directivity differs
+from MATLAB by at most 0.39 dB at the three pattern frequencies, but the
+complex input-impedance relative L2 difference remains 39.4% across 1--2 GHz.
+The H-plane cut RMS differences are about 1.9--2.3 dB over the stated
+comparison region. This is an open comparison case, not evidence of converged
+port agreement. MATLAB mesh refinement and a doubled FDTD time window do not
+account for the discrepancy.
+
+The MAT references are retained so that the plots can be reproduced without
+MATLAB. Geometry and excitation definitions follow the MathWorks
+`Vivaldi documentation <https://www.mathworks.com/help/antenna/ref/vivaldi.html>`_
+and `feed-model documentation <https://www.mathworks.com/help/antenna/ug/feed-model.html>`_.
 
 Dipole, monopole, and patch antennas
 ====================================

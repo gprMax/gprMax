@@ -1,0 +1,21 @@
+.. rubric:: Port and outputs
+
+``EigenmodePort`` / ``#eigenmode_port`` defines both the modal basis and
+monitor; ``EigenmodeExcitation`` selects what is driven. Each numbered port
+writes ``/eigenmode_ports/portN`` (under ``/subgrids/<subgrid ID>`` for an
+owning HSG grid). ``frequency``, ``incident`` and ``outgoing`` are modal
+spectra, not lumped voltage/current histories. Follow ``ModeIndices`` and
+the stored power matrices; do not assign an arbitrary 50 Ohm circuit reference.
+
+With one active channel, per-port ``S`` arrays describe responses to that
+channel. Multiple simultaneous drives produce active reflection data, not a
+complete S matrix; fully passive virtual ports produce raw spectra without S.
+Use ``coefficient_valid_S`` for coefficient inspection and
+``power_wave_valid_S`` for propagating-power interpretation. Below-cutoff
+coefficients must not be interpreted as transmitted power.
+
+Use the modal plots and post-processing examples in :doc:`eigenmode_port`,
+not the conventional ``plot_port`` tool. See :ref:`eigenmode-port-output`
+for shapes and files and :ref:`study-eigenmode` for complete matrices and
+array synthesis. Ports must satisfy the owning grid/backend restrictions in
+the eigenmode guide.

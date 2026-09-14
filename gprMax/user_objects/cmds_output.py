@@ -1794,9 +1794,13 @@ class KSIRAntennaPorts(OutputUserObject):
         port_ids: IDs of every physical antenna port. Voltage-source IDs come
             directly from the source (explicit or automatic). Transmission-line and
             magnetic-frill sources use their automatic ``tlN`` and ``frillN``
-            IDs. A port on a subgrid is referenced as
-            ``<subgrid ID>/<local port ID>``. Eigenmode sources are not
-            compatible with the Ramahi/KSIR formulation.
+            IDs. Rational-network ports use their terminal IDs and must be
+            explicitly requested with :class:`NetworkPort`. A port on a
+            subgrid is referenced as ``<subgrid ID>/<local port ID>``.
+            Active eigenmode sources cannot use this conventional terminal
+            gain-normalisation path; use :class:`NTFFAntennaPorts` instead.
+            This restriction does not prohibit raw KSIR field reconstruction
+            on a compatible closed surface around a virtual-guide-fed antenna.
 
     The complete set is required for an unambiguous coherent accepted-power
     balance. A source with zero waveform amplitude is still a terminated port
@@ -1862,9 +1866,9 @@ class KSIRAntennaPorts(OutputUserObject):
 class NTFFAntennaPorts(KSIRAntennaPorts):
     """Associate all physical antenna ports with an equivalent-current transform.
 
-    In addition to conventional terminal ports, eigenmode sources use ``portN``
-    for their explicit port index and eigenmode receivers use their configured
-    ID. Every transform frequency must be present in each associated modal
+    In addition to conventional terminal ports, every EigenmodePort uses
+    ``portN`` for its explicit port index, whether driven or passive.
+    Every transform frequency must be present in each associated modal
     port's direct-DFT bins; the modal DFT grid may contain additional bins.
     """
 

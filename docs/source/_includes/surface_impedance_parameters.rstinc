@@ -23,10 +23,10 @@
      - Positive finite increasing ``(fmin, fmax)`` in Hz. Required with preset or conductivity; unavailable with resistance. Cover the excitation and modal solve range, including the discrete-frequency check explained in the guide.
    * - ``fit_order``
      - ``"auto"``
-     - Select the smallest runtime pole count from 1 through 64 meeting the tolerance. An integer from 1 through 64 requests that exact count; a tolerance miss then warns rather than changing the count.
+     - Select the smallest runtime pole count from 1 through 64 meeting the tolerance. An integer from 1 through 64 requests that exact count; if the tolerance is not met, gprMax issues a warning rather than changing the count.
    * - ``fit_tolerance``
      - ``2e-3``
-     - Positive finite relative impedance-fit tolerance (0.2% by default). Automatic fitting must meet it; explicit-order fitting reports a miss.
+     - Positive finite relative impedance-fit tolerance (0.2% by default). Automatic fitting must meet it; explicit-order fitting issues a warning if it is not met.
    * - ``plot_fit``
      - ``False``
      - Write a fit PNG in geometry-only runs. ``True`` also writes it during full runs. Neither setting opens a window. Only available for fitted models.

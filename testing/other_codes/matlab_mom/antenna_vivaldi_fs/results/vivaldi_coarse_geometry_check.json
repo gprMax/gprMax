@@ -1,0 +1,10 @@
+{
+  "mesh": "coarse",
+  "inspected_file": "vivaldi_coarse_geometry.vtkhdf",
+  "pec_ex_edges": 33294,
+  "pec_ey_edges": 33296,
+  "pec_ez_edges": 0,
+  "all_pec_edges_match_expected": true,
+  "feed_gap_unshorted": true,
+  "feed_banks_connected": true
+}

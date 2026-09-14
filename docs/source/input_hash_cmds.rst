@@ -7,6 +7,10 @@ Model Building
 Introduction
 ============
 
+For choosing a source and interpreting its port output, start with
+:doc:`sources_ports`. For repeated acquisitions, terminal/multimode matrices
+or plane-wave sweeps, see :doc:`studies`. This page is the command reference.
+
 gprMax has a choice of two methods for building a model to simulate:
 
 1. A **text-based (ASCII) input file**, which can be created with any text editor, and uses a series of gprMax commands which begin with the hash character (``#``). This method is recommended for beginners and those not familiar with Python, and is described in this section of the documentation.
@@ -364,8 +368,9 @@ For example ``#material: 3 0.01 1 0 my_sand`` creates a material called ``my_san
 #surface_impedance:
 -------------------
 
-Defines a reusable scalar surface-impedance material for closed,
-cell-occupying geometry. Use its identifier directly as the geometry's sole
+Defines a reusable scalar surface-impedance model for closed volumes that
+occupy mesh cells. This command defines the boundary response, not the
+volume geometry. Use its identifier directly as the geometry's sole
 material identifier. The command accepts either a constant real resistance
 or a fitted microwave-metal target from a named preset or bulk conductivity:
 
@@ -376,20 +381,22 @@ or a fitted microwave-metal target from a named preset or bulk conductivity:
     #surface_impedance: str1 conductivity f1 f2 f3 [auto|i1] [f4] [c1]
 
 * ``str1`` is the surface-impedance identifier.
-* ``f1`` is the positive surface resistance in Ohms.
+* ``f1`` is the positive surface resistance in ohms, or ``inf`` for an exact
+  voxel-face PMC boundary. Use PEC geometry for zero surface impedance.
   In the conductivity form it is instead the positive bulk conductivity in
   S/m.
 * ``str2`` is ``aluminium``, ``copper``, ``gold``, ``molybdenum``,
   ``palladium``, ``silver``, ``tungsten``, or ``zinc``. Element symbols and
   ``aluminum`` are also accepted.
-* ``f2`` and ``f3`` are the mandatory positive fit-band limits in Hertz.
+* ``f2`` and ``f3`` are the mandatory positive, finite fit-band limits in
+  hertz, with ``f2 < f3``.
 * ``auto`` tests actual runtime pole counts from 1 through 64 and selects the
   first whose deterministic local fit is independently certified to meet the
   tolerance. ``i1`` instead requests exactly that many Foster poles in the
   same range. The default is ``auto``.
 * ``f4`` is the positive maximum relative fit-error tolerance; the default is
   ``2e-3``. It controls order selection for ``auto``. With an explicit
-  integer order it is a diagnostic threshold, and a miss produces a warning
+  integer order it is a diagnostic threshold; exceeding it produces a warning
   without changing the requested order.
 * ``c1`` controls full-run fit plotting. ``n`` (the default) writes the plot
   only for ``--geometry-only``; ``y`` writes it for geometry-only and full
@@ -400,7 +407,7 @@ Surface-impedance and bulk-material identifiers must be unique. The
 
 .. warning::
 
-    The ``resistance`` form is a frequency-independent, purely real idealized
+    The finite ``resistance`` form is a frequency-independent, purely real idealised
     boundary condition; it does not represent the causal, dispersive response
     of a physical conductor. gprMax emits a warning when it is built. Use a
     fitted metal preset or bulk conductivity over the intended frequency band
@@ -412,14 +419,14 @@ For example, ``#surface_impedance: resistive_wall resistance 50`` defines a
 An explicit conductivity and order can use
 ``#surface_impedance: alloy_wall conductivity 3.2e7 8e9 12e9 12``.
 
-The metal presets use recommended bulk-pure-metal resistivity at 293 K from
+The metal presets use recommended resistivities for pure bulk metals at 293 K from
 Matula and Desai et al.; exact per-metal provenance is stored in the output.
 gprMax fits the
 good-conductor surface impedance with a non-negative Foster expansion. This
-makes the resulting realization passive over the complete frequency axis;
-its advertised accuracy applies only inside the selected fit band. Output
-HDF5 files store the internal continuous model, fit/provenance/hash
-metadata, and the exact local runtime ``f, q, Z0`` recurrence coefficients
+makes the resulting realisation passive over the complete frequency axis;
+its specified fit accuracy applies only inside the selected band. Output
+HDF5 files store the internal continuous model, fit diagnostics, provenance,
+model hashes, and the exact local runtime ``f, q, Z0`` recurrence coefficients
 under ``surface_impedance_models``.
 
 This microwave-only implementation requires ``f3 <= 300e9`` and checks
@@ -1453,6 +1460,7 @@ Allows you to specify common waveform shapes to use with sources in the model. T
 * ``str1`` is the type of waveform which can be:
 
     * ``gaussian`` which is a Gaussian waveform.
+    * ``gauspulse`` which is a Gaussian-modulated cosine with fractional bandwidth 0.5 at -6 dB, matching MATLAB's default ``gauspuls`` bandwidth. It is shifted to start at the -60 dB envelope level; see :ref:`waveform-modulated-gaussian` for its delay, formula and plots.
     * ``gaussiandot`` which is the first derivative of a Gaussian waveform.
     * ``gaussiandotnorm`` which is the normalised first derivative of a Gaussian waveform.
     * ``gaussiandotdot`` which is the second derivative of a Gaussian waveform.
@@ -1461,16 +1469,24 @@ Allows you to specify common waveform shapes to use with sources in the model. T
     * ``gaussianprime`` which is the first derivative of a Gaussian waveform, directly derived from the aforementioned ``gaussian`` (see notes below).
     * ``gaussiandoubleprime`` which is the second derivative of a Gaussian waveform, directly derived from the aforementioned ``gaussian`` (see notes below).
     * ``sine`` which is a single cycle of a sine waveform.
-    * ``contsine`` which is a continuous sine waveform. In order to avoid introducing noise into the calculation the amplitude of the waveform is modulated for the first cycle of the sine wave (ramp excitation).
+    * ``contsine`` which is a continuous sine waveform with a linear amplitude ramp over the first four cycles.
+    * ``impulse`` which is one nonzero sample on the source's update lattice, not a continuous-time unit-area Dirac delta. The required positive ``f2`` value is unused by this waveform; use ``1``. A hard source continues to clamp its edge to zero after the impulse while its start/stop window remains active; see :ref:`voltage_source`.
 * ``f1`` is the scaling of the maximum amplitude of the waveform (for a ``#hertzian_dipole`` the units will be Amps, for a ``#voltage_source`` or ``#transmission_line`` the units will be Volts).
 * ``f2`` is the centre frequency of the waveform (Hertz). In the case of the Gaussian waveform it is related to the pulse width.
 * ``str2`` is an identifier for the waveform used to assign it to a source.
 
 For example, to specify the normalised first derivative of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``.
 
+For a Gaussian-modulated cosine at 1 GHz, use
+``#waveform: gauspulse 1 1e9 pulse``. Its intrinsic peak delay is about
+2.781 ns; allow about 5.6 ns for the pulse itself, plus the required
+response-recording time. The source's optional start time adds to that delay.
+For another bandwidth, use a user-defined waveform through the Python API
+or ``#excitation_file``; the built-in command has no bandwidth parameter.
+
 .. note::
 
-    * The functions used to create the waveforms can be found in the ``toolboxes/Plotting`` package.
+    * Waveforms are implemented in ``gprMax/waveforms.py``. The ``toolboxes/Plotting`` package provides waveform visualisation; see :ref:`waveforms`.
     * ``gaussiandot``, ``gaussiandotnorm``, ``gaussiandotdot``, ``gaussiandotdotnorm``, ``ricker`` waveforms have their centre frequencies specified by the user, i.e. they are not derived to the 'base' ``gaussian``
     * ``gaussianprime`` and ``gaussiandoubleprime`` waveforms are the first derivative and second derivative of the 'base' ``gaussian`` waveform, i.e. the centre frequencies of the waveforms will rise for the first and second derivatives.
 
@@ -1528,8 +1544,14 @@ Then to use ``my_pulse1`` custom waveform shape with, for example, a z-polarised
 
     * The ``#waveform`` command is not necessary when using a custom waveform excitation, only the ``#excitation_file`` command and whatever source is going to be used with the custom waveform excitation.
 
+The :ref:`modulated Gaussian example <waveform-modulated-gaussian>` includes
+the built-in ``gauspulse``, a custom-bandwidth callable, and a plotting script
+that can export a table for ``#excitation_file``.
+
 #hertzian_dipole:
 -----------------
+
+.. include:: _includes/dipole_outputs.rstinc
 
 Allows you to specify a current density term at an electric field location - the simplest excitation, often referred to as an additive or soft source.
 
@@ -1569,6 +1591,8 @@ For example, to use a x-polarised Hertzian dipole with unit amplitude and a 600 
 #magnetic_dipole:
 -----------------
 
+.. include:: _includes/dipole_outputs.rstinc
+
 This will simulate an infinitesimal magnetic dipole. This is often referred to as an additive or soft source.
 
 The :ref:`physical Yee-component bounds <point-source-bounds>` for magnetic
@@ -1588,6 +1612,8 @@ The syntax of the command is:
 
 #rational_network:, #network_terminal:, #network_excitation:
 ------------------------------------------------------------
+
+.. include:: _includes/network_port_outputs.rstinc
 
 These commands connect a linear one-port network to one electric Yee edge.
 The reusable network model is expressed as a rational driving-point
@@ -1657,10 +1683,9 @@ terminal edge; dispersive materials may exist elsewhere in the model. In an
 MPI model the sparse terminal state is advanced only by the rank that owns its
 electric edge, then gathered for final port processing. A terminal may be
 placed in a CPU or CUDA HSG subgrid through the Python API, where it uses the
-fine spatial and temporal steps. On
-an accelerator the complete recurrence and local field correction remain
-device-resident during time
-stepping. Several independent terminals may be used, but a coupled multiport
+local spatial and temporal steps. On an accelerator the complete recurrence
+and local field correction remain device-resident during time stepping.
+Several independent terminals may be used, but a coupled multiport
 admittance matrix is not yet supported. See [CHE2007]_ for the general PLRC
 lumped-network formulation and :ref:`Analytical comparisons
 <rational-network-validation>` for a complete loaded-guide comparison.
@@ -1670,6 +1695,8 @@ lumped-network formulation and :ref:`Analytical comparisons
 
 #voltage_source:
 ----------------
+
+.. include:: _includes/voltage_port_outputs.rstinc
 
 Allows you to introduce a voltage source at an electric field location. It can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed, or if it's resistance is non-zero it behaves as a resistive voltage source. It is useful for exciting antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
 
@@ -1683,7 +1710,7 @@ Allows you to introduce a voltage source at an electric field location. It can b
 * ``f5 f6`` are optional parameters. ``f5`` is a time delay in starting the source. ``f6`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f5 f6`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
 * ``str2`` is an optional port/output identifier. ``str3`` is then required
   and is either the minimum cells per shortest material wavelength (default
-  10) or ``nyquist`` for every native non-negative FFT bin. Because hash
+  10) or ``nyquist`` for every native non-negative FFT bin. Because hash-command
   arguments are positional, ``f5`` and ``f6`` must be supplied before these
   port options. If omitted, ``port1``, ``port2``, and so on are assigned.
 * ``f7`` is the optional positive wave-reference impedance in Ohms for a hard
@@ -1707,7 +1734,7 @@ a subgrid). ``f6=\Delta t`` includes a second, zero-valued prescription.
 This initialisation occurs once per run, including geometry reuse, on CPU,
 CUDA, OpenCL, Metal, MPI CPU grids, and supported CPU or CUDA HSG subgrids.
 
-Every 3-D voltage source automatically stores its terminal voltage and
+Every supported 3-D voltage port stores its terminal voltage and
 frequency-domain ``S11``, ``Zin``, and ``Yin``. No separate receiver-port
 command is required. For example:
 
@@ -1720,13 +1747,19 @@ For example, to specify a y directed voltage source with an internal resistance 
 
 .. note::
 
-    * Where a resistive voltage source is placed at a location that is not free space, the conductivity (determined from the resistance) of the voltage source will be added to the underlying conductivity of the existing material at that location. For example, if a resistive voltage source of 50 Ohms is placed at a location where the material has a relative permittivity of 4 and conductivity of 0.1 S/m, the conductivity of that cell edge will become 0.12 S/m.
+    * A resistive voltage source adds conductivity to the existing electric
+      edge without replacing its permittivity. The added conductivity is
+      ``dl / (R * A)``, where ``dl`` is the edge length and ``A`` the
+      transverse cell area. For a cubic 1 mm cell and 50 Ohms this is
+      20 S/m, so a background conductivity of 0.1 S/m becomes 20.1 S/m.
     * A finite-resistance source on a dispersive edge includes the complete
       complex background permittivity in its Yee-gap correction. A hard source
       on a dispersive edge is not yet supported.
 
 #transmission_line:
 -------------------
+
+.. include:: _includes/transmission_line_outputs.rstinc
 
 Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. Transmission lines are supported by the CPU, CUDA, OpenCL, and Metal solvers. The syntax of the command is:
 
@@ -1756,6 +1789,8 @@ An example antenna model using a transmission line can be found in the :ref:`exa
 
 #magnetic_frill_source:
 -----------------------
+
+.. include:: _includes/frill_port_outputs.rstinc
 
 Allows you to introduce a magnetic-frill (equivalent-feed) source [HYU2009]_ at an
 electric field location, for an antenna driven through a PEC ground plane by a
@@ -1962,6 +1997,8 @@ objects (including the waveform) to the same subgrid object.
 #plane_wave_angles:
 -------------------
 
+.. include:: _includes/plane_wave_outputs.rstinc
+
 Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The plane wave can originate from any direction and it is assumed that it propagates in a homogeneous background medium. The syntax of the command is:
 
 .. code-block:: none
@@ -1989,6 +2026,8 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 #plane_wave_vector:
 -------------------
 
+.. include:: _includes/plane_wave_outputs.rstinc
+
 Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. The plane wave can originate from any direction and it is assumed that it propagates in a homogeneous background medium. The syntax of the command is:
 
 .. code-block:: none
@@ -2014,6 +2053,8 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 #plane_wave_axial:
 ------------------
+
+.. include:: _includes/plane_wave_outputs.rstinc
 
 Allows you to introduce a discrete plane wave source [TAN2010]_. Plane wave sources are a useful tool in multiple different scenarios of electromagnetic simulations, especially when the wave is emitted by a source that is quite far away from the target. This command introduces a plane wave that propagates along one of the three grid axes and can be normally incident on multi-layer setups that span the entire model domain perpendicular to the direction of propagation. It takes its media properties from the background materials of the grid at the direction of the axis that it propagates. This allows for half-space simulations but only for normally incident plane waves. The syntax of the command is:
 
@@ -2067,6 +2108,8 @@ band once guarantees identical DFT bins at every port.
 
 #eigenmode_port:
 ----------------
+
+.. include:: _includes/eigenmode_port_outputs.rstinc
 
 Defines an active or passive modal reference plane. The same command is used
 for every port; one or more ``#eigenmode_excitation`` commands select active
@@ -2169,6 +2212,8 @@ the tracked basis, including any assigned degenerate-mode polarizations.
 #eigenmode_excitation:
 ----------------------
 
+.. include:: _includes/eigenmode_port_outputs.rstinc
+
 Selects one active port and mode after the band and ports have been defined.
 Repeat the command to drive several distinct port/mode channels. Omit it only
 when every port is a passive virtual guide; such a model writes raw modal
@@ -2235,7 +2280,7 @@ and output definitions.
     * Hash commands define eigenmode ports on the main grid, where the CPU,
       CUDA, OpenCL, and Metal solvers are supported. Direct eigenmode ports may
       also be added to an HSG subgrid through the Python API; they then use the
-      fine-grid material slice, spatial step, time step, and CPU update cycle.
+      local material slice, spatial step, time step, and CPU or CUDA update cycle.
       The complete port stencil must remain strictly inside the subgrid working
       region. See :doc:`eigenmode_port`.
     * Domain-decomposed MPI CPU models are supported. Modal material slices
@@ -2284,8 +2329,9 @@ orientations on the CPU, including passive constant/dispersive SIBC and
 non-dispersive guide cross-sections with the CPU, CUDA, OpenCL, and Metal
 solvers. Through the Python API, a virtual waveguide may instead be attached
 to an HSG-subgrid port; it then inherits that subgrid's fine material slice,
-spatial and temporal steps, and CPU update cycle. Domain-decomposed MPI CPU
-models are supported. The compact auxiliary guide is replicated, while one
+spatial and temporal steps, and CPU or CUDA update cycle. Main-grid
+domain-decomposed MPI CPU models are also supported; HSG with MPI is not.
+The compact MPI auxiliary guide is replicated, while one
 aperture-sized collective communicates the three required H sheets after each
 magnetic halo exchange.
 
@@ -2329,124 +2375,11 @@ Provides a simple method of defining multiple output points in the model. The sy
 Automatic voltage-source port output
 ------------------------------------
 
-Every 3-D ``#voltage_source`` automatically calculates the complex reflection
-coefficient and input impedance of its single-cell feed edge. The hidden field
-monitor is placed at the source coordinate; a separate ``#rx`` command is not
-required. Two representative forms are:
+The output summary is included with :ref:`voltage_source`. Equations,
+current/voltage time lattices and support details are now in
+:ref:`voltage-port-theory`; dataset definitions are in
+:ref:`voltage-port-output`.
 
-.. code-block:: none
-
-    #voltage_source: z 0.050 0.050 0.020 50 source_wave 0 10e-9 feed 10
-    #voltage_source: z 0.060 0.050 0.020 0 source_wave 0 10e-9 ideal_feed nyquist 75
-
-The automatic port is supported in domain-decomposed MPI CPU models. The source and
-its internal field monitor belong to one rank; for a hard source, magnetic
-halos are synchronised before the next current sample so an Ampere loop may
-cross an internal rank face or corner. Port histories are gathered and the
-frequency-domain quantities are calculated once on the coordinator rank.
-
-Finite-resistance sources on dispersive edges use the complete complex
-background permittivity in the Yee-gap correction. The same correction is
-used for terminal current and accepted power in antenna parameters and SAR
-normalisation. Hard sources on dispersive
-edges are not yet supported.
-
-For a finite-resistance source, the voltage-source resistance is the
-reference impedance :math:`Z_0`; a hard source defaults to 50 Ohms unless the
-final optional reference-impedance value is supplied. At the source plane, the known generator
-spectrum :math:`V_g` and sampled total gap voltage :math:`V` give
-
-.. math::
-
-    S_{11,\mathrm{source}} = \frac{2V-V_g}{V_g}.
-
-No current calculation is required in this finite-resistance case. gprMax
-removes the parallel capacitance and background conductance of the source Yee
-edge before reporting the antenna-terminal result. With
-:math:`c=Z_0Y_\mathrm{gap}`, this correction and the input impedance are
-
-.. math::
-
-    S_{11} =
-    \frac{2S_{11,\mathrm{source}}+c(1+S_{11,\mathrm{source}})}
-         {2-c(1+S_{11,\mathrm{source}})},
-    \qquad
-    Z_\mathrm{in}=Z_0\frac{1+S_{11}}{1-S_{11}}.
-
-For a zero-resistance source, the gap voltage is prescribed at integer
-electric-field times. gprMax calculates the Ampere-loop current from the four
-surrounding magnetic components. The voltage and current samples retain their
-exact Yee times,
-
-.. math::
-
-    V=V^{n+1}, \qquad I_\mathrm{loop}=I_\mathrm{loop}^{n+1/2},
-
-and the engineering-convention transforms apply the corresponding
-:math:`\Delta t` and :math:`\Delta t/2` time offsets. This corrects their
-relative phase without attenuating current by interpolation. The terminal
-current is then
-
-.. math::
-
-    I_\mathrm{terminal}=I_\mathrm{loop}-Y_\mathrm{gap}V.
-
-For this integer-voltage/half-step-current pairing, the discrete parallel-gap
-admittance is
-
-.. math::
-
-    Y_\mathrm{gap} = G_\mathrm{bg}\cos\left(\frac{\omega\Delta t}{2}\right)
-    +j\frac{2C_\mathrm{gap}}{\Delta t}
-    \sin\left(\frac{\omega\Delta t}{2}\right).
-
-This is the FDTD analogue of an ideal delta-gap MoM excitation: voltage is
-imposed and the antenna current is a solved response. The user-supplied
-:math:`Z_0` (or its 50 Ohm default) defines the travelling-wave normalisation
-only. The reported
-quantities are calculated directly as
-
-.. math::
-
-    Z_\mathrm{in}=\frac{V}{I_\mathrm{terminal}},
-    \qquad
-    V^\pm=\frac{V\pm Z_0 I_\mathrm{terminal}}{2},
-    \qquad
-    S_{11}=\frac{V^-}{V^+}.
-
-The gap capacitance and conductance use the effective electric-edge material
-before any artificial source resistance is added. The appropriate discrete
-admittance is used in each source mode so the correction is consistent with
-the trapezoidal Yee update and the mode's voltage/current sampling times.
-
-By default, output stops at the first native FFT bin that does not have at
-least 10 cells per shortest wavelength in the model. For nonmagnetic,
-nondispersive media this is the material with the largest :math:`\epsilon_r`.
-A numeric ``str2`` changes this sampling requirement; values below 10 produce
-a warning and values below 3 are rejected. ``nyquist`` deliberately retains
-the full spectrum but does not claim it is accurate: the lambda/10 limit and
-per-bin mesh/source validity masks are still written to HDF5. The actual
-stored range, native frequency resolution, Nyquist bound, and limiting
-material are reported when the model is built.
-
-.. note::
-
-    * The implementation supports one finite-resistance or zero-resistance
-      voltage source on the main 3D grid with the CPU, CUDA, OpenCL, or Metal
-      solver. A hard-source port uses a 50 Ohm default :math:`Z_0`, which can
-      be overridden on ``#voltage_source``.
-    * MPI, subgrids, 2D modes, geometry-fixed runs, grouped sources, sources
-      inside a PML, and dispersive material on the source edge are currently
-      rejected. Dispersive materials elsewhere in the model are supported.
-      A hard source at a domain-minimum transverse boundary remains a valid
-      excitation, but gprMax warns and omits its automatic port output because
-      the complete current loop cannot be sampled there.
-    * ``S11`` remains the primary result. ``Zin`` is singular near an open
-      circuit (:math:`S_{11}=1`), so gprMax also stores ``Yin`` and separate
-      validity masks.
-    * A time trace that has not decayed before the end of the model window can
-      contaminate the spectrum. gprMax reports a tail-level warning rather
-      than hiding or clipping the result.
 
 #sar:
 -----
@@ -2488,8 +2421,8 @@ Every material in the selected final tagged cells must have a positive mass
 density. Tagged cells inside boundary or internal PML regions are excluded
 automatically. Three- and two-dimensional CPU, CUDA, OpenCL, and Metal
 main-grid models, MPI domain-decomposed CPU models, and three-dimensional CPU
-HSG subgrids are supported. In 2-D, only invariant index zero for TM or index
-one for TE is sampled; tag mass and absorbed power are reported per unit
+or CUDA HSG subgrids are supported. In 2-D, only invariant index zero for TM or
+index one for TE is sampled; tag mass and absorbed power are reported per unit
 invariant length. A ``#sar`` command inside a subgrid block samples the fine
 grid at its own timestep and writes
 ``/subgrids/<subgrid ID>/sar/<output ID>``. Its normalising source may belong
@@ -2578,6 +2511,8 @@ the dimensional meaning of each normalisation.
 #network_port:
 --------------
 
+.. include:: _includes/network_port_outputs.rstinc
+
 Requests time- and frequency-domain port quantities for an existing
 ``#network_terminal``. The terminal ID is also the HDF5 port ID. The syntax is
 
@@ -2617,6 +2552,9 @@ Provides a simple method to allow you to move the location of all simple sources
 
 #study:
 -------
+
+See :doc:`studies` for task selection, Python equivalents, complete examples
+and result processing. This entry defines the CSV interface.
 
 Runs a sequence of source/receiver cases while building the model geometry
 only once. This is the general counterpart to ``#src_steps`` and
@@ -2675,51 +2613,6 @@ declarative NTFF accumulators for each row, while retaining the main model
 geometry. NTFF observation directions also remain fixed: request all angles
 needed across the cases in the input file and select the appropriate direction
 from each numbered output file.
-
-#array_codebook:
-----------------
-
-Associates a versioned JSON array-state codebook with an eigenmode study:
-
-.. code-block:: none
-
-    #study: eigenmode modal_cases.csv
-    #array_codebook: array_states.json
-
-The command has one positional argument, resolved relative to the main input
-file. It is valid only with ``#study: eigenmode``. The study CSV still defines
-the independent one-active-channel solves needed to obtain the complete
-S matrix. The JSON file defines any coherent states to evaluate after that
-matrix has been assembled and, optionally, the far-field requests whose
-linear complex fields should be retained as an embedded basis:
-
-.. code-block:: json
-
-    {
-      "schema": "gprMax-array-codebook-v1",
-      "embedded_far_fields": [
-        {"transform_id": "antenna_band", "output_id": "pattern"}
-      ],
-      "states": [
-        {
-          "id": "broadside",
-          "drives": [
-            {"port": 1, "mode": 1, "power_w": 1.0},
-            {"port": 2, "mode": 1, "power_w": 1.0,
-             "phase_deg": 0.0, "delay_s": 0.0}
-          ]
-        }
-      ]
-    }
-
-``power_w`` is incident modal power, so the complex power-wave magnitude is
-its square root. ``phase_deg`` is a frequency-independent phase shifter and
-``delay_s`` is a true time delay. Both default to zero and ``power_w``
-defaults to one. Omit a channel from a state to leave it passive. Every
-selected far field must identify one existing frequency-domain KSIR or
-equivalent-current far-field request. Retaining fields is opt-in because the
-requested directions, a full-sphere radiation quadrature, and every modal
-channel are stored.
 
 A ``source`` study manages main-grid ``#transmission_line``,
 ``#magnetic_frill_source``, and ``#network_excitation`` commands. Their
@@ -2820,13 +2713,56 @@ of the CSV source.
 
 .. note::
 
-    GPR studies support top-level ``#hertzian_dipole``,
-    ``#magnetic_dipole``, and ``#rx`` objects; port studies additionally
-    support finite-resistance ``#voltage_source`` ports;
-    eigenmode studies support ``#eigenmode_port``, ``#eigenmode_excitation``,
-    and ``#virtual_waveguide``. MPI domain decomposition, task farming, plane
-    waves, transmission lines, and rational/frill ports remain excluded from
-    studies until their family-specific state reset hooks are implemented.
+    The five study families have different source and subgrid restrictions;
+    see :ref:`study-compatibility`. ``source`` studies support transmission
+    lines, magnetic frills and rational-network excitations; ``plane_wave``
+    studies support a main-grid discrete-plane-wave template. MPI domain
+    decomposition and task farming are not enabled for any study family.
+
+#array_codebook:
+----------------
+
+Associates a versioned JSON array-state codebook with an eigenmode study:
+
+.. code-block:: none
+
+    #study: eigenmode modal_cases.csv
+    #array_codebook: array_states.json
+
+The command has one positional argument, resolved relative to the main input
+file. It is valid only with ``#study: eigenmode``. The study CSV still defines
+the independent one-active-channel solves needed to obtain the complete
+S matrix. The JSON file defines any coherent states to evaluate after that
+matrix has been assembled and, optionally, the far-field requests whose
+linear complex fields should be retained as an embedded basis:
+
+.. code-block:: json
+
+    {
+      "schema": "gprMax-array-codebook-v1",
+      "embedded_far_fields": [
+        {"transform_id": "antenna_band", "output_id": "pattern"}
+      ],
+      "states": [
+        {
+          "id": "broadside",
+          "drives": [
+            {"port": 1, "mode": 1, "power_w": 1.0},
+            {"port": 2, "mode": 1, "power_w": 1.0,
+             "phase_deg": 0.0, "delay_s": 0.0}
+          ]
+        }
+      ]
+    }
+
+``power_w`` is incident modal power, so the complex power-wave magnitude is
+its square root. ``phase_deg`` is a frequency-independent phase shifter and
+``delay_s`` is a true time delay. Both default to zero and ``power_w``
+defaults to one. Omit a channel from a state to leave it passive. Every
+selected far field must identify one existing frequency-domain KSIR or
+equivalent-current far-field request. Retaining fields is opt-in because the
+requested directions, a full-sphere radiation quadrature, and every modal
+channel are stored.
 
 #snapshot:
 ----------
@@ -3290,7 +3226,9 @@ For a voltage source, ``port_id`` is the source's optional ID, or its
 automatically assigned ``portN`` ID.
 Transmission-line and magnetic-frill sources provide automatic port IDs
 ``tl1``, ``tl2``, ... and ``frill1``, ``frill2``, ... respectively, in source
-creation order. The association is not required for electric or magnetic far
+creation order. Rational-network ports use their terminal ID and require an
+explicit ``#network_port``. See :ref:`port-power-accounting` for passive-load
+power accounting. The association is not required for electric or magnetic far
 fields, radiation intensity, RCS, or directivity. It is required when a
 far-field command asks for gain or efficiency.
 
@@ -3308,8 +3246,9 @@ A port on a subgrid is named as ``subgrid_id/port_id``. For example,
 ``fine_grid/frill1``. Main-grid IDs remain unqualified. Each subgrid port is
 post-processed using its owning grid's finer spatial and temporal steps.
 
-The listed set must include **every** physical voltage, transmission-line, and
-magnetic-frill port in the model. This requirement makes the net accepted power
+The listed set must include **every** physical voltage, transmission-line,
+magnetic-frill and explicitly monitored rational-network port in the model.
+Every excited network terminal must have a ``#network_port``. This requirement makes the net accepted power
 unambiguous in coupled multiport antennas. A source whose waveform amplitude is
 zero is still a terminated physical port: list it normally. It has zero
 incident power, but coupling from driven ports can make its accepted power
@@ -3422,8 +3361,8 @@ each field dataset.
 #ntff_time_far_field: and #ntff_time_far_field_array:
 -----------------------------------------------------
 
-Request transient far-zone fields using the modified one-step
-equivalent-current construction of Giannopoulos *et al.* [GIAFF1997]_:
+Request transient far-zone fields using homogeneous time-domain
+equivalent-current NTFF:
 
 .. code-block:: none
 
@@ -3873,11 +3812,11 @@ An automatically generated internal identifier is reported in the log. The
 hash command defines a slab on the main 3D grid. With the Python API a slab may
 instead be added to an HSG subgrid, provided the complete slab lies inside its
 working region and does not overlap the HSG coupling or auxiliary-PML regions.
-Subgrid slabs use the CPU or CUDA solver and the subgrid's local spatial and temporal
-discretisation. Domain-decomposed MPI CPU models are also supported. A slab may
-cross any number of rank boundaries. Its CFS grading is evaluated over the
-complete global thickness and sliced consistently between ranks, while each
-rank allocates only the PML history arrays for its local part. Consequently,
+Subgrid slabs use the CPU or CUDA solver and the subgrid's local spatial and
+temporal discretisation. Main-grid domain-decomposed MPI CPU models are also
+supported. A slab may cross any number of rank boundaries. Its CFS grading is
+evaluated over the complete global thickness and sliced consistently between
+ranks, while each rank allocates only the PML history arrays for its local part. Consequently,
 the timestep loop needs no slab-specific communication in addition to the
 normal electric- and magnetic-field halo exchanges. Automatic PEC enclosure,
 material-extrusion validation, custom profiles, and boundary-replacement slabs

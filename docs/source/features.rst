@@ -43,7 +43,8 @@ Excitation options
 
 Models can be excited using the range of local sources available in gprMax:
 Hertzian electric and magnetic dipoles, hard or resistive voltage sources, and
-one-dimensional transmission-line feeds. The dipoles provide idealised local
+one-dimensional transmission-line feeds, coaxial magnetic-frill feeds and
+rational lumped-network terminals. The dipoles provide idealised local
 radiators, while voltage and transmission-line sources can feed explicit
 antenna geometries.
 
@@ -72,8 +73,21 @@ leakage into the scattered-field region. Plane waves can be specified by
 propagation angles or an integer direction vector in a homogeneous background;
 an axial form is available for normally incident layered-media models.
 
-The source, eigenmode, and plane-wave commands are described in
-:ref:`input-hash-cmds`.
+See :doc:`sources_ports` for source selection, automatic versus explicit
+ports, passive receiver loading, signal timing and output processing.
+The source, eigenmode and plane-wave syntax is in :ref:`input-hash-cmds`
+and :ref:`input-api`.
+
+Reusable studies
+================
+
+Five study families reuse built geometry for point-source acquisitions,
+fixed terminal drives, voltage-port S matrices, modal S matrices/array
+synthesis, and incident plane-wave sweeps. Each manages its own per-case
+source and output state. See :doc:`studies` for task selection, CSV/Python
+examples, backend restrictions, restart and processing. Geometry/material
+optimisation requires separate model builds and is described in
+:doc:`inc_Optimisation`.
 
 .. _ntff-formulations:
 
@@ -83,11 +97,11 @@ Near-to-far-field transformations
 gprMax provides two complementary surface formulations. The Kirchhoff
 surface-integral representation (KSIR) reconstructs finite-distance fields as
 well as far fields in the time and frequency domains. The conventional
-Love-equivalent-current formulation provides an independent far-zone result,
-using a direct frequency-domain transform or the modified time-domain method
-of Giannopoulos *et al.* [GIAFF1997]_. A closed ``NTFFSurface`` can be reused
-by both formulations, so their results can be compared without changing the
-FDTD model or integration surface.
+Love-equivalent-current formulation provides an independent far-zone result
+in either domain. Time-domain NTFF is therefore available through both KSIR
+and equivalent currents; only KSIR also reconstructs finite-distance fields.
+A closed ``NTFFSurface`` can be reused by both formulations, so their results
+can be compared without changing the FDTD model or integration surface.
 
 The available formulations are summarised below.
 
@@ -110,16 +124,16 @@ The available formulations are summarised below.
      - Frequency
      - No
      - Any user-selected nonempty subset of the six faces
+   * - Love currents
+     - Far-zone fields
+     - Time
+     - No
+     - CPU/CUDA/OpenCL/Metal; six physical faces are required
    * - Planar-layered Love currents [CAP2012]_
      - Far-zone fields
      - Frequency
      - No
      - TE/TM propagation through lossy or dispersive planar stacks
-   * - Modified Love currents [GIAFF1997]_
-     - Far-zone fields
-     - Time
-     - No
-     - CPU/CUDA/OpenCL/Metal; six physical faces are required
    * - Planar-layered direct Love currents [CAP2007]_
      - Far-zone fields
      - Time
@@ -148,8 +162,9 @@ with
     \eta_b=\sqrt{\frac{\mu_b}{\epsilon_b}},\qquad
     k=\frac{\omega}{c_b}.
 
-The planar-layered frequency transform is the exception to the homogeneous
-background restriction: its surface may cross the declared interfaces.
+The planar-layered transforms are exceptions to the homogeneous background
+restriction: their surfaces may cross the declared interfaces. The direct
+time-domain transform additionally requires lossless, nondispersive layers.
 Ramahi/KSIR requires a closed six-face surface, independently of source type.
 A virtual waveguide lets an eigenmode-fed antenna retain a matched guide port
 while placing all six surface faces in the homogeneous main-domain exterior.
@@ -271,6 +286,15 @@ Love currents are then
     \qquad
     \mathbf M_s=-\hat{\mathbf n}\times\mathbf E.
 
+Equivalent-current outputs are far-zone quantities and therefore have no
+radius parameter. KSIR remains the appropriate choice when finite-distance or
+near-field reconstruction is required. The frequency-domain, homogeneous
+transient, and planar-layered transient equivalent-current collectors support
+CPU, CUDA, OpenCL, and Metal; MPI is available with the CPU solver. Angular
+frequency-domain evaluation remains Cython/OpenMP post-processing, while
+accelerator transient collectors retain their sampled currents and accumulated
+far-field traces on the device until finalisation.
+
 Frequency-domain far field
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -303,6 +327,46 @@ For the engineering convention stated above, the stored electric far field is
 This supplies radiation patterns, antenna quantities, and RCS independently
 of the scalar KSIR construction. Direct frequency accumulation avoids storing
 the complete surface-field history.
+
+.. _ntff-equivalent-current-time:
+
+Time-domain far field
+^^^^^^^^^^^^^^^^^^^^^
+
+The equivalent-current formulation also computes transient far fields
+directly, without a frequency transform, using the time-domain surface
+integral of Luebbers *et al.* [LUE1991]_. For a homogeneous background, let
+:math:`\tau=t-r/c_b` be reduced time and let a dot denote a time derivative.
+The range-normalised electric field is
+
+.. math::
+
+    \mathbf F_E(\hat{\mathbf r},\tau)
+    =-\frac{1}{4\pi c_b}\oint_S
+    \left[
+    \eta_b\dot{\mathbf J}_{s,t}
+    -\hat{\mathbf r}\times\dot{\mathbf M}_s
+    \right]
+    \left(\tau+\frac{\hat{\mathbf r}\cdot
+    (\mathbf r'-\mathbf r_0)}{c_b}\right)\,\mathrm dS',
+
+where :math:`\mathbf J_{s,t}` is the component of :math:`\mathbf J_s`
+transverse to the observation direction. The magnetic far field follows
+from :math:`\mathbf F_H=(\hat{\mathbf r}\times\mathbf F_E)/\eta_b`.
+
+gprMax applies the small modification described by Giannopoulos *et al.*
+[GIAFF1997]_ to this homogeneous time-domain calculation: the electric and
+magnetic current derivatives retain their natural Yee time staggering,
+avoiding an additional interpolation onto a common time level. Fractional
+propagation delays still use linear interpolation. This is a refinement of
+the equivalent-current method, not a separate NTFF formulation or a
+modification of the planar-layered method of Çapoğlu described below.
+
+Use ``NTFFTimeFarField`` or ``NTFFTimeFarFieldArray`` (hash commands
+``#ntff_time_far_field`` and ``#ntff_time_far_field_array``) with a closed
+six-face surface. Only the interval supported by every integration patch is
+returned, excluding the range-dependent zero prefix and incomplete
+retarded-time tail.
 
 Planar-layered frequency-domain far field
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -427,59 +491,9 @@ and :math:`\tau_p` is the sum of its layer traversal times. gprMax enumerates
 these multiple-reflection paths down to a user-controlled relative amplitude
 tolerance, coalesces coincident path events and impulses, then convolves them
 directly with the time derivatives of the six-face Love currents. The electric
-and magnetic current derivatives retain the natural Yee half-step placement
-of the 1997 homogeneous transform; only each generally fractional propagation
-delay is linearly deposited between output samples.
-
-This direct construction avoids a bank of per-frequency surface DFTs and
-returns a broadband transient in one run. It is intentionally not applied to
-lossy or dispersive layers, where the Green responses are no longer delayed
-impulse trains, or to a direction which is evanescent in any layer. Those
-cases remain available through the planar-layered frequency transform. Exact
-grazing is singular. The first implementation uses a Cython/OpenMP CPU kernel
-and supports MPI surface partitioning; accelerator backends currently use the
-frequency-domain formulation.
-
-Modified 1997 time-domain far field
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Let :math:`\tau=t-r/c_b` be reduced time and let a dot denote a time
-derivative. The range-normalised transient electric field implemented by
-gprMax is
-
-.. math::
-
-    \mathbf F_E(\hat{\mathbf r},\tau)
-    =-\frac{1}{4\pi c_b}\oint_S
-    \left[
-    \eta_b\dot{\mathbf J}_{s,t}
-    -\hat{\mathbf r}\times\dot{\mathbf M}_s
-    \right]
-    \left(\tau+\frac{\hat{\mathbf r}\cdot
-    (\mathbf r'-\mathbf r_0)}{c_b}\right)\,\mathrm dS',
-
-where
-
-.. math::
-
-    \mathbf J_{s,t}=\mathbf J_s-
-    \hat{\mathbf r}(\hat{\mathbf r}\cdot\mathbf J_s)
-
-is transverse to the observation direction. The magnetic far field follows
-from :math:`\mathbf F_H=(\hat{\mathbf r}\times\mathbf F_E)/\eta_b`.
-
-The original Luebbers time-domain construction [LUE1991]_ interpolates the
-electric and magnetic equivalent-current contributions onto a common time
-level. The modification of Giannopoulos *et al.* [GIAFF1997]_ instead retains
-their natural Yee staggering. In gprMax,
-:math:`\mathbf M_s^n=-\hat{\mathbf n}\times\mathbf E^n` is differenced at
-:math:`(n-1/2)\Delta t`, whereas
-:math:`\mathbf J_s^{n+1/2}=\hat{\mathbf n}\times\mathbf H^{n+1/2}` is
-differenced at :math:`n\Delta t`. The two contributions are deposited
-independently; linear interpolation is used only for the generally fractional
-propagation delay to the reduced-time grid. Thus the extra Yee-time
-interpolation removed by the 1997 method is not reintroduced by the
-implementation.
+and magnetic current derivatives retain their natural Yee half-step
+placement; generally fractional propagation delays are linearly deposited
+between output samples.
 
 At a terminal PEC the travelling voltage wave reflects with coefficient
 minus one. For example, a dielectric slab of thickness :math:`h` produces
@@ -497,18 +511,13 @@ omitted: the grounded Green function enforces the required image
 cancellation. Other omitted faces remain invalid for a direct time-domain
 transform.
 
-Only the interval supported by every integration patch is returned. This
-removes the range-dependent zero prefix and prevents an incomplete
-retarded-time tail from being presented as a physical late-time response.
-
-Equivalent-current outputs are far-zone quantities and therefore have no
-radius parameter. KSIR remains the appropriate choice when finite-distance or
-near-field reconstruction is required. The frequency-domain, homogeneous
-transient, and planar-layered transient equivalent-current collectors support
-CPU, CUDA, OpenCL, and Metal; MPI is available with the CPU solver. Angular
-frequency-domain evaluation remains Cython/OpenMP post-processing, while
-accelerator transient collectors retain their sampled currents and accumulated
-far-field traces on the device until finalisation.
+This direct construction avoids a bank of per-frequency surface DFTs and
+returns a broadband transient in one run. It is intentionally not applied to
+lossy or dispersive layers, where the Green responses are no longer delayed
+impulse trains, or to a direction which is evanescent in any layer. Those
+cases remain available through the planar-layered frequency transform. Exact
+grazing is singular. CPU and MPI execution use a Cython/OpenMP accumulation
+kernel; CUDA, OpenCL, and Metal use device-resident collection and deposition.
 
 Subgridding
 ===========

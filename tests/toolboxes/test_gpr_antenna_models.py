@@ -54,16 +54,15 @@ def test_gssi_2000_geometry_and_feed_match_published_model():
     assert sum(isinstance(obj, gprMax.Material) for obj in objects) == 10
     assert sum(isinstance(obj, gprMax.Box) for obj in objects) == 26
     assert sum(isinstance(obj, gprMax.Plate) for obj in objects) == 69
-    assert sum(isinstance(obj, gprMax.Edge) for obj in objects) == 2
+    assert sum(isinstance(obj, gprMax.Edge) for obj in objects) == 1
 
     waveform = next(obj for obj in objects if isinstance(obj, gprMax.Waveform))
-    source = next(obj for obj in objects if isinstance(obj, gprMax.VoltageSource))
+    sources = {obj.id: obj for obj in objects if isinstance(obj, gprMax.VoltageSource)}
+    source = sources["gssi2000_tx"]
+    passive_receiver = sources["gssi2000_rx"]
+    waveforms = {obj.kwargs["id"]: obj for obj in objects if isinstance(obj, gprMax.Waveform)}
     receiver = next(obj for obj in objects if isinstance(obj, gprMax.Rx))
-    materials = {
-        obj.kwargs["id"]: obj
-        for obj in objects
-        if isinstance(obj, gprMax.Material)
-    }
+    materials = {obj.kwargs["id"]: obj for obj in objects if isinstance(obj, gprMax.Material)}
 
     assert waveform.kwargs["amp"] == -1
     assert waveform.kwargs["freq"] == pytest.approx(2.12e9)
@@ -71,7 +70,14 @@ def test_gssi_2000_geometry_and_feed_match_published_model():
     assert source.resistance == pytest.approx(560)
     assert receiver.point == pytest.approx((0.145, 0.124, 0.043))
     assert receiver.outputs == ["Ey"]
-    assert materials["gssi2000_rxres"].kwargs["se"] == pytest.approx(0.0049998)
+    assert set(sources) == {"gssi2000_tx", "gssi2000_rx"}
+    assert passive_receiver.point == receiver.point
+    assert passive_receiver.polarisation == source.polarisation == "y"
+    assert passive_receiver.resistance == pytest.approx(200008.0107)
+    assert waveforms[passive_receiver.waveform_id].kwargs["amp"] == 0
+    assert source.spectrum_limit == passive_receiver.spectrum_limit == 10
+    assert materials["gssi2000_rxres"].kwargs["se"] == 0
+    assert materials["gssi2000_rxres"].kwargs["er"] == 1.056
     assert materials["gssi2000_absorber1"].kwargs["se"] == pytest.approx(1.0869565)
     assert materials["gssi2000_absorber2"].kwargs["se"] == pytest.approx(1.2658228)
 
@@ -83,6 +89,15 @@ def test_gssi_2000_geometry_and_feed_match_published_model():
     assert max(point[1] for point in points) == pytest.approx(position[1] + 0.045)
     assert min(point[2] for point in points) == pytest.approx(position[2])
     assert max(point[2] for point in points) == pytest.approx(position[2] + 0.068)
+
+
+def test_gssi_2000_explicit_research_spectrum_reaches_both_ports():
+    objects = antenna_like_GSSI_2000(0.125, 0.125, 0.04, spectrum_limit="nyquist")
+    sources = [obj for obj in objects if isinstance(obj, gprMax.VoltageSource)]
+    assert len(sources) == 2
+    assert all(source.spectrum_limit == "nyquist" for source in sources)
+    with pytest.raises(ValueError):
+        antenna_like_GSSI_2000(0.125, 0.125, 0.04, spectrum_limit="invalid")
 
 
 def test_gssi_2000_rejects_unsupported_resolution():

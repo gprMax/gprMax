@@ -13,6 +13,7 @@ The current complementary cases are:
 | `antenna_dipole_fs` | Thin wire, closed-form pattern, source-edge current, one-port S11 |
 | `antenna_monopole_fs` | Finite PEC ground plate, edge diffraction, back radiation |
 | `antenna_bowtie_fs` | Planar triangular PEC rasterisation, x-directed feed |
+| `antenna_vivaldi_fs` | Exponential PEC slot, exported MATLAB outline, native voltage port, full-circle patterns and mesh sensitivity |
 | `antenna_dipole_array_fs` | Coherent dual feeds, mutual coupling, active impedance, array factor |
 | `antenna_patch_fs` | Dielectric substrate, finite ground, probe feeds, mesh convergence |
 | `antenna_reflector_grounded` | Strip dipole above an infinite PEC plane, five-face layered NTFF |
@@ -27,7 +28,8 @@ Every modern case follows the same evidence chain:
 5. create plots and machine-readable quantitative metrics; and
 6. write a fine `vtkhdf` geometry for inspection in ParaView.
 
-The patterns are globally normalised and test angular shape, not realised
+Some older cases use globally normalised patterns to test angular shape;
+the newer metric comparisons also retain absolute directivity and realised
 gain. Port comparisons are more sensitive because FDTD Yee-edge feeds and
 staircased conductors cannot be exactly identical to MoM delta-gap ports and
 continuous surfaces. Each case README states its equivalence assumptions,
