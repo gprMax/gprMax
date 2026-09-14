@@ -44,6 +44,10 @@ class Plate(GeometryUserObject):
     def hash(self):
         return "#plate"
 
+    _allowed_kwargs = frozenset({
+        "material_id", "material_ids", "p1", "p2",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

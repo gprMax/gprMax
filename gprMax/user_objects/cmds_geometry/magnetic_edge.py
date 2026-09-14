@@ -46,6 +46,10 @@ class MagneticEdge(GeometryUserObject):
     def hash(self):
         return "#magnetic_edge"
 
+    _allowed_kwargs = frozenset({
+        "material_id", "p1", "p2",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

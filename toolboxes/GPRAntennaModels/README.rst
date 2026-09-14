@@ -7,6 +7,10 @@ GPR Antenna Models
 Information
 ===========
 
+Optional optimisation keyword names are checked. Unknown names raise
+``TypeError`` instead of being ignored, even if their value is ``None`` or
+zero. Supply the documented parameter set for the selected antenna.
+
 The package features models of antennas similar to commercial GPR antennas. The following antenna models are included:
 
 ======================== ============= ============= ========================================================================================================================================================================================================================= ================

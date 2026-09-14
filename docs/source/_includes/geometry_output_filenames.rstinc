@@ -1,0 +1,13 @@
+.. warning::
+
+    Geometry files and simulation results both use ``.h5``. For a single
+    run, ``model.in`` produces ``model.h5`` by default. If the geometry
+    input is that same file, saving the simulation results overwrites it
+    without confirmation. Importing the geometry does not protect the
+    original file from later output writes.
+
+    Use distinct paths for geometry and results: for example, name the
+    geometry file ``model_geometry.h5``, choose a separate output directory,
+    or set a different result basename with ``-o`` on the command line or
+    ``outputfile`` in the Python API. The same precaution applies when
+    choosing a geometry-export filename.

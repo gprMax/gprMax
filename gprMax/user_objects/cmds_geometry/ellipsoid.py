@@ -52,6 +52,10 @@ class Ellipsoid(GeometryUserObject):
     def hash(self):
         return "#ellipsoid"
 
+    _allowed_kwargs = frozenset({
+        "averaging", "material_id", "material_ids", "p1", "tag", "xr", "yr", "zr",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

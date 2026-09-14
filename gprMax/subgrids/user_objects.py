@@ -235,7 +235,6 @@ class SubGridHSG(SubGridBase):
         subgrid_pml_thickness=6,
         interpolation=1,
         filter=True,
-        **kwargs,
     ):
         # The HSG formulation fixes this separation. Keep the public argument
         # for API compatibility, but deliberately do not use a supplied value.
@@ -250,6 +249,7 @@ class SubGridHSG(SubGridBase):
             filter = False
 
         # Copy over the optional parameters
+        kwargs = {}
         kwargs["p1"] = p1
         kwargs["p2"] = p2
         kwargs["ratio"] = ratio

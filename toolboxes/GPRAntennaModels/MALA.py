@@ -6,6 +6,7 @@
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
 import gprMax
+from gprMax.utilities.validation import validate_keywords
 
 
 def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
@@ -46,6 +47,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     # If using parameters from an optimisation
     if kwargs:
         required = {"excitationfreq", "sourceresistance", "absorberEr", "absorbersig"}
+        validate_keywords(kwargs, required, context="antenna_like_MALA_1200")
         missing = sorted(required - kwargs.keys())
         if missing:
             raise ValueError(

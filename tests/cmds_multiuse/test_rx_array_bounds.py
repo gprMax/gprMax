@@ -176,6 +176,98 @@ def test_reduced_array_preserves_single_live_layer(built_model, tmp_path, family
     np.testing.assert_array_equal([rx.coord for rx in grid.rxs], expected)
 
 
+@pytest.mark.parametrize("family", ("TM", "TE"))
+@pytest.mark.parametrize("axis", range(3))
+@pytest.mark.parametrize("sign", (-1, 1))
+def test_symbolic_array_is_reusable_in_independent_builds(built_model, tmp_path, family, axis, sign):
+    """A new full build resolves inf afresh; no running mesh is changed."""
+    domain = [0.04] * 3
+    lower, upper, step = [0.02] * 3, [0.02] * 3, [0.0] * 3
+    domain[axis] = lower[axis] = upper[axis] = sign * float("inf")
+    varying = (axis + 1) % 3
+    lower[varying], upper[varying], step[varying] = 0.022, 0.026, 0.002
+    kwargs = dict(p1=tuple(lower), p2=tuple(upper), dl=tuple(step))
+    array = gprMax.RxArray(**kwargs)
+    for spacing, mode in ((0.002, family), (0.001, family), (0.001, "TE"), (0.001, "TM")):
+        coordinates = []
+        for declaration in (array, gprMax.RxArray(**kwargs)):
+            scene = _scene((spacing,) * 3, tuple(domain))
+            scene.add(gprMax.DomainMode(mode=mode))
+            scene.add(declaration)
+            grid = _build(scene, built_model, tmp_path)
+            coordinates.append(np.array([rx.coord for rx in grid.rxs]))
+            assert declaration.lower_point == kwargs["p1"]
+            assert declaration.upper_point == kwargs["p2"]
+            assert declaration.kwargs == kwargs
+        np.testing.assert_array_equal(*coordinates)
+        assert len(coordinates[0]) == 3
+        np.testing.assert_array_equal(coordinates[0][:, axis], 1 if mode == "TE" else 0)
+
+
+def test_reused_array_reresolves_transverse_domain_extent(built_model, tmp_path):
+    array = gprMax.RxArray(
+        p1=(float("inf"), 0.02, float("inf")), p2=(float("inf"), 0.02, float("inf")), dl=(0.002, 0, 0)
+    )
+    for extent in (0.04, 0.06):
+        scene = _scene((0.002,) * 3, (extent, 0.04, float("inf")))
+        scene.add(gprMax.DomainMode(mode="TE"))
+        scene.add(array)
+        grid = _build(scene, built_model, tmp_path)
+        np.testing.assert_array_equal([rx.coord[0] for rx in grid.rxs], np.arange(round(extent / 0.002) + 1))
+
+
+@pytest.mark.parametrize(
+    "backend", ["cpu", pytest.param("cuda", marks=pytest.mark.gpu), pytest.param("opencl", marks=pytest.mark.gpu)]
+)
+@pytest.mark.parametrize("axis", range(3))
+def test_reused_te_array_records_same_fields_as_fresh_array(tmp_path, request, backend, axis):
+    options = {}
+    if backend != "cpu":
+        options["gpu" if backend == "cuda" else "opencl"] = [
+            request.getfixturevalue("gpu_device" if backend == "cuda" else "opencl_device")
+        ]
+    varying = (axis + 1) % 3
+    source, lower, upper, domain = ([0.02] * 3 for _ in range(4))
+    domain[:] = [0.04] * 3
+    for point in (source, lower, upper, domain):
+        point[axis] = float("inf")
+    lower[varying], upper[varying] = 0.022, 0.026
+    step = [0.0] * 3
+    step[varying] = 0.002
+    array_kwargs = dict(p1=tuple(lower), p2=tuple(upper), dl=tuple(step))
+    array = gprMax.RxArray(**array_kwargs)
+    for name, spacing, declaration in (
+        ("coarse", 0.002, array),
+        ("reused", 0.001, array),
+        ("fresh", 0.001, gprMax.RxArray(**array_kwargs)),
+    ):
+        scene = gprMax.Scene()
+        for obj in (
+            gprMax.Discretisation((spacing,) * 3),
+            gprMax.Domain(tuple(domain)),
+            gprMax.DomainMode("TE"),
+            gprMax.TimeWindow(iterations=32),
+            gprMax.OMPThreads(1),
+            gprMax.PMLThickness(0),
+            gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="pulse"),
+            gprMax.HertzianDipole(p1=tuple(source), polarisation="xyz"[varying], waveform_id="pulse"),
+            declaration,
+        ):
+            scene.add(obj)
+        gprMax.run(scenes=[scene], outputfile=tmp_path / name, hide_progress_bars=True, **options)
+    with h5py.File(tmp_path / "reused.h5") as reused, h5py.File(tmp_path / "fresh.h5") as fresh:
+        assert len(reused["rxs"]) == len(fresh["rxs"]) == 3
+        for name in reused["rxs"]:
+            np.testing.assert_array_equal(
+                reused[f"rxs/{name}"].attrs["Position"], fresh[f"rxs/{name}"].attrs["Position"]
+            )
+            for component in reused[f"rxs/{name}"]:
+                np.testing.assert_array_equal(
+                    reused[f"rxs/{name}/{component}"][...], fresh[f"rxs/{name}/{component}"][...]
+                )
+            assert np.any(reused[f"rxs/{name}/E{'xyz'[varying]}"][...])
+
+
 @pytest.mark.parametrize("autotranslate", (True, False))
 def test_off_origin_subgrid_uses_fine_grid_and_correct_coordinate_frame(built_model, tmp_path, autotranslate):
     scene = _scene((0.003,) * 3, (0.09,) * 3)

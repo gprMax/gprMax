@@ -1384,6 +1384,8 @@ database. The syntax of the command is:
   voxelised tissue or other dielectric models when smoothed interfaces are
   desired.
 
+.. include:: _includes/geometry_output_filenames.rstinc
+
 .. note::
 
     * Store the cell-material indices in an integer array at the root named

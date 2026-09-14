@@ -45,6 +45,10 @@ class AddSurfaceWater(GeometryUserObject):
     def hash(self):
         return "#add_surface_water"
 
+    _allowed_kwargs = frozenset({
+        "depth", "fractal_box_id", "p1", "p2",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

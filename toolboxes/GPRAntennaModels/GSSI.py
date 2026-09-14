@@ -11,6 +11,7 @@
 from pathlib import Path
 
 import gprMax
+from gprMax.utilities.validation import validate_keywords
 
 
 def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
@@ -81,6 +82,10 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
             "hdpeEr",
             "hdpesig",
         }
+        validate_keywords(
+            kwargs, required | {"excitationfreq", "sourceresistance"},
+            context="antenna_like_GSSI_1500",
+        )
         missing = sorted(required - kwargs.keys())
         if missing:
             raise ValueError(
@@ -773,6 +778,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     # If using parameters from an optimisation
     if kwargs:
         required = {"excitationfreq", "sourceresistance", "absorberEr", "absorbersig"}
+        validate_keywords(kwargs, required, context="antenna_like_GSSI_400")
         missing = sorted(required - kwargs.keys())
         if missing:
             raise ValueError(

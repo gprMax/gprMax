@@ -57,6 +57,10 @@ class Triangle(GeometryUserObject):
     def hash(self):
         return "#triangle"
 
+    _allowed_kwargs = frozenset({
+        "averaging", "material_id", "material_ids", "p1", "p2", "p3", "tag", "thickness",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

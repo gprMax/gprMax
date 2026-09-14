@@ -85,13 +85,17 @@ class GeometryObjectsRead(GeometryUserObject):
     def hash(self):
         return "#geometry_objects_read"
 
+    _allowed_kwargs = frozenset({
+        "averaging", "geofile", "material_database", "matfile", "p1",
+    })
+
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         if kwargs.get("matfile") is not None:
             raise _legacy_conversion_error(kwargs.get("geofile", "geometry.h5"), kwargs["matfile"])
         database = kwargs.get("material_database")
         if isinstance(database, (str, Path)) and str(database).lower().endswith(".txt"):
             raise _legacy_conversion_error(kwargs.get("geofile", "geometry.h5"), database)
-        super().__init__(**kwargs)
         self._declared_tags_cache = None
 
     def _resolve_geofile(self) -> Path:

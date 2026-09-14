@@ -26,10 +26,19 @@ The API syntax is generally more verbose than the hash-command syntax.
 However, for commands with a variable number of parameters, such as those
 that add dispersive properties, the API may be more manageable.
 
+Keyword names are checked when a model object is constructed. Unknown
+keywords raise ``TypeError``, including when their value is ``None``,
+``False``, zero, or an empty string. For example, ``averagin=False`` is an
+error; use ``averaging=False``. This also applies to optional optimisation
+parameters in the GPR antenna toolbox. No spelling is corrected automatically.
+Use the parameters documented for the particular command or antenna.
+
 Source/receiver positions and output bounds containing ``inf`` are resolved
 against each grid when it is built. The declaration retains its symbolic
 coordinates, so reusing it with a different grid spacing or domain does not
-freeze the first build's resolved position.
+freeze the first build's resolved position. This refers to independent full
+model builds; ``geometry_fixed`` and study reuse do not change an existing
+grid's discretisation.
 
 ``str(user_object)`` is a readable, hash-command-style diagnostic, not a general
 API-to-input-file exporter. In particular, omitted optional fields do not
@@ -681,6 +690,8 @@ The ``matfile`` argument is no longer supported. To reuse an old HDF5 geometry
 with text material commands, follow :ref:`legacy_geometry_conversion`, then
 use ``geofile="geometry_converted.h5", material_database="geometry_materials"``.
 The insertion coordinates and averaging option remain unchanged.
+
+.. include:: _includes/geometry_output_filenames.rstinc
 
 Geometry Objects Write
 ----------------------

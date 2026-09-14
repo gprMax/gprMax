@@ -53,6 +53,10 @@ class Box(GeometryUserObject):
     def hash(self):
         return "#box"
 
+    _allowed_kwargs = frozenset({
+        "averaging", "material_id", "material_ids", "p1", "p2", "tag",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
