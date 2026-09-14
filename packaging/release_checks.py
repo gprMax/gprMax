@@ -22,7 +22,7 @@ EXPECTED_WHEELS = {(python, platform) for python in PYTHONS for platform in PLAT
 
 
 def release_version(path: Path, ref: str, destination: str) -> str:
-    """Read a literal version and require its exact tag for either index."""
+    """Read a package version and require its exact v.<version> tag for either index."""
     if destination not in {"dry-run", "testpypi", "pypi"}:
         raise ValueError(f"Unknown destination: {destination}")
     values = [
@@ -37,8 +37,9 @@ def release_version(path: Path, ref: str, destination: str) -> str:
     version = Version(value)
     if str(version) != value or version.local is not None or version.epoch:
         raise ValueError(f"Use a canonical public version without a local suffix or epoch: {value}")
-    if destination != "dry-run" and ref != f"refs/tags/v{value}":
-        raise ValueError(f"Publishing requires refs/tags/v{value}; selected {ref}")
+    expected_ref = f"refs/tags/v.{value}"
+    if destination != "dry-run" and ref != expected_ref:
+        raise ValueError(f"Publishing requires {expected_ref}; selected {ref}")
     return value
 
 

@@ -54,33 +54,86 @@ def distributions(tmp_path):
 
 
 @pytest.mark.parametrize("destination", ["dry-run", "testpypi", "pypi"])
-def test_release_version_accepts_matching_tag(tmp_path, destination):
+@pytest.mark.parametrize("version", ["4.0.0", "4.0.0rc1", "4.0.1"])
+def test_release_version_accepts_matching_tag(tmp_path, destination, version):
     path = tmp_path / "version.py"
-    path.write_text('__version__ = "4.0.0"\nraise RuntimeError("must not execute")\n')
-    assert checks.release_version(path, "refs/tags/v4.0.0", destination) == "4.0.0"
+    path.write_text(f'__version__ = "{version}"\nraise RuntimeError("must not execute")\n')
+    assert checks.release_version(path, f"refs/tags/v.{version}", destination) == version
 
 
 @pytest.mark.parametrize("destination", ["testpypi", "pypi"])
-@pytest.mark.parametrize("ref", ["refs/heads/devel", "refs/heads/v4.0.0", "refs/pull/1/merge", "refs/tags/v3.1.7"])
+@pytest.mark.parametrize(
+    "ref",
+    [
+        "refs/heads/master",
+        "refs/heads/devel",
+        "refs/heads/v.4.0.0",
+        "refs/pull/1/merge",
+        "refs/tags/v4.0.0",
+        "refs/tags/4.0.0",
+        "refs/tags/v.3.1.7",
+        "refs/tags/v.4.0.1",
+        "refs/tags/v.4.0.0rc1",
+        "refs/tags/v.4.0.0-Caol-Ila",
+    ],
+)
 def test_publishing_rejects_branch_pr_or_wrong_tag(tmp_path, destination, ref):
     path = tmp_path / "version.py"
     path.write_text('__version__ = "4.0.0"\n')
-    with pytest.raises(ValueError, match="Publishing requires"):
+    with pytest.raises(ValueError, match=r"Publishing requires refs/tags/v\.4\.0\.0;"):
         checks.release_version(path, ref, destination)
 
 
-def test_branch_dry_run_is_allowed(tmp_path):
+@pytest.mark.parametrize("ref", ["refs/heads/master", "refs/heads/devel"])
+def test_branch_dry_run_is_allowed(tmp_path, ref):
     path = tmp_path / "version.py"
     path.write_text('__version__ = "4.0.0"\n')
-    assert checks.release_version(path, "refs/heads/devel", "dry-run") == "4.0.0"
+    assert checks.release_version(path, ref, "dry-run") == "4.0.0"
 
 
-@pytest.mark.parametrize("version", ["v4.0.0", "4.0.0+local", "1!4.0.0", "invalid"])
+@pytest.mark.parametrize("version", ["v4.0.0", "v.4.0.0", "4.0.0+local", "1!4.0.0", "invalid"])
 def test_rejects_non_public_or_noncanonical_version(tmp_path, version):
     path = tmp_path / "version.py"
     path.write_text(f"__version__ = {version!r}\n")
     with pytest.raises(ValueError):
-        checks.release_version(path, f"refs/tags/v{version}", "pypi")
+        checks.release_version(path, f"refs/tags/v.{version}", "pypi")
+
+
+@pytest.mark.parametrize(
+    "version,destination,ref",
+    [
+        ("4.0.0", "pypi", "refs/tags/v.4.0.0"),
+        ("4.0.0rc1", "testpypi", "refs/tags/v.4.0.0rc1"),
+        ("4.0.0", "dry-run", "refs/heads/master"),
+    ],
+)
+def test_version_cli_returns_package_version_not_tag(tmp_path, version, destination, ref):
+    path = tmp_path / "version.py"
+    path.write_text(f'__version__ = "{version}"\n')
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "packaging/release_checks.py"),
+            "version",
+            "--version-file",
+            str(path),
+            "--ref",
+            ref,
+            "--destination",
+            destination,
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    assert result.stdout.strip() == version
+
+
+@pytest.mark.parametrize("version,destination", [("4.0.0", "pypi"), ("4.0.0rc1", "testpypi")])
+def test_documented_publication_commands_use_traditional_tags(version, destination):
+    instructions = (ROOT / "docs/source/releasing.rst").read_text(encoding="utf-8")
+    assert f"--ref v.{version} -f destination={destination}" in instructions
 
 
 def test_complete_release_has_hashes(distributions):
