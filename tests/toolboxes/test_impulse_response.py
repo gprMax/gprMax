@@ -23,7 +23,7 @@ import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
 from gprMax.waveforms import Waveform as GprMaxWaveform
-from toolboxes.ImpulseResponse import (
+from gprMax.toolboxes.ImpulseResponse import (
     BUILTIN_WAVEFORM_TYPES,
     SourceSampling,
     TargetWaveform,
@@ -36,7 +36,7 @@ from toolboxes.ImpulseResponse import (
     waveform_energy_above,
     write_synthesised_output,
 )
-from toolboxes.SFCW.processing import SampledSignal, load_receiver, load_source
+from gprMax.toolboxes.SFCW.processing import SampledSignal, load_receiver, load_source
 
 
 def _source(samples, dt=1e-10, time_offset=0.5e-10, evaluation_offset=None):
@@ -359,8 +359,8 @@ def test_batch_synthesis_writes_receiver_compatible_hdf5(tmp_path):
 
 
 def test_named_subset_preserves_identity_and_is_readable_by_plot_and_merge(tmp_path):
-    from toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
-    from toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
+    from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
+    from gprMax.toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
 
     original = tmp_path / "subset-input.h5"
     _write_impulse_h5(original)

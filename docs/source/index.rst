@@ -7,6 +7,7 @@ gprMax User Guide
     :caption: Introduction
 
     inc_README
+    migration_v3_v4
     features
     gprmodelling
     faqs
@@ -77,6 +78,7 @@ gprMax User Guide
     :caption: Developers
 
     contributing
+    releasing
     testing
     reframe_test_suite
 

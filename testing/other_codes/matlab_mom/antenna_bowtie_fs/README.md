@@ -40,9 +40,9 @@ records the 0.82 GHz far field in the x-z elevation and x-y antenna-plane cuts.
 From the repository root:
 
 ```bash
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_bowtie_fs/bowtie_antenna_gprmax.py --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_bowtie_fs/bowtie_antenna_gprmax.py --gpu 0
 matlab -batch "run('testing/other_codes/matlab_mom/antenna_bowtie_fs/bowtie_antenna_matlab.m')"
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_bowtie_fs/plot_bowtie_comparison.py
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_bowtie_fs/plot_bowtie_comparison.py
 ```
 
 Omit `--gpu 0` for the CPU solver. Use `--geometry-only` to generate only the

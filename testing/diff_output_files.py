@@ -20,7 +20,7 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from toolboxes.Utilities.receiver_identity import matching_receiver_path
+from gprMax.toolboxes.Utilities.receiver_identity import matching_receiver_path
 
 logger = logging.getLogger(__name__)
 

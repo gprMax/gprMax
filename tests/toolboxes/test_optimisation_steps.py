@@ -9,7 +9,7 @@ import math
 import numpy as np
 import pytest
 
-from toolboxes.Optimisation import (
+from gprMax.toolboxes.Optimisation import (
     Categorical,
     Integer,
     OptunaTPE,
@@ -21,7 +21,7 @@ from toolboxes.Optimisation import (
     SkoptRF,
     TrialResult,
 )
-from toolboxes.Optimisation.checkpoint import load_checkpoint, save_checkpoint
+from gprMax.toolboxes.Optimisation.checkpoint import load_checkpoint, save_checkpoint
 
 
 @pytest.mark.parametrize("step", [0, -1, True, 1.5])

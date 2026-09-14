@@ -49,16 +49,16 @@ against MATLAB's native `axialRatio` result.
 From the repository root:
 
 ```bash
-MPI4PY_RC_INITIALIZE=0 conda run --no-capture-output -n gprMax-devel python testing/other_codes/matlab_mom/antenna_helix_fs/helix_antenna_gprmax.py --gpu 0
+MPI4PY_RC_INITIALIZE=0 conda run --no-capture-output -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_helix_fs/helix_antenna_gprmax.py --gpu 0
 matlab -batch "run('testing/other_codes/matlab_mom/antenna_helix_fs/helix_antenna_matlab.m')"
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run --no-capture-output -n gprMax-devel python testing/other_codes/matlab_mom/antenna_helix_fs/plot_helix_comparison.py
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run --no-capture-output -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_helix_fs/plot_helix_comparison.py
 ```
 
 Run and plot the ideal hard-source variant with:
 
 ```bash
-MPI4PY_RC_INITIALIZE=0 conda run --no-capture-output -n gprMax-devel python testing/other_codes/matlab_mom/antenna_helix_fs/helix_antenna_gprmax.py --source-mode hard --gpu 0
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run --no-capture-output -n gprMax-devel python testing/other_codes/matlab_mom/antenna_helix_fs/plot_helix_comparison.py --source-mode hard
+MPI4PY_RC_INITIALIZE=0 conda run --no-capture-output -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_helix_fs/helix_antenna_gprmax.py --source-mode hard --gpu 0
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run --no-capture-output -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_helix_fs/plot_helix_comparison.py --source-mode hard
 ```
 
 Omit `--gpu 0` to use the Cython CPU solver. Use `--geometry-only` to create

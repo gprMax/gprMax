@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/STEPtoVoxel/README.rst
+.. include:: ../../gprMax/toolboxes/STEPtoVoxel/README.rst

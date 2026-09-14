@@ -9,7 +9,7 @@ through-ground-plane feed is not an electric gap source.
 
 ``frequency``, ``S11``, ``Zin``, ``Yin`` and their per-quantity validity masks
 are stored directly. Use
-``python -m toolboxes.Plotting.plot_port model.h5 --port frills/frill1 --save``;
+``python -m gprMax.toolboxes.Plotting.plot_port model.h5 --port frills/frill1 --save``;
 see :ref:`frill-port-output` for the sampling convention and full schema.
 A zero generator leaves the frill termination present; :ref:`study-source`
 can vary the drive without rebuilding its physical definition.

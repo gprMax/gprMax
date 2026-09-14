@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/SFCW/README.rst
+.. include:: ../../gprMax/toolboxes/SFCW/README.rst

@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 
 import gprMax
-from toolboxes.Optimisation import Integer, PortSpectrum
-from toolboxes.Optimisation.examples import rectangular_patch as example
+from gprMax.toolboxes.Optimisation import Integer, PortSpectrum
+from gprMax.toolboxes.Optimisation.examples import rectangular_patch as example
 
 
 def spectrum():

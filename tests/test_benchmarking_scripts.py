@@ -55,12 +55,12 @@ STANDARD_HEADER_PATHS = (
     "testing/models_pmls/pml_basic/plot_pml_comparison.py",
     "testing/test_experimental.py",
     "testing/test_models.py",
-    "toolboxes/Plotting/plot_Ascan.py",
-    "toolboxes/Plotting/plot_Bscan.py",
-    "toolboxes/Plotting/plot_source_wave.py",
-    "toolboxes/Utilities/Paraview/gprMax.py",
-    "toolboxes/Utilities/get_host_spec.py",
-    "toolboxes/Utilities/outputfiles_merge.py",
+    "gprMax/toolboxes/Plotting/plot_Ascan.py",
+    "gprMax/toolboxes/Plotting/plot_Bscan.py",
+    "gprMax/toolboxes/Plotting/plot_source_wave.py",
+    "gprMax/toolboxes/Utilities/Paraview/gprMax.py",
+    "gprMax/toolboxes/Utilities/get_host_spec.py",
+    "gprMax/toolboxes/Utilities/outputfiles_merge.py",
 )
 
 

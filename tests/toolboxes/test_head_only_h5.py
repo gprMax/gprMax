@@ -18,7 +18,7 @@
 import h5py
 import numpy as np
 
-from toolboxes.AustinManWoman.head_only_h5 import extract_head
+from gprMax.toolboxes.AustinManWoman.head_only_h5 import extract_head
 
 
 def test_extract_head_is_import_safe_and_preserves_geometry_metadata(tmp_path):

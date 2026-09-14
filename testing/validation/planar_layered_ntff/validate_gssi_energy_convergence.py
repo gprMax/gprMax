@@ -26,8 +26,8 @@ import numpy as np
 from scipy.constants import physical_constants
 
 import gprMax
-from toolboxes.AntennaPatterns.initial_save import process_pattern
-from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
+from gprMax.toolboxes.AntennaPatterns.initial_save import process_pattern
+from gprMax.toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
 
 
 HERE = Path(__file__).resolve().parent

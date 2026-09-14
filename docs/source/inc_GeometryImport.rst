@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/GeometryImport/README.rst
+.. include:: ../../gprMax/toolboxes/GeometryImport/README.rst

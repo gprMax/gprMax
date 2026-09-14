@@ -18,6 +18,6 @@ solving. Omitting ``NetworkExcitation`` leaves a passive measurable load:
 its received voltage/current remain useful, but source-normalised S11 is
 undefined. Impedance/admittance are available where their own masks permit.
 
-Use ``python -m toolboxes.Plotting.plot_port model.h5 --port feed --save``.
+Use ``python -m gprMax.toolboxes.Plotting.plot_port model.h5 --port feed --save``.
 See :ref:`network-port-output` for the schema, :ref:`study-source` for
 fixed-network drive studies and :ref:`port-power-accounting` for NTFF use.

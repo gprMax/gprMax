@@ -36,7 +36,7 @@ from pathlib import Path
 import numpy as np
 
 import gprMax
-from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_400
+from gprMax.toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_400
 
 # File path - used later to specify name of output files
 fn = Path(__file__)

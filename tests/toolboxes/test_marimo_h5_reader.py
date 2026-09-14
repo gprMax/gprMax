@@ -16,7 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 """
-tests/test_h5_reader.py: unit tests for toolboxes/Marimo/h5_reader.py
+tests/test_h5_reader.py: unit tests for gprMax/toolboxes/Marimo/h5_reader.py
 
 Run from repo root:
     pytest tests/test_h5_reader.py -v
@@ -34,7 +34,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Marimo.h5_reader import (
+from gprMax.toolboxes.Marimo.h5_reader import (
     build_label,
     format_metadata_text,
     get_time_axis,

@@ -23,7 +23,7 @@ import numpy as np
 import numpy.typing as npt
 
 from gprMax.utilities.logging import logging_config
-from toolboxes.Utilities.receiver_identity import receiver_catalogue, select_receiver
+from gprMax.toolboxes.Utilities.receiver_identity import receiver_catalogue, select_receiver
 
 logger = logging.getLogger(__name__)
 logging_config(name=__name__)

@@ -20,8 +20,8 @@ import json
 import h5py
 import numpy as np
 
-from toolboxes.AntennaPatterns.initial_save import process_pattern
-from toolboxes.AntennaPatterns.plot_fields import load_pattern_data, plot_pattern
+from gprMax.toolboxes.AntennaPatterns.initial_save import process_pattern
+from gprMax.toolboxes.AntennaPatterns.plot_fields import load_pattern_data, plot_pattern
 
 
 def test_pattern_processing_and_plotting_workflow(tmp_path):

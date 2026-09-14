@@ -23,7 +23,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from toolboxes.FMCW.processing import (
+from gprMax.toolboxes.FMCW.processing import (
     ChannelResponse,
     Chirp,
     interpolate_instrument_response,

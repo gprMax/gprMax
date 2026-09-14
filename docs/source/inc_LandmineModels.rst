@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/LandmineModels/README.rst
+.. include:: ../../gprMax/toolboxes/LandmineModels/README.rst

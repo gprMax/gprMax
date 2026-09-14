@@ -596,7 +596,7 @@ background; only the receiver's generator waveform has zero amplitude.
     python -m gprMax examples/features/studies/passive.in -o study_results/passive_hash
     python examples/features/studies/run_study.py passive --output study_results/passive_api
     python examples/features/studies/plot_results.py passive study_results/passive_api
-    python -m toolboxes.Plotting.plot_port study_results/passive_api.h5 --port feed --port receive --validity --save
+    python -m gprMax.toolboxes.Plotting.plot_port study_results/passive_api.h5 --port feed --port receive --validity --save
 
 The comparison PNG plots ``/ports/receive/Vtotal`` against its stored
 time axis. Its own source-normalised S11 is invalid, but the received

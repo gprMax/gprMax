@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Utilities import outputfiles_merge as merger
+from gprMax.toolboxes.Utilities import outputfiles_merge as merger
 
 pytestmark = pytest.mark.unit
 

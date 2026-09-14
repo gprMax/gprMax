@@ -7,8 +7,8 @@ from pymoo.algorithms.soo.nonconvex.pso import PSO
 from pymoo.core.problem import Problem
 from pymoo.optimize import minimize
 
-from toolboxes.Optimisation import Integer, ParameterSpace, PymooPSO, TrialResult
-from toolboxes.Optimisation.checkpoint import load_checkpoint, save_checkpoint
+from gprMax.toolboxes.Optimisation import Integer, ParameterSpace, PymooPSO, TrialResult
+from gprMax.toolboxes.Optimisation.checkpoint import load_checkpoint, save_checkpoint
 
 SPACE = ParameterSpace(
     {"length": Integer(26, 36), "width": Integer(12, 44), "offset": Integer(1, 12)}

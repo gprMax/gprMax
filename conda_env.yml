@@ -1,7 +1,9 @@
 # This file may be used to create a conda environment using:
-# $ conda env create -f <this file>
+# $ conda env create -f conda_env.yml
+# $ conda activate gprMax-v4
+# Use --name to select a different name when keeping multiple v4 installations.
 
-name: gprMax-devel
+name: gprMax-v4
 channels:
 - conda-forge
 - nodefaults

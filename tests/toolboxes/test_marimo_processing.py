@@ -20,7 +20,7 @@
 import numpy as np
 import pytest
 
-from toolboxes.Marimo.processing import (
+from gprMax.toolboxes.Marimo.processing import (
     GAIN_KINDS,
     apply_gain,
     fft_spectrum,

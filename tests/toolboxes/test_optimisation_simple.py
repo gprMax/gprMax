@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from toolboxes.Optimisation import Real, optimise, simulate
+from gprMax.toolboxes.Optimisation import Real, optimise, simulate
 
 
 def valid_model(parameters):
@@ -66,8 +66,8 @@ def test_copy_rename_edit_and_run_without_import_reference_strings(
     tmp_path, target, expected_trials
 ):
     pytest.importorskip("optuna")
-    from toolboxes.Optimisation import read_receiver
-    from toolboxes.Optimisation.examples import start_here
+    from gprMax.toolboxes.Optimisation import read_receiver
+    from gprMax.toolboxes.Optimisation.examples import start_here
 
     source = Path(start_here.__file__).read_text()
     # These are the edits an ordinary user makes, with no changes in framework code.
@@ -117,7 +117,7 @@ def test_copy_rename_edit_and_run_without_import_reference_strings(
 
 def test_reference_example_can_be_copied_and_switched_to_a_population_optimiser(tmp_path):
     pytest.importorskip("pymoo")
-    from toolboxes.Optimisation.examples import waveform_matching
+    from gprMax.toolboxes.Optimisation.examples import waveform_matching
 
     original = Path(waveform_matching.__file__)
     shutil.copy2(original.with_name("reference_waveform.npz"), tmp_path / "reference_waveform.npz")

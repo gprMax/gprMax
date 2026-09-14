@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/Plotting/README.rst
+.. include:: ../../gprMax/toolboxes/Plotting/README.rst

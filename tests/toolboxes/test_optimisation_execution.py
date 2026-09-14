@@ -9,7 +9,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Optimisation import (
+from gprMax.toolboxes.Optimisation import (
     Campaign,
     Evaluation,
     Integer,
@@ -27,12 +27,12 @@ from toolboxes.Optimisation import (
 
 
 def tiny_problem():
-    from toolboxes.Optimisation import Real
-    from toolboxes.Optimisation.examples import dielectric_block
+    from gprMax.toolboxes.Optimisation import Real
+    from gprMax.toolboxes.Optimisation.examples import dielectric_block
 
     return Problem(
         ParameterSpace({"width": Real(0.008, 0.016), "permittivity": Real(2, 8)}),
-        "toolboxes.Optimisation.examples.dielectric_block:build_model",
+        "gprMax.toolboxes.Optimisation.examples.dielectric_block:build_model",
         dependencies=(Path(dielectric_block.__file__),),
     )
 
@@ -121,7 +121,7 @@ def trace_result(tmp_path, values=(1, 3, 5)):
         data = receiver.create_dataset("Ez", data=values)
         data.attrs["SampleInterval"] = 1e-9
         data.attrs["TimeSampleOffset"] = 0
-    from toolboxes.Optimisation._storage import sha256
+    from gprMax.toolboxes.Optimisation._storage import sha256
 
     return RunResult(
         "000001",
@@ -140,7 +140,7 @@ def test_processing_interpolation_gate_artifacts_and_reprocessing(tmp_path):
     # Predicted values at these times are 2, 4. Reference differs by one.
     np.savez(reference, time=[0.5e-9, 1.5e-9], values=[1, 3], unit="V/m")
     evaluator = Evaluation(
-        "toolboxes.Optimisation.examples.advanced.waveform_matching:evaluate_waveform",
+        "gprMax.toolboxes.Optimisation.examples.advanced.waveform_matching:evaluate_waveform",
         settings={"reference": str(reference)},
         dependencies=(reference,),
     )
@@ -153,7 +153,7 @@ def test_processing_interpolation_gate_artifacts_and_reprocessing(tmp_path):
         np.testing.assert_allclose(arrays["residual"], [1, 1])
     result2 = evaluate_outputs(evaluator, {}, {"default": run}, tmp_path / "reprocessed")
     assert result2 == result
-    from toolboxes.Optimisation.processing import PreparedEvaluator
+    from gprMax.toolboxes.Optimisation.processing import PreparedEvaluator
 
     prepared = PreparedEvaluator(evaluator)
     reference.write_bytes(b"changed")
@@ -162,7 +162,7 @@ def test_processing_interpolation_gate_artifacts_and_reprocessing(tmp_path):
 
 
 def test_processing_rejects_invalid_units_extrapolation_and_artifact_paths(tmp_path):
-    from toolboxes.Optimisation import ProcessingContext
+    from gprMax.toolboxes.Optimisation import ProcessingContext
 
     run = trace_result(tmp_path)
     reference = tmp_path / "reference.npz"
@@ -171,7 +171,7 @@ def test_processing_rejects_invalid_units_extrapolation_and_artifact_paths(tmp_p
         np.savez(reference, time=times, values=[1, 3], unit=unit)
         return evaluate_outputs(
             Evaluation(
-                "toolboxes.Optimisation.examples.advanced.waveform_matching:evaluate_waveform",
+                "gprMax.toolboxes.Optimisation.examples.advanced.waveform_matching:evaluate_waveform",
                 settings={"reference": str(reference)},
             ),
             {},
@@ -193,7 +193,7 @@ def test_processing_rejects_invalid_units_extrapolation_and_artifact_paths(tmp_p
 @pytest.mark.parametrize("name", ["rf", "tpe"])
 def test_surrogate_batches_preserve_pending_correspondence(name):
     pytest.importorskip("skopt" if name == "rf" else "optuna")
-    from toolboxes.Optimisation import TrialResult, make_optimiser
+    from gprMax.toolboxes.Optimisation import TrialResult, make_optimiser
 
     adapter = make_optimiser(name, seed=7, batch_size=3)
     adapter.initialise(ParameterSpace({"x": Integer(1, 30)}))
@@ -216,7 +216,7 @@ def test_surrogate_batches_preserve_pending_correspondence(name):
 
 
 def test_actual_cpu_pool_matches_serial_receiver_data(tmp_path):
-    from toolboxes.Optimisation import read_receiver
+    from gprMax.toolboxes.Optimisation import read_receiver
 
     candidates = [{"width": 0.008, "permittivity": 4}, {"width": 0.016, "permittivity": 6}]
     serial = Campaign(tiny_problem(), tmp_path / "serial").evaluate(candidates)
@@ -234,14 +234,14 @@ def test_actual_cpu_pool_matches_serial_receiver_data(tmp_path):
 
 
 def energy_objective(parameters, runs):
-    from toolboxes.Optimisation import read_receiver
+    from gprMax.toolboxes.Optimisation import read_receiver
 
     trace = read_receiver(runs["default"].output_file, "received", "Ez")
     return ObjectiveResult(float(np.mean(trace.values**2)))
 
 
 def test_cache_coalesces_identical_pending_requests_and_reuses_saved_results(tmp_path):
-    from toolboxes.Optimisation import SimulationCache
+    from gprMax.toolboxes.Optimisation import SimulationCache
 
     cache = SimulationCache(tmp_path / "cache", namespace="test-solver-build-1")
     campaign = Campaign(tiny_problem(), tmp_path / "first", LocalPool(workers=2), cache=cache)
@@ -254,7 +254,7 @@ def test_cache_coalesces_identical_pending_requests_and_reuses_saved_results(tmp
     assert second.run_attempts == 0
     second.evaluate_one(values, seed=1)
     assert second.run_attempts == 1, "Simulation seed is part of cache identity"
-    from toolboxes.Optimisation import load_candidate
+    from gprMax.toolboxes.Optimisation import load_candidate
 
     parameters, recovered = load_candidate(campaign.storage / "candidates/000002")
     assert parameters == values and recovered["default"].output_file.is_file()
@@ -265,8 +265,8 @@ def test_checkpoint_recovers_pending_batch_without_repeating_completed_solves(
 ):
     pytest.importorskip("optuna")
     pytest.importorskip("cloudpickle")
-    from toolboxes.Optimisation import OptunaTPE
-    from toolboxes.Optimisation.processing import PreparedEvaluator
+    from gprMax.toolboxes.Optimisation import OptunaTPE
+    from gprMax.toolboxes.Optimisation.processing import PreparedEvaluator
 
     campaign = Campaign(tiny_problem(), tmp_path / "campaign", LocalPool(workers=2))
     original = PreparedEvaluator.__call__
@@ -339,7 +339,7 @@ def test_retry_records_attempts_and_keeps_admission_within_budget(monkeypatch, t
     assert (
         json.loads((tmp_path / "case/attempt-0001/result.json").read_text())["status"] == "failed"
     )
-    from toolboxes.Optimisation import OptunaTPE
+    from gprMax.toolboxes.Optimisation import OptunaTPE
 
     campaign = Campaign(tiny_problem(), tmp_path / "budget", LocalPool(workers=2, max_retries=1))
     result = campaign.optimise(
@@ -355,8 +355,8 @@ def test_retry_records_attempts_and_keeps_admission_within_budget(monkeypatch, t
 def test_native_adapter_checkpoint_restores_next_proposals(tmp_path, name):
     pytest.importorskip({"rf": "skopt", "tpe": "optuna"}.get(name, "pymoo"))
     pytest.importorskip("cloudpickle")
-    from toolboxes.Optimisation import Real, TrialResult, make_optimiser
-    from toolboxes.Optimisation.checkpoint import load_checkpoint, save_checkpoint
+    from gprMax.toolboxes.Optimisation import Real, TrialResult, make_optimiser
+    from gprMax.toolboxes.Optimisation.checkpoint import load_checkpoint, save_checkpoint
 
     options = {"batch_size": 4} if name in ("rf", "tpe") else {"population_size": 4}
     adapter = make_optimiser(name, seed=7, **options)

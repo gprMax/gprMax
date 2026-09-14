@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Utilities.outputfiles_seg2 import export_seg2
+from gprMax.toolboxes.Utilities.outputfiles_seg2 import export_seg2
 
 
 def _write_output(filename, trace_number=1, *, dt=4.7e-12, samples=6, component="Ez"):

@@ -870,7 +870,11 @@ Selects the mixing rule used for magnetic-field components at smoothed material 
 .. note::
 
     * This command is optional; the default is ``harmonic``.
-    * Earlier versions of gprMax used an arithmetic magnetic average. Add ``#magnetic_averaging: arithmetic`` when exact reproduction of those results is required.
+    * Earlier versions of gprMax used an arithmetic magnetic average.
+      ``#magnetic_averaging: arithmetic`` selects that earlier mixing rule,
+      but does not undo source-timing, magnetic-component placement or
+      PEC-interface corrections. It does not guarantee exact reproduction
+      of v3 results; see :ref:`migration-numerics`.
     * The command chooses the magnetic mixing rule only; it does not enable or disable dielectric smoothing.
 
 
@@ -1488,7 +1492,7 @@ or ``#excitation_file``; the built-in command has no bandwidth parameter.
 
 .. note::
 
-    * Waveforms are implemented in ``gprMax/waveforms.py``. The ``toolboxes/Plotting`` package provides waveform visualisation; see :ref:`waveforms`.
+    * Waveforms are implemented in ``gprMax/waveforms.py``. The ``gprMax/toolboxes/Plotting`` package provides waveform visualisation; see :ref:`waveforms`.
     * ``gaussiandot``, ``gaussiandotnorm``, ``gaussiandotdot``, ``gaussiandotdotnorm``, ``ricker`` waveforms have their centre frequencies specified by the user, i.e. they are not derived to the 'base' ``gaussian``
     * ``gaussianprime`` and ``gaussiandoubleprime`` waveforms are the first derivative and second derivative of the 'base' ``gaussian`` waveform, i.e. the centre frequencies of the waveforms will rise for the first and second derivatives.
 

@@ -18,8 +18,8 @@
 import h5py
 import numpy as np
 
-from toolboxes.Plotting.plot_Ascan import fft_plot_range
-from toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
+from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range
+from gprMax.toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
 
 
 def test_bscan_gather_does_not_duplicate_first_receiver(tmp_path):

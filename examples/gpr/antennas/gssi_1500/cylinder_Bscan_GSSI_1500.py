@@ -17,7 +17,7 @@ number of scenes, i.e. A-scans.
 from pathlib import Path
 
 import gprMax
-from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
+from gprMax.toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
 
 # File path for output
 fn = Path(__file__)

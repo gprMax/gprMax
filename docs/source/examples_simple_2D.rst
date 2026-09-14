@@ -142,7 +142,7 @@ You should have produced an output file ``cylinder_Ascan_2D.h5``. You can view t
 
 .. code-block:: none
 
-    python -m toolboxes.Plotting.plot_Ascan examples/gpr/basic/cylinder_Ascan_2D.h5
+    python -m gprMax.toolboxes.Plotting.plot_Ascan examples/gpr/basic/cylinder_Ascan_2D.h5
 
 :numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to a voltage that represents the A-scan (trace). The initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet (~1.8-2.6 ns), which has opposite polarity, from the metal cylinder.
 
@@ -186,7 +186,7 @@ You should have produced 60 output files, one for each A-scan, with names ``cyli
 
 .. code-block:: none
 
-    python -m toolboxes.Utilities.outputfiles_merge examples/gpr/basic/cylinder_Bscan_2D
+    python -m gprMax.toolboxes.Utilities.outputfiles_merge examples/gpr/basic/cylinder_Bscan_2D
 
 You should see a combined output file ``cylinder_Bscan_2D_merged.h5``. You can add the optional argument ``--remove-files`` if you want to automatically delete the original single A-scan output files.
 
@@ -194,7 +194,7 @@ You can now view an image of the B-scan using the command:
 
 .. code-block:: none
 
-    python -m toolboxes.Plotting.plot_Bscan examples/gpr/basic/cylinder_Bscan_2D_merged.h5 Ez
+    python -m gprMax.toolboxes.Plotting.plot_Bscan examples/gpr/basic/cylinder_Bscan_2D_merged.h5 Ez
 
 :numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wave (~2-3 ns) from the metal cylinder which creates the hyperbolic shape.
 
@@ -293,8 +293,8 @@ Merge the receiver traces and display their Ez component:
 
 .. code-block:: console
 
-    python -m toolboxes.Utilities.outputfiles_merge study_results/cylinder_Bscan_2D_study
-    python -m toolboxes.Plotting.plot_Bscan study_results/cylinder_Bscan_2D_study_merged.h5 Ez
+    python -m gprMax.toolboxes.Utilities.outputfiles_merge study_results/cylinder_Bscan_2D_study
+    python -m gprMax.toolboxes.Plotting.plot_Bscan study_results/cylinder_Bscan_2D_study_merged.h5 Ez
 
 The expected B-scan is the same as :numref:`cylinder_Bscan_results` above.
 

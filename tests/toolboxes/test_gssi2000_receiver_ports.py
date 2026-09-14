@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 
 import gprMax
-from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_2000
-from toolboxes.Utilities.trace_time import read_time_history
+from gprMax.toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_2000
+from gprMax.toolboxes.Utilities.trace_time import read_time_history
 
 
 def _scene(legacy, metal):

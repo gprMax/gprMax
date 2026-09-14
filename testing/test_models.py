@@ -27,7 +27,7 @@ from colorama import Fore, Style
 import gprMax
 from gprMax.utilities.logging import logging_config
 from testing.analytical_solutions import hertzian_dipole_fs
-from toolboxes.Utilities.receiver_identity import match_receiver, receiver_catalogue, select_receiver
+from gprMax.toolboxes.Utilities.receiver_identity import match_receiver, receiver_catalogue, select_receiver
 
 logger = logging.getLogger(__name__)
 

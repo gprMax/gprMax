@@ -9,13 +9,13 @@ import numpy as np
 import pytest
 
 import gprMax
-from toolboxes.Marimo.h5_reader import get_trace, load_file
-from toolboxes.Marimo.reference import subtract_receiver_reference
-from toolboxes.Plotting import plot_Ascan, plot_Bscan
-from toolboxes.Plotting.plot_port import read_port_output
-from toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
-from toolboxes.Utilities.outputfiles_trace import collect_traces
-from toolboxes.Utilities.trace_time import read_time_history
+from gprMax.toolboxes.Marimo.h5_reader import get_trace, load_file
+from gprMax.toolboxes.Marimo.reference import subtract_receiver_reference
+from gprMax.toolboxes.Plotting import plot_Ascan, plot_Bscan
+from gprMax.toolboxes.Plotting.plot_port import read_port_output
+from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
+from gprMax.toolboxes.Utilities.outputfiles_trace import collect_traces
+from gprMax.toolboxes.Utilities.trace_time import read_time_history
 
 
 def receiver_file(path, names=("A", "B"), dt=1e-10):
@@ -37,7 +37,7 @@ def test_marimo_dashboard_subtraction_matches_identity(tmp_path):
     target = load_file(receiver_file(tmp_path / "target.h5"))
     background = load_file(receiver_file(tmp_path / "background.h5", ("B", "A")))
     # Execute the actual dashboard callback too, not just the reusable helper.
-    module = ast.parse(Path("toolboxes/Marimo/ascan_dashboard.py").read_text())
+    module = ast.parse(Path("gprMax/toolboxes/Marimo/ascan_dashboard.py").read_text())
     helper = next(
         node for node in ast.walk(module) if isinstance(node, ast.FunctionDef) and node.name == "_apply_subtraction"
     )
@@ -256,9 +256,9 @@ def test_real_frill_plot_export_and_merge_agree(native_frill, tmp_path):
 
 @pytest.mark.integration
 def test_real_frill_all_exporters_use_physical_length(native_frill, tmp_path):
-    from toolboxes.Utilities.outputfiles_seg2 import export_seg2
-    from toolboxes.Utilities.outputfiles_segy import export_segy
-    from toolboxes.Utilities.outputfiles_dt1 import export_dt1
+    from gprMax.toolboxes.Utilities.outputfiles_seg2 import export_seg2
+    from gprMax.toolboxes.Utilities.outputfiles_segy import export_segy
+    from gprMax.toolboxes.Utilities.outputfiles_dt1 import export_dt1
 
     for function, suffix in ((export_seg2, "sg2"), (export_segy, "sgy"), (export_dt1, "dt1")):
         result = function([native_frill], tmp_path / f"frill.{suffix}", 1, "Itot", trace_group="frills/frill1")

@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 
 import gprMax
-from toolboxes.FMCW import (
+from gprMax.toolboxes.FMCW import (
     Chirp,
     process_channel,
     reconstruct_fast_time,

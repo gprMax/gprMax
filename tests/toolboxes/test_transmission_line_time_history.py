@@ -4,7 +4,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Utilities.trace_time import read_time_history
+from gprMax.toolboxes.Utilities.trace_time import read_time_history
 
 pytestmark = pytest.mark.unit
 

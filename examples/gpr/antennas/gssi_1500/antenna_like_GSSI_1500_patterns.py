@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 import gprMax
-from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
+from gprMax.toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
 
 SCRIPT_PATH = Path(__file__).resolve()
 DEFAULT_OUTPUT = SCRIPT_PATH.with_suffix("")

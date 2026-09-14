@@ -25,7 +25,7 @@ import pytest
 pytest.importorskip("OCC", reason="optional pythonocc-core dependency is not installed")
 
 from gprMax.material_database import load_material_spec
-from toolboxes.STEPtoVoxel import (
+from gprMax.toolboxes.STEPtoVoxel import (
     ConversionConfig,
     convert_step,
     inspect_step,
@@ -35,7 +35,7 @@ from toolboxes.STEPtoVoxel import (
 
 @pytest.mark.integration
 def test_probe_fed_patch_step_conversion(tmp_path):
-    example = Path(__file__).parents[2] / "toolboxes" / "STEPtoVoxel" / "examples" / "patch_antenna"
+    example = Path(__file__).parents[2] / "gprMax" / "toolboxes" / "STEPtoVoxel" / "examples" / "patch_antenna"
     step_file = example / "PROBE_FED.stp"
     parts = inspect_step(
         step_file,

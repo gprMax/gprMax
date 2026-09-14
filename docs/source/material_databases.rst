@@ -73,8 +73,8 @@ List or validate a database from the command line with:
 
 .. code-block:: console
 
-    python -m toolboxes.MaterialDatabase list antenna
-    python -m toolboxes.MaterialDatabase validate laboratory --directory path/to/model
+    python -m gprMax.toolboxes.MaterialDatabase list antenna
+    python -m gprMax.toolboxes.MaterialDatabase validate laboratory --directory path/to/model
 
 Initial catalogues
 ==================
@@ -268,7 +268,7 @@ lack these directional references: scalar mean cell properties alone do not
 retain the constitutive tensor or its directional dispersive poles.
 
 New PNG-derived geometry should be created with
-``python -m toolboxes.Utilities.convert_png2h5``. The utility writes both the
+``python -m gprMax.toolboxes.Utilities.convert_png2h5``. The utility writes both the
 current HDF5 material-key mapping and an adjacent editable JSON database. Its
 entries initially contain null constitutive values because electromagnetic
 properties cannot be inferred from image colours; complete them before using
@@ -285,7 +285,7 @@ Convert an existing pair once, without modifying the originals:
 
 .. code-block:: console
 
-    python -m toolboxes.MaterialDatabase convert-geometry geometry.h5 materials.txt
+    python -m gprMax.toolboxes.MaterialDatabase convert-geometry geometry.h5 materials.txt
 
 For this command the outputs are ``geometry_converted.h5`` and
 ``geometry_materials.json``. The utility prints their paths and the database

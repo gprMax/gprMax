@@ -20,12 +20,12 @@ from pathlib import Path
 import pytest
 
 import gprMax
-from toolboxes.GPRAntennaModels.GSSI import (
+from gprMax.toolboxes.GPRAntennaModels.GSSI import (
     antenna_like_GSSI_400,
     antenna_like_GSSI_1500,
     antenna_like_GSSI_2000,
 )
-from toolboxes.GPRAntennaModels.MALA import antenna_like_MALA_1200
+from gprMax.toolboxes.GPRAntennaModels.MALA import antenna_like_MALA_1200
 
 
 def test_gssi_1500_custom_optimisation_parameters_build_source():

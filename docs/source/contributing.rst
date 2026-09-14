@@ -8,6 +8,9 @@ If you’re unsure where to start or how your skills fit in, reach out! You can 
 
 Small improvements or fixes are always appreciated.
 
+Release maintainers should follow :doc:`releasing` for GitHub wheel builds,
+optional TestPyPI rehearsals and approval-gated PyPI publication.
+
 If you are new to contributing to `open source <https://opensource.guide/how-to-contribute/>`_, this guide helps explain why, what, and how to get involved.
 
 Building the documentation

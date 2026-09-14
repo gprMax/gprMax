@@ -25,7 +25,7 @@ import reframe.utility.sanity as sn
 from reframe.core.runtime import runtime
 from reframe.utility import osext
 
-from toolboxes.Utilities.receiver_identity import match_receiver, receiver_catalogue, select_receiver
+from gprMax.toolboxes.Utilities.receiver_identity import match_receiver, receiver_catalogue, select_receiver
 
 
 class RegressionCheck:

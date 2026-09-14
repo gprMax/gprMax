@@ -168,6 +168,11 @@ dependencies. ``twine check`` validates every wheel and source archive. Pull
 requests changing packaging, compiled code, toolboxes, or packaged examples
 trigger the workflow; it may also be run manually. The resulting archives are
 retained as workflow artifacts but are not automatically published to PyPI.
+The separate, manually dispatched ``Release distributions`` workflow reuses
+these builders, verifies a complete version-matched artifact set, and can
+publish directly through an approval-gated PyPI job, with TestPyPI available
+as an independent optional rehearsal. See :doc:`releasing`
+for the required account setup and release procedure.
 
 Portable release builds do not use ``-march=native``. Developers may request
 a private host-optimised Linux or macOS source build with

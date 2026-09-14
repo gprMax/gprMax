@@ -21,7 +21,7 @@ import numpy as np
 import pytest
 
 import gprMax
-from toolboxes.SFCW.processing import engineering_dft, load_receiver, load_source
+from gprMax.toolboxes.SFCW.processing import engineering_dft, load_receiver, load_source
 
 pytestmark = pytest.mark.integration
 

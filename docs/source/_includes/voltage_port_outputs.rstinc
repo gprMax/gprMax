@@ -24,7 +24,7 @@ input characterisation. Zero amplitude with zero resistance is a clamp.
 
 .. code-block:: console
 
-    python -m toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
+    python -m gprMax.toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
 
 Replace ``feed`` with the actual ID. See :ref:`voltage-port-theory` for
 correction, timing and support details, :ref:`voltage-port-output` for the

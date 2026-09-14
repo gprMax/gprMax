@@ -6,18 +6,18 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Utilities.receiver_identity import (
+from gprMax.toolboxes.Utilities.receiver_identity import (
     ReceiverIdentity,
     match_receiver,
     receiver_catalogue,
     select_receiver,
 )
-from toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
-from toolboxes.Utilities.outputfiles_trace import collect_traces
-from toolboxes.Marimo.h5_reader import load_file, list_receivers as marimo_receivers
-from toolboxes.Marimo.trace_matrix import stack_traces, process_trace
-from toolboxes.SFCW.processing import load_receiver, list_receivers
-from toolboxes.FMCW.processing import Chirp, process_channel, process_incident_referenced_channel
+from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
+from gprMax.toolboxes.Utilities.outputfiles_trace import collect_traces
+from gprMax.toolboxes.Marimo.h5_reader import load_file, list_receivers as marimo_receivers
+from gprMax.toolboxes.Marimo.trace_matrix import stack_traces, process_trace
+from gprMax.toolboxes.SFCW.processing import load_receiver, list_receivers
+from gprMax.toolboxes.FMCW.processing import Chirp, process_channel, process_incident_referenced_channel
 
 
 def write_output(path, names=("zulu", "alpha"), *, new=False, shift=0, subgrid=False):
@@ -64,7 +64,7 @@ def permuted(tmp_path):
 
 
 def test_named_selection_and_natural_discovery(permuted, tmp_path):
-    from toolboxes.Optimisation.quantities import read_receiver
+    from gprMax.toolboxes.Optimisation.quantities import read_receiver
 
     for path in permuted:
         assert load_receiver(path, "name:zulu", "Ez").samples[2] == 10

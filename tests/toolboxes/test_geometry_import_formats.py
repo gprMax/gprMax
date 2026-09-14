@@ -21,8 +21,8 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.GeometryImport.mesh import convert_mesh, load_mesh_source, write_mesh_template
-from toolboxes.GeometryImport.volume import load_label_volume
+from gprMax.toolboxes.GeometryImport.mesh import convert_mesh, load_mesh_source, write_mesh_template
+from gprMax.toolboxes.GeometryImport.volume import load_label_volume
 
 
 def _assert_test_label_volume(volume, labels):

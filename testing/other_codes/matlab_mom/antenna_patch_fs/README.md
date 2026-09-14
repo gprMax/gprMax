@@ -101,24 +101,24 @@ differences in the weak back-radiation/null region.
 From the repository root:
 
 ```bash
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed series --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed frill --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --conductor box --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --patch-trim-cells 1 --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --patch-trim-cells 2 --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --board-trim-cells 1 --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --board-trim-cells 2 --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --mesh fine-z --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --mesh fine-xyz --gpu 0
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/check_patch_far_field_formulations.py --gpu 0
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_3d_gain.py --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed series --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed frill --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --conductor box --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --patch-trim-cells 1 --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --patch-trim-cells 2 --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --board-trim-cells 1 --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --board-trim-cells 2 --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --mesh fine-z --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --mesh fine-xyz --gpu 0
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/check_patch_far_field_formulations.py --gpu 0
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_3d_gain.py --gpu 0
 matlab -batch "run('testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_metrics_matlab.m')"
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/plot_patch_metric_comparison.py
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/plot_patch_metric_comparison.py
 matlab -batch "run('testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_matlab.m')"
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/plot_patch_pattern_comparison.py
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/plot_patch_frill_comparison.py
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/plot_patch_pattern_comparison.py
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/plot_patch_frill_comparison.py
 ```
 
 Omit `--gpu 0` to use the Cython CPU solver. To generate the geometry without
@@ -126,12 +126,12 @@ running FDTD, add `--geometry-only`. To check and post-process an existing
 gprMax output without rerunning FDTD, use:
 
 ```bash
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --postprocess-only
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --postprocess-only
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed series --postprocess-only
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed frill --postprocess-only
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --mesh fine-z --postprocess-only
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --mesh fine-xyz --postprocess-only
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --postprocess-only
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --postprocess-only
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed series --postprocess-only
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed frill --postprocess-only
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --mesh fine-z --postprocess-only
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_patch_fs/patch_antenna_gprmax.py --feed single --mesh fine-xyz --postprocess-only
 ```
 
 The gprMax script does not use the in-memory KSIR result shortcut. After the

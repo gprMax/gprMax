@@ -89,10 +89,10 @@ def test_wheel_packages_exclude_developer_archives_but_keep_toolboxes_and_exampl
 
     assert "gprMax" in packages
     assert "gprMax._examples" in packages
-    assert "toolboxes" in packages
-    assert "toolboxes.Marimo" in packages
-    assert "toolboxes.Marimo.recipes" in packages
-    assert "toolboxes.Marimo.examples" in packages
+    assert "gprMax.toolboxes" in packages
+    assert "gprMax.toolboxes.Marimo" in packages
+    assert "gprMax.toolboxes.Marimo.recipes" in packages
+    assert "gprMax.toolboxes.Marimo.examples" in packages
     assert not any(name == "testing" or name.startswith("testing.") for name in packages)
     assert not any(
         name == "reframe_tests" or name.startswith("reframe_tests.") for name in packages
@@ -103,8 +103,8 @@ def test_wheel_packages_exclude_developer_archives_but_keep_toolboxes_and_exampl
 def test_large_generated_toolbox_assets_are_excluded_from_wheels():
     package_exclusions = EXCLUDED_PACKAGE_DATA["gprMax"]
     cython_exclusions = EXCLUDED_PACKAGE_DATA["gprMax.cython"]
-    step_exclusions = EXCLUDED_PACKAGE_DATA["toolboxes.STEPtoVoxel"]
-    stl_exclusions = EXCLUDED_PACKAGE_DATA["toolboxes.STLtoVoxel"]
+    step_exclusions = EXCLUDED_PACKAGE_DATA["gprMax.toolboxes.STEPtoVoxel"]
+    stl_exclusions = EXCLUDED_PACKAGE_DATA["gprMax.toolboxes.STLtoVoxel"]
 
     assert {"config.pxd", "*.pxd"} <= set(package_exclusions)
     assert {"*.c", "*.pyx", "*.pxd", "*.jinja"} <= set(cython_exclusions)
@@ -125,10 +125,10 @@ def test_source_distribution_uses_the_same_large_asset_exclusions():
 
     assert "prune testing" in directives
     assert "prune reframe_tests" in directives
-    assert "prune toolboxes/STEPtoVoxel/examples/patch_antenna/output" in directives
-    assert "prune toolboxes/STLtoVoxel/examples/stl/point_cloud" in directives
+    assert "prune gprMax/toolboxes/STEPtoVoxel/examples/patch_antenna/output" in directives
+    assert "prune gprMax/toolboxes/STLtoVoxel/examples/stl/point_cloud" in directives
     assert "global-exclude *.so *.pyd" in directives
 
-    for path in EXCLUDED_PACKAGE_DATA["toolboxes.STLtoVoxel"]:
+    for path in EXCLUDED_PACKAGE_DATA["gprMax.toolboxes.STLtoVoxel"]:
         if "*" not in path:
-            assert f"exclude toolboxes/STLtoVoxel/{path}" in directives
+            assert f"exclude gprMax/toolboxes/STLtoVoxel/{path}" in directives

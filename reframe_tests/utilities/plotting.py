@@ -21,7 +21,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from reframe_tests.utilities.data import calculate_diffs, get_data_from_h5_file
-from toolboxes.Utilities.receiver_identity import matching_receiver_path
+from gprMax.toolboxes.Utilities.receiver_identity import matching_receiver_path
 
 
 def _plot_data(subplots, time, data, label=None, colour="r", line_style="-"):

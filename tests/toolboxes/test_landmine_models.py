@@ -10,8 +10,8 @@ import pytest
 import gprMax
 import gprMax.model as model_module
 from gprMax.material_database import load_material_spec
-from toolboxes.LandmineModels.examples import free_space
-from toolboxes.MaterialDatabase.convert_geometry import parse_legacy_materials
+from gprMax.toolboxes.LandmineModels.examples import free_space
+from gprMax.toolboxes.MaterialDatabase.convert_geometry import parse_legacy_materials
 
 TOOLBOX = Path(free_space.__file__).resolve().parents[1]
 CASES = [(model, resolution) for model in free_space.MODEL_NAMES for resolution in (1, 2)]

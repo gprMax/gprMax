@@ -25,7 +25,7 @@ import pytest
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from toolboxes.Plotting.plot_port import (
+from gprMax.toolboxes.Plotting.plot_port import (
     discover_port_outputs,
     main,
     plot_port_parameters,

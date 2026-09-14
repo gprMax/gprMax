@@ -12,7 +12,7 @@ repos:
     -   id: check-added-large-files
         args: ['--maxkb=1000']
         # The two large legacy models are byte-for-byte archives of existing assets.
-        exclude: '^(?:testing/other_codes/matlab_mom/[^/]+/results/(?:[^/]*_3d_[^/]*|helix_antenna_matlab_metrics)\.csv|toolboxes/LandmineModels/legacy/(?:PMN|can)_1x1x1\.h5)$'
+        exclude: '^(?:testing/other_codes/matlab_mom/[^/]+/results/(?:[^/]*_3d_[^/]*|helix_antenna_matlab_metrics)\.csv|gprMax/toolboxes/LandmineModels/legacy/(?:PMN|can)_1x1x1\.h5)$'
     -   id: check-toml
 -   repo: https://github.com/psf/black-pre-commit-mirror
     rev: 23.12.0

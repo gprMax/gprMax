@@ -44,8 +44,8 @@ EXCLUDED_PACKAGE_DATA = {
     # C/Cython inputs remain in the sdist for source builds.
     "gprMax": ["config.pxd", "*.pxd"],
     "gprMax.cython": ["*.c", "*.pyx", "*.pxd", "*.jinja"],
-    "toolboxes.STEPtoVoxel": ["examples/patch_antenna/output/*"],
-    "toolboxes.STLtoVoxel": [
+    "gprMax.toolboxes.STEPtoVoxel": ["examples/patch_antenna/output/*"],
+    "gprMax.toolboxes.STLtoVoxel": [
         "examples/bunny.vti",
         "examples/stl/Caribou_Lakes.stl",
         "examples/stl/Frenchman_Mountain.stl",
@@ -73,4 +73,6 @@ def packaged_example_files():
 def distribution_packages():
     """Return user-facing packages installed by source and wheel builds."""
 
-    return find_packages(exclude=EXCLUDED_INSTALL_PACKAGES) + [EXAMPLES_PACKAGE]
+    # Never claim generic top-level names in a user's Python environment.
+    # Keep this explicit even if another helper package is added to the repo.
+    return find_packages(include=("gprMax", "gprMax.*"), exclude=EXCLUDED_INSTALL_PACKAGES) + [EXAMPLES_PACKAGE]

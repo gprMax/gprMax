@@ -18,8 +18,8 @@
 import numpy as np
 import pytest
 
-from toolboxes.DebyeFit.Debye_Fit import Crim, HavriliakNegami
-from toolboxes.DebyeFit.optimization import DLS, PSO_DLS
+from gprMax.toolboxes.DebyeFit.Debye_Fit import Crim, HavriliakNegami
+from gprMax.toolboxes.DebyeFit.optimization import DLS, PSO_DLS
 
 
 def test_crim_calculation_broadcasts_volumetric_fractions_per_frequency_row():
