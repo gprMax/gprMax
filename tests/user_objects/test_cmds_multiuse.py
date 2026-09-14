@@ -24,7 +24,7 @@ round-trips), with two new wrinkles:
 * Most classes take ``**kwargs`` and forward to ``super().__init__`` —
   attribute mirroring happens in ``build()``, not ``__init__``. So the
   constructor test is just "kwargs survive verbatim".
-Four bug tripwires pin current behaviour for fixes to flip.
+Regression checks also cover source/receiver construction and known failure modes.
 """
 
 from types import SimpleNamespace
@@ -479,44 +479,31 @@ class TestRxArray:
         assert a.hash == "#rx_array"
 
 
-class TestRxArrayUpperBoundBug:
-    """Bug tripwire: ``cmds_multiuse.py:1531-1533``.
+class TestRxArrayBoundsValidation:
+    """Both array endpoints are validated without changing the declaration."""
 
-    ``RxArray.build`` passes ``self.lower_point`` to **both** of its
-    ``uip.check_src_rx_point`` calls — the second one should pass
-    ``self.upper_point`` to check the upper-right corner. The upper bound
-    of the array is effectively never validated against the grid.
-
-    We pin the bug by mocking the uip and confirming both calls receive
-    ``lower_point``. When fixed, the second call's positional ``point``
-    argument should become ``upper_point``.
-    """
-
-    def test_both_check_src_rx_calls_currently_receive_lower_point(self, stub_grid):
-        a = RxArray(p1=(0.0, 0.0, 0.0), p2=(0.1, 0.2, 0.3), dl=(0.01, 0.01, 0.01))
+    def test_check_src_rx_calls_receive_distinct_bounds(self, stub_grid):
+        lower, upper = (0.0, 0.0, 0.0), (0.01, 0.02, 0.03)
+        a = RxArray(p1=lower, p2=upper, dl=(0.01, 0.01, 0.01))
 
         uip = MagicMock()
-        uip.check_src_rx_point.return_value = (True, np.array([0, 0, 0]))
-        uip.discretise_static_point.return_value = np.array([10, 10, 10])
-        uip.round_to_grid_static_point.return_value = (0.0, 0.0, 0.0)
+        uip.resolve_inf_point.side_effect = lambda point, role=None: point
+        uip.check_src_rx_point.side_effect = [(True, np.array([0, 0, 0])), (True, np.array([10, 20, 30]))]
+        uip.discretise_static_point.side_effect = lambda point: np.rint(np.asarray(point) / stub_grid.dl).astype(int)
 
         # Mock Rx so its inner build chain does not run; we just want to
         # observe the two check_src_rx_point arguments.
         with patch.object(RxArray, "_create_uip", return_value=uip), patch(
             "gprMax.user_objects.cmds_multiuse.Rx"
-        ):
-            try:
-                a.build(stub_grid)
-            except Exception:
-                # We don't care if downstream blows up — only the two
-                # check_src_rx_point calls matter for this tripwire.
-                pass
+        ) as receiver:
+            a.build(stub_grid)
+            assert receiver.call_count == 2 * 3 * 4
 
         calls = uip.check_src_rx_point.call_args_list
-        assert len(calls) >= 2
-        # Both calls pass the LOWER point (the bug)
-        assert calls[0].args[0] == a.lower_point
-        assert calls[1].args[0] == a.lower_point
+        assert len(calls) == 2
+        assert calls[0].args == (lower, a.params_str(), "lower")
+        assert calls[1].args == (upper, a.params_str(), "upper")
+        assert a.lower_point == lower and a.upper_point == upper
 
 
 # ---------------------------------------------------------------------------

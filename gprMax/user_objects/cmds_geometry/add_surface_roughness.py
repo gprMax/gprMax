@@ -51,6 +51,10 @@ class AddSurfaceRoughness(GeometryUserObject):
     def hash(self):
         return "#add_surface_roughness"
 
+    _allowed_kwargs = frozenset({
+        "frac_dim", "fractal_box_id", "limits", "p1", "p2", "seed", "weighting",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

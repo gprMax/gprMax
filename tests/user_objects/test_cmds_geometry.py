@@ -29,7 +29,7 @@ the base class (geometry primitives build in arrival order, not by
 
 We test:
 
-* constructor stores ``self.kwargs`` verbatim;
+* constructor stores accepted ``self.kwargs`` verbatim;
 * ``order == 1`` is inherited;
 * ``hash`` matches the documented value;
 * ``build()`` raises on missing required kwargs or unknown materials —
@@ -96,13 +96,10 @@ class TestCommonContract:
 
     @pytest.mark.parametrize("cls,_", PRIMITIVES + MODIFIERS)
     def test_constructor_stores_kwargs_verbatim(self, cls, _):
-        # Every geometry class uses ``__init__(**kwargs)`` → ``self.kwargs``
-        obj = cls(arbitrary=1, payload="x", values=(0.1, 0.2))
-        assert obj.kwargs == {
-            "arbitrary": 1,
-            "payload": "x",
-            "values": (0.1, 0.2),
-        }
+        # Preserve supported values exactly; unknown names are errors, not
+        # an extension mechanism for built-in geometry commands.
+        kwargs = {"ctr1": 0.1, "ctr2": 0.2} if cls is CylindricalSector else {"p1": (0.1, 0.2, 0.3)}
+        assert cls(**kwargs).kwargs == kwargs
 
 
 # ---------------------------------------------------------------------------
@@ -241,18 +238,23 @@ class TestCone:
 class TestCylindricalSector:
     def test_constructor_kwargs(self):
         c = CylindricalSector(
-            axis="z",
+            normal="z",
             ctr1=0.05,
             ctr2=0.05,
-            t1=0.0,
-            t2=0.05,
+            extent1=0.0,
+            extent2=0.05,
             r=0.02,
-            sectorstartangle=0.0,
-            sectorangle=90.0,
+            start=0.0,
+            end=90.0,
             material_id="free_space",
         )
-        assert c.kwargs["axis"] == "z"
-        assert c.kwargs["sectorangle"] == 90.0
+        assert c.kwargs["normal"] == "z"
+        assert c.kwargs["end"] == 90.0
+
+    @pytest.mark.parametrize("name", ["axis", "t1", "t2", "sectorstartangle", "sectorangle"])
+    def test_unimplemented_parameter_names_are_not_aliases(self, name):
+        with pytest.raises(TypeError, match=f"unexpected keyword.*'{name}'"):
+            CylindricalSector(**{name: None})
 
 
 # ---------------------------------------------------------------------------

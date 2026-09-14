@@ -56,6 +56,10 @@ class Cone(GeometryUserObject):
     def hash(self):
         return "#cone"
 
+    _allowed_kwargs = frozenset({
+        "averaging", "material_id", "material_ids", "p1", "p2", "r1", "r2", "tag",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

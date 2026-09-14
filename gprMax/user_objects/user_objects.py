@@ -23,6 +23,7 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_inputs import MainGridUserInput, MPIUserInput, SubgridUserInput
+from gprMax.utilities.validation import validate_keywords
 
 
 class UserObject(ABC):
@@ -42,6 +43,11 @@ class UserObject(ABC):
             model. False otherwise. Default False.
     """
 
+    # Explicit-signature constructors are checked by Python. Legacy **kwargs
+    # commands declare their accepted keys next to the constructor instead.
+    # None leaves custom user-object subclasses free to define their own API.
+    _allowed_kwargs = None
+
     @property
     @abstractmethod
     def order(self) -> int:
@@ -53,6 +59,10 @@ class UserObject(ABC):
         pass
 
     def __init__(self, **kwargs) -> None:
+        if self._allowed_kwargs is not None:
+            validate_keywords(
+                kwargs, self._allowed_kwargs, context=f"{type(self).__name__} ({self.hash})"
+            )
         self.kwargs = kwargs
         self.autotranslate = True
 

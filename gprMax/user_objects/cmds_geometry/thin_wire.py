@@ -56,6 +56,10 @@ class ThinWire(GeometryUserObject):
     def hash(self):
         return "#thin_wire"
 
+    _allowed_kwargs = frozenset({
+        "p1", "p2", "radius",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.wire_axis = None

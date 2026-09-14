@@ -63,6 +63,11 @@ class CylindricalSector(GeometryUserObject):
     def hash(self):
         return "#cylindrical_sector"
 
+    _allowed_kwargs = frozenset({
+        "averaging", "ctr1", "ctr2", "end", "extent1", "extent2", "material_id",
+        "material_ids", "normal", "r", "start", "tag",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

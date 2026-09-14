@@ -54,6 +54,10 @@ class AddGrass(GeometryUserObject):
     def hash(self):
         return "#add_grass"
 
+    _allowed_kwargs = frozenset({
+        "frac_dim", "fractal_box_id", "limits", "n_blades", "p1", "p2", "seed",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

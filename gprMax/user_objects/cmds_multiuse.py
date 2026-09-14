@@ -336,6 +336,11 @@ class Waveform(GridUserObject):
     def hash(self):
         return "#waveform"
 
+    _allowed_kwargs = frozenset({
+        "amp", "fill_value", "freq", "id", "kind", "user_func", "user_time", "user_values",
+        "wave_type",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -2124,6 +2129,11 @@ class DiscretePlaneWaveAngles(GridUserObject):
     def hash(self):
         return "#plane_wave_angles"
 
+    _allowed_kwargs = frozenset({
+        "material_id", "max_angle_diff", "p1", "p2", "phi", "precompute", "psi", "theta",
+        "waveform_id", "start", "stop",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -2289,6 +2299,11 @@ class DiscretePlaneWaveVector(GridUserObject):
     def hash(self):
         return "#plane_wave_vector"
 
+    _allowed_kwargs = frozenset({
+        "m_vec", "material_id", "p1", "p2", "precompute", "psi", "waveform_id", "start",
+        "stop",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -2438,6 +2453,10 @@ class DiscretePlaneWaveAxial(GridUserObject):
     def hash(self):
         return "#plane_wave_axial"
 
+    _allowed_kwargs = frozenset({
+        "axis", "p1", "p2", "precompute", "psi", "waveform_id", "start", "stop",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -2563,6 +2582,10 @@ class EigenmodeBand(GridUserObject):
     def hash(self):
         return "#eigenmode_band"
 
+    _allowed_kwargs = frozenset({
+        "fmax", "fmin", "frequencies", "id", "points", "spectral_threshold", "transition",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -2656,6 +2679,11 @@ class EigenmodePort(GridUserObject):
     @property
     def hash(self):
         return "#eigenmode_port"
+
+    _allowed_kwargs = frozenset({
+        "anchors", "degenerate", "direction", "mode_polarizations", "modes", "p1", "p2",
+        "plot_fields", "port",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2876,6 +2904,11 @@ class EigenmodeExcitation(GridUserObject):
     @property
     def hash(self):
         return "#eigenmode_excitation"
+
+    _allowed_kwargs = frozenset({
+        "amplitude", "delay_s", "frequencies", "frequency", "mode", "phase_deg",
+        "plot_waveform", "port", "power", "waveform",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3248,6 +3281,12 @@ class _EigenmodeSourceBuilder(GridUserObject):
     def hash(self):
         return "#eigenmode_port"
 
+    _allowed_kwargs = frozenset({
+        "dft_frequencies", "dft_points", "dft_start", "dft_stop", "direction",
+        "frequencies", "frequency", "mode_count", "mode_index", "normal", "p1", "p2",
+        "plot_fields", "port_index", "spectral_threshold", "w", "waveform_id",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -3476,6 +3515,12 @@ class _EigenmodeReceiverBuilder(GridUserObject):
     @property
     def hash(self):
         return "#eigenmode_port"
+
+    _allowed_kwargs = frozenset({
+        "dft_frequencies", "dft_points", "dft_start", "dft_stop", "direction",
+        "frequencies", "frequency", "id", "mode_count", "normal", "p1", "p2", "plot_fields",
+        "port_index", "w",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3799,26 +3844,28 @@ class RxArray(GridUserObject):
         mode = config.get_model_config().mode
         invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
 
+        # Resolution belongs to this build. A declaration may be reused in
+        # another independent Scene with a different domain or discretisation.
         lower_ranged = uip.resolve_inf_point(self.lower_point, role="lower")
         upper_ranged = uip.resolve_inf_point(self.upper_point, role="upper")
         if invariant_axis is not None:
             lower_single = uip.resolve_inf_point(self.lower_point, role=None)
             upper_single = uip.resolve_inf_point(self.upper_point, role=None)
-            self.lower_point = tuple(
+            lower_point = tuple(
                 lower_single[a] if a == invariant_axis else lower_ranged[a] for a in range(3)
             )
-            self.upper_point = tuple(
+            upper_point = tuple(
                 upper_single[a] if a == invariant_axis else upper_ranged[a] for a in range(3)
             )
         else:
-            self.lower_point = lower_ranged
-            self.upper_point = upper_ranged
+            lower_point = lower_ranged
+            upper_point = upper_ranged
 
         _, discretised_lower_point = uip.check_src_rx_point(
-            self.lower_point, self.params_str(), "lower"
+            lower_point, self.params_str(), "lower"
         )
         _, discretised_upper_point = uip.check_src_rx_point(
-            self.upper_point, self.params_str(), "upper"
+            upper_point, self.params_str(), "upper"
         )
         discretised_dl = uip.discretise_static_point(self.dl)
 
@@ -3839,8 +3886,8 @@ class RxArray(GridUserObject):
         # Iterate in the user's coordinate frame, on this grid's lattice.
         # The checked points above may already be translated to local MPI
         # or subgrid indices; Rx.build() must apply that translation only once.
-        lower_indices = uip.discretise_static_point(self.lower_point)
-        upper_indices = uip.discretise_static_point(self.upper_point)
+        lower_indices = uip.discretise_static_point(lower_point)
+        upper_indices = uip.discretise_static_point(upper_point)
         xs, ys, zs = lower_indices * grid.dl
         xf, yf, zf = upper_indices * grid.dl
         dx, dy, dz = discretised_dl * grid.dl
@@ -3886,6 +3933,10 @@ class Material(GridUserObject):
     @property
     def hash(self):
         return "#material"
+
+    _allowed_kwargs = frozenset({
+        "er", "id", "mr", "se", "sm",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3989,6 +4040,10 @@ class MaterialFromDatabase(GridUserObject):
     @property
     def hash(self):
         return "#material_from_database"
+
+    _allowed_kwargs = frozenset({
+        "database", "id", "material",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -4155,6 +4210,10 @@ class AddDebyeDispersion(GridUserObject):
     def hash(self):
         return "#add_dispersion_debye"
 
+    _allowed_kwargs = frozenset({
+        "er_delta", "material_ids", "poles", "tau",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -4254,6 +4313,10 @@ class AddLorentzDispersion(GridUserObject):
     def hash(self):
         return "#add_dispersion_lorentz"
 
+    _allowed_kwargs = frozenset({
+        "delta", "er_delta", "material_ids", "omega", "poles",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -4352,6 +4415,10 @@ class AddDrudeDispersion(GridUserObject):
     def hash(self):
         return "#add_dispersion_drude"
 
+    _allowed_kwargs = frozenset({
+        "alpha", "material_ids", "omega", "poles",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -4440,6 +4507,11 @@ class SoilPeplinski(GridUserObject):
     @property
     def hash(self):
         return "#soil_peplinski"
+
+    _allowed_kwargs = frozenset({
+        "bulk_density", "clay_fraction", "id", "sand_density", "sand_fraction",
+        "water_fraction_lower", "water_fraction_upper",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -4562,6 +4634,11 @@ class MaterialRange(GridUserObject):
     @property
     def hash(self):
         return "#material_range"
+
+    _allowed_kwargs = frozenset({
+        "er_lower", "er_upper", "id", "mr_lower", "mr_upper", "ro_lower", "ro_upper",
+        "sigma_lower", "sigma_upper",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -4687,6 +4764,10 @@ class MaterialList(GridUserObject):
     def hash(self):
         return "#material_list"
 
+    _allowed_kwargs = frozenset({
+        "id", "list_of_materials",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -4742,6 +4823,11 @@ class MaterialCrim(GridUserObject):
     @property
     def hash(self):
         return "#material_crim"
+
+    _allowed_kwargs = frozenset({
+        "a", "dispersive_id", "f_max", "f_min", "fraction_lower", "fraction_upper", "id",
+        "matrix_fraction", "matrix_id",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -4866,6 +4952,12 @@ class PMLCFS(GridUserObject):
     @property
     def hash(self):
         return "#pml_cfs"
+
+    _allowed_kwargs = frozenset({
+        "alphamax", "alphamin", "alphascalingdirection", "alphascalingprofile", "kappamax",
+        "kappamin", "kappascalingdirection", "kappascalingprofile", "profile_id",
+        "sigmamax", "sigmamin", "sigmascalingdirection", "sigmascalingprofile",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -5028,6 +5120,10 @@ class PMLSlab(GridUserObject):
     def hash(self):
         return "#pml_slab"
 
+    _allowed_kwargs = frozenset({
+        "build_pec", "id", "maximum_face", "p1", "p2", "profile_id",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -5168,6 +5264,10 @@ class SymmetryBoundary(GridUserObject):
     @property
     def hash(self):
         return "#symmetry_boundary"
+
+    _allowed_kwargs = frozenset({
+        "face", "type",
+    })
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

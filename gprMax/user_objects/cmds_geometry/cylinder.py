@@ -53,6 +53,10 @@ class Cylinder(GeometryUserObject):
     def hash(self):
         return "#cylinder"
 
+    _allowed_kwargs = frozenset({
+        "averaging", "material_id", "material_ids", "p1", "p2", "r", "tag",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

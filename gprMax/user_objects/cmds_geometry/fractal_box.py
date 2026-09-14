@@ -64,6 +64,11 @@ class FractalBox(GeometryUserObject):
     def hash(self):
         return "#fractal_box"
 
+    _allowed_kwargs = frozenset({
+        "averaging", "frac_dim", "id", "mixing_model_id", "n_materials", "p1", "p2", "seed",
+        "tag", "weighting",
+    })
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.do_pre_build = True
