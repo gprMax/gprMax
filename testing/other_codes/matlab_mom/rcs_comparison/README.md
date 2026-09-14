@@ -67,11 +67,11 @@ checks. Neither numerical solver is treated as ground truth.
 Run a small set of representative angles first:
 
 ```bash
-conda run -n gprMax-devel python \
+conda run -n gprMax-v4 python \
   testing/other_codes/matlab_mom/rcs_comparison/plate_rcs_gprmax.py \
   --target square --mesh coarse --gpu 0
 
-conda run -n gprMax-devel python \
+conda run -n gprMax-v4 python \
   testing/other_codes/matlab_mom/rcs_comparison/plate_rcs_gprmax.py \
   --target circle --mesh coarse --gpu 0
 ```
@@ -88,7 +88,7 @@ Run the independent MATLAB calculations and create plots with:
 ```bash
 matlab -batch "run('testing/other_codes/matlab_mom/rcs_comparison/plate_rcs_matlab.m')"
 
-conda run -n gprMax-devel python \
+conda run -n gprMax-v4 python \
   testing/other_codes/matlab_mom/rcs_comparison/plot_plate_rcs_comparison.py
 ```
 

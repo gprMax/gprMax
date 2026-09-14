@@ -8,8 +8,8 @@ import pytest
 
 import gprMax
 from gprMax.user_objects.user_objects import GridUserObject, UserObject
-from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_400, antenna_like_GSSI_1500
-from toolboxes.GPRAntennaModels.MALA import antenna_like_MALA_1200
+from gprMax.toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_400, antenna_like_GSSI_1500
+from gprMax.toolboxes.GPRAntennaModels.MALA import antenna_like_MALA_1200
 
 pytestmark = pytest.mark.unit
 

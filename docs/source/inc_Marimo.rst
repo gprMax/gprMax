@@ -18,8 +18,8 @@ From a source checkout, an A-scan comparison can be generated and opened with:
 .. code-block:: console
 
    $ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in
-   $ python -m gprMax toolboxes/Marimo/examples/cylinder_Ascan_2D_background.in
-   $ marimo run toolboxes/Marimo/ascan_dashboard.py
+   $ python -m gprMax gprMax/toolboxes/Marimo/examples/cylinder_Ascan_2D_background.in
+   $ marimo run gprMax/toolboxes/Marimo/ascan_dashboard.py
 
 The reference model is a target-free **background** model: it retains the
 dielectric half-space and is not a free-space calculation. The subtraction is
@@ -34,4 +34,4 @@ user interface.
 
 The complete module list, processing assumptions, limitations, and examples
 are given in the :download:`Marimo toolbox README
-<../../toolboxes/Marimo/README.md>`.
+<../../gprMax/toolboxes/Marimo/README.md>`.

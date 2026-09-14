@@ -38,7 +38,7 @@ from gprMax.user_objects.cmds_multiuse import (
     MaterialDensity,
     MaterialFromDatabase,
 )
-from toolboxes.MaterialDatabase import convert_geometry
+from gprMax.toolboxes.MaterialDatabase import convert_geometry
 
 
 def _database(materials, database_id="local"):

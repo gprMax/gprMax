@@ -7,7 +7,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Utilities.outputfiles_dt1 import TRACE_HEADER_FORMAT, export_dt1
+from gprMax.toolboxes.Utilities.outputfiles_dt1 import TRACE_HEADER_FORMAT, export_dt1
 
 
 def _write_output(filename, trace_number=1, *, dt=4.7e-12, samples=6):

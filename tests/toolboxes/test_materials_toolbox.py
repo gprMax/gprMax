@@ -10,7 +10,7 @@ import pytest
 import gprMax
 from gprMax.material_database import load_material_spec
 
-TOOLBOX = Path(__file__).resolve().parents[2] / "toolboxes" / "Materials"
+TOOLBOX = Path(__file__).resolve().parents[2] / "gprMax" / "toolboxes" / "Materials"
 GRADES = (14, 16, 18, 20, 22, 26, 28, 30)
 
 

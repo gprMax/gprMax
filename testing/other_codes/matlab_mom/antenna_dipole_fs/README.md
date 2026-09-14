@@ -66,10 +66,10 @@ stronger and more grid-sensitive test than the far-field pattern.
 From the repository root:
 
 ```bash
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_dipole_fs/dipole_antenna_gprmax.py --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_dipole_fs/dipole_antenna_gprmax.py --gpu 0
 matlab -batch "run('testing/other_codes/matlab_mom/antenna_dipole_fs/dipole_antenna_matlab.m')"
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_dipole_fs/plot_dipole_comparison.py
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_dipole_fs/plot_dipole_metric_comparison.py
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_dipole_fs/plot_dipole_comparison.py
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_dipole_fs/plot_dipole_metric_comparison.py
 ```
 
 Omit `--gpu 0` to use the Cython CPU solver. Use `--geometry-only` to generate

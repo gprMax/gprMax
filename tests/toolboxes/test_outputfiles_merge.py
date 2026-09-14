@@ -19,7 +19,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
+from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
 
 
 def _write_output(filename, offset=0, iterations=3, dtype=np.float64):

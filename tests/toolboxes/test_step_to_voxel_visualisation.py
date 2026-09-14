@@ -20,7 +20,7 @@ import pytest
 
 pyvista = pytest.importorskip("pyvista", reason="optional PyVista dependency is not installed")
 
-from toolboxes.STEPtoVoxel.visualisation import (
+from gprMax.toolboxes.STEPtoVoxel.visualisation import (
     translate_reference_geometry,
     write_reference_geometry,
 )

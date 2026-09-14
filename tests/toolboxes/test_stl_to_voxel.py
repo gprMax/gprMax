@@ -22,9 +22,9 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.STLtoVoxel import stltovoxel
-from toolboxes.STLtoVoxel.convert import convert_meshes
-from toolboxes.STLtoVoxel.slice import calculate_scale_shift
+from gprMax.toolboxes.STLtoVoxel import stltovoxel
+from gprMax.toolboxes.STLtoVoxel.convert import convert_meshes
+from gprMax.toolboxes.STLtoVoxel.slice import calculate_scale_shift
 
 
 def test_parallel_conversion_matches_serial_conversion():

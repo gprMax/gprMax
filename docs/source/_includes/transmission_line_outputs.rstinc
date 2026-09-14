@@ -9,7 +9,7 @@ local electric/magnetic fields. The line resistance is the reference impedance.
 ``frequency``, ``S11``, ``Zin``, ``Yin`` and their validity masks are already
 calculated. ``Zin_current`` is an independent current-wave de-embedding check;
 do not reconstruct it by simply dividing raw staggered histories. Use
-``python -m toolboxes.Plotting.plot_port model.h5 --port tls/tl1 --save``
+``python -m gprMax.toolboxes.Plotting.plot_port model.h5 --port tls/tl1 --save``
 to inspect the stored result and its timing. See :ref:`tl-port-output` for
 the line's spatial/temporal reference plane and masks, and :ref:`study-source`
 for changing generator drives while retaining the passive line termination.

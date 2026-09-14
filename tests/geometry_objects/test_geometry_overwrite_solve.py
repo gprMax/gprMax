@@ -125,7 +125,7 @@ def test_transparent_full_component_import_preserves_rigid_geometry_and_fields(
         output["rigidH"] = np.zeros((6, 8, 8, 8), np.int8)
     materials = tmp_path / "materials.txt"
     materials.write_text("#material: 1 0 1 0 free_space\n")
-    from toolboxes.MaterialDatabase import convert_geometry
+    from gprMax.toolboxes.MaterialDatabase import convert_geometry
 
     path, database = convert_geometry(path, materials)
     results = []

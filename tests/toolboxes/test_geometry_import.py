@@ -21,19 +21,19 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.GeometryImport.common import (
+from gprMax.toolboxes.GeometryImport.common import (
     build_tag_volume,
     unique_normalised_tags,
     write_geometry_hdf5,
 )
-from toolboxes.GeometryImport.volume import (
+from gprMax.toolboxes.GeometryImport.volume import (
     LabelVolume,
     _canonicalise_axis_aligned,
     _integer_labels,
     convert_label_volume,
     write_label_template,
 )
-from toolboxes.STEPtoVoxel.voxeliser import make_grid_from_bbox
+from gprMax.toolboxes.STEPtoVoxel.voxeliser import make_grid_from_bbox
 
 
 def test_component_tags_are_compact_and_independent_of_components():
@@ -182,7 +182,7 @@ def test_label_conversion_writes_materials_and_semantic_tags(tmp_path, monkeypat
         "synthetic",
     )
     monkeypatch.setattr(
-        "toolboxes.GeometryImport.volume.load_label_volume",
+        "gprMax.toolboxes.GeometryImport.volume.load_label_volume",
         lambda source, unit="auto": volume,
     )
     assignments = tmp_path / "labels.csv"

@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/ImpulseResponse/README.rst
+.. include:: ../../gprMax/toolboxes/ImpulseResponse/README.rst

@@ -111,8 +111,8 @@ For ordinary terminal outputs, use:
 
 .. code-block:: console
 
-    python -m toolboxes.Plotting.plot_port model.h5 --list-ports
-    python -m toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
+    python -m gprMax.toolboxes.Plotting.plot_port model.h5 --list-ports
+    python -m gprMax.toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
 
 The tool supports voltage/network ports, transmission lines and frills,
 including subgrids. It reads stored results rather than recomputing S11.

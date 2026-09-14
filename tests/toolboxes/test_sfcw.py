@@ -22,7 +22,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from toolboxes.SFCW.processing import (
+from gprMax.toolboxes.SFCW.processing import (
     SampledSignal,
     direct_frequency_response,
     engineering_dft,

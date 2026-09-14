@@ -42,7 +42,7 @@ The model HDF5 file contains the authoritative arrays directly under
 
 .. code-block:: console
 
-    python -m toolboxes.Plotting.plot_port \
+    python -m gprMax.toolboxes.Plotting.plot_port \
         examples/antennas/wire_dipole/antenna_wire_dipole_fs.h5 \
         --port feed --fmin 0.5e9 --fmax 1.5e9 --tmax 10e-9 --save
 
@@ -180,16 +180,16 @@ This example demonstrates how to use one of the built-in antenna models in a sim
 
     FDTD geometry mesh showing an antenna model similar to a MALA 1.2GHz antenna (skid removed for illustrative purposes).
 
-The antenna model is loaded from a Python module and the objects from the antenna model are added to the scene. The arguments for the ``antenna_like_MALA_1200`` function specify its (x, y, z) location as 0.132m, 0.095m, 0.100m using a 1mm spatial resolution. In this example the antenna is the only object in the model, i.e. the antenna is in free space. More information on using the built-in antenna models can be found in the ``toolboxes/GPRAntennaModels`` package.
+The antenna model is loaded from a Python module and the objects from the antenna model are added to the scene. The arguments for the ``antenna_like_MALA_1200`` function specify its (x, y, z) location as 0.132m, 0.095m, 0.100m using a 1mm spatial resolution. In this example the antenna is the only object in the model, i.e. the antenna is in free space. More information on using the built-in antenna models can be found in the ``gprMax/toolboxes/GPRAntennaModels`` package.
 
 Results
 -------
 
-When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). You can view the results (see :ref:`output` section and README.rst for the ``toolboxes/Plotting`` package) using the command:
+When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). You can view the results (see :ref:`output` section and README.rst for the ``gprMax/toolboxes/Plotting`` package) using the command:
 
 .. code-block:: none
 
-    python -m toolboxes.Plotting.plot_Ascan examples/gpr/antennas/antenna_like_MALA_1200_fs.h5 --outputs Ey
+    python -m gprMax.toolboxes.Plotting.plot_Ascan examples/gpr/antennas/antenna_like_MALA_1200_fs.h5 --outputs Ey
 
 :numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y-axis).
 
@@ -230,11 +230,11 @@ The antenna must be moved to a new position for every single A-scan (trace) in t
 Results
 -------
 
-After merging the A-scans into a single file you can now view an image of the B-scan using the command (see :ref:`output` section and README.rst for the ``toolboxes/Plotting`` package):
+After merging the A-scans into a single file you can now view an image of the B-scan using the command (see :ref:`output` section and README.rst for the ``gprMax/toolboxes/Plotting`` package):
 
 .. code-block:: none
 
-    python -m toolboxes.Plotting.plot_Bscan examples/gpr/antennas/gssi_1500/cylinder_Bscan_GSSI_1500_merged.h5 Ey
+    python -m gprMax.toolboxes.Plotting.plot_Bscan examples/gpr/antennas/gssi_1500/cylinder_Bscan_GSSI_1500_merged.h5 Ey
 
 :numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (of the Ey field component). The initial part of the signal (~1-2 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 

@@ -13,7 +13,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Utilities.outputfiles_segy import export_segy
+from gprMax.toolboxes.Utilities.outputfiles_segy import export_segy
 
 
 def _write_output(

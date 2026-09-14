@@ -1,0 +1,195 @@
+name: Release distributions
+
+# Deliberate opt-in only: neither a PR nor a tag push publishes a package.
+on:
+  workflow_dispatch:
+    inputs:
+      destination:
+        description: "dry-run builds/tests only; pypi publishes after approval; testpypi is optional"
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - testpypi
+          - pypi
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    if: github.repository == 'gprMax/gprMax'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install packaging
+      - name: Require a matching version tag before publishing
+        id: version
+        env:
+          DESTINATION: ${{ inputs.destination }}
+        run: |
+          VERSION="$(python packaging/release_checks.py version --ref "$GITHUB_REF" --destination "$DESTINATION")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: preflight
+    uses: ./.github/workflows/wheels.yml
+
+  validate:
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: gprmax-*
+          merge-multiple: true
+          path: dist
+      - run: python -m pip install packaging twine
+      - name: Check versions, complete platform matrix, and hashes
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          python packaging/release_checks.py distributions dist --version "$RELEASE_VERSION" --manifest release-manifest.json
+          python -m twine check --strict dist/*
+          echo '### Validated release files' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat release-manifest.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-distributions
+          path: dist/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-manifest
+          path: release-manifest.json
+          if-no-files-found: error
+
+  verify-artifacts:
+    needs: [preflight, validate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-distributions
+          path: dist
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-manifest
+          path: .
+      - run: python -m pip install packaging
+      - name: Select and verify the wheel from the validated release artifact
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          python -m pip download --no-index --find-links dist --no-deps --only-binary=:all: --no-cache-dir --dest downloaded "gprMax==$RELEASE_VERSION"
+          python packaging/release_checks.py downloaded downloaded --manifest release-manifest.json
+      - name: Install dependencies from PyPI and test outside the checkout
+        run: |
+          python -m pip install --index-url https://pypi.org/simple/ downloaded/*.whl
+          cd "$RUNNER_TEMP"
+          MPLBACKEND=Agg OMP_NUM_THREADS=1 python "$GITHUB_WORKSPACE/tests/wheel_smoke.py"
+
+  testpypi:
+    if: inputs.destination == 'testpypi'
+    needs: [validate, verify-artifacts]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/gprMax
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          print-hash: true
+
+  verify-testpypi:
+    needs: [preflight, testpypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-manifest
+          path: .
+      - run: python -m pip install packaging
+      - name: Download the exact release without mixing dependency indexes
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          # Allow time for TestPyPI's index to expose the new files.
+          for attempt in 1 2 3 4 5; do
+            if python -m pip download --no-deps --only-binary=:all: --no-cache-dir --index-url https://test.pypi.org/simple/ --dest downloaded "gprMax==$RELEASE_VERSION"; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then exit 1; fi
+            sleep 10
+          done
+          python packaging/release_checks.py downloaded downloaded --manifest release-manifest.json
+      - name: Install dependencies from PyPI and test outside the checkout
+        run: |
+          python -m pip install --index-url https://pypi.org/simple/ downloaded/*.whl
+          cd "$RUNNER_TEMP"
+          MPLBACKEND=Agg OMP_NUM_THREADS=1 python "$GITHUB_WORKSPACE/tests/wheel_smoke.py"
+
+  pypi:
+    if: inputs.destination == 'pypi'
+    needs: [validate, verify-artifacts]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gprMax
+    permissions:
+      id-token: write
+    steps:
+      # The environment's required reviewer approves these already-tested files.
+      # No checkout, build, pip install, or untrusted code runs with OIDC access.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-distributions
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          print-hash: true

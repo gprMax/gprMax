@@ -20,7 +20,7 @@
 import numpy as np
 import pytest
 
-from toolboxes.Marimo.hyperbola import (
+from gprMax.toolboxes.Marimo.hyperbola import (
     C_M_PER_NS,
     apex_source_x,
     apex_time,

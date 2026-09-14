@@ -42,9 +42,9 @@ progression.
 From the repository root:
 
 ```bash
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_dipole_array_fs/dipole_array_gprmax.py --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_dipole_array_fs/dipole_array_gprmax.py --gpu 0
 matlab -batch "run('testing/other_codes/matlab_mom/antenna_dipole_array_fs/dipole_array_matlab.m')"
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_dipole_array_fs/plot_dipole_array_comparison.py
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_dipole_array_fs/plot_dipole_array_comparison.py
 ```
 
 Omit `--gpu 0` for Cython CPU execution. Use `--geometry-only` to write only

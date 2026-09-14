@@ -23,12 +23,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from toolboxes.gprMaxLogo.export_assets import export
-from toolboxes.gprMaxLogo.logo_model import SOURCE_SPECS, rectangles
+from gprMax.toolboxes.gprMaxLogo.export_assets import export
+from gprMax.toolboxes.gprMaxLogo.logo_model import SOURCE_SPECS, rectangles
 from gprMax.hash_cmds_file import check_cmd_names
 
 ROOT = Path(__file__).resolve().parents[2]
-LOGO_TOOLBOX = ROOT / "toolboxes" / "gprMaxLogo"
+LOGO_TOOLBOX = ROOT / "gprMax" / "toolboxes" / "gprMaxLogo"
 
 
 def test_official_model_and_metadata_are_consistent():

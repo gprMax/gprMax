@@ -101,7 +101,7 @@ def test_gallery_export_and_plot(tmp_path):
 
 
 def test_standard_plotting_tool(tmp_path, monkeypatch):
-    from toolboxes.Plotting.plot_source_wave import mpl_plot
+    from gprMax.toolboxes.Plotting.plot_source_wave import mpl_plot
     from examples.features.waveforms.modulated_gaussian import waveform
 
     monkeypatch.chdir(tmp_path)

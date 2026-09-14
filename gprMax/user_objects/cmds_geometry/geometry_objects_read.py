@@ -44,7 +44,7 @@ def _legacy_conversion_error(geofile, matfile="materials.txt"):
         [
             "python",
             "-m",
-            "toolboxes.MaterialDatabase",
+            "gprMax.toolboxes.MaterialDatabase",
             "convert-geometry",
             str(geofile),
             str(matfile),
@@ -65,7 +65,7 @@ class GeometryObjectsRead(GeometryUserObject):
     The geometry is specified using integer arrays in an HDF5 file. These files
     contain ``/material_keys`` which map their compact integer indices to a
     versioned JSON material database. Convert legacy HDF5/text pairs first with
-    ``python -m toolboxes.MaterialDatabase convert-geometry``.
+    ``python -m gprMax.toolboxes.MaterialDatabase convert-geometry``.
 
     Attributes:
         p1: list of lower left (x,y,z) coordinates in the domain where

@@ -25,11 +25,11 @@ from PIL import Image
 
 import gprMax
 import gprMax.model as model_mod
-from toolboxes.Utilities.convert_png2h5 import Cursor, convert_png
+from gprMax.toolboxes.Utilities.convert_png2h5 import Cursor, convert_png
 
 
 def test_cursor_records_material_on_its_instance(monkeypatch):
-    monkeypatch.setattr("toolboxes.Utilities.convert_png2h5.plt.connect", lambda *args: None)
+    monkeypatch.setattr("gprMax.toolboxes.Utilities.convert_png2h5.plt.connect", lambda *args: None)
     materials = []
     image = np.array([[[0.1, 0.2, 0.3, 1.0]]])
     cursor = Cursor(image, materials)
@@ -41,7 +41,7 @@ def test_cursor_records_material_on_its_instance(monkeypatch):
 
 
 def test_cursor_preserves_integer_rgb_values(monkeypatch):
-    monkeypatch.setattr("toolboxes.Utilities.convert_png2h5.plt.connect", lambda *args: None)
+    monkeypatch.setattr("gprMax.toolboxes.Utilities.convert_png2h5.plt.connect", lambda *args: None)
     materials = []
     image = np.array([[[10, 20, 30]]], dtype=np.uint8)
     cursor = Cursor(image, materials)

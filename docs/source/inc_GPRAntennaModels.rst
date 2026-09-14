@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/GPRAntennaModels/README.rst
+.. include:: ../../gprMax/toolboxes/GPRAntennaModels/README.rst

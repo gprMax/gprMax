@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/AntennaPatterns/README.rst
+.. include:: ../../gprMax/toolboxes/AntennaPatterns/README.rst

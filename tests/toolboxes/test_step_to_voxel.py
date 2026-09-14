@@ -23,11 +23,11 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.STEPtoVoxel.converter import _Material, _read_assignments, _write_material_database
-from toolboxes.STEPtoVoxel.grouping import suggest_material_groups
-from toolboxes.STEPtoVoxel.markers import classify_marker_name, load_markers, marker_record
-from toolboxes.STEPtoVoxel.step_metadata import StepMetadata, parse_step_entities
-from toolboxes.STEPtoVoxel.voxeliser import (
+from gprMax.toolboxes.STEPtoVoxel.converter import _Material, _read_assignments, _write_material_database
+from gprMax.toolboxes.STEPtoVoxel.grouping import suggest_material_groups
+from gprMax.toolboxes.STEPtoVoxel.markers import classify_marker_name, load_markers, marker_record
+from gprMax.toolboxes.STEPtoVoxel.step_metadata import StepMetadata, parse_step_entities
+from gprMax.toolboxes.STEPtoVoxel.voxeliser import (
     GridSpec,
     TriangleMesh,
     compute_scene_bbox,

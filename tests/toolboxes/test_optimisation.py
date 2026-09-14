@@ -8,7 +8,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Optimisation import (
+from gprMax.toolboxes.Optimisation import (
     Campaign,
     Categorical,
     Integer,
@@ -61,12 +61,12 @@ def problem(builder="missing_module:build_model", **kwargs):
     return Problem(ParameterSpace({"x": Real(0, 1)}), builder, **kwargs)
 
 
-def test_import_is_solver_free():
+def test_import_does_not_load_optional_optimisers():
     result = subprocess.run(
         [
             sys.executable,
             "-c",
-            "import sys; import toolboxes.Optimisation; assert not {'gprMax', 'optuna', 'scipy', 'pymoo', 'skopt', 'sklearn'} & sys.modules.keys()",
+            "import sys; import gprMax.toolboxes.Optimisation; assert not {'optuna', 'pymoo', 'skopt', 'sklearn'} & sys.modules.keys()",
         ],
         env=os.environ.copy(),
         capture_output=True,
@@ -146,7 +146,7 @@ def test_receiver_reader_preserves_half_step_and_rejects_ambiguity(tmp_path):
 
 
 def test_port_reader_interpolates_complex_s11_without_crossing_invalid_bins(tmp_path):
-    from toolboxes.Optimisation import read_port
+    from gprMax.toolboxes.Optimisation import read_port
 
     path = tmp_path / "port.h5"
     with h5py.File(path, "w") as output:
@@ -175,7 +175,7 @@ def test_port_reader_interpolates_complex_s11_without_crossing_invalid_bins(tmp_
 
 @pytest.mark.parametrize("optimum", [1, 6, 12])
 def test_scalar_integer_search_keeps_distinct_physical_candidates(optimum):
-    from toolboxes.Optimisation import minimise_integer
+    from gprMax.toolboxes.Optimisation import minimise_integer
 
     calls = []
 
@@ -192,7 +192,7 @@ def test_scalar_integer_search_keeps_distinct_physical_candidates(optimum):
 
 
 def test_scalar_driver_rejects_invalid_objective():
-    from toolboxes.Optimisation import minimise_integer
+    from gprMax.toolboxes.Optimisation import minimise_integer
 
     with pytest.raises(ValueError, match="not finite"):
         minimise_integer(lambda n: float("nan"), 1, 5)
@@ -200,8 +200,8 @@ def test_scalar_driver_rejects_invalid_objective():
 
 def test_dipole_builder_changes_arms_without_shorting_the_feed():
     import gprMax
-    from toolboxes.Optimisation import BuildContext
-    from toolboxes.Optimisation.examples.advanced.thin_wire_dipole import build_model, settings
+    from gprMax.toolboxes.Optimisation import BuildContext
+    from gprMax.toolboxes.Optimisation.examples.advanced.thin_wire_dipole import build_model, settings
 
     config = settings()
     scenario = Scenario("free_space", config)
@@ -234,7 +234,7 @@ def test_dipole_builder_changes_arms_without_shorting_the_feed():
 def joint_evaluator(tmp_path, monkeypatch):
     module = tmp_path / "joint_objective.py"
     module.write_text(
-        "from toolboxes.Optimisation import ObjectiveResult\n"
+        "from gprMax.toolboxes.Optimisation import ObjectiveResult\n"
         "def evaluate(parameters, runs):\n"
         "    values = {name: run.record['signal'] for name, run in runs.items()}\n"
         "    return ObjectiveResult(sum(values.values()), {'signals': values})\n"
@@ -258,7 +258,7 @@ class RecordingExecutor:
         return {"backend": "test"}
 
     def run(self, request, directory):
-        from toolboxes.Optimisation import RunResult
+        from gprMax.toolboxes.Optimisation import RunResult
 
         directory.mkdir(parents=True)
         self.requests.append(request)
@@ -287,7 +287,7 @@ class FeedbackOptimiser:
         return {"adapter": "test", "direction": "minimize"}
 
     def ask(self):
-        from toolboxes.Optimisation import Proposal
+        from gprMax.toolboxes.Optimisation import Proposal
 
         assert self.asked == len(self.results), "Cannot propose the next candidate before feedback"
         value = 0.5 if not self.results else self.results[-1].value / 10
@@ -358,7 +358,7 @@ def test_invalid_target_rejected_before_optimiser_starts(tmp_path, joint_evaluat
 
 
 def synthetic_dip_spectrum():
-    from toolboxes.Optimisation import PortSpectrum
+    from gprMax.toolboxes.Optimisation import PortSpectrum
 
     frequency = np.arange(0.5e9, 1.51e9, 10e6)
     power = 0.01 + ((frequency - 1.006e9) / 100e6) ** 2
@@ -377,7 +377,7 @@ def synthetic_dip_spectrum():
 
 
 def test_resonance_objective_finds_frequency_between_bins():
-    from toolboxes.Optimisation.examples.advanced.thin_wire_dipole import resonance_metrics
+    from gprMax.toolboxes.Optimisation.examples.advanced.thin_wire_dipole import resonance_metrics
 
     metrics = resonance_metrics(synthetic_dip_spectrum(), 1e9, 10e6)
     assert metrics["s11_minimum_hz"] == 1.01e9
@@ -390,7 +390,7 @@ def test_resonance_objective_finds_frequency_between_bins():
 def test_resonance_objective_rejects_unresolved_dips(case):
     from dataclasses import replace
 
-    from toolboxes.Optimisation.examples.advanced.thin_wire_dipole import resonance_metrics
+    from gprMax.toolboxes.Optimisation.examples.advanced.thin_wire_dipole import resonance_metrics
 
     spectrum = synthetic_dip_spectrum()
     if case == "invalid_band":
@@ -407,8 +407,8 @@ def test_resonance_objective_rejects_unresolved_dips(case):
 
 def test_axial_refinement_preserves_radius_and_transverse_mesh():
     import gprMax
-    from toolboxes.Optimisation import BuildContext
-    from toolboxes.Optimisation.examples.advanced.thin_wire_dipole import build_model, settings
+    from gprMax.toolboxes.Optimisation import BuildContext
+    from gprMax.toolboxes.Optimisation.examples.advanced.thin_wire_dipole import build_model, settings
 
     coarse, fine = settings(), settings(axial_refinement=2, radius_m=0.000599584916)
     assert coarse["radius"] == fine["radius"] and coarse["dl"] == fine["dl"]
@@ -442,7 +442,7 @@ def test_failed_trials_are_reported_without_numerical_penalties(tmp_path, joint_
 
 def test_optuna_native_parameters_and_failed_trial_state():
     optuna = pytest.importorskip("optuna")
-    from toolboxes.Optimisation import OptunaTPE, TrialResult
+    from gprMax.toolboxes.Optimisation import OptunaTPE, TrialResult
 
     space = ParameterSpace(
         {
@@ -480,7 +480,7 @@ def test_optuna_native_parameters_and_failed_trial_state():
 
 def test_optuna_trial_mapping_and_duplicate_proposals(tmp_path, joint_evaluator):
     optuna = pytest.importorskip("optuna")
-    from toolboxes.Optimisation import OptunaTPE
+    from gprMax.toolboxes.Optimisation import OptunaTPE
 
     adapter = OptunaTPE(seed=0, n_startup_trials=2)
     # One mesh-representable design makes repeat-proposal semantics unambiguous.
@@ -500,7 +500,7 @@ def test_optuna_trial_mapping_and_duplicate_proposals(tmp_path, joint_evaluator)
 
 def test_optuna_proposals_respond_to_objective_feedback():
     pytest.importorskip("optuna")
-    from toolboxes.Optimisation import OptunaTPE, TrialResult
+    from gprMax.toolboxes.Optimisation import OptunaTPE, TrialResult
 
     proposals = []
     for target in (0.1, 0.9):
@@ -539,11 +539,11 @@ def test_feedback_delivery_error_preserves_committed_objective(tmp_path, joint_e
 
 @pytest.mark.integration
 def test_fresh_models_have_distinct_geometry_materials_and_repeatable_fields(tmp_path):
-    from toolboxes.Optimisation.examples import dielectric_block
+    from gprMax.toolboxes.Optimisation.examples import dielectric_block
 
     definition = Problem(
         ParameterSpace({"width": Real(0.008, 0.016), "permittivity": Real(2, 8)}),
-        "toolboxes.Optimisation.examples.dielectric_block:build_model",
+        "gprMax.toolboxes.Optimisation.examples.dielectric_block:build_model",
         dependencies=(Path(dielectric_block.__file__),),
     )
     campaign = Campaign(definition, tmp_path / "block")
@@ -595,7 +595,7 @@ class RecordingBatch:
         return len(self.feedback) >= self.generations
 
     def ask_batch(self):
-        from toolboxes.Optimisation import Proposal
+        from gprMax.toolboxes.Optimisation import Proposal
 
         assert self.asked == len(self.feedback)
         self.asked += 1
@@ -683,7 +683,7 @@ def test_batch_delivery_error_keeps_all_committed_objectives(tmp_path, joint_eva
 
 
 def test_numeric_coordinates_physical_scales_and_integer_rounding():
-    from toolboxes.Optimisation.population import NumericCoordinates
+    from gprMax.toolboxes.Optimisation.population import NumericCoordinates
 
     space = ParameterSpace(
         {"sigma": Real(1e-4, 1e2, scale="log"), "n": Integer(1, 4), "fixed": Integer(2, 2)}
@@ -699,7 +699,7 @@ def test_numeric_coordinates_physical_scales_and_integer_rounding():
 @pytest.mark.parametrize("name", ["ga", "pso", "de"])
 def test_pymoo_population_feedback_controls_next_generation(name):
     pytest.importorskip("pymoo")
-    from toolboxes.Optimisation import TrialResult, make_optimiser
+    from gprMax.toolboxes.Optimisation import TrialResult, make_optimiser
 
     sequences = []
     for target in (0.1, 0.9):
@@ -730,7 +730,7 @@ def test_pymoo_population_feedback_controls_next_generation(name):
 @pytest.mark.parametrize("name", ["ga", "pso", "de"])
 def test_pymoo_numeric_mixed_dimensions_and_abort(name):
     pytest.importorskip("pymoo")
-    from toolboxes.Optimisation import TrialResult, make_optimiser
+    from gprMax.toolboxes.Optimisation import TrialResult, make_optimiser
 
     space = ParameterSpace({"n": Integer(1, 20), "sigma": Real(1e-4, 1e2, scale="log")})
     adapter = make_optimiser(name, seed=3)
@@ -756,7 +756,7 @@ def test_pymoo_numeric_mixed_dimensions_and_abort(name):
 
 def test_rf_native_dimensions_feedback_and_failure():
     pytest.importorskip("skopt")
-    from toolboxes.Optimisation import SkoptRF, TrialResult
+    from gprMax.toolboxes.Optimisation import SkoptRF, TrialResult
 
     space = ParameterSpace(
         {
@@ -790,7 +790,7 @@ def test_rf_native_dimensions_feedback_and_failure():
 
 def test_rf_proposals_depend_on_feedback():
     pytest.importorskip("skopt")
-    from toolboxes.Optimisation import SkoptRF, TrialResult
+    from gprMax.toolboxes.Optimisation import SkoptRF, TrialResult
 
     sequences = []
     for target in (0.1, 0.9):
@@ -813,8 +813,8 @@ def test_rf_proposals_depend_on_feedback():
 
 def test_explicit_one_mm_dipole_geometry():
     import gprMax
-    from toolboxes.Optimisation import BuildContext
-    from toolboxes.Optimisation.examples.advanced.thin_wire_dipole import build_model, settings
+    from gprMax.toolboxes.Optimisation import BuildContext
+    from gprMax.toolboxes.Optimisation.examples.advanced.thin_wire_dipole import build_model, settings
 
     config = settings(dz_m=0.001, cycles=100)
     assert config["dz"] == 0.001 and (config["lower"], config["upper"]) == (54, 83)
@@ -839,7 +839,7 @@ def test_explicit_one_mm_dipole_geometry():
 @pytest.mark.parametrize("name", ["ga", "pso", "de", "rf"])
 def test_adapters_reject_mutated_proposals(name):
     pytest.importorskip("pymoo" if name != "rf" else "skopt")
-    from toolboxes.Optimisation import TrialResult, make_optimiser
+    from gprMax.toolboxes.Optimisation import TrialResult, make_optimiser
 
     adapter = make_optimiser(name, seed=7)
     adapter.initialise(ParameterSpace({"x": Real(0, 1)}))

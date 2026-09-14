@@ -21,7 +21,7 @@ import ast
 from pathlib import Path
 
 
-MACRO = Path(__file__).parents[2] / "toolboxes" / "Utilities" / "Paraview" / "gprMax.py"
+MACRO = Path(__file__).parents[2] / "gprMax" / "toolboxes" / "Utilities" / "Paraview" / "gprMax.py"
 
 
 class _MaterialNames:

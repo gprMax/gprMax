@@ -26,7 +26,7 @@ import numpy as np
 import pytest
 
 
-MATLAB_TOOLS = Path(__file__).parents[2] / "toolboxes" / "Utilities" / "MATLAB"
+MATLAB_TOOLS = Path(__file__).parents[2] / "gprMax" / "toolboxes" / "Utilities" / "MATLAB"
 
 
 def _matlab_path(path):

@@ -10,7 +10,7 @@ antenna are iteratively added to the scene.
 from pathlib import Path
 
 import gprMax
-from toolboxes.GPRAntennaModels.MALA import antenna_like_MALA_1200
+from gprMax.toolboxes.GPRAntennaModels.MALA import antenna_like_MALA_1200
 
 # File path for output
 fn = Path(__file__)

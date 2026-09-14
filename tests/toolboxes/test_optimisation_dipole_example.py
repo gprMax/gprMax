@@ -6,9 +6,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from toolboxes.Optimisation import BuildContext, PortSpectrum, Scenario
-from toolboxes.Optimisation.examples import thin_wire_dipole as example
-from toolboxes.Optimisation.examples.advanced import thin_wire_dipole as benchmark
+from gprMax.toolboxes.Optimisation import BuildContext, PortSpectrum, Scenario
+from gprMax.toolboxes.Optimisation.examples import thin_wire_dipole as example
+from gprMax.toolboxes.Optimisation.examples.advanced import thin_wire_dipole as benchmark
 
 
 @pytest.mark.parametrize("arm_cells", [54, 69, 83])

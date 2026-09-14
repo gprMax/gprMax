@@ -4,7 +4,7 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Optimisation import read_port
+from gprMax.toolboxes.Optimisation import read_port
 
 
 def write_terminal(file, path, reference=50):

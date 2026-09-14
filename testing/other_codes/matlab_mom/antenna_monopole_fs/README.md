@@ -43,10 +43,10 @@ sample, avoiding redundant finite-plate MoM solutions.
 From the repository root:
 
 ```bash
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_monopole_fs/monopole_antenna_gprmax.py --gpu 0
-conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_monopole_fs/monopole_antenna_gprmax.py --feed frill --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_monopole_fs/monopole_antenna_gprmax.py --gpu 0
+conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_monopole_fs/monopole_antenna_gprmax.py --feed frill --gpu 0
 matlab -batch "run('testing/other_codes/matlab_mom/antenna_monopole_fs/monopole_antenna_matlab.m')"
-MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-devel python testing/other_codes/matlab_mom/antenna_monopole_fs/plot_monopole_comparison.py
+MPLCONFIGDIR=/tmp/matplotlib-gprmax conda run -n gprMax-v4 python testing/other_codes/matlab_mom/antenna_monopole_fs/plot_monopole_comparison.py
 ```
 
 Omit `--gpu 0` to use the Cython CPU solver. Use `--geometry-only` to write the

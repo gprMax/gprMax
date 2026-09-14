@@ -17,6 +17,15 @@ Additionally, the Message Passing Interface (MPI) can be utilised to implement a
 
 Some of these accelerators and frameworks require additional software to be installed. The guidance below explains how to do that and gives examples of usage.
 
+Use the Python selected during :ref:`installation`. Conda is optional: a
+``venv`` or a user-managed Python can run the same commands. If you use an
+environment, activate it (or select it explicitly) before installing bindings
+and running models. The examples below assume your working directory contains
+the ``examples/`` tree; wheel users can obtain it with
+``python -m gprMax.examples copy my-gprmax-work`` and then work in
+``my-gprmax-work``. A checkout is needed only for the source-build commands
+and repository-specific helpers explicitly identified below.
+
 .. _accelerator-bindings-installation:
 
 Installing optional accelerator bindings
@@ -38,9 +47,9 @@ top-level directory of the gprMax checkout:
 
 .. code-block:: console
 
-    (gprMax)$ python -m pip install -e ".[cuda]"       # Linux/Windows
-    (gprMax)$ python -m pip install -e ".[opencl]"
-    (gprMax)$ python -m pip install -e ".[metal]"      # macOS
+    $ python -m pip install -e ".[cuda]"       # Linux/Windows
+    $ python -m pip install -e ".[opencl]"
+    $ python -m pip install -e ".[metal]"      # macOS
 
 The different targets are intentional: ``gprMax[...]`` names the released
 distribution, whereas ``.[...]`` refers to the checkout in the current
@@ -62,7 +71,7 @@ installed.
 
 .. note::
 
-    You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it with the aforementioned accelerators.
+    You can use the ``get_host_spec.py`` module (in ``gprMax/toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it with the aforementioned accelerators.
 
 Solver precision
 ================
@@ -77,8 +86,8 @@ OpenCL precision with ``-gpu_precision``:
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax model.in -cpu_precision double
-    (gprMax)$ python -m gprMax model.in -gpu -gpu_precision double
+    $ python -m gprMax model.in -cpu_precision double
+    $ python -m gprMax model.in -gpu -gpu_precision double
 
 The corresponding Python API arguments are ``cpu_precision="double"`` and
 ``gpu_precision="double"`` on :func:`gprMax.run`. Each accepts ``single`` or
@@ -109,11 +118,15 @@ MPI
 ===
 
 MPI support is optional and is not installed with the core gprMax package. It
-requires a system MPI implementation and the gprMax ``mpi`` extra:
+requires a system MPI implementation and the gprMax ``mpi`` extra. For a
+released package:
 
 .. code-block:: console
 
-    (gprMax)$ python -m pip install -e ".[mpi]"
+    $ python -m pip install "gprMax[mpi]"
+
+For an editable source install, use ``python -m pip install -e ".[mpi]"``
+from the checkout instead.
 
 The extra installs ``mpi4py`` but does not install or configure the system MPI
 runtime. You will also need to :ref:`build h5py with MPI support<h5py_mpi>` if
@@ -132,13 +145,14 @@ There are two ways to use MPI with gprMax:
 Domain decomposition
 --------------------
 
-Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment: ``conda activate gprMax``
+Open a terminal with the intended Python/MPI environment selected and work
+in the directory containing your copied examples or the matching checkout.
 
 Run one of the 2D test models:
 
 .. code-block:: console
 
-    (gprMax)$ mpirun -n 4 python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in --mpi 2 2 1
+    $ mpirun -n 4 python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in --mpi 2 2 1
 
 The ``--mpi`` argument passed to gprMax takes three integers to define the number of MPI processes in the x, y, and z dimensions to form a cartesian grid. The product of these three numbers shoud equal the number of MPI ranks. In this case ``2 x 2 x 1 = 4``.
 
@@ -229,7 +243,7 @@ By default, the MPI task farm functionality is turned off. It can be used with t
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm
+    $ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm
 
 
 CUDA
@@ -259,7 +273,8 @@ root, activate your Python environment first, then initialize the compiler:
 
 .. code-block:: powershell
 
-    conda activate gprMax
+    # First select your Python environment, for example:
+    conda activate gprMax-v4
     . ./packaging/activate_cuda.ps1
     python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -gpu
 
@@ -273,18 +288,20 @@ Python environment there, and run the model from that prompt.
 Example
 -------
 
-Open a Terminal (Linux/macOS) or a compiler-enabled prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``
+Open a terminal on Linux or a compiler-enabled prompt on Windows with the
+intended Python environment selected. Work in the directory containing your
+copied examples or the matching checkout; Conda is not required.
 
 Run one of the test models:
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -gpu
+    $ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -gpu
 
 .. note::
 
     * If you want to select a specific GPU card on your system, you can specify an integer after the ``-gpu`` flag. The integer should be the NVIDIA CUDA device ID for a specific GPU card. If it is not specified it defaults to device ID 0.
-    * You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it.
+    * You can use the ``get_host_spec.py`` module (in ``gprMax/toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it.
 
 
 OpenCL
@@ -304,18 +321,19 @@ The following steps provide guidance on how to install the extra components to a
 Example
 -------
 
-Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``
+Open a terminal with the intended Python environment selected and work in
+the directory containing your copied examples or the matching checkout.
 
 Run one of the test models:
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -opencl
+    $ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -opencl
 
 .. note::
 
     * If you want to select a specific computer device on your system, you can specify an integer after the ``-opencl`` flag. The integer should be the device ID for a specific compute device. If it is not specified it defaults to device ID 0.
-    * You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it.
+    * You can use the ``get_host_spec.py`` module (in ``gprMax/toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it.
 
 
 Apple Metal
@@ -351,20 +369,21 @@ The following Python package is required to use Apple Metal acceleration:
 Example
 -------
 
-Open a Terminal on macOS, navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``
+Open a terminal on macOS with the intended Python environment selected and
+work in the directory containing your copied examples or the matching checkout.
 
 Run one of the test models with Metal acceleration:
 
 .. code-block:: none
 
-    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -metal
+    $ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -metal
 
 .. note::
 
     * The Metal backend automatically selects the best available GPU device on your Mac system
     * Metal is available only on macOS; select the CPU, CUDA, or OpenCL backend
       explicitly on other platforms
-    * For debugging or development purposes, you can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to understand your hardware capabilities
+    * For debugging or development purposes, you can use the ``get_host_spec.py`` module (in ``gprMax/toolboxes/Utilities``) to understand your hardware capabilities
 
 
 CUDA/MPI
@@ -379,7 +398,7 @@ For example, to run a B-scan that contains 60 A-scans (traces) on a system with 
 
 .. code-block:: console
 
-    (gprMax)$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm -gpu 0 1 2 3
+    $ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm -gpu 0 1 2 3
 
 .. note::
 

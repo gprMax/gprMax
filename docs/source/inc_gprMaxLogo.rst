@@ -60,26 +60,26 @@ dark-background PNGs. Use the transparent version where possible, preserve
 the wordmark aspect ratio, and retain the ``gprMax`` capitalisation.
 
 * :download:`2048 px transparent PNG
-  <../../toolboxes/gprMaxLogo/assets/gprmax_v4_logo_2048px.png>`
+  <../../gprMax/toolboxes/gprMaxLogo/assets/gprmax_v4_logo_2048px.png>`
 * :download:`1024 px transparent PNG
-  <../../toolboxes/gprMaxLogo/assets/gprmax_v4_logo_1024px.png>`
+  <../../gprMax/toolboxes/gprMaxLogo/assets/gprmax_v4_logo_1024px.png>`
 * :download:`512 px transparent PNG
-  <../../toolboxes/gprMaxLogo/assets/gprmax_v4_logo_512px.png>`
+  <../../gprMax/toolboxes/gprMaxLogo/assets/gprmax_v4_logo_512px.png>`
 * :download:`Asset manifest
-  <../../toolboxes/gprMaxLogo/assets/manifest.json>`
+  <../../gprMax/toolboxes/gprMaxLogo/assets/manifest.json>`
 
 Reproducing the logo
 ====================
 
 The complete model, bundled font and licence, rendering tools, standard
 exports, and detailed reproduction instructions are included in the
-:download:`gprMaxLogo README <../../toolboxes/gprMaxLogo/README.md>`.
+:download:`gprMaxLogo README <../../gprMax/toolboxes/gprMaxLogo/README.md>`.
 
 Generate the model from the repository root with:
 
 .. code-block:: console
 
-   $ python toolboxes/gprMaxLogo/logo_model.py
+   $ python gprMax/toolboxes/gprMaxLogo/logo_model.py
 
 The production case contains 72 million cells and produces an approximately
 1.7 GB raw field snapshot, so a suitable GPU is recommended. The snapshot is

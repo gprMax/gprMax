@@ -62,8 +62,8 @@ help_msg = {
     "n": "(int, opt): Number of required simulation runs.",
     "i": (
         "(int, opt): Model number to start/restart simulation from. It would typically be used to"
-        " restart a series of models from a specific model number, with the n argument, e.g. to"
-        " restart from A-scan 45 when creating a B-scan with 60 traces."
+        " restart a series of models from a specific model number. For ordinary runs n is a"
+        " count, not the final model number: i=45, n=16 runs A-scans 45 through 60."
     ),
     "taskfarm": (
         "(bool, opt): Flag to use Message Passing Interface (MPI) task farm. This option is most"
@@ -182,10 +182,9 @@ def run(
         outputfile: string for file path to the output data file
         n: optional int for number of required simulation runs.
         i: optional int for model number to start/restart simulation
-            from. It would typically be used to restart a series of
-            models from a specific model number, with the n argument,
-            e.g. to restart from A-scan 45 when creating a B-scan with
-            60 traces.
+            from. For ordinary runs, n is the number of models to execute,
+            not the final model number: i=45, n=16 runs A-scans 45 through
+            60. Study-managed case counts follow the study's restart rules.
         taskfarm: optional boolean flag to use Message Passing Interface
             (MPI) task farm. This option is most usefully combined with
             n to allow individual models to be farmed out using a MPI

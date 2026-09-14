@@ -13,10 +13,10 @@ import pytest
 import gprMax
 import gprMax.model as model_module
 from gprMax.material_database import load_material_spec
-from toolboxes.MaterialDatabase import convert_geometry
-from toolboxes.MaterialDatabase.convert_geometry import _blocks
+from gprMax.toolboxes.MaterialDatabase import convert_geometry
+from gprMax.toolboxes.MaterialDatabase.convert_geometry import _blocks
 
-converter = importlib.import_module("toolboxes.MaterialDatabase.convert_geometry")
+converter = importlib.import_module("gprMax.toolboxes.MaterialDatabase.convert_geometry")
 pytestmark = pytest.mark.unit
 
 
@@ -248,7 +248,7 @@ def test_conversion_does_not_overwrite_an_output_created_during_validation(monke
 @pytest.mark.parametrize("model", ("can", "PMA", "PMN", "TS50"))
 @pytest.mark.parametrize("spacing", ("1x1x1", "2x2x2"))
 def test_shipped_legacy_geometry_files_convert(tmp_path, model, spacing):
-    directory = Path(__file__).resolve().parents[2] / "toolboxes" / "LandmineModels" / "legacy"
+    directory = Path(__file__).resolve().parents[2] / "gprMax" / "toolboxes" / "LandmineModels" / "legacy"
     source = directory / f"{model}_{spacing}.h5"
     converted, _ = convert_geometry(
         source,
@@ -289,7 +289,7 @@ def test_conversion_cli_prints_the_new_import_arguments(tmp_path):
         [
             sys.executable,
             "-m",
-            "toolboxes.MaterialDatabase",
+            "gprMax.toolboxes.MaterialDatabase",
             "convert-geometry",
             str(source),
             str(materials),

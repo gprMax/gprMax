@@ -19,12 +19,12 @@ import numpy as np
 import pytest
 
 import gprMax
-from toolboxes.ImpulseResponse import (
+from gprMax.toolboxes.ImpulseResponse import (
     load_source_sampling,
     sample_builtin_waveform,
     synthesise_output,
 )
-from toolboxes.SFCW.processing import load_receiver, load_source
+from gprMax.toolboxes.SFCW.processing import load_receiver, load_source
 
 pytestmark = pytest.mark.integration
 

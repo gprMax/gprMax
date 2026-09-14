@@ -24,9 +24,9 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.MaterialDatabase.convert_geometry import convert_geometry, parse_legacy_materials
+from gprMax.toolboxes.MaterialDatabase.convert_geometry import convert_geometry, parse_legacy_materials
 
-TOOLBOX = Path(__file__).parents[2] / "toolboxes" / "AustinManWoman"
+TOOLBOX = Path(__file__).parents[2] / "gprMax" / "toolboxes" / "AustinManWoman"
 
 
 def _materials(filename):

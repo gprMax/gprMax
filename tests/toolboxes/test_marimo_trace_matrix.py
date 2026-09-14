@@ -21,8 +21,8 @@ import h5py
 import numpy as np
 import pytest
 
-from toolboxes.Marimo.h5_reader import load_file
-from toolboxes.Marimo.trace_matrix import process_trace, stack_traces
+from gprMax.toolboxes.Marimo.h5_reader import load_file
+from gprMax.toolboxes.Marimo.trace_matrix import process_trace, stack_traces
 
 DT = 4.717308673499368e-12
 ITERATIONS = 100

@@ -54,7 +54,7 @@ def ensure_ascan(force=False):
 def ensure_bscan(force=False, traces=60):
     """Run and merge the cylinder B-scan example when required."""
 
-    from toolboxes.Utilities.outputfiles_merge import merge_files
+    from gprMax.toolboxes.Utilities.outputfiles_merge import merge_files
 
     merged = OUTPUT_DIR / "cylinder_Bscan_2D_merged.h5"
     if force or not merged.exists():

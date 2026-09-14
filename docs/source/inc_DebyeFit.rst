@@ -1,1 +1,1 @@
-.. include:: ../../toolboxes/DebyeFit/README.rst
+.. include:: ../../gprMax/toolboxes/DebyeFit/README.rst

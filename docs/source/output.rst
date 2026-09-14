@@ -715,10 +715,10 @@ Use name-based selections when migrating saved scripts:
 
 .. code-block:: python
 
-    from toolboxes.SFCW.processing import load_receiver
+    from gprMax.toolboxes.SFCW.processing import load_receiver
     trace = load_receiver("run.h5", "name:surface", "Ez")
 
-    from toolboxes.Utilities.outputfiles_merge import get_output_data
+    from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data
     data, dt = get_output_data("merged.h5", 1, "Ez", receiver_name="surface")
 
 SFCW/FMCW ``--receiver`` and ImpulseResponse receiver selections also accept
@@ -1172,7 +1172,7 @@ the terminal calculation:
 
 .. code-block:: console
 
-    python -m toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
+    python -m gprMax.toolboxes.Plotting.plot_port model.h5 --port feed --validity --save
 
 The same command supports rational-network, transmission-line, and
 magnetic-frill port groups, including ports owned by subgrids. Multiple
@@ -1897,7 +1897,7 @@ ID.
 
 #. **Open the file** either from the File menu or the toolbar.
 #. Click the **Apply** button in the Properties panel. You should see an outline of the volume of the geometry view.
-#. Install the ``gprMax.py`` Python script, that comes with the gprMax source code (in the ``toolboxes/Utilities/Paraview`` directory), as a macro in Paraview. This script makes it quick and easy to view the different materials in a geometry file. To add the script as a macro in Paraview choose the file from the Macros->Add new macro menu. It will then appear as a shortcut button in the toolbar as shown in :numref:`pv_toolbar`. You only need to do this once, the macro will be kept in Paraview for future use.
+#. Install the ``gprMax.py`` Python script, that comes with the gprMax source code (in the ``gprMax/toolboxes/Utilities/Paraview`` directory), as a macro in Paraview. This script makes it quick and easy to view the different materials in a geometry file. To add the script as a macro in Paraview choose the file from the Macros->Add new macro menu. It will then appear as a shortcut button in the toolbar as shown in :numref:`pv_toolbar`. You only need to do this once, the macro will be kept in Paraview for future use.
 #. Click the ``gprMax`` shortcut button. All the materials in the model should appear in the Pipeline Browser as Threshold items as shown in :numref:`pv_pipeline`. If the geometry contains semantic tags, the macro also creates ``Tag - <name>`` Threshold items. These are hidden initially to avoid obscuring the material view and can be enabled individually with the eye icon.
 
 .. _pv_pipeline:

@@ -358,7 +358,7 @@ class BScanMixin(GprMaxMixin):
         self.executable_opts += ["-n", str(self.num_models)]
 
         self.postrun_cmds += [
-            f"python -m toolboxes.Utilities.outputfiles_merge {self.model}",
+            f"python -m gprMax.toolboxes.Utilities.outputfiles_merge {self.model}",
             f"mv {self.model}_merged.h5 {self.output_file}",
         ]
 

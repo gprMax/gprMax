@@ -21,15 +21,18 @@ from __future__ import annotations
 
 import importlib
 import importlib.machinery
+from importlib.metadata import distribution
 import os
 import tempfile
+import subprocess
+import sys
 from pathlib import Path
 
 os.environ.setdefault("MPLCONFIGDIR", tempfile.mkdtemp(prefix="gprmax-matplotlib-"))
 
 import gprMax
 from gprMax.examples import copy_examples, list_examples
-from toolboxes.STLtoVoxel.convert import convert_file
+from gprMax.toolboxes.STLtoVoxel.convert import convert_file
 
 CYTHON_MODULES = (
     "eigenmode_dft",
@@ -74,6 +77,24 @@ def _assert_only_wheel_payload_is_installed() -> None:
     assert not list(cython_dir.glob("*.pyx"))
     assert not list(cython_dir.glob("*.c"))
     assert not list(package.rglob("*.pxd"))
+    payload = distribution("gprMax")
+    assert payload.read_text("top_level.txt").split() == ["gprMax"]
+    assert not any(str(path).startswith("toolboxes/") for path in payload.files)
+
+
+def _assert_toolbox_namespace_is_private(workspace: Path) -> None:
+    foreign = workspace / "toolboxes"
+    foreign.mkdir()
+    (foreign / "__init__.py").write_text("SENTINEL = 'unrelated'\n", encoding="utf-8")
+    script = (
+        "import toolboxes\n"
+        "import gprMax.toolboxes\n"
+        "from gprMax.toolboxes.SFCW.processing import load_receiver\n"
+        "assert toolboxes.SENTINEL == 'unrelated'\n"
+        "assert load_receiver.__module__ == 'gprMax.toolboxes.SFCW.processing'\n"
+    )
+    subprocess.run([sys.executable, "-c", script], cwd=workspace, check=True)
+    subprocess.run([sys.executable, "-m", "gprMax.toolboxes.Plotting.plot_port", "--help"], cwd=workspace, check=True)
 
 
 def _assert_examples_are_available(workspace: Path) -> None:
@@ -86,7 +107,7 @@ def _assert_examples_are_available(workspace: Path) -> None:
 
 
 def _assert_matlab_utilities_are_available() -> None:
-    toolboxes = Path(importlib.import_module("toolboxes").__file__).resolve().parent
+    toolboxes = Path(importlib.import_module("gprMax.toolboxes").__file__).resolve().parent
     matlab = toolboxes / "Utilities" / "MATLAB"
     assert (matlab / "gprmax_read_h5.m").is_file()
     assert (matlab / "gprmax_h5_to_mat.m").is_file()
@@ -98,7 +119,7 @@ def _assert_matlab_utilities_are_available() -> None:
 def _assert_stl_toolbox_is_available() -> None:
     """Exercise the STL dependency from an installed distribution."""
 
-    toolboxes = Path(importlib.import_module("toolboxes").__file__).resolve().parent
+    toolboxes = Path(importlib.import_module("gprMax.toolboxes").__file__).resolve().parent
     source = toolboxes / "STLtoVoxel" / "examples" / "stl" / "Stanford_Bunny.stl"
     assert source.is_file()
 
@@ -133,6 +154,7 @@ def main() -> None:
     _assert_matlab_utilities_are_available()
     with tempfile.TemporaryDirectory(prefix="gprmax-wheel-") as directory:
         root = Path(directory)
+        _assert_toolbox_namespace_is_private(root)
         _assert_examples_are_available(root / "workspace")
         _assert_stl_toolbox_is_available()
         _run_tiny_cpu_model(root / "smoke")
