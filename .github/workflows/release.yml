@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install packaging
-      - name: Require a matching version tag before publishing
+      - name: Require the matching v.<version> tag before publishing
         id: version
         env:
           DESTINATION: ${{ inputs.destination }}

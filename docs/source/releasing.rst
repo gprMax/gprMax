@@ -203,9 +203,21 @@ Rehearse or publish
 ======================
 
 For either index, first create and push an immutable version tag on the
-reviewed commit. The tag must exactly match the version with a ``v`` prefix:
-``4.0.0rc1`` requires ``v4.0.0rc1``; ``4.0.0`` requires ``v4.0.0``. Publishing
-from a branch, pull-request ref or mismatched tag is rejected.
+reviewed commit. Following the existing v3 convention, the tag must exactly
+match the package version with a ``v.`` prefix: ``4.0.0rc1`` requires
+``v.4.0.0rc1``; ``4.0.0`` requires ``v.4.0.0``. Publishing from a branch,
+pull-request ref or mismatched tag is rejected, including the alternate
+spelling ``v4.0.0``.
+
+The Git tag, GitHub release title and PyPI package version are distinct:
+
+* Git tag: ``v.4.0.0``.
+* GitHub release title: ``v.4.0.0 (Caol Ila)``.
+* Package version in ``gprMax/_version.py`` and on PyPI: ``4.0.0``.
+
+The codename belongs in the release title, not the tag or package version.
+Create the tag before starting the publication workflow; publish the matching
+GitHub release page after verifying the PyPI upload, as described below.
 
 The commands below upload real files to the selected indexes. Use a fresh
 version for each rehearsal; do not run them merely to validate the YAML.
@@ -218,11 +230,11 @@ is the pre-publication rehearsal for a PyPI-only release. It checks package
 building and installation, but cannot verify the PyPI account's Trusted
 Publisher registration or an actual index upload.
 
-After preparing and pushing the ``v4.0.0rc1`` tag:
+After preparing and pushing the ``v.4.0.0rc1`` tag:
 
 .. code-block:: console
 
-    gh workflow run release.yml --repo gprMax/gprMax --ref v4.0.0rc1 -f destination=testpypi
+    gh workflow run release.yml --repo gprMax/gprMax --ref v.4.0.0rc1 -f destination=testpypi
 
 This builds, validates and uploads to TestPyPI only. It downloads the Linux
 Python 3.12 wheel from TestPyPI, verifies its SHA-256 against the built
@@ -238,11 +250,11 @@ expose newly uploaded files.
 Final publication
 -----------------
 
-For the reviewed ``v4.0.0`` tag, with that version not already uploaded:
+For the reviewed ``v.4.0.0`` tag, with that version not already uploaded:
 
 .. code-block:: console
 
-    gh workflow run release.yml --repo gprMax/gprMax --ref v4.0.0 -f destination=pypi
+    gh workflow run release.yml --repo gprMax/gprMax --ref v.4.0.0 -f destination=pypi
 
 This run builds and checks the release, including the artifact installation
 test described above, then pauses at the protected ``pypi`` environment. It
