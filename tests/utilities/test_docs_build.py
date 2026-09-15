@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import runpy
+import shlex
 import sys
 
 import pytest
@@ -41,8 +42,19 @@ def test_documentation_ci_matches_readthedocs_environment():
     assert "-r requirements.txt" not in commands
     assert "pip install -e" not in commands
     assert "pip install ." not in commands
-    for package in rtd["build"]["apt_packages"]:
-        assert f"sudo apt-get install --yes {package}" in commands
+    apt_packages = set()
+    for command in commands.splitlines():
+        tokens = shlex.split(command)
+        if tokens[:4] == ["sudo", "apt-get", "install", "--yes"]:
+            apt_packages.update(tokens[4:])
+    assert set(rtd["build"]["apt_packages"]) <= apt_packages
+
+
+def test_documentation_installs_fonts_for_paraview_svg_figures():
+    rtd = read_yaml(ROOT / ".readthedocs.yaml")
+    # On Ubuntu 22.04, ImageMagick maps Helvetica to gsfonts' Nimbus Sans.
+    # Minimal runners can have ImageMagick without its optional font packages.
+    assert {"imagemagick", "gsfonts"} <= set(rtd["build"]["apt_packages"])
 
 
 def test_documentation_builds_reject_warnings_and_cover_both_formats():

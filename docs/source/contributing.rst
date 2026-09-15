@@ -47,7 +47,13 @@ Docs after a successful build of the selected branch or tag.
 
 A PDF version can be generated from the same sources. A TeX distribution that
 provides XeLaTeX and ``latexmk`` is additionally required (for example, TeX
-Live on Linux and macOS or MiKTeX on Windows):
+Live on Linux and macOS or MiKTeX on Windows). ImageMagick and the fonts used
+by the SVG figures are also required for image conversion. On Ubuntu 22.04,
+install them with ``sudo apt-get install imagemagick gsfonts``; ``gsfonts``
+provides the Helvetica-compatible fonts used by the ParaView exports. CI and
+Read the Docs install both packages explicitly.
+
+Then build the PDF with:
 
 .. code-block:: console
 

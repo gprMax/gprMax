@@ -42,10 +42,10 @@ jobs:
           python -m pip install -r docs/requirements.txt
           python -m pip check
 
-      - name: Install image converter
+      - name: Install image converter and SVG fonts
         run: |
           sudo apt-get update
-          sudo apt-get install --yes imagemagick
+          sudo apt-get install --yes imagemagick gsfonts
 
       - name: Build HTML with warnings as errors
         run: python -m sphinx -T -b html -aE -W --keep-going docs/source docs/build/html
