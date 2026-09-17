@@ -2878,11 +2878,12 @@ The following conventions apply to every NTFF command:
 * CPU collection uses the Cython/OpenMP implementation. Accelerator surface
   state and time-domain output storage remain on the device during FDTD
   iterations and are transferred to the host once, after the solve. CUDA and
-  OpenCL are hardware-qualified on the development server. Metal has complete
-  source-generation and dispatch coverage, but still requires execution tests
-  on suitable Apple hardware. With MPI, every surface patch is sampled by the
-  rank which owns its inside Yee sample; the neighbouring outside sample is
-  read from the normal one-cell halo. There is therefore no additional NTFF
+  OpenCL are hardware-qualified on the development server. Metal has
+  source-generation and dispatch coverage, plus a frequency-domain NTFF
+  integration test for execution on Apple hardware. Hosted CI does not run
+  Apple GPU tests. With MPI, every surface patch is sampled by the rank which
+  owns its inside Yee sample; the neighbouring outside sample is read from
+  the normal one-cell halo. There is therefore no additional NTFF
   communication inside the FDTD iteration. Compact time histories are reduced
   and frequency-domain surface phasors are assembled on the coordinator after
   time stepping, before the normal HDF5 output is written.
@@ -3665,8 +3666,9 @@ OpenCL, and Metal solvers for nondispersive models. Equivalent-current
 transforms do not yet support symmetry image completion; physical faces can
 instead be omitted explicitly for an open frequency-domain Huygens surface.
 OpenCL has end-to-end qualification on the development server. Metal has
-source-generation and dispatch coverage but still requires qualification on
-suitable Apple hardware.
+source-generation and dispatch coverage, plus a frequency-domain NTFF
+integration test for execution on Apple hardware. Hosted CI does not run Apple
+GPU tests.
 
 
 PML commands
