@@ -498,7 +498,7 @@ class TestLogo:
         assert str(datetime.datetime.now().year) in logo("4.0.0")
 
     def test_the_project_url_appears(self):
-        assert "www.gprmax.com" in logo("4.0.0")
+        assert "www.gprmax.org" in logo("4.0.0")
 
     def test_authors_are_not_listed_in_the_banner(self):
         assert "Authors:" not in logo("4.0.0")

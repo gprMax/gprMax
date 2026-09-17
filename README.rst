@@ -5,7 +5,7 @@
 |
 
 .. image:: images_shared/gprMax_logo_small.png
-    :target: http://www.gprmax.com
+    :target: https://www.gprmax.org
     :alt: gprMax
 
 .. include_in_docs_after_this_label
@@ -17,7 +17,7 @@ Getting Started
 What is gprMax?
 ===============
 
-`gprMax <http://www.gprmax.com>`_ is open-source computational
+`gprMax <https://www.gprmax.org>`_ is open-source computational
 electromagnetics software that solves Maxwell's equations using the
 finite-difference time-domain (FDTD) method. It supports two- and
 three-dimensional models through both a Python API and a text-based input-file
@@ -90,7 +90,7 @@ If you use gprMax and publish your work we would be grateful if you could cite o
 
 * Warren, C., Giannopoulos, A., & Giannakis I. (2016). gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar, `Computer Physics Communications` (http://dx.doi.org/10.1016/j.cpc.2016.08.020)
 
-For further information on referencing gprMax visit the `Publications section of our website <http://www.gprmax.com/publications.shtml>`_.
+For further information on referencing gprMax visit the `Publications section of our website <https://www.gprmax.org/publications.shtml>`_.
 
 
 Repository overview

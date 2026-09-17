@@ -1,5 +1,5 @@
 .. figure:: ../../images_shared/gprMax_logo_small.png
-    :target: http://www.gprmax.com
+    :target: https://www.gprmax.org
     :alt: gprMax
 
 .. include:: ../../README.rst

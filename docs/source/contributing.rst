@@ -166,6 +166,6 @@ The Pull Request reviews are done frequently. Try to explain your PR as much as 
 Community
 ---------
 
-Please use our `Google Group <https://groups.google.com/g/gprmax>`_ (Forum) for comments, interaction with other users, chat, and general discussion on gprMax, GPR, and FDTD.
+Please use `GitHub Discussions <https://github.com/gprMax/gprMax/discussions>`_ for questions, ideas, and general discussion on gprMax, GPR, and FDTD, and `Zulip <https://gprmax.zulipchat.com/>`_ for informal chat with the developers and other users. Our former forum, the `Google Group <https://groups.google.com/g/gprmax>`_, is closed to new posts but remains searchable: many questions are already answered there.
 
-Checkout our website `gprmax.com <https://www.gprmax.com/>`_ for more information and updates.
+Check out our website `gprmax.org <https://www.gprmax.org/>`_ for more information and updates.

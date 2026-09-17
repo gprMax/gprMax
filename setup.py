@@ -241,7 +241,7 @@ else:
         name="gprMax",
         version=version,
         author="Craig Warren, Antonis Giannopoulos, and John Hartley",
-        url="http://www.gprmax.com",
+        url="https://www.gprmax.org",
         description="Electromagnetic Modelling Software based on the "
         + "Finite-Difference Time-Domain (FDTD) method",
         long_description=long_description,
