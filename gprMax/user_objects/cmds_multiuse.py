@@ -2667,9 +2667,14 @@ class EigenmodePort(GridUserObject):
             sequence of modal-solve anchor frequencies in Hz.
         plot_fields: optionally force or suppress modal-field plots. ``None``
             retains the geometry-only default.
-        degenerate: optional mode pair or disjoint groups tracked as subspaces.
+        degenerate: optional legacy mode pair or disjoint groups tracked as subspaces;
+            ignored when ``tracking="auto"``.
         mode_polarizations: optional mapping from both labels of a degenerate
-            pair to global transverse E axes or real direction vectors (3D only).
+            pair to global transverse E axes or real direction vectors (3D only),
+            including groups detected by automatic tracking.
+        tracking: ``"legacy"`` (default) or opt-in ``"auto"`` branch tracking.
+        verification: ``"full"`` or ``"fast"`` quality checks for automatic tracking.
+        tracking_config: optional :class:`gprMax.EigenmodeTrackingConfig` or mapping.
     """
 
     @property
@@ -2682,7 +2687,7 @@ class EigenmodePort(GridUserObject):
 
     _allowed_kwargs = frozenset({
         "anchors", "degenerate", "direction", "mode_polarizations", "modes", "p1", "p2",
-        "plot_fields", "port",
+        "plot_fields", "port", "tracking", "tracking_config", "verification",
     })
 
     def __init__(self, **kwargs):
@@ -2750,11 +2755,25 @@ class EigenmodePort(GridUserObject):
             )
         normal_axis = equal_axes[0]
         transverse_axes = tuple(axis for axis in range(3) if axis != normal_axis)
+        from gprMax.eigenmode_config import EigenmodeTrackingConfig
         from gprMax.eigenmode_tracking import normalize_groups, normalize_polarizations
 
-        degenerate = normalize_groups(self.kwargs.get("degenerate"), modes)
+        tracking = str(self.kwargs.get("tracking", "legacy")).lower()
+        verification = str(self.kwargs.get("verification", "full")).lower()
+        if tracking not in ("legacy", "auto"):
+            raise ValueError(f"{self.params_str()} tracking must be legacy or auto.")
+        if verification not in ("full", "fast"):
+            raise ValueError(f"{self.params_str()} verification must be full or fast.")
+        tracking_config = EigenmodeTrackingConfig.from_value(self.kwargs.get("tracking_config"))
+
+        degenerate = (
+            ()
+            if tracking == "auto"
+            else normalize_groups(self.kwargs.get("degenerate"), modes)
+        )
         mode_polarizations = normalize_polarizations(
-            self.kwargs.get("mode_polarizations"), degenerate, normal_axis, invariant_axis
+            self.kwargs.get("mode_polarizations"), degenerate, normal_axis, invariant_axis,
+            unresolved=tracking == "auto" and not degenerate,
         )
         plot_fields = self.kwargs.get("plot_fields")
         if plot_fields is not None and not isinstance(plot_fields, (bool, np.bool_)):
@@ -2771,6 +2790,9 @@ class EigenmodePort(GridUserObject):
             modes=modes,
             anchors=anchors,
             plot_fields=None if plot_fields is None else bool(plot_fields),
+            tracking=tracking,
+            verification=verification,
+            tracking_config=tracking_config,
             degenerate=degenerate,
             mode_polarizations=mode_polarizations,
         )
@@ -3098,6 +3120,9 @@ def build_eigenmode_runtime_ports(grid):
             runtime.spectral_threshold = band.spectral_threshold
             runtime.drive_specs = ()
         runtime.anchor_policy = port.anchor_policy
+        runtime.tracking = port.tracking
+        runtime.verification = port.verification
+        runtime.tracking_config = port.tracking_config
         runtime.degenerate = port.degenerate
         runtime.mode_polarizations = port.mode_polarizations
         runtime.requested_anchor_policy = port.anchor_policy
@@ -3141,6 +3166,9 @@ def build_passive_virtual_eigenmode_ports(grid):
         runtime = grid.eigenmodereceivers[-1]
         runtime.mode_indices = port.modes
         runtime.anchor_policy = port.anchor_policy
+        runtime.tracking = port.tracking
+        runtime.verification = port.verification
+        runtime.tracking_config = port.tracking_config
         runtime.degenerate = port.degenerate
         runtime.mode_polarizations = port.mode_polarizations
         runtime.requested_anchor_policy = port.anchor_policy

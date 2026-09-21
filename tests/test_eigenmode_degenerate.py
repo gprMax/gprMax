@@ -147,11 +147,19 @@ def test_circular_physical_basis_invariant(
 
 
 def test_generic_subspace_tracking(circular_solvers):
-    owner, _, _, _ = bank(circular_solvers)
+    owner, _, electric, _ = bank(circular_solvers)
+    assert owner.degenerate_diagnostics[0]["orientation"] == "automatic_transverse_axes"
+    assert owner.mode_polarizations == {
+        1: (1.0, 0.0, 0.0),
+        2: (0.0, 1.0, 0.0),
+    }
     assert min(owner.degenerate_diagnostics[0]["overlaps"]) > 0.9
-    for record in owner.degenerate_diagnostics[0]["anchors"]:
+    for index, record in enumerate(owner.degenerate_diagnostics[0]["anchors"]):
         np.testing.assert_allclose(record["power_gram"], np.eye(2), atol=1e-11)
         assert max(record["residual"]) < 1e-9
+        moments = _moments(owner, owner._tracking_grid, electric[index])
+        normalized = moments / np.linalg.norm(moments, axis=0)
+        np.testing.assert_allclose(normalized, np.eye(2), atol=1e-10)
 
 
 def test_intermediate_frequency_against_independent_solve(circular_solvers, record_property):
@@ -390,6 +398,26 @@ def test_higher_order_zero_moment_and_multiple_groups():
     assert len(owner.degenerate_diagnostics) == 2
     assert owner.degenerate_diagnostics[0]["physical"]
     assert not owner.degenerate_diagnostics[1]["physical"]
+    assert owner.degenerate_diagnostics[1]["orientation"] == "deterministic_subspace"
+
+    reference, _, reference_e, reference_h = bank([solver], groups=((7, 8),))
+    changed = deepcopy(solver)
+    rotation = np.asarray(((1 + 1j, 0.3), (-0.2j, 1 - 0.4j)))
+    for name in ("Eu", "Ev", "Ew", "Hu", "Hv", "Hw"):
+        fields = getattr(changed, name)
+        fields[..., 6:8] = fields[..., 6:8] @ rotation
+    actual, _, electric, magnetic = bank([changed], groups=((7, 8),))
+    assert reference.degenerate_diagnostics[0]["orientation"] == "deterministic_subspace"
+    assert actual.degenerate_diagnostics[0]["orientation"] == "deterministic_subspace"
+    for family, expected in ((electric, reference_e), (magnetic, reference_h)):
+        for mode in range(2):
+            for component in range(3):
+                np.testing.assert_allclose(
+                    family[0][mode][component],
+                    expected[0][mode][component],
+                    atol=1e-10,
+                    rtol=1e-10,
+                )
     with pytest.raises(ValueError, match="integrated transverse E"):
         bank([solver], groups=((7, 8),), references={7: "y", 8: "x"})
 

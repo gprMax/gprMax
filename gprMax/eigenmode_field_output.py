@@ -23,7 +23,7 @@ def write_eigenmode_fields(path, grid, ports=()):
     with h5py.File(path, "w") as output:
         output.attrs.update(
             schema="gprmax-eigenmode-fields",
-            schema_version=1,
+            schema_version=2,
             gprmax_version=__version__,
             coordinate_units="m",
             field_kind="tracked modal basis; not driven simulation fields",
@@ -48,6 +48,8 @@ def write_eigenmode_fields(path, grid, ports=()):
                 port_id=monitor.output_id,
                 requested_anchor_policy=owner.requested_anchor_policy,
                 resolved_anchor_policy=owner.resolved_anchor_policy,
+                tracking=owner.tracking,
+                verification=owner.verification,
             )
             group["frequencies"] = monitor.anchor_frequencies
             group["mode_indices"] = monitor.mode_indices

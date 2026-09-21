@@ -338,6 +338,15 @@ class EigenmodeSource(Source):
         self.mode_index = None
         self.mode_count = None
         self.mode_indices = ()
+        from gprMax.eigenmode_config import EigenmodeTrackingConfig
+
+        self.tracking = "legacy"
+        self.verification = "full"
+        self.tracking_config = EigenmodeTrackingConfig()
+        self.tracking_diagnostics = None
+        self.anchor_quality_diagnostics = []
+        self._auto_numerical_valid = None
+        self._auto_tracking_mode_count = None
         self.degenerate = ()
         self.mode_polarizations = {}
         self.degenerate_diagnostics = []
@@ -445,7 +454,7 @@ class EigenmodeSource(Source):
 
     def grid_init(self, G):
         """Prepare source data that depends on the final built Yee grid."""
-        if self.degenerate:
+        if self.degenerate or self.tracking == "auto":
             self._tracking_grid = SimpleNamespace(dl=np.array(G.dl, copy=True))
             self._tracking_impedance = config.sim_config.em_consts["z0"]
         if self.plane_index is None:
@@ -462,6 +471,10 @@ class EigenmodeSource(Source):
             self.frequency = frequencies[0]
             self._extract_frequency_dependent_materials(G)
             self._solve_eigenmode(G)
+            if self.tracking == "auto":
+                from gprMax.eigenmode_tracking import track_solver_bank
+
+                track_solver_bank(self, frequencies, (self.mode_solver,), self.mode_count)
             self._require_forward_power(
                 self.mode_solver,
                 self.mode_index,
@@ -478,7 +491,65 @@ class EigenmodeSource(Source):
                 self.modal_e = self.port_anchor_e[0][position]
                 self.modal_h = self.port_anchor_h[0][position]
             self._prepare_single_frequency_injection(G)
+        if self.tracking == "auto":
+            from gprMax.eigenmode_tracking import assess_anchor_quality
+
+            assess_anchor_quality(
+                self,
+                G,
+                tuple(self.port_anchor_frequencies),
+                tuple(self.port_mode_solvers),
+                tuple(self.mode_indices or range(1, self.mode_count + 1)),
+            )
         self._register_port_monitor(G)
+
+    def _solve_padding_verification(self, G, frequency, padding_fraction):
+        """Solve the same port on a larger in-model window, without PML cells."""
+        if hasattr(G, "global_size"):
+            return None, None, "mpi_padding_verification_unavailable"
+        original_start = tuple(int(value) for value in self.transverse_start)
+        original_stop = tuple(int(value) for value in self.transverse_stop)
+        desired = tuple(
+            max(1, int(math.ceil((stop - start) * float(padding_fraction))))
+            for start, stop in zip(original_start, original_stop)
+        )
+        lower_limit, upper_limit = [], []
+        for axis in self.transverse_axes:
+            axis_name = "xyz"[axis]
+            lower_limit.append(int(G.pmls["thickness"][f"{axis_name}0"]))
+            upper_limit.append(int(G.size[axis] - G.pmls["thickness"][f"{axis_name}max"]))
+        new_start = tuple(start - pad for start, pad in zip(original_start, desired))
+        new_stop = tuple(stop + pad for stop, pad in zip(original_stop, desired))
+        if any(start < limit for start, limit in zip(new_start, lower_limit)) or any(
+            stop > limit for stop, limit in zip(new_stop, upper_limit)
+        ):
+            return None, None, "insufficient_non_pml_exterior_geometry"
+
+        saved_names = (
+            "frequency", "transverse_start", "transverse_stop", "complex_eps_r_uu",
+            "complex_eps_r_vv", "complex_eps_r_ww", "complex_mu_r_uu", "complex_mu_r_vv",
+            "complex_mu_r_ww", "fdfd_surface_boundary", "surface_impedance_fdfd_edges",
+            "mode_solver", "modal_e", "modal_h", "complex_neff", "neff", "modal_e_real",
+            "modal_h_real",
+        )
+        missing = object()
+        saved = {name: getattr(self, name, missing) for name in saved_names}
+        try:
+            self.frequency = float(frequency)
+            self.transverse_start = new_start
+            self.transverse_stop = new_stop
+            self._extract_frequency_dependent_materials(G)
+            self._solve_eigenmode(G)
+            return self.mode_solver, desired, None
+        except Exception as exc:
+            return None, None, f"padding_verification_failed:{type(exc).__name__}"
+        finally:
+            for name, value in saved.items():
+                if value is missing:
+                    if hasattr(self, name):
+                        delattr(self, name)
+                else:
+                    setattr(self, name, value)
 
     def configure_cached_excitation(self, G, mode_index, waveform):
         """Prepare one excitation from this port's cached modal anchor bank.
@@ -598,6 +669,13 @@ class EigenmodeSource(Source):
 
     def _fallback_to_single_anchor(self, G, mismatch):
         frequency = float(self.fallback_frequency)
+        tracking_state = self.tracking_diagnostics or {}
+        requested_tracking_frequencies = tracking_state.get(
+            "requested_frequencies", np.asarray(self.frequencies or (), dtype=float)
+        )
+        adaptive_frequencies = tracking_state.get(
+            "adaptive_frequencies", np.empty(0, dtype=float)
+        )
         if self.mpi_coordinator:
             logger.warning(
                 f"{mismatch} Automatic anchors for eigenmode port {self.port_index} "
@@ -615,6 +693,20 @@ class EigenmodeSource(Source):
         self.anchor_overlaps = None
         self._extract_frequency_dependent_materials(G)
         self._solve_eigenmode(G)
+        if self.tracking == "auto":
+            from gprMax.eigenmode_tracking import track_solver_bank
+
+            track_solver_bank(self, (frequency,), (self.mode_solver,), self.mode_count)
+            self.tracking_diagnostics["requested_frequencies"] = np.asarray(
+                requested_tracking_frequencies, dtype=float
+            )
+            self.tracking_diagnostics["adaptive_frequencies"] = np.asarray(
+                adaptive_frequencies, dtype=float
+            )
+            self.tracking_diagnostics["unresolved_intervals"] = (
+                (mismatch.first_frequency, mismatch.second_frequency, mismatch.mode_index),
+            )
+            self._tracking_extra_solves = len(adaptive_frequencies)
         self._require_forward_power(
             self.mode_solver,
             self.mode_index,
@@ -1097,7 +1189,12 @@ class EigenmodeSource(Source):
 
         frequencies = tuple(float(value) for value in frequencies)
         solvers = tuple(solvers)
-        mode_indices = tuple(int(value) for value in mode_indices)
+        requested_mode_indices = tuple(int(value) for value in mode_indices)
+        mode_indices = (
+            tuple(range(1, self._auto_tracking_mode_count + 1))
+            if self.tracking == "auto"
+            else requested_mode_indices
+        )
         anchor_e = []
         anchor_h = []
         anchor_neff = []
@@ -1187,6 +1284,25 @@ class EigenmodeSource(Source):
             anchor_h,
             propagating,
         )
+        if self.tracking == "auto":
+            numerical_valid = np.asarray(self._auto_numerical_valid, dtype=bool)
+            if numerical_valid.shape[1] < len(mode_indices):
+                raise RuntimeError("Automatic mode-tracking validity data are incomplete.")
+            invalid = ~numerical_valid[:, : len(mode_indices)]
+            valid[invalid] = False
+            reference_valid[invalid] = False
+            propagating[invalid] = False
+            requested_positions = [mode_indices.index(mode) for mode in requested_mode_indices]
+            anchor_e = [[row[position] for position in requested_positions] for row in anchor_e]
+            anchor_h = [[row[position] for position in requested_positions] for row in anchor_h]
+            anchor_neff = np.asarray(anchor_neff, dtype=np.complex128)[:, requested_positions]
+            propagating = propagating[:, requested_positions]
+            balanced_power = balanced_power[:, requested_positions]
+            valid = valid[:, requested_positions]
+            reference_valid = reference_valid[:, requested_positions]
+            overlaps = overlaps[:, requested_positions]
+            policies = tuple(policies[position] for position in requested_positions)
+            mode_indices = requested_mode_indices
         if forced_policies is not None:
             policies = tuple(str(value) for value in forced_policies)
 
@@ -1200,7 +1316,7 @@ class EigenmodeSource(Source):
         self.port_anchor_operator_neff = (
             np.asarray(
                 [
-                    [solver.operator_neff[mode_index - 1] for mode_index in mode_indices]
+                    [solver.operator_neff[mode_index - 1] for mode_index in requested_mode_indices]
                     for solver in solvers
                 ],
                 dtype=np.complex128,
@@ -1463,6 +1579,8 @@ class EigenmodeSource(Source):
 
     def _solve_broadband_eigenmode(self, G, frequencies):
         """Solve candidate anchors, resolve each mode, and synthesize the source."""
+        requested_tracking_frequencies = tuple(float(value) for value in frequencies)
+        frequencies = list(requested_tracking_frequencies)
         solvers = []
 
         for frequency in frequencies:
@@ -1470,6 +1588,55 @@ class EigenmodeSource(Source):
             self._extract_frequency_dependent_materials(G)
             self._solve_eigenmode(G)
             solvers.append(self.mode_solver)
+
+        if self.tracking == "auto":
+            from gprMax.eigenmode_tracking import track_solver_bank
+
+            adaptive = []
+            tracking_failure = None
+            for depth in range(self.tracking_config.max_depth + 1):
+                try:
+                    track_solver_bank(self, frequencies, solvers, self.mode_count)
+                    tracking_failure = None
+                    break
+                except EigenmodeAnchorMismatchError as exc:
+                    tracking_failure = exc
+                    if (
+                        exc.first_frequency is None
+                        or exc.second_frequency is None
+                        or len(adaptive) >= self.tracking_config.max_solves
+                        or depth >= self.tracking_config.max_depth
+                    ):
+                        break
+                    midpoint = 0.5 * (exc.first_frequency + exc.second_frequency)
+                    relative_step = (exc.second_frequency - exc.first_frequency) / max(
+                        abs(midpoint), 1.0
+                    )
+                    if relative_step <= self.tracking_config.min_relative_step:
+                        break
+                    self.frequency = midpoint
+                    self._extract_frequency_dependent_materials(G)
+                    self._solve_eigenmode(G)
+                    insert_at = int(np.searchsorted(frequencies, midpoint))
+                    frequencies.insert(insert_at, midpoint)
+                    solvers.insert(insert_at, self.mode_solver)
+                    adaptive.append(midpoint)
+            if tracking_failure is not None:
+                self.tracking_diagnostics = {
+                    "requested_frequencies": np.asarray(
+                        requested_tracking_frequencies, dtype=float
+                    ),
+                    "adaptive_frequencies": np.asarray(adaptive, dtype=float),
+                }
+                self._tracking_extra_solves = len(adaptive)
+                raise tracking_failure
+            self.tracking_diagnostics["adaptive_frequencies"] = np.asarray(adaptive, dtype=float)
+            self.tracking_diagnostics["requested_frequencies"] = np.asarray(
+                requested_tracking_frequencies, dtype=float
+            )
+            self._tracking_extra_solves = len(adaptive)
+
+        frequencies = tuple(frequencies)
 
         mode_indices = tuple(self.mode_indices or range(1, self.mode_count + 1))
         valid, policies = self._prepare_port_anchor_bank(
@@ -1591,8 +1758,15 @@ class EigenmodeSource(Source):
             fdtd_dt=G.dt,
             propagation_spacing=G.dl[self.normal_axis],
         )
-        solver.retain_tracking_operator = bool(self.degenerate)
-        if self.degenerate and np.count_nonzero(solver.free_euv_mask) > solver.num_modes + 1:
+        solver.retain_tracking_operator = bool(self.degenerate or self.tracking == "auto")
+        solver.calculate_diagnostics = self.tracking == "auto"
+        if self.tracking == "auto":
+            available = np.count_nonzero(solver.free_euv_mask) - 1
+            solver.num_modes = min(
+                available,
+                solver.num_modes + self.tracking_config.extra_candidates,
+            )
+        elif self.degenerate and np.count_nonzero(solver.free_euv_mask) > solver.num_modes + 1:
             # An extra candidate detects a missing partner at the requested
             # bank's upper edge; it does not become a public channel.
             solver.num_modes += 1
@@ -1627,6 +1801,15 @@ class EigenmodeSource(Source):
             ),
             **solver_inputs,
         )
+        solver.calculate_diagnostics = self.tracking == "auto"
+        if self.tracking == "auto":
+            available = np.count_nonzero(
+                ~solver.pec_a_mask if solver.polarization == "TM" else ~solver.pmc_a_mask
+            ) - 1
+            solver.num_modes = min(
+                available,
+                solver.num_modes + self.tracking_config.extra_candidates,
+            )
         solver.solve()
 
         self.mode_solver = solver
@@ -2264,6 +2447,11 @@ class EigenmodeSource(Source):
                 mode_index=mode_index,
                 port_index=self.port_index,
                 output_path=field_path,
+                tracking_diagnostics=self.tracking_diagnostics,
+                quality_diagnostics=self.anchor_quality_diagnostics,
+                tracked_mode_indices=mode_indices,
+                dispersion_solvers=solvers,
+                dispersion_frequencies=frequencies,
             )
             logger.info(
                 f"Eigenmode port {self.port_index}, mode {mode_index} tangential "

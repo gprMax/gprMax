@@ -1147,6 +1147,8 @@ class EigenmodePortMonitor:
         group.attrs["PhaseReanchorInterval"] = DFT_PHASE_REANCHOR_INTERVAL
         group.attrs["RequestedAnchorPolicy"] = self.owner.requested_anchor_policy
         group.attrs["ResolvedAnchorPolicy"] = self.owner.resolved_anchor_policy
+        group.attrs["Tracking"] = getattr(self.owner, "tracking", "legacy")
+        group.attrs["Verification"] = getattr(self.owner, "verification", "full")
         resolved_anchor_union = self.anchor_frequencies[np.any(self.anchor_mode_valid, axis=1)]
         reference_anchor_union = self.anchor_frequencies[
             np.any(self.anchor_mode_reference_valid, axis=1)

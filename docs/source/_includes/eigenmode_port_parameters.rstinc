@@ -24,9 +24,18 @@
    * - ``plot_fields``
      - ``None``
      - ``True`` forces modal-field PNGs, ``False`` suppresses them. ``None`` enables them only in geometry-only runs.
+   * - ``tracking``
+     - ``"legacy"``
+     - ``"auto"`` opts into branch assignment, automatic degeneracy detection, and mode-quality diagnostics. The legacy path preserves existing ordering, solve counts, and manual degeneracy behaviour.
+   * - ``verification``
+     - ``"full"``
+     - Applies only with automatic tracking. ``"full"`` requests mesh and open-window checks; ``"fast"`` uses residual and artificial-edge diagnostics without verification solves.
+   * - ``tracking_config``
+     - ``None``
+     - Optional :class:`gprMax.EigenmodeTrackingConfig` or mapping of advanced thresholds and solve limits. Defaults are conservative and should normally be retained.
    * - ``degenerate``
      - ``None``
-     - A group such as ``(1, 2)``, or disjoint groups such as ``((1, 2), (3, 4))``. All members must be in ``modes``. Track each group as a subspace.
+     - Legacy tracking only: a group such as ``(1, 2)``, or disjoint groups such as ``((1, 2), (3, 4))``. All members must be in ``modes``. With ``tracking="auto"``, this argument is ignored and groups are detected from the solved spectrum.
    * - ``mode_polarizations``
      - ``None``
-     - Map both members of a two-mode group to global transverse electric-field directions. Accepts ``"x"``, ``"y"``, ``"z"``, or finite nonzero real three-vectors; vectors are normalized. Physical selection requires a 3D cross-section.
+     - Optional override mapping both members of a two-mode group to global transverse electric-field directions. Accepts ``"x"``, ``"y"``, ``"z"``, or finite nonzero real three-vectors; vectors are normalized. Automatic tracking defaults to the port's two global transverse axes when electric-field moments support them, then falls back to a deterministic subspace basis. An override is validated against the detected group after solving. Physical selection requires a 3D cross-section.

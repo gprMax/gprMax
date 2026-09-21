@@ -150,6 +150,7 @@ EigenmodePort arguments
    gprMax.EigenmodePort(
        port=1, p1=(0.02, 0.005, 0), p2=(0.02, 0.075, float("inf")),
        direction="+", modes=(1, 2), anchors="auto", plot_fields=None,
+       tracking="legacy",
    )
 
 .. include:: _includes/eigenmode_port_parameters.rstinc
@@ -160,6 +161,53 @@ comes from the matching coordinate: equal x coordinates give an x-normal
 port, equal y coordinates a y-normal port. Mode numbers are solver ordering,
 not guaranteed physical labels. Inspect the E/H profiles before identifying
 a solution as TE10, quasi-TEM, or a particular guided slab mode.
+
+Automatic mode tracking is deliberately opt-in while it gains validation across
+more guide families. Set ``tracking="auto"`` to follow physical branches from
+the anchor nearest the band centre, detect exact degenerate subspaces, and run
+mode-quality diagnostics. ``verification="full"`` (the opt-in default) compares
+the represented voxel geometry on a refined mesh and, for open apertures, on two
+larger in-model windows. If surrounding non-PML geometry is unavailable, the
+classification is ``unresolved`` and the usable primary mode is retained with a
+warning. ``verification="fast"`` avoids those extra solves.
+
+For an automatically detected two-mode degenerate space, gprMax first tries to
+orient mode 1 and mode 2 along the port's two global transverse axes. If the
+integrated electric-field moments cannot define those axes, it constructs a
+repeatable basis from the complete E/H subspace. ``mode_polarizations`` remains
+available when a different physical orientation is wanted; ``degenerate`` is
+ignored in automatic mode because the solved spectrum defines the groups.
+
+Confinement and numerical validity are independent. A numerically valid,
+confidently tracked mode with forward real power remains an anchor when it is
+unbound-suspect or unresolved; gprMax warns that injection and S-parameters may
+be less accurate. Nonfinite fields, failed eigenpair residuals, rank loss, and
+singular reconstruction remain unusable. This is useful for low-frequency CPW
+modes whose evanescent tails have not decayed at the chosen aperture boundary.
+
+In geometry-only runs, automatic tracking adds ``Re(n_eff)`` and
+``-Im(n_eff)`` dispersion panels above each tracked modal-field figure. Red
+crosses identify anchors with confinement warnings. Inspect these curves and
+the E/H profiles before running the time-domain model.
+
+.. warning::
+
+   Automatic mode tracking and its confinement/artifact diagnostics are under
+   development. Keep ``tracking="legacy"`` for established production models,
+   and inspect the generated dispersion and modal-field plots before relying on
+   an automatically tracked profile.
+
+Two focused examples exercise the new path:
+
+* :download:`automatic circular TE11 degeneracy <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`
+  omits both ``degenerate`` and ``mode_polarizations``, letting the tracker
+  discover the pair and apply its default x/y directions;
+* :download:`automatic mode crossing <../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py>`
+  uses one anisotropic guide whose polarized propagation constants cross, so
+  raw eigenvalue order changes while the tracked polarization identities remain.
+
+Both scripts set ``plot_fields=True``. Running either one generates the combined
+dispersion and field inspection plots; ``--geometry-only`` skips time stepping.
 
 An excited port launches the selected modal field and measures returning
 waves, but it does not absorb those waves. Continue the guide behind the
@@ -173,12 +221,18 @@ Hash command: #eigenmode_port
 .. code-block:: none
 
    #eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto
+   #eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto tracking=auto verification=full
    #eigenmode_port: 2 0.235 0.005 0 0.235 0.075 inf - 1,2 4e9 5e9 6e9 y
 
 Use ``inf`` for an invariant extent and comma-separated mode indices such as
 ``1,2``. Specify ``auto`` or space-separated modal anchor frequencies. The
 optional final ``y`` or ``n`` forces or suppresses the port's field plots;
 omitting it retains the geometry-only default.
+Named hash options may follow the anchor/plot tail. Automatic tracking accepts
+``tracking=auto`` and ``verification=full|fast``. Advanced names match
+``EigenmodeTrackingConfig`` fields, for example
+``residual_tolerance=1e-8``, ``edge_fraction_max=1e-3``, and
+``max_solves=200``.
 
 EigenmodeExcitation arguments
 -----------------------------

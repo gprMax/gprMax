@@ -25,6 +25,7 @@ Electromagnetic wave propagation simulation software.
 """
 
 import gprMax.config as config
+from .eigenmode_config import EigenmodeTrackingConfig
 
 from ._version import __version__
 from .gprMax import run as run

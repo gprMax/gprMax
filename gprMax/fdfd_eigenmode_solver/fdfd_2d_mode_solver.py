@@ -617,6 +617,24 @@ class FDFD_2D_mode_solver:
         self.eigenvectors = eigenvectors
         self.operator_neff = self._passive_positive_neff(-self.eigenvalues)
 
+        if getattr(self, "calculate_diagnostics", False):
+            applied = omega_matrix @ reduced_eigenvectors
+            target = reduced_eigenvectors * self.eigenvalues[None, :]
+            denominator = np.linalg.norm(applied, axis=0) + np.linalg.norm(target, axis=0)
+            self.eigenpair_residuals = np.linalg.norm(applied - target, axis=0) / np.maximum(
+                denominator, 1e-300
+            )
+            roots = 1j * self.operator_neff
+            reconstructed_h = Q_reduced @ self.eigenvectors / roots[None, :]
+            reconstructed_e = (P_reduced @ reconstructed_h)[self.free_euv_mask, :]
+            field_target = reduced_eigenvectors * roots[None, :]
+            field_denominator = np.linalg.norm(reconstructed_e, axis=0) + np.linalg.norm(
+                field_target, axis=0
+            )
+            self.field_residuals = np.linalg.norm(
+                reconstructed_e - field_target, axis=0
+            ) / np.maximum(field_denominator, 1e-300)
+
         self._calculate_fields(Q_reduced, eps_ww_inv, mu_ww_inv)
         self._orient_backward_modes_to_forward_power(
             Q_reduced,
