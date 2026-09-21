@@ -1,4 +1,4 @@
-"""Plot reflection and polarization through the anisotropic-mode crossing."""
+"""Plot two-port response and polarization through the anisotropic crossing."""
 
 import argparse
 import csv
@@ -16,24 +16,20 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 PLOT_FLOOR_DB = -120.0
 
 
-def read_reflection(stem):
-    """Read valid reflected power waves, grouped by destination mode."""
+def read_sparameters(stem):
+    """Read valid port-1 power waves, grouped by destination port and mode."""
     path = stem.with_name(stem.name + "_sparameters.csv")
     traces = defaultdict(list)
     with path.open(newline="", encoding="utf-8") as stream:
         for row in csv.DictReader(stream):
-            if (
-                int(row["source_port"]) == 1
-                and int(row["destination_port"]) == 1
-                and int(row["power_wave_valid"])
-            ):
-                mode = int(row["destination_mode"])
-                traces[mode].append(
+            if int(row["source_port"]) == 1 and int(row["power_wave_valid"]):
+                key = (int(row["destination_port"]), int(row["destination_mode"]))
+                traces[key].append(
                     (float(row["frequency_hz"]) * 1e-9, float(row["S_magnitude_db"]))
                 )
     if not traces:
-        raise ValueError(f"No valid reflected power-wave samples found in {path}")
-    return {mode: np.asarray(sorted(values)) for mode, values in traces.items()}
+        raise ValueError(f"No valid port-1 power-wave samples found in {path}")
+    return {key: np.asarray(sorted(values)) for key, values in traces.items()}
 
 
 def crossing_frequency(frequencies, neff):
@@ -51,9 +47,9 @@ def crossing_frequency(frequencies, neff):
 
 
 def plot_results(stem):
-    """Create one modal-reflection and polarization summary."""
+    """Create one modal S11/S21 and polarization summary."""
     stem = Path(stem)
-    reflection = read_reflection(stem)
+    traces = read_sparameters(stem)
     with h5py.File(stem.with_suffix(".h5")) as output:
         port = output["eigenmode_ports/port1"]
         launched_mode = int(port.attrs["ExcitationModes"][0])
@@ -67,13 +63,13 @@ def plot_results(stem):
         )
 
     figure, axes = plt.subplots(1, 2, figsize=(12, 4.6), constrained_layout=True)
-    for mode, values in sorted(reflection.items()):
+    for (port_number, mode), values in sorted(traces.items()):
         axes[0].plot(
             values[:, 0],
             np.maximum(values[:, 1], PLOT_FLOOR_DB),
             marker="o",
             markersize=3,
-            label=f"S11 into tracked mode {mode}",
+            label=f"S{port_number}1 into tracked mode {mode}",
         )
     axes[0].axvline(
         crossing_ghz,
@@ -82,7 +78,7 @@ def plot_results(stem):
         label=f"tracked crossing ({crossing_ghz:.2f} GHz)",
     )
     axes[0].set(
-        title="Reflection through the crossing band",
+        title="Reflection and transmission through the crossing",
         xlabel="Frequency (GHz)",
         ylabel=f"Magnitude (dB; floor {PLOT_FLOOR_DB:g} dB)",
         ylim=(PLOT_FLOOR_DB, 5),

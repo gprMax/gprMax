@@ -67,19 +67,20 @@ def build_scene(mode=1):
             transition=0.3e9,
         )
     )
-    scene.add(
-        gprMax.EigenmodePort(
-            port=1,
-            p1=(0.001, 0.001, 0.020),
-            p2=(0.019, 0.011, 0.020),
-            direction="+",
-            modes=(1, 2),
-            anchors=ANCHORS,
-            tracking="auto",
-            verification="fast",
-            plot_fields=True,
+    for port, z, direction in ((1, 0.020, "+"), (2, 0.072, "-")):
+        scene.add(
+            gprMax.EigenmodePort(
+                port=port,
+                p1=(0.001, 0.001, z),
+                p2=(0.019, 0.011, z),
+                direction=direction,
+                modes=(1, 2),
+                anchors=ANCHORS,
+                tracking="auto",
+                verification="fast",
+                plot_fields=True,
+            )
         )
-    )
     scene.add(gprMax.EigenmodeExcitation(port=1, mode=mode, waveform="auto"))
     scene.add(gprMax.Rx(p1=(0.010, 0.006, 0.050), id="guide_centre"))
     return scene

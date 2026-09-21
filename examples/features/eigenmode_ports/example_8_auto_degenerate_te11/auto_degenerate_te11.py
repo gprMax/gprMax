@@ -36,21 +36,23 @@ def build_scene(mode=1):
         )
     )
     scene.add(gprMax.EigenmodeBand(id="te11", fmin=20e9, fmax=24e9, points=41))
-    scene.add(
-        gprMax.EigenmodePort(
-            port=1,
-            p1=(0.001, 0.001, 0.024),
-            p2=(0.015, 0.015, 0.024),
-            direction="+",
-            modes=(1, 2),
-            anchors="auto",
-            tracking="auto",
-            verification="fast",
-            plot_fields=True,
-            # Both degenerate and mode_polarizations are intentionally omitted.
-            # The tracker detects the pair and defaults to global x/y axes.
+    for port, z, direction in ((1, 0.024, "+"), (2, 0.064, "-")):
+        scene.add(
+            gprMax.EigenmodePort(
+                port=port,
+                p1=(0.001, 0.001, z),
+                p2=(0.015, 0.015, z),
+                direction=direction,
+                modes=(1, 2),
+                anchors="auto",
+                tracking="auto",
+                verification="fast",
+                plot_fields=True,
+                # Both degenerate and mode_polarizations are intentionally
+                # omitted. Each port detects the pair and defaults to the
+                # same global x/y axes.
+            )
         )
-    )
     scene.add(
         gprMax.VirtualWaveguide(
             port=1,

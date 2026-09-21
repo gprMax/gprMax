@@ -3099,8 +3099,9 @@ class EigenmodeReceiver(EigenmodeSource):
         self.mode_indices = ()
 
     def grid_init(self, G):
-        frequencies = tuple(self.frequencies or (self.frequency,))
-        if self.degenerate:
+        requested_tracking_frequencies = tuple(self.frequencies or (self.frequency,))
+        frequencies = list(requested_tracking_frequencies)
+        if self.degenerate or self.tracking == "auto":
             self._tracking_grid = SimpleNamespace(dl=np.array(G.dl, copy=True))
             self._tracking_impedance = config.sim_config.em_consts["z0"]
         mode_indices = tuple(self.mode_indices)
@@ -3115,8 +3116,61 @@ class EigenmodeReceiver(EigenmodeSource):
             self._solve_eigenmode(G)
             solvers.append(self.mode_solver)
 
+        if self.tracking == "auto":
+            from gprMax.eigenmode_tracking import track_solver_bank
+
+            adaptive = []
+            tracking_failure = None
+            for depth in range(self.tracking_config.max_depth + 1):
+                try:
+                    track_solver_bank(self, frequencies, solvers, self.mode_count)
+                    tracking_failure = None
+                    break
+                except EigenmodeAnchorMismatchError as exc:
+                    tracking_failure = exc
+                    if (
+                        exc.first_frequency is None
+                        or exc.second_frequency is None
+                        or len(adaptive) >= self.tracking_config.max_solves
+                        or depth >= self.tracking_config.max_depth
+                    ):
+                        break
+                    midpoint = 0.5 * (exc.first_frequency + exc.second_frequency)
+                    relative_step = (exc.second_frequency - exc.first_frequency) / max(
+                        abs(midpoint), 1.0
+                    )
+                    if relative_step <= self.tracking_config.min_relative_step:
+                        break
+                    self.frequency = midpoint
+                    self._extract_frequency_dependent_materials(G)
+                    self._solve_eigenmode(G)
+                    insert_at = int(np.searchsorted(frequencies, midpoint))
+                    frequencies.insert(insert_at, midpoint)
+                    solvers.insert(insert_at, self.mode_solver)
+                    adaptive.append(midpoint)
+            if tracking_failure is not None:
+                raise tracking_failure
+            self.tracking_diagnostics["adaptive_frequencies"] = np.asarray(
+                adaptive, dtype=float
+            )
+            self.tracking_diagnostics["requested_frequencies"] = np.asarray(
+                requested_tracking_frequencies, dtype=float
+            )
+            self._tracking_extra_solves = len(adaptive)
+
+        frequencies = tuple(frequencies)
         self._prepare_port_anchor_bank(frequencies, solvers, mode_indices)
         self.mode_solvers = solvers
+        if self.tracking == "auto":
+            from gprMax.eigenmode_tracking import assess_anchor_quality
+
+            assess_anchor_quality(
+                self,
+                G,
+                tuple(self.port_anchor_frequencies),
+                tuple(self.port_mode_solvers),
+                mode_indices,
+            )
 
         from gprMax.eigenmode_ports import EigenmodePortMonitor
 

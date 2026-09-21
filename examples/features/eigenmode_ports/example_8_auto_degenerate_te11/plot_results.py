@@ -1,4 +1,4 @@
-"""Plot automatic TE11 reflection and the centre receiver fields."""
+"""Plot automatic TE11 reflection, transmission, and centre fields."""
 
 import argparse
 import csv
@@ -17,30 +17,26 @@ MODE_LABELS = {1: "global x", 2: "global y"}
 PLOT_FLOOR_DB = -120.0
 
 
-def read_reflection(stem):
-    """Read valid reflected power waves, grouped by destination mode."""
+def read_sparameters(stem):
+    """Read valid port-1 power waves, grouped by destination port and mode."""
     path = stem.with_name(stem.name + "_sparameters.csv")
     traces = defaultdict(list)
     with path.open(newline="", encoding="utf-8") as stream:
         for row in csv.DictReader(stream):
-            if (
-                int(row["source_port"]) == 1
-                and int(row["destination_port"]) == 1
-                and int(row["power_wave_valid"])
-            ):
-                mode = int(row["destination_mode"])
-                traces[mode].append(
+            if int(row["source_port"]) == 1 and int(row["power_wave_valid"]):
+                key = (int(row["destination_port"]), int(row["destination_mode"]))
+                traces[key].append(
                     (float(row["frequency_hz"]) * 1e-9, float(row["S_magnitude_db"]))
                 )
     if not traces:
-        raise ValueError(f"No valid reflected power-wave samples found in {path}")
-    return {mode: np.asarray(sorted(values)) for mode, values in traces.items()}
+        raise ValueError(f"No valid port-1 power-wave samples found in {path}")
+    return {key: np.asarray(sorted(values)) for key, values in traces.items()}
 
 
 def plot_results(stem):
-    """Create one reflection/receiver summary for an automatic TE11 run."""
+    """Create one S11/S21 and receiver summary for an automatic TE11 run."""
     stem = Path(stem)
-    reflection = read_reflection(stem)
+    traces = read_sparameters(stem)
     with h5py.File(stem.with_suffix(".h5")) as output:
         port = output["eigenmode_ports/port1"]
         launched_mode = int(port.attrs["ExcitationModes"][0])
@@ -54,16 +50,16 @@ def plot_results(stem):
             detected = detected.decode()
 
     figure, axes = plt.subplots(1, 2, figsize=(12, 4.6), constrained_layout=True)
-    for mode, values in sorted(reflection.items()):
+    for (port, mode), values in sorted(traces.items()):
         axes[0].plot(
             values[:, 0],
             np.maximum(values[:, 1], PLOT_FLOOR_DB),
             marker="o",
             markersize=3,
-            label=f"S11 into mode {mode} ({MODE_LABELS.get(mode, 'tracked')})",
+            label=f"S{port}1 into mode {mode} ({MODE_LABELS.get(mode, 'tracked')})",
         )
     axes[0].set(
-        title="Reflected tracked modes",
+        title="Tracked reflection and transmission",
         xlabel="Frequency (GHz)",
         ylabel=f"Magnitude (dB; floor {PLOT_FLOOR_DB:g} dB)",
         ylim=(PLOT_FLOOR_DB, 5),

@@ -40,11 +40,13 @@ These nine numbered Python examples form the tutorial in
 
 ``example_8_auto_degenerate_te11``
     Opt into automatic tracking, omit the manual degenerate group, and inspect
-    automatic TE11 pair detection plus default deterministic x/y labels.
+    automatic TE11 pair detection plus default deterministic x/y labels at two
+    ports of a straight guide. Compare co- and cross-polarized S11 and S21.
 
 ``example_9_auto_mode_crossing``
     Track the orthogonally polarized modes of one anisotropic guide through a
-    true propagation-constant crossing where raw eigensolver order changes.
+    true propagation-constant crossing where raw eigensolver order changes,
+    with S11 and S21 measured between two ports.
 
 Automatic mode tracking and its confinement/artifact diagnostics are under
 development. Examples 8 and 9 use ``verification="fast"`` for quick visual
@@ -142,7 +144,8 @@ The tracker discovers the circular TE11 pair without a ``degenerate`` setting.
 The omitted ``mode_polarizations`` setting defaults the pair to global x/y
 directions. Supplying the mapping remains useful for swapping or rotating them.
 If ``modes`` is changed to ``(1,)``, the partner is still solved internally for
-subspace transport but is not added as a public monitor channel.
+subspace transport but is not added as a public monitor channel. Two ports on
+the straight guide expose co- and cross-polarized S11 and S21.
 
 .. code-block:: console
 
@@ -158,7 +161,8 @@ Example 9
 The single PEC guide is filled with a diagonal dielectric tensor. Its
 orthogonally polarized fundamental branches have different cutoff terms and
 slopes, so their phase-index curves cross. The field rows show whether each
-public label retains its polarization as raw eigenvalue order changes.
+public label retains its polarization as raw eigenvalue order changes. Matching
+automatic ports at each end expose both modal reflection and transmission.
 
 .. code-block:: console
 

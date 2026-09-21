@@ -9,12 +9,15 @@ from scipy.sparse import diags
 
 from gprMax.eigenmode_config import EigenmodeTrackingConfig
 import gprMax.eigenmode_tracking as tracking_module
+import gprMax.eigenmode_ports as port_module
+import gprMax.config as config_module
 from gprMax.eigenmode_tracking import (
     _verification_check,
     assess_anchor_quality,
     track_solver_bank,
     write_diagnostics,
 )
+from gprMax.sources import EigenmodeReceiver
 
 
 def _solver(order=(0, 1), phase=(1.0, 1.0)):
@@ -199,3 +202,78 @@ def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path):
         np.testing.assert_allclose(tracking["unresolved_interval_lower_frequency"], (1.25,))
         assert tracking["unresolved_interval_modes"][0] == b"2"
         assert tracking["anchor_quality/confinement"][0] == b"unbound_suspect"
+
+
+def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch):
+    """A receive-only second port must track before extracting its public bank."""
+    receiver = object.__new__(EigenmodeReceiver)
+    receiver.frequencies = (1.0, 2.0)
+    receiver.frequency = 1.0
+    receiver.fallback_frequency = 1.5
+    receiver.degenerate = ()
+    receiver.tracking = "auto"
+    receiver.tracking_config = EigenmodeTrackingConfig(extra_candidates=0)
+    receiver.mode_indices = (1, 2)
+    receiver.mode_count = 2
+    receiver.mode_polarizations = {}
+    receiver.normal_axis = 2
+    receiver.invariant_axis = None
+    receiver.port_index = 2
+    receiver.port_id = "port2"
+    receiver.dft_start = 1.0
+    receiver.dft_stop = 2.0
+    receiver.dft_points = 2
+    receiver.dft_frequencies = np.asarray((1.0, 2.0))
+    receiver._tracking_extra_solves = 0
+    receiver._extract_frequency_dependent_materials = lambda grid: None
+    receiver._solve_eigenmode = lambda grid: setattr(receiver, "mode_solver", _solver())
+    receiver._plot_eigenmode_fields = lambda: None
+    prepared = {}
+
+    def prepare(frequencies, solvers, mode_indices):
+        prepared["tracking_count"] = receiver._auto_tracking_mode_count
+        receiver.port_anchor_frequencies = tuple(frequencies)
+        receiver.port_anchor_e = None
+        receiver.port_anchor_h = None
+        receiver.port_anchor_neff = None
+        receiver.port_anchor_operator_neff = None
+        receiver.port_anchor_mode_valid = None
+        receiver.port_anchor_mode_reference_valid = None
+        receiver.port_anchor_mode_propagating = None
+        receiver.port_anchor_balanced_power = None
+        receiver.port_mode_anchor_policies = ("explicit", "explicit")
+        receiver.port_mode_solvers = tuple(solvers)
+
+    receiver._prepare_port_anchor_bank = prepare
+    monkeypatch.setattr(
+        config_module,
+        "sim_config",
+        SimpleNamespace(em_consts={"z0": 1.0}),
+    )
+    monkeypatch.setattr(
+        tracking_module,
+        "assess_anchor_quality",
+        lambda owner, grid, frequencies, solvers, modes: prepared.setdefault(
+            "quality_modes", tuple(modes)
+        ),
+    )
+
+    class DummyMonitor:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def prepare(self, grid):
+            prepared["monitor_prepared"] = True
+
+    monkeypatch.setattr(port_module, "EigenmodePortMonitor", DummyMonitor)
+    grid = SimpleNamespace(dl=np.ones(3), eigenmodeports=[])
+
+    receiver.grid_init(grid)
+
+    assert prepared == {
+        "tracking_count": 2,
+        "quality_modes": (1, 2),
+        "monitor_prepared": True,
+    }
+    assert receiver.tracking_diagnostics["requested_frequencies"].tolist() == [1.0, 2.0]
+    assert grid.eigenmodeports == [receiver.port_monitor]

@@ -201,10 +201,12 @@ Two focused examples exercise the new path:
 
 * :download:`automatic circular TE11 degeneracy <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`
   omits both ``degenerate`` and ``mode_polarizations``, letting the tracker
-  discover the pair and apply its default x/y directions;
+  discover the pair, apply its default x/y directions, and measure S11/S21
+  between two ports on a straight guide;
 * :download:`automatic mode crossing <../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py>`
   uses one anisotropic guide whose polarized propagation constants cross, so
-  raw eigenvalue order changes while the tracked polarization identities remain.
+  raw eigenvalue order changes while the tracked polarization identities remain
+  consistent between its two S-parameter ports.
 
 Both scripts set ``plot_fields=True``. Running either one generates the combined
 dispersion and field inspection plots; ``--geometry-only`` skips time stepping.
