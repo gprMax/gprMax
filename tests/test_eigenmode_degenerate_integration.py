@@ -19,6 +19,12 @@ def run(path, *, randomize=False, precision="double", device_options=None, **kwa
 
     def capture(grid):
         build(grid)
+        for monitor in grid.eigenmodeports:
+            port = monitor.owner
+            masks = port._cell_pec_electric_component_masks(grid)
+            tensors = port._extract_local_complex_property_tensors(grid, electric=True)
+            for mask, values in zip(masks, tensors):
+                assert not np.any(mask & np.isfinite(values))
         grids.append(grid)
 
     def solve(solver):

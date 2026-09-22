@@ -316,6 +316,7 @@ averaging; build the surrounding PEC walls after the fill. Otherwise the fill
 can overwrite wall samples while the modal solver still constrains them,
 causing apparent reflection even in a straight uniform guide. Examples 8 and 9
 demonstrate these constructions and test both modal polarizations.
+See :ref:`eigenmode-pec-wall-sampling` under Example 7 for the construction rules.
 
 Tracking confidence controls mode identity, not the interpolation error of
 modal impedance between anchors. For small-reflection measurements, also
@@ -1338,6 +1339,39 @@ x/y; E and H magnitudes are normalised independently.
    :width: 100%
 
    Degenerate TE11 mode 2: global x electric polarization.
+
+.. _eigenmode-pec-wall-sampling:
+
+PEC wall construction and averaging
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Example 7 builds a PEC volume and then carves out the circular air bore. The
+bore uses ``averaging="y"`` to preserve the electric samples shared with the
+PEC wall. Preserve this setting when adapting the circular guide.
+
+With ``averaging="n"``, a volume writes its material directly to the Yee electric
+samples belonging to its voxels, including samples shared with neighbouring
+voxels. Carving an air or dielectric bore *after* a PEC volume can therefore
+replace a wall sample with a non-PEC material. The FDTD update allows electric
+field there, while the modal solver's voxel-derived PEC mask still constrains
+it to zero. Injection and modal decomposition then use a different discrete
+boundary from the time-domain guide, producing apparent S11 even without a
+physical discontinuity. Near cutoff, the resulting impedance mismatch can be
+especially pronounced.
+
+* For an isotropic bore carved from PEC, use ``averaging="y"`` (the trailing
+  ``y`` on a hash ``#box`` or ``#cylinder`` command). Component construction
+  then preserves the PEC electric samples shared with the wall.
+* For an anisotropic fill, which assigns directional materials without
+  averaging, construct the fill first and the surrounding PEC walls afterwards.
+  Example 9 uses this order.
+
+``averaging="n"`` remains valid for directly constructed PEC walls and other
+models whose shared material samples are intentional. It is the combination
+of object order, shared Yee samples, and the modal PEC constraints that must
+agree. Unexpected reflection in a uniform guide warrants checking this
+construction as well as frequency-anchor spacing, PML thickness, and recording
+duration; identity tracking alone does not establish reflection accuracy.
 
 Direct eigenmode ports inside an HSG subgrid
 --------------------------------------------

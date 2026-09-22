@@ -29,7 +29,8 @@ def build_scene(mode=1):
             p2=(0.008, 0.008, 0.072),
             r=0.006,
             material_id="free_space",
-            averaging="n",
+            # Preserve tangential PEC samples shared with the surrounding wall.
+            averaging="y",
         )
     )
     scene.add(gprMax.EigenmodeBand(id="te11", fmin=20e9, fmax=24e9, points=41))

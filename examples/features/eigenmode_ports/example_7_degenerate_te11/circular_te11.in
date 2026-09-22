@@ -7,7 +7,8 @@
 
 ## Circular air bore, uniform along z including the PML regions.
 #box: 0 0 0 0.016 0.016 0.072 pec
-#cylinder: 0.008 0.008 0 0.008 0.008 0.072 0.006 free_space n
+## Averaging preserves the PEC electric samples shared with the bore wall.
+#cylinder: 0.008 0.008 0 0.008 0.008 0.072 0.006 free_space y
 #eigenmode_band: te11 20e9 24e9 41
 
 ## Mode 1 = global y; mode 2 = global x, on both ports and at every anchor.

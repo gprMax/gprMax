@@ -50,7 +50,8 @@ def circular_scene(
             p2=point((8, 8, 72)),
             r=6e-3,
             material_id="free_space",
-            averaging="n",
+            # Match the modal PEC mask at the air/metal interface on every axis.
+            averaging="y",
         )
     )
     plane = (24 if virtual else 12) if direction == "+" else (48 if virtual else 60)

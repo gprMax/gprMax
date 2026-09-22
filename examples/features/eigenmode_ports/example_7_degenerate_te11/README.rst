@@ -39,6 +39,11 @@ through the longitudinal PMLs. A virtual waveguide supplies the source-side
 continuation; the receiving port is at the upper PML interface. The example
 measures both polarizations over 20--24 GHz.
 
+The bore uses ``averaging="y"`` so shared tangential electric samples remain
+PEC at the wall. Carving the bore with averaging disabled would overwrite those
+samples with air even though the modal solver constrains them, producing a
+false reflection floor. The equivalent hash input uses the same construction.
+
 Run from the repository root:
 
 .. code-block:: console
