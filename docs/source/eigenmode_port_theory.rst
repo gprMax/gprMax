@@ -20,7 +20,8 @@ Mathematical formulation
 The remaining sections describe the component-sampled FDFD eigenproblems,
 power normalization and modal reconstruction, followed by spectrum synthesis,
 I/Q injection, Yee staggering, direct DFT reception, and multimode
-decomposition.
+decomposition. The top-level :ref:`eigenmode-auto-tracking-theory` section
+then develops branch assignment, SVD subspace comparison, and basis transport.
 
 Overview
 --------
@@ -719,47 +720,6 @@ slots. The Cython injection kernels consume the transverse components with
 their native staggered shapes; longitudinal modal fields are stored but are not
 used for TF/SF source corrections.
 
-Limitations
------------
-
-Automatic mode tracking is experimental and requires further testing. Enable
-it with ``tracking="auto"`` at your discretion; ``tracking="legacy"`` remains
-the default. The additional matching and diagnostic evidence does not remove
-the following numerical and physical limitations.
-
-* Material tensors are diagonal in the local ``u``/``v``/``w`` basis.
-* The finite-difference operators use first-order sparse Yee-grid differences.
-* Bulk dispersive material poles use their analytic physical-frequency
-  response. Matching their exact FDTD ADE transfer remains a separate step
-  beyond the temporal and longitudinal difference compensation.
-* A single-frequency source reuses one solved profile across the waveform
-  spectrum. Broadband interpolation remains sensitive to anchor spacing even
-  when tracking confidently identifies the same branch. It does not certify
-  modal-impedance accuracy or a particular S11 floor.
-* Automatic tracking can follow changes in eigenvalue order and transport
-  detected degenerate subspaces. Extra candidates and adaptive frequency
-  solves cannot guarantee a unique match in every guide. Unresolved identity
-  gaps invoke the automatic-anchor fallback or an explicit-anchor error;
-  interpolation never bridges them. Resolved eigenvalue splitting retains
-  separate eigenmodes and propagation constants, rather than mixing the fields.
-* Confinement and artificial-boundary diagnostics are evidence, not proofs
-  that a mode is physical or spurious. Numerically valid, confidently tracked
-  forward-power profiles remain eligible with warnings when confinement is
-  suspect or unresolved. Failed residuals, nonfinite fields, singular
-  reconstruction, and rank loss remain disqualifying. Evanescent references
-  do not become injectable merely because their transverse fields are bound.
-* Full verification concerns the represented voxel geometry. It requests
-  twice the transverse resolution and two larger, PML-free windows for open
-  cross-sections. Missing exterior geometry, unsupported faithful refinement
-  of thin sheets or impedance boundaries, failed solves, and exhausted solve
-  budgets leave diagnostics unresolved. Larger-window verification is
-  currently unavailable with domain-decomposed MPI. ``verification="fast"``
-  omits these extra solves and provides only residual and edge evidence.
-
-See :ref:`eigenmode-auto-tracking-theory` for the assignment and diagnostic
-checks, and Examples 8 and 9 in :doc:`eigenmode_port` for circular degeneracy
-and a crossing in a single anisotropic guide.
-
 Source synthesis and FDTD injection
 -----------------------------------
 
@@ -1029,266 +989,6 @@ I/Q construction with one modal anchor. The same solved profile and
 fixed-profile approximation: use multiple solve frequencies when the modal
 shape or propagation constant varies appreciably across the waveform
 bandwidth.
-
-Broadband Anchor Solves and Phase Tracking
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-This subsection describes independent-mode phase tracking with
-``tracking="legacy"``. Declared groups use
-:ref:`eigenmode-degenerate-theory`; optional automatic assignment is described
-in :ref:`eigenmode-auto-tracking-theory`.
-
-For solve frequencies :math:`f_k`, gprMax obtains fields
-:math:`(\mathbf{E}_k,\mathbf{H}_k)` and effective indices :math:`n_k`.
-Adjacent eigenvectors can carry unrelated arbitrary phases, so their complex
-overlap is evaluated as
-
-.. math::
-
-   O_{k-1,k}=
-   \frac{
-     \langle\mathbf{E}_{k-1},\mathbf{E}_k\rangle
-     +\langle\eta_0\mathbf{H}_{k-1},
-              \eta_0\mathbf{H}_k\rangle
-   }{
-     \| (\mathbf{E}_{k-1},\eta_0\mathbf{H}_{k-1}) \|
-     \| (\mathbf{E}_k,\eta_0\mathbf{H}_k) \|
-   }.
-
-Anchor ``k`` is multiplied by
-``exp(-j*arg(O[k-1,k]))``. This makes interpolation follow a continuous phase
-choice instead of blending arbitrary eigenvector phases. If
-``abs(O) < 0.9``, gprMax warns that the mode may have crossed cut-off, become
-degenerate, changed ordering, or been sampled too sparsely. If
-``abs(O) < 0.6``, the ambiguity is too large for ordinary interpolation.
-Multiple explicit anchors stop with an error. With automatic anchors, an
-outer-guard failure trims the affected port/mode spectral tail; an in-band
-failure selects the band-centre single-frequency basis only for that port and
-mode. The candidate frequency list itself remains common.
-
-Phase tracking is evaluated before the forward-power filter so that a solved
-non-propagating candidate can still diagnose and represent branch continuity.
-The forward-power filter produces the one-watt source/power mask, while every
-successfully tracked retained candidate produces the monitor-reference mask.
-A centre-only tracking fallback collapses both masks so that a rejected mode
-cannot re-enter monitor interpolation. Non-propagating reference anchors are
-never used by TF/SF source synthesis or treated as power waves.
-
-.. _eigenmode-auto-tracking-theory:
-
-Automatic mode tracking theory
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Experimental automatic tracking resolves branch identity before interpolation
-and separates numerical validity from confinement evidence. It is selected
-at the user's discretion per port with ``tracking="auto"``;
-``anchors`` independently selects the primary solve frequencies. The user
-controls and their defaults are listed in :ref:`eigenmode-mode-tracking`.
-
-With ``tracking="auto"``, public labels are seeded at the solved anchor nearest
-the band centre, choosing the lower frequency on a tie. Tracking proceeds
-outwards in both directions using complex E/H overlap and a prediction of the
-next eigenvalue. It uses the physical fields of the 1D and 2D solvers with
-their Yee sampling and numerical-dispersion conventions. One-to-one
-assignment includes an explicit unmatched state;
-an ambiguous assignment is not forced merely to keep a mode number present.
-Extra internal candidates, including missing degenerate partners, do not
-create additional public source or monitor channels.
-
-Field overlap and eigenvalue prediction
-"""""""""""""""""""""""""""""""""""""""
-
-For candidate :math:`i` at anchor :math:`k`, concatenate the native physical
-electric and impedance-scaled magnetic fields into a normalized column:
-
-.. math::
-
-   q_{k,i} = \frac{(\mathbf E_{k,i},\eta_0\mathbf H_{k,i})}
-                   {\|(\mathbf E_{k,i},\eta_0\mathbf H_{k,i})\|_2},
-   \qquad
-   O_{ij}=|q_{k,i}^{\mathrm H}q_{k+1,j}|^2.
-
-The squared overlap is insensitive to arbitrary complex phase and is clipped
-to :math:`[0,1]` against round-off. Invalid or nonfinite field columns cannot
-provide a valid matched anchor. With two previously tracked anchors, the
-native eigenvalue is predicted by linear extrapolation in frequency:
-
-.. math::
-
-   \widehat\lambda_i(f_{k+1}) = \lambda_i(f_k)
-     + \frac{f_{k+1}-f_k}{f_k-f_{k-1}}
-       [\lambda_i(f_k)-\lambda_i(f_{k-1})].
-
-The first step uses the previous eigenvalue without extrapolation. The same
-rule applies while traversing anchors towards lower frequencies. For an
-individual-mode candidate, the assignment cost is
-
-.. math::
-
-   d_{ij} &= \frac{|\lambda_j(f_{k+1})-\widehat\lambda_i(f_{k+1})|}
-                       {\max(1,|\lambda_i(f_k)|)},\\
-   C_{ij} &= 1-O_{ij}+0.1\min(d_{ij}^2,4).
-
-Candidates below ``tracking_overlap`` (default squared overlap 0.8) are
-excluded. Additional unmatched columns have cost ``unmatched_cost`` (0.65).
-A minimum-total-cost one-to-one assignment prevents two public labels from
-claiming the same candidate. For each proposed individual match, the solver
-repeats assignment with that edge forbidden. The increase in total cost must
-be at least ``assignment_margin`` (0.02); otherwise the identity remains
-unmatched. Thus a locally strong overlap is insufficient if an almost equally
-good competing assignment exists.
-
-Degenerate spans and adaptive frequency solves
-""""""""""""""""""""""""""""""""""""""""""""""
-
-Degenerate candidate spans are orthonormalized before principal-angle
-comparison, so their scores do not depend on arbitrary raw eigenvector
-phases, ordering, rotations, or nonorthogonal bases. For orthonormal bases
-:math:`Q_a,Q_b` of equal rank, the score is
-
-.. math::
-
-   O_{\mathrm{span}} = \sigma_{\min}^2(Q_a^{\mathrm H}Q_b).
-
-Candidate clusters use connected relative eigenvalue gaps no larger than
-``cluster_gap`` (``1e-5``). Equal-rank spans are reserved using this score and
-the predicted cluster-centre eigenvalue before assigning the remaining
-individual candidates. This broad matching cluster is not a permission to
-mix fields. Automatic mixing groups must satisfy the tighter ``1e-8``
-eigenvalue-spread condition at the reference anchor and throughout the solved
-bank; branches with resolved splitting remain separate. Field mixing requires
-the stricter degeneracy, propagation-branch, positive-power, rank, and
-mixed-residual checks in :ref:`eigenmode-degenerate-theory`. A crossing does
-not by itself justify mixing two branches with resolved splitting.
-
-Ambiguous intervals trigger additional candidates and midpoint solves. The
-default limits are eight refinement levels, a minimum relative frequency
-step of ``1e-5``, and 200 additional solves per port, shared with verification.
-Required primary anchors are not removed to meet that budget. Persistent
-ambiguity follows the anchor policy: automatic anchors may fall back to a
-single band-centre profile; multiple explicit anchors raise an error.
-
-Residuals and verification evidence
-"""""""""""""""""""""""""""""""""""
-
-Numerical validity uses eigenpair and reconstructed Maxwell-equation residuals
-from the actual discrete operators, with default tolerance ``1e-8``. For the
-reduced eigenproblem :math:`Av=\lambda v`, the eigenpair residual is
-
-.. math::
-
-   r_{\mathrm{eig}} =
-   \frac{\|Av-\lambda v\|_2}{\|Av\|_2+\|\lambda v\|_2}.
-
-The denominator is protected against zero. The reconstructed-field residual
-checks the discrete Maxwell equations with the solver's numerical-dispersion
-operators; the larger of the eigenpair and field residuals controls numerical
-validity. A small eigenpair residual alone does not establish a correct
-reconstructed E/H profile.
-
-Full verification compares propagation constants and E/H fields against a refined
-transverse mesh and, for open cross-sections, windows padded by approximately
-25% and 50% of the original extent. The larger windows use available model
-geometry at unchanged spacing and exclude PML. Degenerate groups are compared
-as subspaces. Default acceptance thresholds are normalized beta drift
-``1e-3``, verification overlap ``0.999``, and outer-edge field-norm fraction
-``1e-3``; physical enclosing walls are distinguished from artificial edges.
-These controls belong to ``EigenmodeTrackingConfig``.
-
-The propagation-constant comparison uses
-
-.. math::
-
-   \delta_\beta = \frac{|\beta_{\mathrm{test}}-\beta_{\mathrm{base}}|}
-                            {\max(|\beta_{\mathrm{base}}|,k_0)}.
-
-For a degenerate group it uses the mean beta and compares complete spans.
-Verification fields are compared on the original window after cropping a
-larger solve or averaging refined cell fields back to the original cells.
-The edge fraction is the sum of :math:`|\mathbf E|^2+\eta_0^2|\mathbf H|^2`
-in the outer 10% strips (at least one cell per edge), divided by that sum over
-the full cross-section. This is a field-norm diagnostic, not a leakage-power
-measurement. A recognized physical PEC/PMC enclosure is not penalized for
-field near its wall. ``verification="fast"`` evaluates residual and edge
-evidence without the refinement/window comparisons.
-
-Confinement, artifact suspicion, tracking confidence, and propagation/power
-eligibility are separate diagnostics. Domain sensitivity or appreciable
-field at an artificial edge can indicate leakage or a truncation/box artifact;
-mesh sensitivity alone does not establish a spurious mode. Complex beta alone
-is also not an artifact test. Suspect or incomplete confinement evidence
-produces a warning that the usable profile remains in use and accuracy may
-be reduced. Such warnings do not trim anchors, renumber modes, or force
-tracking fallback.
-
-The resolved bank is shared by injection, monitors, cached studies, and plots.
-The versioned HDF5 ``mode_tracking`` group records candidate mappings,
-requested/adaptive frequencies, residuals, verification evidence, and unresolved
-intervals without changing the existing validity-mask meanings. Degenerate
-transforms are stored in ``degenerate_groups``. The modal-field plots include
-tracked dispersion and diagnostic status, including in geometry-only runs.
-
-.. _eigenmode-degenerate-theory:
-
-Degenerate subspaces and physical alignment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Polarization means the direction of the integrated transverse electric field,
-not the direction of every local field vector:
-
-.. math::
-
-   \mathbf m_j(f)=\int_{\mathrm{port}}\mathbf E_{t,j}(f)\,dA.
-
-At every anchor, the two moment columns form :math:`M`. Requested unit
-directions form :math:`D`; solving :math:`MT=D` fixes both direction and
-complex phase. The same transformation is applied to every E/H component,
-then each pair is normalized to one watt using real power. This removes
-arbitrary solver phases, ordering and basis rotations before interpolation.
-The positive real electric moment fixes the phase consistently across ports.
-
-Requested directions need not be orthogonal. The full Hermitian power matrix
-is retained: for simultaneous coefficients :math:`c`, total power is
-:math:`c^\dagger P c`, which can include interference terms. Continue using
-multiple ``EigenmodeExcitation`` objects with ``amplitude`` and ``phase_deg``
-for coherent combinations; a 90-degree relative phase drives quadrature.
-
-With legacy tracking and only ``degenerate``, the group receives power
-normalization and SVD subspace transport outward from the anchor nearest the
-band centre. Its channel orientations remain arbitrary at that reference
-anchor. With physical
-directions, alignment is enforced independently at every anchor; subsequent
-tracking diagnostics do not rotate those directions. With neither argument,
-legacy independent-mode tracking is unchanged.
-
-Automatic tracking ignores ``degenerate`` and detects the groups from the
-solved spectrum. ``mode_polarizations`` is optional: a detected two-mode group
-uses the port's global transverse axes when its integrated electric moments
-support them, otherwise a deterministic subspace basis. Explicit polarization
-directions override this choice and are validated against the detected groups.
-
-The native discrete eigenvalue spread must be below
-:math:`10^{-8}\max(1,\max|\lambda|)`, and mixed-mode relative eigen-residuals
-must be below :math:`10^{-9}`. Resolved splitting in a declared group is an
-error; automatic tracking keeps split branches as independent modes.
-Propagation constants are preserved individually. Moment and direction condition numbers above
-:math:`10^8` are rejected. Higher-order groups with vanishing integrated E can
-use generic tracking, but cannot use axis/vector references.
-Modes on opposite propagation branches are not mixed even if their squared
-eigenvalues coincide.
-
-Continuity is measured using the smallest principal subspace-overlap singular
-value: below 0.9 warns, and below 0.6 rejects an in-band match. Legitimate
-automatic guard trimming and cutoff exclusion apply to the whole group;
-failed groups never silently fall back member by member. Non-propagating
-group anchors are excluded from excitation and physical references.
-
-The aligned bank is shared by single-anchor and broadband sources, monitors,
-modal studies, virtual guides and plots. HDF5 port groups include
-``degenerate_groups`` with requested directions, achieved electric moments,
-transformations, power matrices, eigenvalue spread, condition numbers,
-residuals, subspace overlaps and retained-anchor flags. Geometry-only modal
-field exports include the same diagnostics; plot titles show assigned directions.
 
 Spectrum and Piecewise-Linear Modal Interpolation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1815,6 +1515,695 @@ normalization. The ``port_power/modal_ports`` output repeats the modal waves,
 mode indices, power matrix, and physical masks at the NTFF frequencies so
 that the normalization can be audited.
 
+
+Limitations
+-----------
+
+Automatic mode tracking is experimental and requires further testing. Enable
+it with ``tracking="auto"`` at your discretion; ``tracking="legacy"`` remains
+the default. The additional matching and diagnostic evidence does not remove
+the following numerical and physical limitations.
+
+* Material tensors are diagonal in the local ``u``/``v``/``w`` basis.
+* The finite-difference operators use first-order sparse Yee-grid differences.
+* Bulk dispersive material poles use their analytic physical-frequency
+  response. Matching their exact FDTD ADE transfer remains a separate step
+  beyond the temporal and longitudinal difference compensation.
+* A single-frequency source reuses one solved profile across the waveform
+  spectrum. Broadband interpolation remains sensitive to anchor spacing even
+  when tracking confidently identifies the same branch. It does not certify
+  modal-impedance accuracy or a particular S11 floor.
+* Automatic tracking can follow changes in eigenvalue order and transport
+  detected degenerate subspaces. Extra candidates and adaptive frequency
+  solves cannot guarantee a unique match in every guide. Unresolved identity
+  gaps invoke the automatic-anchor fallback or an explicit-anchor error;
+  interpolation never bridges them. Resolved eigenvalue splitting retains
+  separate eigenmodes and propagation constants, rather than mixing the fields.
+* Confinement and artificial-boundary diagnostics are evidence, not proofs
+  that a mode is physical or spurious. Numerically valid, confidently tracked
+  forward-power profiles remain eligible with warnings when confinement is
+  suspect or unresolved. Failed residuals, nonfinite fields, singular
+  reconstruction, and rank loss remain disqualifying. Evanescent references
+  do not become injectable merely because their transverse fields are bound.
+* Full verification concerns the represented voxel geometry. It requests
+  twice the transverse resolution and two larger, PML-free windows for open
+  cross-sections. Missing exterior geometry, unsupported faithful refinement
+  of thin sheets or impedance boundaries, failed solves, and exhausted solve
+  budgets leave diagnostics unresolved. Larger-window verification is
+  currently unavailable with domain-decomposed MPI. ``verification="fast"``
+  omits these extra solves and provides only residual and edge evidence.
+
+See :ref:`eigenmode-auto-tracking-theory` for the assignment and diagnostic
+checks, and Examples 8 and 9 in :doc:`eigenmode_port` for circular degeneracy
+and a crossing in a single anisotropic guide.
+
+.. _eigenmode-auto-tracking-theory:
+
+Mode tracking theory
+====================
+
+Experimental automatic tracking resolves branch identity before interpolation
+and separates numerical validity from confinement evidence. It is selected
+at the user's discretion per port with ``tracking="auto"``;
+``anchors`` independently selects the primary solve frequencies. The user
+controls and their defaults are listed in :ref:`eigenmode-mode-tracking`.
+
+The automatic pipeline has five stages: solve primary anchors with extra
+internal candidates; assign branch identities outwards from the reference
+anchor; resolve ambiguity with midpoint solves; orient eligible degenerate
+groups; and evaluate numerical, confinement, and artifact diagnostics. The
+resulting bank supplies injection, receiver decomposition, cached studies,
+and inspection plots. These stages do not collapse into a single valid/invalid
+flag: a boundary-sensitive profile may remain usable even though its
+confinement evidence is poor.
+
+With ``tracking="auto"``, public labels are seeded at the solved anchor nearest
+the band centre, choosing the lower frequency on a tie. Tracking proceeds
+outwards in both directions using complex E/H overlap and a prediction of the
+next eigenvalue. It uses the physical fields of the 1D and 2D solvers with
+their Yee sampling and numerical-dispersion conventions. One-to-one
+assignment includes an explicit unmatched state;
+an ambiguous assignment is not forced merely to keep a mode number present.
+Extra internal candidates, including missing degenerate partners, do not
+create additional public source or monitor channels.
+``extra_candidates`` requests four additional eigenpairs per solve by default,
+bounded by the available free degrees of freedom. Hidden partners complete
+the internal group while ``modes`` continues to define the public channels.
+
+Field overlap and eigenvalue prediction
+---------------------------------------
+
+For candidate :math:`i` at anchor :math:`k`, concatenate the native physical
+electric and impedance-scaled magnetic fields into a normalized column:
+
+.. math::
+
+   q_{k,i} = \frac{(\mathbf E_{k,i},\eta_0\mathbf H_{k,i})}
+                   {\|(\mathbf E_{k,i},\eta_0\mathbf H_{k,i})\|_2},
+   \qquad
+   O_{ij}=|q_{k,i}^{\mathrm H}q_{k+1,j}|^2.
+
+The squared overlap is insensitive to arbitrary complex phase and is clipped
+to :math:`[0,1]` against round-off. Invalid or nonfinite field columns cannot
+provide a valid matched anchor. With two previously tracked anchors, the
+native eigenvalue is predicted by linear extrapolation in frequency:
+
+.. math::
+
+   \widehat\lambda_i(f_{k+1}) = \lambda_i(f_k)
+     + \frac{f_{k+1}-f_k}{f_k-f_{k-1}}
+       [\lambda_i(f_k)-\lambda_i(f_{k-1})].
+
+The first step uses the previous eigenvalue without extrapolation. The same
+rule applies while traversing anchors towards lower frequencies. For an
+individual-mode candidate, the assignment cost is
+
+.. math::
+
+   d_{ij} &= \frac{|\lambda_j(f_{k+1})-\widehat\lambda_i(f_{k+1})|}
+                       {\max(1,|\lambda_i(f_k)|)},\\
+   C_{ij} &= 1-O_{ij}+0.1\min(d_{ij}^2,4).
+
+Candidates below ``tracking_overlap`` (default squared overlap 0.8) are
+excluded. Additional unmatched columns have cost ``unmatched_cost`` (0.65).
+A minimum-total-cost one-to-one assignment prevents two public labels from
+claiming the same candidate. For each proposed individual match, the solver
+repeats assignment with that edge forbidden. The increase in total cost must
+be at least ``assignment_margin`` (0.02); otherwise the identity remains
+unmatched. Thus a locally strong overlap is insufficient if an almost equally
+good competing assignment exists.
+
+SVD rank checks and principal-angle comparison
+----------------------------------------------
+
+A degenerate eigenvalue defines a space of valid fields, rather than a unique
+set of individual eigenvectors. An eigensolver may return any invertible
+combination of a basis for that space, including nonorthogonal columns.
+Normalizing each column alone therefore cannot make a subspace comparison
+independent of the solver's basis.
+
+Let :math:`F\in\mathbb C^{N\times r}` contain the flattened E/H field columns
+for an :math:`r`-mode group. Candidate assignment uses the normalized columns
+:math:`q_i` above; alignment uses the full E/H frame at its current scaling.
+The reduced singular value decomposition (SVD) is
+
+.. math::
+
+   F=U\Sigma V^{\mathrm H},\qquad
+   \Sigma=\operatorname{diag}(s_1,\ldots,s_r),\qquad
+   s_1\ge\cdots\ge s_r\ge0.
+
+The implementation requires finite singular values and
+:math:`s_r>s_1/10^8`. It rejects rank loss or excessive conditioning instead
+of silently dropping a partner and changing the group's dimension. The
+orthonormal span basis and its transformation from the input columns are
+
+.. math::
+
+   Q=U,\qquad B=V\Sigma^{-1},\qquad FB=Q,\qquad Q^{\mathrm H}Q=I.
+
+This Euclidean E/H normalization compares spans and conditions the power
+check; it does not by itself give unit transported power.
+
+For equal-rank spans at two anchors, a second SVD gives their principal angles:
+
+.. math::
+
+   Q_a^{\mathrm H}Q_b=L\,\operatorname{diag}(\sigma_1,\ldots,\sigma_r)
+                       R^{\mathrm H},\qquad
+   \sigma_i=\cos\theta_i.
+
+The smallest singular value measures the least well matched direction. The
+automatic candidate-assignment score is
+
+.. math::
+
+   O_{\mathrm{span}} = \sigma_{\min}^2(Q_a^{\mathrm H}Q_b).
+
+Identical spans have score one even if their input columns have unrelated
+phases, ordering, rotations, or nonorthogonal bases. A missing or substantially
+changed direction lowers the smallest singular value even when the other
+directions match well. Assignment compares the squared score against
+``tracking_overlap`` (default 0.8). The later aligned-group continuity check
+uses the unsquared :math:`\sigma_{\min}` with its separate 0.9 warning and
+0.6 rejection thresholds.
+
+Candidate clusters and adaptive frequency solves
+------------------------------------------------
+
+Candidate clusters use connected relative eigenvalue gaps no larger than
+``cluster_gap`` (``1e-5``). Equal-rank spans are reserved using this score and
+the predicted cluster-centre eigenvalue before assigning the remaining
+individual candidates. This broad matching cluster is not a permission to
+mix fields. Automatic mixing groups must satisfy the tighter ``1e-8``
+eigenvalue-spread condition at the reference anchor and throughout the solved
+bank; branches with resolved splitting remain separate. Field mixing requires
+the stricter degeneracy, propagation-branch, positive-power, rank, and
+mixed-residual checks in :ref:`eigenmode-degenerate-theory`. A crossing does
+not by itself justify mixing two branches with resolved splitting.
+
+Ambiguous intervals trigger additional candidates and midpoint solves. The
+default limits are eight refinement levels, a minimum relative frequency
+step of ``1e-5``, and 200 additional solves per port, shared with verification.
+Required primary anchors are not removed to meet that budget. Persistent
+ambiguity follows the anchor policy: automatic anchors may fall back to a
+single band-centre profile; multiple explicit anchors raise an error.
+For an ambiguous interval :math:`[f_a,f_b]`, the next frequency is
+:math:`f_m=(f_a+f_b)/2`; subdivision stops when
+:math:`(f_b-f_a)/\max(|f_m|,1\,\mathrm{Hz})\le10^{-5}` or a configured limit
+is reached. A midpoint solve uses the same extra-candidate allowance and the
+assignment is reevaluated across the bank. The current algorithm does not
+increase that allowance automatically on each retry. Increase
+``extra_candidates`` explicitly if inspection indicates missing candidates.
+
+For independently tracked modes, the assigned fields are phase-aligned before
+interpolation using their complex E/H overlap. Degenerate groups instead use
+the physical-direction or unitary transport rules below. Neither procedure
+authorizes interpolation through an unresolved assignment. After fallback,
+the retained centre profile is a fixed-profile approximation away from that
+frequency, and the unresolved interval remains recorded.
+
+Residuals and verification evidence
+-----------------------------------
+
+Numerical validity uses eigenpair and reconstructed Maxwell-equation residuals
+from the actual discrete operators, with default tolerance ``1e-8``. For the
+reduced eigenproblem :math:`Av=\lambda v`, the eigenpair residual is
+
+.. math::
+
+   r_{\mathrm{eig}} =
+   \frac{\|Av-\lambda v\|_2}{\|Av\|_2+\|\lambda v\|_2}.
+
+The denominator is protected against zero. The reconstructed-field residual
+checks the discrete Maxwell equations with the solver's numerical-dispersion
+operators; the larger of the eigenpair and field residuals controls numerical
+validity. A small eigenpair residual alone does not establish a correct
+reconstructed E/H profile.
+
+Full verification compares propagation constants and E/H fields against a refined
+transverse mesh and, for open cross-sections, windows padded by approximately
+25% and 50% of the original extent. The larger windows use available model
+geometry at unchanged spacing and exclude PML. Degenerate groups are compared
+as subspaces. Default acceptance thresholds are normalized beta drift
+``1e-3``, verification overlap ``0.999``, and outer-edge field-norm fraction
+``1e-3``; physical enclosing walls are distinguished from artificial edges.
+These controls belong to ``EigenmodeTrackingConfig``.
+
+The propagation-constant comparison uses
+
+.. math::
+
+   \delta_\beta = \frac{|\beta_{\mathrm{test}}-\beta_{\mathrm{base}}|}
+                            {\max(|\beta_{\mathrm{base}}|,k_0)}.
+
+For a degenerate group it uses the mean beta and compares complete spans.
+Verification fields are compared on the original window after cropping a
+larger solve or averaging refined cell fields back to the original cells.
+The edge fraction is the sum of :math:`|\mathbf E|^2+\eta_0^2|\mathbf H|^2`
+in the outer 10% strips (at least one cell per edge), divided by that sum over
+the full cross-section. This is a field-norm diagnostic, not a leakage-power
+measurement. A recognized physical PEC/PMC enclosure is not penalized for
+field near its wall. ``verification="fast"`` evaluates residual and edge
+evidence without the refinement/window comparisons.
+
+Confinement, artifact suspicion, tracking confidence, and propagation/power
+eligibility are separate diagnostics. Domain sensitivity or appreciable
+field at an artificial edge can indicate leakage or a truncation/box artifact;
+mesh sensitivity alone does not establish a spurious mode. Complex beta alone
+is also not an artifact test. Suspect or incomplete confinement evidence
+produces a warning that the usable profile remains in use and accuracy may
+be reduced. Such warnings do not trim anchors, renumber modes, or force
+tracking fallback.
+
+The resolved bank is shared by injection, monitors, cached studies, and plots.
+The versioned HDF5 ``mode_tracking`` group records candidate mappings,
+requested/adaptive frequencies, residuals, diagnostic summaries, and unresolved
+intervals without changing the existing validity-mask meanings. Degenerate
+transforms are stored in ``degenerate_groups``. The modal-field plots include
+tracked dispersion and diagnostic status, including in geometry-only runs.
+
+.. _eigenmode-degenerate-theory:
+
+Degenerate subspaces and physical alignment
+-------------------------------------------
+
+Polarization means the direction of the integrated transverse electric field,
+not the direction of every local field vector:
+
+.. math::
+
+   \mathbf m_j(f)=\int_{\mathrm{port}}\mathbf E_{t,j}(f)\,dA.
+
+At every anchor, the two moment columns form :math:`M`. Requested real unit
+directions in the transverse plane form :math:`D`. The initial transformation
+is obtained by solving a small linear system:
+
+.. math::
+
+   MT_0=D,\qquad
+   \mathbf E'_j=\sum_i\mathbf E_i(T_0)_{ij},\qquad
+   \mathbf H'_j=\sum_i\mathbf H_i(T_0)_{ij}.
+
+Applying the same transformation to every E/H component preserves their
+relative phase. For real forward powers :math:`p_j>0`, the final transform is
+
+.. math::
+
+   T=T_0\operatorname{diag}(p_j^{-1/2}),\qquad
+   MT=D\operatorname{diag}(p_j^{-1/2}).
+
+Thus each column has unit real power and a positive real electric moment
+parallel to its requested direction; its integrated moment need not have unit
+magnitude. This fixes orientation and phase consistently across ports before
+interpolation.
+
+Requested directions need not be orthogonal. The full Hermitian power matrix
+is retained: for simultaneous coefficients :math:`c`, total power is
+:math:`c^\dagger P c`, which can include interference terms. Continue using
+multiple ``EigenmodeExcitation`` objects with ``amplitude`` and ``phase_deg``
+for coherent combinations; a 90-degree relative phase drives quadrature.
+
+Declared legacy groups and automatically detected groups use the same
+alignment machinery. With physical directions, alignment is enforced
+independently at every anchor; subsequent tracking diagnostics do not rotate
+those directions. Without usable physical directions, a deterministic
+reference basis is transported outwards using the SVD rotation below.
+Legacy modes without a declared group retain independent-mode phase tracking.
+
+Automatic tracking ignores ``degenerate`` and detects the groups from the
+solved spectrum. ``mode_polarizations`` is optional: a detected two-mode group
+uses the port's global transverse axes when its integrated electric moments
+support them, otherwise a deterministic subspace basis. Explicit polarization
+directions override this choice and are validated against the detected groups.
+
+The native discrete eigenvalue spread must be below
+:math:`10^{-8}\max(1,\max|\lambda|)`, and mixed-mode relative eigen-residuals
+must be below :math:`10^{-9}`. Resolved splitting in a declared group is an
+error; automatic tracking keeps split branches as independent modes.
+Propagation constants are preserved individually. Moment and direction
+condition numbers above :math:`10^8` are rejected. A usable electric moment
+must also exceed :math:`10^{-12}` times the absolute transverse-field sample
+sum multiplied by transverse cell area; this prevents cancellation noise from
+defining a polarization even when its relative condition number looks benign.
+Higher-order groups with vanishing integrated E can use generic tracking,
+but cannot use axis/vector references.
+Modes on opposite propagation branches are not mixed even if their squared
+eigenvalues coincide.
+
+Continuity is measured using the smallest principal subspace-overlap singular
+value: below 0.9 warns, and below 0.6 rejects an in-band match. Legitimate
+automatic guard trimming and cutoff exclusion apply to the whole group;
+failed groups never silently fall back member by member. Non-propagating
+group anchors are excluded from excitation and physical references.
+
+Power conditioning and normalization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For group coefficients :math:`c`, define the discrete cross-power matrix
+using the port's propagation direction :math:`\hat{\mathbf w}` and its Yee
+field quadrature:
+
+.. math::
+
+   C_{ij}=\frac12\int
+       (\mathbf E_j\times\mathbf H_i^*)\cdot\hat{\mathbf w}\,dA,\qquad
+   P=\frac{C+C^{\mathrm H}}{2},\qquad
+   P(c)=c^{\mathrm H}Pc.
+
+The 1D cross-section uses its corresponding line quadrature and power per
+unit invariant length. A change of basis :math:`F\mapsto FT` transforms this
+Hermitian power form as :math:`P\mapsto T^{\mathrm H}PT`.
+
+Testing power directly in a poorly conditioned solver basis can exaggerate
+conditioning because the quadratic form contains that basis twice. The code
+first uses the SVD preconditioner :math:`B=V\Sigma^{-1}` and tests
+:math:`P_B=B^{\mathrm H}PB`. Its eigenvalues must be finite and satisfy
+:math:`p_{\min}>p_{\max}/10^8`, ensuring an independent positive-power basis.
+A small eigenvalue residual does not substitute for this power test.
+
+For generic subspace alignment, the canonical basis described below has
+transform :math:`T_c` and power matrix
+:math:`P_c=T_c^{\mathrm H}PT_c=Z\operatorname{diag}(p_j)Z^{\mathrm H}`.
+The implementation normalizes the complete power form:
+
+.. math::
+
+   T=T_cZ\operatorname{diag}(p_j^{-1/2})Z^{\mathrm H},\qquad
+   T^{\mathrm H}PT=I.
+
+Physical-direction alignment instead normalizes each column as above.
+Prescribed nonorthogonal directions can leave off-diagonal power terms;
+those terms are retained rather than discarded.
+
+Deterministic basis without electric directions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When integrated electric moments cannot supply a physical orientation, the
+code constructs a repeatable basis from the subspace projector
+:math:`\Pi=QQ^{\mathrm H}`. Let :math:`e_\ell` be a coordinate vector in the
+flattened E/H sample order, and let :math:`W` contain the canonical columns
+already selected. For each unused coordinate, form
+
+.. math::
+
+   z_\ell=(I-WW^{\mathrm H})\Pi e_\ell.
+
+Choose the largest :math:`\|z_\ell\|_2`, breaking an exact tie by the lowest
+coordinate index. Normalize it and multiply by a complex phase so its selected
+coordinate is positive real. Repeat until there are :math:`r` columns.
+The implementation applies the projector through :math:`Q` without forming
+the dense :math:`N\times N` matrix. A missing independent direction is an
+error.
+
+For the resulting frame :math:`F_c`, a least-squares solve determines
+:math:`T_c=F^\dagger F_c`, so :math:`FT_c=F_c` up to numerical precision.
+Because the projector depends on the span, this construction avoids choosing
+an orientation from arbitrary raw eigenvectors. The fixed sample ordering
+defines its convention; it is not a requested physical polarization.
+Power normalization is then applied before transport.
+
+Unitary SVD transport between anchors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For a group without physical-direction constraints, let :math:`A_k=F_kT_k`
+be its current power-normalized frame and :math:`A_p` the already aligned
+frame at the preceding anchor along the tracking path. Solve the complex
+orthogonal Procrustes problem
+
+.. math::
+
+   R_*=\underset{R^{\mathrm H}R=I}{\operatorname{argmin}}
+          \|A_kR-A_p\|_{\mathrm F}.
+
+Expanding the squared Frobenius norm shows that this is equivalent to
+maximizing :math:`\operatorname{Re}\operatorname{tr}(R^{\mathrm H}A_k^{\mathrm H}A_p)`.
+For the SVD
+
+.. math::
+
+   A_k^{\mathrm H}A_p=U_s\Sigma_sV_s^{\mathrm H},
+   \qquad R_*=U_sV_s^{\mathrm H},
+
+update :math:`T_k\leftarrow T_kR_*` and :math:`A_k\leftarrow A_kR_*`.
+The rotation is applied to all electric and magnetic field components.
+It preserves unit power because :math:`R_*^{\mathrm H}IR_*=I`, and it stays
+inside the same degenerate subspace. Transport starts at the retained anchor
+nearest the band centre (lower frequency on a tie) and proceeds separately
+towards increasing and decreasing frequencies.
+
+This transport uses the power-normalized frames themselves; the principal
+angle test above uses Euclidean-orthonormalized spans. The two SVDs answer
+different questions: whether the spans match, and which allowed orientation
+best continues the preceding frame. A physically specified or automatically
+selected electric direction is not subsequently rotated by Procrustes
+transport.
+
+After the final rotation, the code recomputes the mixed eigenpair residual
+for each column against its own stored eigenvalue:
+
+.. math::
+
+   r_j=\frac{\|A_{\mathrm{op}}(XT)_j-\lambda_j(XT)_j\|_2}
+              {\|A_{\mathrm{op}}(XT)_j\|_2+\|\lambda_j(XT)_j\|_2}
+       \le 10^{-9}.
+
+Here :math:`X` contains the raw reduced eigenvectors and
+:math:`A_{\mathrm{op}}` is the actual discrete eigenproblem operator.
+Propagation constants and eigenvalues are never replaced by a group average
+to make mixing pass. Mixing resolved splitting or opposite propagation
+branches remains forbidden; a numerical rotation cannot repair that physical
+incompatibility.
+
+The aligned bank is shared by single-anchor and broadband sources, monitors,
+modal studies, virtual guides and plots. HDF5 port groups include
+``degenerate_groups`` with requested directions, achieved electric moments,
+transformations, power matrices, eigenvalue spread, condition numbers,
+residuals, subspace overlaps and retained-anchor flags. Geometry-only modal
+field exports include the same diagnostics; plot titles show assigned directions.
+
+Confinement and suspected box-mode detection
+--------------------------------------------
+
+A finite artificial transverse window can support eigenvectors that mainly
+describe the truncation box rather than the intended guide. Such a box mode
+can satisfy the discrete eigenproblem accurately. Residual convergence alone
+therefore cannot distinguish it from a physical guided mode. The detector
+uses sensitivity to the transverse mesh/window and participation of fields
+near the outer boundary as separate evidence.
+
+The implementation reports ``artificial_boundary_or_box_suspect`` rather than
+claiming a definitive spurious mode. A physical weakly confined mode can show
+the same sensitivity when its evanescent tail is truncated. In particular,
+large low-frequency CPW profiles can be questionable at a small aperture and
+still supply usable forward-power fields. Conversely, decay along the guide
+below cutoff does not imply poor transverse confinement. Complex beta alone
+is never the box-mode test.
+
+Physical walls and artificial edges
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The enclosure test inspects the solver's PEC/PMC masks, not an eigenvalue
+threshold. In a 2D cross-section, each outer edge must have the required
+tangential component constraints for PEC or PMC to recognize a complete
+physical enclosure. The reduced 1D solver uses the corresponding scalar
+endpoint masks. A recognized enclosure requires the refined-mesh comparison
+but skips larger-window comparisons and the outer-edge penalty.
+
+Otherwise, the finite window is treated conservatively as open for these
+diagnostics. The current edge-strip norm covers all outer strips; it does
+not individually remove physical-wall strips in a partially open perimeter.
+Thus an edge warning is evidence to inspect, not a resolved separation of
+physical leakage and artificial truncation effects.
+
+Refinement and larger-window comparisons
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+With ``verification="full"``, the refined solve halves each physical transverse
+spacing, expands the stored Yee constitutive arrays and PEC/PMC masks, and
+rebuilds the solver operators. It retains the solve frequency, FDTD time step,
+and propagation-axis spacing. This tests the represented voxel cross-section;
+it does not revoxelize an original smooth circle or recover missing subvoxel
+thin-sheet geometry. Surface-impedance refinement is currently unsupported
+and produces unresolved verification rather than a substituted boundary model.
+
+For open cross-sections, each transverse side is padded by
+:math:`\lceil0.25N\rceil` and then :math:`\lceil0.50N\rceil` cells, where
+:math:`N` is the original extent along that axis. These are per-side additions,
+so the total window widths are approximately 1.5 and 2 times the originals.
+Spacing is unchanged. The surrounding material and boundary data are extracted
+from the actual model; no homogeneous exterior is invented. A requested
+window that reaches beyond available non-PML geometry is unavailable. These
+larger-window solves are also currently unavailable in domain-decomposed MPI.
+
+Verification does not compare raw numerical mode numbers. It selects the
+highest-overlap candidate after cropping a larger window to the original
+cross-section or averaging refined cell fields back to the original cells.
+For a degenerate group it compares equal-rank candidate spans, using
+orthonormal bases and the smallest squared principal overlap. A missing
+matching span leaves the comparison unresolved. The chosen candidate or group
+must meet all of the following defaults:
+
+* eigenpair and reconstructed-field residual at most ``1e-8``;
+* normalized beta drift at most ``1e-3``;
+* squared field/subspace overlap at least ``0.999``;
+* for a padded window, its own outer-edge field-norm fraction at most ``1e-3``.
+
+In addition, a non-enclosed primary profile must have outer-edge fraction at
+most ``1e-3`` to receive the complete ``bound`` classification. Mesh sensitivity
+alone records insufficient convergence evidence; it does not identify a box
+mode. Failed padding comparisons or appreciable outer-edge fields supply
+the boundary-sensitivity evidence used for artifact suspicion.
+
+Classification decisions
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Full verification expects one successful comparison for a recognized physical
+enclosure and three for an open cross-section. Here "complete" means all
+required comparisons could be evaluated, even if some failed their thresholds.
+The diagnostic decision is independent of the primary numerical-validity and
+power masks:
+
+.. list-table:: Confinement and artifact states
+   :header-rows: 1
+   :widths: 50 20 30
+
+   * - Evidence
+     - Confinement
+     - Artifact suspicion
+   * - Full checks complete and pass; primary edge test passes or enclosure is physical.
+     - ``bound``
+     - ``none``
+   * - Full checks complete but a padding comparison fails or an artificial-edge profile exceeds the norm threshold.
+     - ``unbound_suspect``
+     - ``artificial_boundary_or_box_suspect``
+   * - Full checks complete but only the mesh comparison fails, without boundary evidence.
+     - ``unresolved``
+     - ``none``
+   * - Full checks incomplete: unavailable geometry/refinement, failed verification solve or comparison, or exhausted budget.
+     - ``unresolved``
+     - ``unresolved``
+   * - Fast checks: physical enclosure recognized or primary edge fraction passes.
+     - ``bound``
+     - ``none``
+   * - Fast checks: no recognized enclosure and primary edge fraction fails.
+     - ``unbound_suspect``
+     - ``artificial_boundary_or_box_suspect``
+
+The fast path uses residual and enclosure/edge evidence only. Its ``bound``
+label does not imply that mesh or window stability was verified. Even a full
+``bound`` result is evidence at the tested resolutions and windows, not a
+proof of continuum convergence or absence of radiation.
+
+Verification is limited by the additional-solve budget shared with adaptive
+tracking. Exhausting it leaves required primary anchors intact. Reasons such
+as ``insufficient_non_pml_exterior_geometry``,
+``mpi_padding_verification_unavailable``, or
+``verification_solve_budget_exhausted`` identify incomplete evidence. A failed
+verification eigensolve leaves the primary profile unresolved; it does not
+retroactively make a numerically valid primary eigensolve fail.
+
+Anchor eligibility, warnings, and recorded diagnostics
+------------------------------------------------------
+
+Numerical validity determines whether usable fields exist. Tracking confidence
+determines whether anchors may be connected. Propagation and forward power
+determine injection eligibility; generalized below-cutoff receiver references
+retain their existing restrictions. Confinement and artifact suspicion are
+advisory: a numerically valid, confidently tracked forward-power profile stays
+eligible even when unbound or box-like behavior is suspected. Such warnings
+alone do not trim anchors, break interpolation, renumber modes, or trigger
+fallback. Failed primary residuals, nonfinite fields, singular reconstruction,
+and rank loss remain disqualifying.
+
+The coordinator aggregates confinement warnings for each port and public mode,
+listing the states, reasons, and minimum-to-maximum affected frequency range.
+This summary can span intervening frequencies with no warning; inspect the
+per-anchor records for individual statuses. The message states that usable
+profiles remain in use and that injection or S-parameter accuracy may be
+reduced. No recommendation warning is emitted merely for selecting legacy
+tracking.
+
+The shared resolved bank is reused by sources, receivers, cached studies,
+virtual guides, and plots. Geometry-only runs can inspect dispersion and E/H
+profiles without time stepping. Diagnostic markers distinguish questionable
+retained profiles from missing or invalid profiles; they do not alter the
+underlying anchor masks.
+
+HDF5 diagnostics are added for automatic tracking without changing existing
+dataset names or validity-mask meanings. The current ``mode_tracking`` schema
+is version 1:
+
+* Attributes identify the tracking/verification policy, source revision,
+  reference-anchor index, verification solve count, and detected groups.
+* ``candidate_indices`` records original, zero-based solver candidate indices
+  after assignment to tracked labels; public mode labels remain one-based.
+  Hidden partners can appear in the internal mapping without becoming public
+  measurement channels.
+* ``tracking_overlaps``, ``eigenpair_residuals``, ``field_residuals``,
+  ``combined_residuals``, and ``numerical_valid`` preserve assignment and
+  numerical evidence.
+* ``requested_frequencies``, ``adaptive_frequencies``, and the
+  ``unresolved_interval_*`` datasets record sampling and remaining identity
+  gaps.
+* ``anchor_quality`` records public mode/frequency rows with residuals,
+  edge fraction, numerical validity, confinement, artifact suspicion, and
+  reason strings. Detailed per-comparison candidate, overlap, beta-drift, and
+  pass/fail records are held in the runtime diagnostics; schema 1 does not
+  serialize those individual verification records.
+* The separate ``degenerate_groups`` hierarchy stores orientation, reference
+  anchor, transforms, power matrices, residuals, overlaps, retained flags, and
+  physical directions/moments when available. Its transformation convention
+  is ``aligned fields = raw fields @ transform``.
+
+Older output files without these groups remain readable. Existing
+``anchor_mode_valid``, ``anchor_mode_reference_valid``, and measurement power
+masks continue to control how results may be used; a quality label does not
+replace them.
+
+Legacy phase tracking
+---------------------
+
+This subsection describes independent-mode phase tracking with
+``tracking="legacy"``. Declared groups use
+:ref:`eigenmode-degenerate-theory`; optional automatic assignment is described
+in :ref:`eigenmode-auto-tracking-theory`.
+
+For solve frequencies :math:`f_k`, gprMax obtains fields
+:math:`(\mathbf{E}_k,\mathbf{H}_k)` and effective indices :math:`n_k`.
+Adjacent eigenvectors can carry unrelated arbitrary phases, so their complex
+overlap is evaluated as
+
+.. math::
+
+   O_{k-1,k}=
+   \frac{
+     \langle\mathbf{E}_{k-1},\mathbf{E}_k\rangle
+     +\langle\eta_0\mathbf{H}_{k-1},
+              \eta_0\mathbf{H}_k\rangle
+   }{
+     \| (\mathbf{E}_{k-1},\eta_0\mathbf{H}_{k-1}) \|
+     \| (\mathbf{E}_k,\eta_0\mathbf{H}_k) \|
+   }.
+
+Anchor ``k`` is multiplied by
+``exp(-j*arg(O[k-1,k]))``. This makes interpolation follow a continuous phase
+choice instead of blending arbitrary eigenvector phases. If
+``abs(O) < 0.9``, gprMax warns that the mode may have crossed cut-off, become
+degenerate, changed ordering, or been sampled too sparsely. If
+``abs(O) < 0.6``, the ambiguity is too large for ordinary interpolation.
+Multiple explicit anchors stop with an error. With automatic anchors, an
+outer-guard failure trims the affected port/mode spectral tail; an in-band
+failure selects the band-centre single-frequency basis only for that port and
+mode. The candidate frequency list itself remains common.
+
+Phase tracking is evaluated before the forward-power filter so that a solved
+non-propagating candidate can still diagnose and represent branch continuity.
+The forward-power filter produces the one-watt source/power mask, while every
+successfully tracked retained candidate produces the monitor-reference mask.
+A centre-only tracking fallback collapses both masks so that a rejected mode
+cannot re-enter monitor interpolation. Non-propagating reference anchors are
+never used by TF/SF source synthesis or treated as power waves.
 
 Validation and reproducibility
 ==============================
