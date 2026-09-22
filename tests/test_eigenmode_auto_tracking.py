@@ -116,6 +116,34 @@ def test_tracking_configuration_defaults_are_opt_in_safe():
     assert config.max_solves == 200
 
 
+@pytest.mark.parametrize("phase", (1.0, 1j))
+def test_assignment_compares_nonorthogonal_degenerate_spans(phase):
+    """Repeated eigenvectors may span the same space without being orthogonal."""
+    old = np.eye(3, dtype=complex)[:, :2]
+    new = np.array(((1, 0.8), (0, 0.6), (0, 0)), dtype=complex) * phase
+    values = np.array((-1.0, -1.0))
+    assigned, scores = tracking_module._assign_step(
+        old, new, values, values, EigenmodeTrackingConfig(), values
+    )
+    np.testing.assert_array_equal(assigned, (0, 1))
+    np.testing.assert_allclose(scores, 1.0)
+
+
+def test_assignment_rejects_a_different_degenerate_span():
+    old = np.eye(3)[:, :2]
+    new = np.eye(3)[:, 1:]
+    values = np.array((-1.0, -1.0))
+    assigned, _ = tracking_module._assign_step(
+        old, new, values, values, EigenmodeTrackingConfig(), values
+    )
+    assert np.any(assigned < 0)
+
+
+def test_degenerate_span_orthonormalization_rejects_rank_loss():
+    with pytest.raises(ValueError, match="rank loss"):
+        tracking_module._orthonormal(np.array(((1.0, 1.0), (0.0, 0.0))))
+
+
 def test_verification_compares_degenerate_modes_as_a_subspace():
     base = _degenerate_solver(np.eye(2))
     rotation = np.asarray(((1, 1), (-1, 1)), dtype=float) / np.sqrt(2)

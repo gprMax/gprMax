@@ -147,6 +147,13 @@ If ``modes`` is changed to ``(1,)``, the partner is still solved internally for
 subspace transport but is not added as a public monitor channel. Two ports on
 the straight guide expose co- and cross-polarized S11 and S21.
 
+The free-space bore uses ``averaging="y"`` to preserve the tangential electric
+PEC samples shared with wall voxels. Carving it with ``averaging="n"`` overwrites
+those samples and makes the time-domain guide differ from the modal solver's
+PEC cross-section. Explicit frequency anchors resolve the modal impedance
+between 20 and 24 GHz; degeneracy detection and polarization remain automatic.
+The output and virtual-feed terminations use 16-cell PMLs.
+
 .. code-block:: console
 
     python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --geometry-only
@@ -164,6 +171,11 @@ slopes, so their phase-index curves cross. The field rows show whether each
 public label retains its polarization as raw eigenvalue order changes. Matching
 automatic ports at each end expose both modal reflection and transmission.
 
+The anisotropic fill is built before the four PEC wall boxes so it cannot
+overwrite their tangential electric boundary samples. Frequency anchors are
+closer together near the lower band's cutoff, where modal impedance changes
+rapidly. Both terminations use 16-cell PMLs; port separation remains 52 mm.
+
 .. code-block:: console
 
     python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --geometry-only
@@ -171,6 +183,39 @@ automatic ports at each end expose both modal reflection and transmission.
     python examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py --mode 1
     python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --mode 2
     python examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py --mode 2
+
+Reflection accuracy
+===================
+
+Double-precision CPU runs check all 41 frequencies from 20--24 GHz in Example 8
+and all 55 frequencies from 13.1--15.8 GHz in Example 9. The worst co-polarized
+S11 over each band's sampled frequencies is:
+
+.. list-table:: Straight-guide reflection after preserving the PEC walls
+   :header-rows: 1
+
+   * - Example
+     - Launched mode 1
+     - Launched mode 2
+   * - 8: circular TE11
+     - -62.9 dB
+     - -62.9 dB
+   * - 9: anisotropic crossing
+     - -81.1 dB
+     - -62.4 dB
+
+Co-polarized S21 stays within 0.00011 dB of 0 dB in these runs. The regression
+in ``tests/test_eigenmode_tracking_examples.py`` checks S11 below -60 dB,
+S21 within 0.005 dB, retained degeneracy/crossing identities, and matching PEC
+samples in the modal and time-domain geometry.
+
+The earlier roughly -30 dB reflection floor came primarily from overwritten
+wall samples; manual tracking reproduced it. Once those samples agree,
+interpolation between sparse modal anchors and finite PML reflection become
+visible. Confident tracking does not by itself guarantee an accurate
+interpolated impedance. Check convergence in anchor spacing, PML thickness,
+and recording duration when smaller reflections matter. These checks concern
+the represented voxel guide, not convergence to an ideal smooth circular wall.
 
 Generated CSV, HDF5, VTK-HDF, modal-field, snapshot, and result-plot files are
 ignored by Git and can be recreated by rerunning the examples. The larger

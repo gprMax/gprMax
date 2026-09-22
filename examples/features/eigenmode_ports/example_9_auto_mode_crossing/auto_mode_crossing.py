@@ -13,10 +13,17 @@ import gprMax
 EXAMPLE_DIR = Path(__file__).resolve().parent
 ANCHORS = (
     12.8e9,
+    12.9e9,
     13.0e9,
+    13.1e9,
+    13.2e9,
     13.3e9,
+    13.4e9,
+    13.5e9,
     13.6e9,
+    13.8e9,
     14.0e9,
+    14.15e9,
     14.3e9,
     14.6e9,
     14.9e9,
@@ -34,11 +41,11 @@ def build_scene(mode=1):
 
     scene = gprMax.Scene()
     scene.add(gprMax.Title(name="Example 9 - automatic tracking through a mode crossing"))
-    scene.add(gprMax.Domain(p1=(0.020, 0.012, 0.080)))
+    scene.add(gprMax.Domain(p1=(0.020, 0.012, 0.096)))
     scene.add(gprMax.Discretisation(p1=(0.001, 0.001, 0.001)))
     scene.add(gprMax.TimeWindow(time=20e-9))
     scene.add(gprMax.OMPThreads(n=1))
-    scene.add(gprMax.PMLThickness(thickness=(0, 0, 8, 0, 0, 8)))
+    scene.add(gprMax.PMLThickness(thickness=(0, 0, 16, 0, 0, 16)))
     scene.add(gprMax.Material(er=2.25, se=0, mr=1, sm=0, id="epsilon_x"))
     scene.add(gprMax.Material(er=1, se=0, mr=1, sm=0, id="epsilon_y"))
     scene.add(gprMax.Material(er=1, se=0, mr=1, sm=0, id="epsilon_z"))
@@ -48,15 +55,24 @@ def build_scene(mode=1):
     # have different cutoff terms and slopes, so their propagation constants
     # cross near 14.4 GHz on this voxel grid. Raw eigensolver order changes at
     # the crossing while automatic tracking preserves each polarization.
-    scene.add(gprMax.Box(p1=(0, 0, 0), p2=(0.020, 0.012, 0.080), material_id="pec"))
     scene.add(
         gprMax.Box(
             p1=(0.002, 0.002, 0),
-            p2=(0.018, 0.010, 0.080),
+            p2=(0.018, 0.010, 0.096),
             material_ids=("epsilon_x", "epsilon_y", "epsilon_z"),
             averaging="n",
         )
     )
+    # Build the PEC walls after the anisotropic fill, whose Yee components are
+    # assigned without averaging. This preserves the tangential-E constraints
+    # shared by the FDTD geometry and modal solver at all four walls.
+    for x0, y0, x1, y1 in (
+        (0, 0, 0.002, 0.012),
+        (0.018, 0, 0.020, 0.012),
+        (0.002, 0, 0.018, 0.002),
+        (0.002, 0.010, 0.018, 0.012),
+    ):
+        scene.add(gprMax.Box(p1=(x0, y0, 0), p2=(x1, y1, 0.096), material_id="pec"))
 
     scene.add(
         gprMax.EigenmodeBand(
@@ -67,7 +83,10 @@ def build_scene(mode=1):
             transition=0.3e9,
         )
     )
-    for port, z, direction in ((1, 0.020, "+"), (2, 0.072, "-")):
+    # Denser low-frequency anchors resolve the rapid impedance change of the
+    # second branch near cutoff. Tracking identity alone does not control the
+    # interpolation error of a broadband source or modal measurement.
+    for port, z, direction in ((1, 0.028, "+"), (2, 0.080, "-")):
         scene.add(
             gprMax.EigenmodePort(
                 port=port,
@@ -82,7 +101,7 @@ def build_scene(mode=1):
             )
         )
     scene.add(gprMax.EigenmodeExcitation(port=1, mode=mode, waveform="auto"))
-    scene.add(gprMax.Rx(p1=(0.010, 0.006, 0.050), id="guide_centre"))
+    scene.add(gprMax.Rx(p1=(0.010, 0.006, 0.058), id="guide_centre"))
     return scene
 
 

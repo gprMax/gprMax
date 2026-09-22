@@ -309,6 +309,19 @@ the retained-host and extrusion restrictions described in :ref:`sibc-pml`.
 Main-grid CPU, CUDA, OpenCL, Metal, and domain-decomposed MPI CPU paths are
 supported; HSG subgrid virtual ports use the CPU or CUDA fine-grid update cycle.
 
+For PEC guides, preserve the tangential electric Yee samples shared with the
+walls. An isotropic bore carved out of a PEC volume should use
+``averaging="y"``. An anisotropic fill uses component assignments without
+averaging; build the surrounding PEC walls after the fill. Otherwise the fill
+can overwrite wall samples while the modal solver still constrains them,
+causing apparent reflection even in a straight uniform guide. Examples 8 and 9
+demonstrate these constructions and test both modal polarizations.
+
+Tracking confidence controls mode identity, not the interpolation error of
+modal impedance between anchors. For small-reflection measurements, also
+check convergence with closer frequency anchors, especially near cutoff,
+and with PML thickness and recording duration.
+
 For an antenna, enclose the entire physical antenna and feed aperture with
 the NTFF box. Keep every face in the intended homogeneous background, clear
 of the aperture and metal, and outside the domain PML. Both a closed

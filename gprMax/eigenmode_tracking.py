@@ -102,14 +102,26 @@ def _assign_step(old_vectors, new_vectors, old_values, new_values, config, predi
     old_groups = [group for group in _clusters(old_values, config.cluster_gap) if len(group) > 1]
     new_groups = [group for group in _clusters(new_values, config.cluster_gap) if len(group) > 1]
     for old_group in old_groups:
+        # Eigensolvers need not return orthogonal vectors within a repeated
+        # eigenvalue. Principal angles compare spans, so normalize the whole
+        # basis before scoring; column normalization alone depends on the
+        # solver's arbitrary choice of basis and can create false identity gaps.
+        try:
+            old_span = _orthonormal(old_vectors[:, old_group])
+        except (ValueError, np.linalg.LinAlgError):
+            continue
         best = None
         for new_group in new_groups:
             if len(new_group) != len(old_group) or occupied.intersection(new_group):
                 continue
+            try:
+                new_span = _orthonormal(new_vectors[:, new_group])
+            except (ValueError, np.linalg.LinAlgError):
+                continue
             singular = np.linalg.svd(
-                old_vectors[:, old_group].conj().T @ new_vectors[:, new_group], compute_uv=False
+                old_span.conj().T @ new_span, compute_uv=False
             )
-            score = float(np.min(singular) ** 2)
+            score = float(np.clip(np.min(singular) ** 2, 0.0, 1.0))
             drift = abs(np.mean(new_values[list(new_group)]) - np.mean(prediction[list(old_group)]))
             drift /= max(1.0, abs(np.mean(old_values[list(old_group)])))
             cost = 1.0 - score + 0.1 * min(float(drift) ** 2, 4.0)
