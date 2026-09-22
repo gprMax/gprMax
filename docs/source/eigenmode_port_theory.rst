@@ -722,33 +722,42 @@ used for TF/SF source corrections.
 Limitations
 -----------
 
+Automatic mode tracking is under development and remains opt-in through
+``tracking="auto"``. The default ``tracking="legacy"`` retains the established
+ordering and manual degenerate-group behaviour.
+
 * Material tensors are diagonal in the local ``u``/``v``/``w`` basis.
 * The finite-difference operators use first-order sparse Yee-grid differences.
 * Bulk dispersive material poles use their analytic physical-frequency
   response. Matching their exact FDTD ADE transfer remains a separate step
   beyond the temporal and longitudinal difference compensation.
 * A single-frequency source reuses one solved profile across the waveform
-  spectrum. A broadband source instead phase-aligns and interpolates several
-  anchor solves, but its accuracy is limited by anchor spacing and it must not
-  be used through degeneracies or mode crossings.
+  spectrum. Broadband interpolation remains sensitive to anchor spacing even
+  when tracking confidently identifies the same branch. It does not certify
+  modal-impedance accuracy or a particular S11 floor.
+* Automatic tracking can follow changes in eigenvalue order and transport
+  detected degenerate subspaces. Extra candidates and adaptive frequency
+  solves cannot guarantee a unique match in every guide. Unresolved identity
+  gaps invoke the automatic-anchor fallback or an explicit-anchor error;
+  interpolation never bridges them. Resolved eigenvalue splitting retains
+  separate eigenmodes and propagation constants, rather than mixing the fields.
+* Confinement and artificial-boundary diagnostics are evidence, not proofs
+  that a mode is physical or spurious. Numerically valid, confidently tracked
+  forward-power profiles remain eligible with warnings when confinement is
+  suspect or unresolved. Failed residuals, nonfinite fields, singular
+  reconstruction, and rank loss remain disqualifying. Evanescent references
+  do not become injectable merely because their transverse fields are bound.
+* Full verification concerns the represented voxel geometry. It requests
+  twice the transverse resolution and two larger, PML-free windows for open
+  cross-sections. Missing exterior geometry, unsupported faithful refinement
+  of thin sheets or impedance boundaries, failed solves, and exhausted solve
+  budgets leave diagnostics unresolved. Larger-window verification is
+  currently unavailable with domain-decomposed MPI. ``verification="fast"``
+  omits these extra solves and provides only residual and edge evidence.
 
-Recommended 2D-Solver Usage
----------------------------
-
-For gprMax integration, use this path:
-
-1. Extract local ``eps_r_uu``, ``eps_r_vv`` and ``eps_r_ww`` from Yee electric
-   component material IDs with native staggered shapes.
-2. Mark electric PEC entries with ``np.inf + 0j`` or explicit local PEC masks.
-3. Extract local ``mu_r_uu``, ``mu_r_vv`` and ``mu_r_ww`` from Yee magnetic
-   component material IDs with native staggered shapes.
-4. Mark magnetic PMC entries with ``np.inf + 0j`` or explicit local PMC masks.
-5. Construct ``FDFD_2D_mode_solver`` using local ``du`` and ``dv``, the owning
-   grid's ``fdtd_dt``, and the normal cell size as ``propagation_spacing``.
-6. Call ``solver.solve()``.
-7. Use ``solver.modal_Eu``, ``solver.modal_Ev``, ``solver.modal_Hu`` and
-   ``solver.modal_Hv`` for transverse eigenmode source injection after mapping
-   local components back to global gprMax components.
+See :ref:`eigenmode-auto-tracking-theory` for the assignment and diagnostic
+checks, and Examples 8 and 9 in :doc:`eigenmode_port` for circular degeneracy
+and a crossing in a single anisotropic guide.
 
 Source synthesis and FDTD injection
 -----------------------------------
@@ -1023,8 +1032,10 @@ bandwidth.
 Broadband Anchor Solves and Phase Tracking
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This subsection describes independent-mode phase tracking. Declared groups
-use :ref:`eigenmode-degenerate-theory` instead.
+This subsection describes independent-mode phase tracking with
+``tracking="legacy"``. Declared groups use
+:ref:`eigenmode-degenerate-theory`; optional automatic assignment is described
+in :ref:`eigenmode-auto-tracking-theory`.
 
 For solve frequencies :math:`f_k`, gprMax obtains fields
 :math:`(\mathbf{E}_k,\mathbf{H}_k)` and effective indices :math:`n_k`.
@@ -1062,6 +1073,62 @@ A centre-only tracking fallback collapses both masks so that a rejected mode
 cannot re-enter monitor interpolation. Non-propagating reference anchors are
 never used by TF/SF source synthesis or treated as power waves.
 
+.. _eigenmode-auto-tracking-theory:
+
+Automatic branch assignment and diagnostic evidence
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+With ``tracking="auto"``, public labels are seeded at the solved anchor nearest
+the band centre, choosing the lower frequency on a tie. Tracking proceeds
+outwards in both directions using complex E/H overlap and a prediction of the
+next eigenvalue. It uses the physical fields of the 1D and 2D solvers with
+their Yee sampling and numerical-dispersion conventions. One-to-one
+assignment includes an explicit unmatched state;
+an ambiguous assignment is not forced merely to keep a mode number present.
+Extra internal candidates, including missing degenerate partners, do not
+create additional public source or monitor channels.
+
+Degenerate candidate spans are orthonormalized before principal-angle
+comparison, so their scores do not depend on arbitrary raw eigenvector
+phases, ordering, rotations, or nonorthogonal bases. Field mixing requires
+the stricter degeneracy, propagation-branch, positive-power, rank, and
+mixed-residual checks in :ref:`eigenmode-degenerate-theory`. A crossing does
+not by itself justify mixing two branches with resolved splitting.
+
+Ambiguous intervals trigger additional candidates and midpoint solves. The
+default limits are eight refinement levels, a minimum relative frequency
+step of ``1e-5``, and 200 additional solves per port, shared with verification.
+Required primary anchors are not removed to meet that budget. Persistent
+ambiguity follows the anchor policy: automatic anchors may fall back to a
+single band-centre profile; multiple explicit anchors raise an error.
+
+Numerical validity uses eigenpair and reconstructed Maxwell-equation residuals
+from the actual discrete operators, with default tolerance ``1e-8``. Full
+verification compares propagation constants and E/H fields against a refined
+transverse mesh and, for open cross-sections, windows padded by approximately
+25% and 50% of the original extent. The larger windows use available model
+geometry at unchanged spacing and exclude PML. Degenerate groups are compared
+as subspaces. Default acceptance thresholds are normalized beta drift
+``1e-3``, verification overlap ``0.999``, and outer-edge field-norm fraction
+``1e-3``; physical enclosing walls are distinguished from artificial edges.
+These controls belong to ``EigenmodeTrackingConfig``.
+
+Confinement, artifact suspicion, tracking confidence, and propagation/power
+eligibility are separate diagnostics. Domain sensitivity or appreciable
+field at an artificial edge can indicate leakage or a truncation/box artifact;
+mesh sensitivity alone does not establish a spurious mode. Complex beta alone
+is also not an artifact test. Suspect or incomplete confinement evidence
+produces a warning that the usable profile remains in use and accuracy may
+be reduced. Such warnings do not trim anchors, renumber modes, or force
+tracking fallback.
+
+The resolved bank is shared by injection, monitors, cached studies, and plots.
+The versioned HDF5 ``mode_tracking`` group records candidate mappings,
+requested/adaptive frequencies, residuals, verification evidence, and unresolved
+intervals without changing the existing validity-mask meanings. Degenerate
+transforms are stored in ``degenerate_groups``. The modal-field plots include
+tracked dispersion and diagnostic status, including in geometry-only runs.
+
 .. _eigenmode-degenerate-theory:
 
 Degenerate subspaces and physical alignment
@@ -1087,18 +1154,25 @@ is retained: for simultaneous coefficients :math:`c`, total power is
 multiple ``EigenmodeExcitation`` objects with ``amplitude`` and ``phase_deg``
 for coherent combinations; a 90-degree relative phase drives quadrature.
 
-With only ``degenerate``, the group receives power normalization and SVD
-subspace transport outward from the anchor nearest the band centre. Its
-channel orientations remain arbitrary at that reference anchor. With physical
+With legacy tracking and only ``degenerate``, the group receives power
+normalization and SVD subspace transport outward from the anchor nearest the
+band centre. Its channel orientations remain arbitrary at that reference
+anchor. With physical
 directions, alignment is enforced independently at every anchor; subsequent
 tracking diagnostics do not rotate those directions. With neither argument,
-existing independent-mode tracking is unchanged.
+legacy independent-mode tracking is unchanged.
+
+Automatic tracking ignores ``degenerate`` and detects the groups from the
+solved spectrum. ``mode_polarizations`` is optional: a detected two-mode group
+uses the port's global transverse axes when its integrated electric moments
+support them, otherwise a deterministic subspace basis. Explicit polarization
+directions override this choice and are validated against the detected groups.
 
 The native discrete eigenvalue spread must be below
 :math:`10^{-8}\max(1,\max|\lambda|)`, and mixed-mode relative eigen-residuals
-must be below :math:`10^{-9}`. Resolved splitting is an error: use independent
-modes or correct unintended geometric asymmetry. Propagation constants are
-preserved individually. Moment and direction condition numbers above
+must be below :math:`10^{-9}`. Resolved splitting in a declared group is an
+error; automatic tracking keeps split branches as independent modes.
+Propagation constants are preserved individually. Moment and direction condition numbers above
 :math:`10^8` are rejected. Higher-order groups with vanishing integrated E can
 use generic tracking, but cannot use axis/vector references.
 Modes on opposite propagation branches are not mixed even if their squared
@@ -1660,6 +1734,12 @@ To repeat the focused configuration, tracking, plotting, and integration checks:
 .. code-block:: console
 
    python -m pytest tests/test_eigenmode_degenerate.py tests/test_eigenmode_degenerate_integration.py tests/test_eigenmode_config.py
+
+The optional tracking and two-port tutorial checks are:
+
+.. code-block:: console
+
+   python -m pytest tests/test_eigenmode_auto_tracking.py tests/test_eigenmode_tracking_examples.py
 
 Use ``testing/validation/degenerate_eigenmode_ports.py`` for its executable
 circular-guide validation model. Ordinary source, dispersion, and
