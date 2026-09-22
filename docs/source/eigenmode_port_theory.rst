@@ -1611,11 +1611,26 @@ and a crossing in a single anisotropic guide.
 Mode tracking theory
 ====================
 
-Experimental automatic tracking resolves branch identity before interpolation
-and separates numerical validity from confinement evidence. It is selected
-at the user's discretion per port with ``tracking="auto"``;
-``anchors`` independently selects the primary solve frequencies. The user
-controls and their defaults are listed in :ref:`eigenmode-mode-tracking`.
+A broadband source interpolates between fields solved at different frequencies.
+Before it can do that, it must establish which fields belong together. Three
+examples explain why:
+
+* In an anisotropic guide, two propagation curves can cross. The same physical
+  field can move from the first to the second position in the solver's list.
+  Field matching follows that mode through the crossing.
+* For a circular TE11 pair, x/y fields and two diagonal fields are equally
+  valid ways to describe the same degenerate pair. Subspace alignment chooses
+  consistent representatives before interpolating them.
+* An artificial outer boundary can support or distort a mode. A successful
+  eigenvalue solve does not establish that the profile represents the intended
+  open guide. Mesh/window comparisons provide separate evidence and warnings;
+  they do not automatically remove a usable profile.
+
+The worked explanations and user controls are in
+:ref:`eigenmode-mode-tracking`. This section gives the mathematics behind them.
+Automatic tracking remains experimental and is selected at the user's
+discretion per port with ``tracking="auto"``. ``anchors`` independently selects
+the primary solve frequencies.
 
 The automatic pipeline has five stages: solve primary anchors with extra
 internal candidates; assign branch identities outwards from the reference
@@ -1641,6 +1656,12 @@ the internal group while ``modes`` continues to define the public channels.
 
 Field overlap and eigenvalue prediction
 ---------------------------------------
+
+Field overlap measures how similar two patterns are after ignoring an
+arbitrary overall phase. It allows an x-like mode to match the next x-like
+mode even when their raw solution numbers differ. The propagation-constant
+trend provides another clue; neither the list position nor that trend alone
+decides the match.
 
 For candidate :math:`i` at anchor :math:`k`, concatenate the native physical
 electric and impedance-scaled magnetic fields into a normalized column:
@@ -1684,6 +1705,12 @@ good competing assignment exists.
 
 SVD rank checks and principal-angle comparison
 ----------------------------------------------
+
+For TE11, comparing only the first returned field can mistake a harmless
+rotation from x/y to diagonal polarizations for a change of mode. Instead we
+compare all fields that the pair can form together: their **subspace**. SVD
+provides a well-conditioned basis for that comparison, independent of the
+particular pair the eigensolver returned.
 
 A degenerate eigenvalue defines a space of valid fields, rather than a unique
 set of individual eigenvectors. An eigensolver may return any invertible
