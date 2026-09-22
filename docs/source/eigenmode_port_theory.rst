@@ -722,11 +722,10 @@ used for TF/SF source corrections.
 Limitations
 -----------
 
-Automatic mode tracking is the new, preferred feature and is enabled with
-``tracking="auto"``. The default remains ``tracking="legacy"`` for compatibility
-with existing models; legacy ports emit a setup warning recommending automatic
-tracking. The additional matching and diagnostic evidence does not remove the
-following numerical and physical limitations.
+Automatic mode tracking is experimental and requires further testing. Enable
+it with ``tracking="auto"`` at your discretion; ``tracking="legacy"`` remains
+the default. The additional matching and diagnostic evidence does not remove
+the following numerical and physical limitations.
 
 * Material tensors are diagonal in the local ``u``/``v``/``w`` basis.
 * The finite-difference operators use first-order sparse Yee-grid differences.
@@ -1080,9 +1079,9 @@ never used by TF/SF source synthesis or treated as power waves.
 Automatic mode tracking theory
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Automatic tracking is preferred over legacy tracking because it resolves
-branch identity before interpolation and separates numerical validity from
-confinement evidence. It is selected per port with ``tracking="auto"``;
+Experimental automatic tracking resolves branch identity before interpolation
+and separates numerical validity from confinement evidence. It is selected
+at the user's discretion per port with ``tracking="auto"``;
 ``anchors`` independently selects the primary solve frequencies. The user
 controls and their defaults are listed in :ref:`eigenmode-mode-tracking`.
 

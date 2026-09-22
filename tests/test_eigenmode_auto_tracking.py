@@ -119,8 +119,7 @@ def test_tracking_configuration_defaults_are_opt_in_safe():
 
 @pytest.mark.parametrize("interface", ("python", "hash"))
 @pytest.mark.parametrize("tracking", (None, "legacy", "auto"))
-@pytest.mark.parametrize("coordinator", (None, True, False))
-def test_legacy_recommendation_at_port_setup(monkeypatch, caplog, interface, tracking, coordinator):
+def test_tracking_selection_does_not_warn_at_port_setup(monkeypatch, caplog, interface, tracking):
     from gprMax.grid.fdtd_grid import FDTDGrid
     from gprMax.hash_cmds_multiuse import process_multicmds
     from gprMax.user_objects.cmds_multiuse import EigenmodePort
@@ -146,19 +145,13 @@ def test_legacy_recommendation_at_port_setup(monkeypatch, caplog, interface, tra
         port = next(obj for obj in process_multicmds(commands) if isinstance(obj, EigenmodePort))
     grid = FDTDGrid()
     grid.eigenmodeband = SimpleNamespace()
-    if coordinator is not None:
-        grid.is_coordinator = lambda: coordinator
-
     with caplog.at_level("WARNING", logger="gprMax.user_objects.cmds_multiuse"):
         port.build(grid)
 
-    warnings = [record.message for record in caplog.records if "uses legacy mode tracking" in record.message]
-    expected = tracking != "auto" and coordinator is not False
-    assert len(warnings) == int(expected)
-    if expected:
-        assert 'Set tracking="auto"' in warnings[0]
-        assert "tracking=auto in hash input" in warnings[0]
-        assert "Eigenmode port 1" in warnings[0]
+    assert not [
+        record for record in caplog.records
+        if record.name == "gprMax.user_objects.cmds_multiuse" and record.levelno >= 30
+    ]
     assert grid.eigenmodeportdefs[1].tracking == (tracking or "legacy")
     assert grid.eigenmodeportdefs[1].anchors == "auto"
 

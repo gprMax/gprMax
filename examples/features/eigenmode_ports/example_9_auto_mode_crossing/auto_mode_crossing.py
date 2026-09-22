@@ -1,8 +1,8 @@
 """Example 9 - opt-in tracking through a crossing in an anisotropic guide.
 
-Automatic mode tracking is preferred over legacy tracking. Run this example
-in geometry mode first and verify that each label keeps the same polarization
-while the two phase-index curves cross.
+Automatic mode tracking is experimental; use it at your discretion. Run this
+example in geometry mode first and verify that each label keeps the same
+polarization while the two phase-index curves cross.
 """
 
 import argparse

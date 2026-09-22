@@ -2672,8 +2672,8 @@ class EigenmodePort(GridUserObject):
         mode_polarizations: optional mapping from both labels of a degenerate
             pair to global transverse E axes or real direction vectors (3D only),
             including groups detected by automatic tracking.
-        tracking: preferred ``"auto"`` branch tracking or ``"legacy"``
-            (the compatibility default, which emits a recommendation warning).
+        tracking: ``"legacy"`` (default) or experimental ``"auto"`` branch
+            tracking, enabled at the user's discretion.
         verification: ``"full"`` or ``"fast"`` quality checks for automatic tracking.
         tracking_config: optional :class:`gprMax.EigenmodeTrackingConfig` or mapping.
     """
@@ -2798,16 +2798,6 @@ class EigenmodePort(GridUserObject):
             mode_polarizations=mode_polarizations,
         )
         axis_name = "xyz"[normal_axis]
-        if tracking == "legacy" and (
-            not hasattr(grid, "is_coordinator") or grid.is_coordinator()
-        ):
-            logger.warning(
-                f'{self.grid_name(grid)}Eigenmode port {port} uses legacy mode tracking. '
-                'Set tracking="auto" (tracking=auto in hash input) to use the '
-                'preferred mode tracking with automatic branch matching, degeneracy '
-                'detection, and mode-quality diagnostics. Legacy tracking remains '
-                'the default for compatibility; this port will continue using it.'
-            )
         logger.info(
             f"{self.grid_name(grid)}Eigenmode port {port}, normal {axis_name}{direction}, "
             f"monitoring modes {modes}, with anchors {anchors}, created."

@@ -1,8 +1,8 @@
 """Example 8 - opt-in automatic tracking of the degenerate circular TE11 pair.
 
-Automatic mode tracking is preferred over legacy tracking. Inspect the
-geometry-only dispersion and field plots before using the tracked profiles
-in a simulation.
+Automatic mode tracking is experimental; use it at your discretion. Inspect
+the geometry-only dispersion and field plots before using the tracked
+profiles in a simulation.
 """
 
 import argparse

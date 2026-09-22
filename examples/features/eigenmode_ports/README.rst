@@ -48,8 +48,8 @@ These nine numbered Python examples form the tutorial in
     true propagation-constant crossing where raw eigensolver order changes,
     with S11 and S21 measured between two ports.
 
-Automatic mode tracking is the new, preferred feature over legacy tracking,
-which remains the compatibility default. Examples 8 and 9 use
+Automatic mode tracking is experimental and requires further testing. Use it
+at your discretion; legacy tracking remains the default. Examples 8 and 9 use
 ``verification="fast"`` for quick visual
 inspection. Both set ``plot_fields=True``, so running either model writes a
 modal-profile figure with the tracked dispersion curves above the fields.
