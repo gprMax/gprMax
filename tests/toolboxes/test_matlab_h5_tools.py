@@ -228,4 +228,7 @@ end
         text=True,
         timeout=120,
     )
-    assert completed.returncode == 0, completed.stdout + completed.stderr
+    startup_output = completed.stdout + completed.stderr
+    if completed.returncode and "Fatal Startup Error" in startup_output:
+        pytest.skip("MATLAB is installed but cannot start in this test environment")
+    assert completed.returncode == 0, startup_output

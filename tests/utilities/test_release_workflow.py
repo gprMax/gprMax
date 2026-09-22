@@ -17,7 +17,22 @@ import yaml
 
 pytestmark = pytest.mark.unit
 ROOT = Path(__file__).resolve().parents[2]
-BASH = shutil.which("bash")
+
+
+def _usable_bash():
+    candidate = shutil.which("bash")
+    if candidate is None:
+        return None
+    try:
+        result = subprocess.run(
+            [candidate, "--version"], capture_output=True, timeout=10, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return candidate if result.returncode == 0 else None
+
+
+BASH = _usable_bash()
 spec = importlib.util.spec_from_file_location("release_checks", ROOT / "packaging/release_checks.py")
 checks = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(checks)

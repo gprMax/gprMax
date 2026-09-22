@@ -11,7 +11,22 @@ import pytest
 
 pytestmark = pytest.mark.unit
 HPC = Path(__file__).resolve().parents[2] / "gprMax" / "toolboxes" / "Utilities" / "HPC"
-BASH = shutil.which("bash")
+
+
+def _usable_bash():
+    candidate = shutil.which("bash")
+    if candidate is None:
+        return None
+    try:
+        result = subprocess.run(
+            [candidate, "--version"], capture_output=True, timeout=10, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return candidate if result.returncode == 0 else None
+
+
+BASH = _usable_bash()
 
 
 @pytest.mark.skipif(BASH is None, reason="Bash is needed to check the scheduler examples")

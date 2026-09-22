@@ -415,7 +415,10 @@ def test_synthesis_output_rejects_input_aliases(
         destination = Path(destination.name)
     elif alias_kind == "symlink":
         destination = tmp_path / "alias.h5"
-        destination.symlink_to(files[input_role])
+        try:
+            destination.symlink_to(files[input_role])
+        except OSError as error:
+            pytest.skip(f"Filesystem does not permit symlink creation: {error}")
     elif alias_kind == "hardlink":
         destination = tmp_path / "alias.h5"
         destination.hardlink_to(files[input_role])

@@ -19,6 +19,7 @@
 
 import logging
 import os
+import shutil
 import sys
 from types import SimpleNamespace
 
@@ -104,6 +105,11 @@ def gpu_device(request):
     device = request.config.getoption("--gpu-device")
     if device < 0:
         pytest.fail("--gpu-device must be a non-negative integer")
+
+    if shutil.which("nvcc") is None:
+        pytest.skip("CUDA compilation is unavailable: nvcc was not found on PATH")
+    if sys.platform == "win32" and shutil.which("cl") is None:
+        pytest.skip("CUDA compilation is unavailable: MSVC cl.exe was not found on PATH")
 
     try:
         import pycuda.driver as cuda
