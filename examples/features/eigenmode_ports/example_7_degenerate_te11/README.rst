@@ -39,10 +39,13 @@ through the longitudinal PMLs. A virtual waveguide supplies the source-side
 continuation; the receiving port is at the upper PML interface. The example
 measures both polarizations over 20--24 GHz.
 
-The bore uses ``averaging="y"`` so shared tangential electric samples remain
-PEC at the wall. Carving with ``averaging="n"`` changes the represented Yee
-boundary and is also supported: the modal solver uses the same final electric
-PEC samples as FDTD. The equivalent hash input uses the averaged construction.
+The PEC volume is built first and the air bore second. With ``averaging="y"``,
+PEC wins at electric-field samples shared with the remaining wall: those
+samples stay at zero field. With ``averaging="n"``, air wins at the samples
+the bore writes, including shared wall samples it touches. Both settings work:
+the mode solver reads the same final assignments as FDTD. They can give
+different effective bore sizes and cutoff frequencies. This example and its
+equivalent hash input use ``averaging="y"``.
 
 Run from the repository root:
 

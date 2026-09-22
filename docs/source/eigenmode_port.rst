@@ -1471,36 +1471,50 @@ x/y; E and H magnitudes are normalised independently.
 PEC wall construction and averaging
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Example 7 builds a PEC volume and then carves out the circular air bore. The
-bore uses ``averaging="y"`` to preserve the electric samples shared with the
-PEC wall. This is a geometry choice, not a requirement for agreement between
-the modal solver and FDTD.
+At an air/PEC boundary, the practical question is **which material wins at a
+shared electric-field sample?** Electric fields are stored on the edges of
+grid cells, so an air cell and a PEC cell can share a sample. If PEC wins, the
+electric field at that sample is held at zero. If air wins, it can be nonzero.
 
-With ``averaging="n"``, a volume writes its material directly to the Yee electric
-samples belonging to its voxels, including samples shared with neighbouring
-voxels. Carving an air or dielectric bore *after* a PEC volume can therefore
-replace a wall sample with a non-PEC material. The modal solver reads those
-final component samples directly, rather than expanding the PEC voxel mask.
-Its magnetic reconstruction also satisfies the discrete Faraday equations at
-the constrained electric samples, rather than imposing an additional zero-H
-mask. Injection, modal decomposition, and FDTD therefore use the same discrete
-PEC boundary, including bores carved with ``averaging="n"``. This applies to
-both legacy and automatic tracking.
+Example 7 first fills the region with PEC, then carves out an air bore. The
+following rules explain what happens at the bore wall:
 
-* For an isotropic bore carved from PEC, ``averaging="y"`` (the trailing
-  ``y`` on a hash ``#box`` or ``#cylinder`` command)
-  preserves the PEC electric samples shared with the wall.
-* For an anisotropic fill, which assigns directional materials without
-  averaging, building the fill first and the surrounding PEC walls afterwards
-  preserves shared wall samples. Example 9 uses this order.
+.. list-table:: Which material wins at the shared wall samples?
+   :header-rows: 1
+   :widths: 35 65
 
-``averaging="n"`` is also valid when carving a bore. It can change the effective
-aperture, cutoff, and impedance relative to ``averaging="y"``, because the two
-settings represent different boundaries on the Yee grid. Neither setting
-removes the staircasing error of a circular wall; check mesh convergence for
-the intended physical geometry. Unexpected reflection in a uniform guide
-also warrants checking frequency-anchor spacing, PML thickness, and recording
-duration; identity tracking alone does not establish reflection accuracy.
+   * - Construction
+     - Result at the boundary
+   * - PEC first, then an air bore with ``averaging="y"``
+     - **PEC wins** at samples shared with the remaining PEC wall. The
+       bore's interior becomes air. Example 7 uses this setting.
+   * - PEC first, then an air bore with ``averaging="n"``
+     - **Air wins where the bore writes its samples**, including shared wall
+       samples that it touches. The later object can overwrite the earlier
+       PEC assignment there.
+   * - Air or dielectric fill first, then PEC walls
+     - **PEC wins where the walls write their samples.** Example 9 uses this
+       order for its anisotropic fill, which assigns directional materials
+       without averaging.
+
+Thus, ``averaging="n"`` means direct assignment: the later object wins at the
+samples it writes. With ``averaging="y"``, the remaining neighbouring PEC cells
+keep their shared electric samples at zero. In hash inputs, the trailing
+``y`` or ``n`` on a ``#box`` or ``#cylinder`` command selects this setting.
+
+**The mode solver follows the winner.** It reads the final material at each
+electric-field sample, exactly where FDTD stores that field. It does not
+reapply the earlier PEC volume over an air sample. Both averaging settings
+therefore work with both legacy and automatic tracking. The magnetic-field
+reconstruction needed to maintain this agreement is described in
+:doc:`eigenmode_port_theory`.
+
+Choosing a different winner changes the wall represented on the grid. It can
+change the effective bore size, cutoff frequency, and impedance, even though
+FDFD and FDTD agree with each other. Neither setting makes a staircased circle
+perfectly round; check mesh convergence for the intended physical geometry.
+For unexpectedly large reflection in a uniform guide, also check frequency
+anchor spacing, PML thickness, and recording duration.
 
 .. _eigenmode-example-8:
 

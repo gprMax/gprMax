@@ -148,10 +148,12 @@ If ``modes`` is changed to ``(1,)``, the partner is still solved internally for
 subspace transport but is not added as a public monitor channel. Two ports on
 the straight guide expose co- and cross-polarized S11 and S21.
 
-The free-space bore uses ``averaging="y"`` to preserve the tangential electric
-PEC samples shared with wall voxels. ``averaging="n"`` represents a different
-Yee boundary and is also supported: the modal solver reads the final electric
-PEC samples used by FDTD. Explicit frequency anchors resolve the modal impedance
+The air bore is carved after the PEC volume. With ``averaging="y"``, PEC wins
+at electric-field samples shared with the remaining wall. With
+``averaging="n"``, air wins at the samples the bore writes, including shared
+wall samples it touches. Both settings work because the mode solver reads
+the same final assignments as FDTD, but they can change the effective bore
+size and cutoff. Explicit frequency anchors resolve the modal impedance
 between 20 and 24 GHz; degeneracy detection and polarization remain automatic.
 The output and virtual-feed terminations use 16-cell PMLs.
 
