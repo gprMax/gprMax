@@ -1,6 +1,7 @@
 """Opt-in automatic tracking preserves legacy defaults and physical branches."""
 
 from types import SimpleNamespace
+from collections import defaultdict
 
 import h5py
 import numpy as np
@@ -114,6 +115,52 @@ def test_tracking_configuration_defaults_are_opt_in_safe():
     assert config.verification_overlap == 0.999
     assert config.max_depth == 8
     assert config.max_solves == 200
+
+
+@pytest.mark.parametrize("interface", ("python", "hash"))
+@pytest.mark.parametrize("tracking", (None, "legacy", "auto"))
+@pytest.mark.parametrize("coordinator", (None, True, False))
+def test_legacy_recommendation_at_port_setup(monkeypatch, caplog, interface, tracking, coordinator):
+    from gprMax.grid.fdtd_grid import FDTDGrid
+    from gprMax.hash_cmds_multiuse import process_multicmds
+    from gprMax.user_objects.cmds_multiuse import EigenmodePort
+
+    monkeypatch.setattr(
+        config_module, "sim_config", SimpleNamespace(general={"solver": "cpu"}, mpi=False)
+    )
+    monkeypatch.setattr(config_module, "get_model_config", lambda: SimpleNamespace(mode="3D"))
+    if interface == "python":
+        options = {} if tracking is None else {"tracking": tracking}
+        port = EigenmodePort(
+            port=1, p1=(0, 0, 0.02), p2=(0.05, 0.05, 0.02),
+            direction="+", modes=(1, 2), anchors="auto", **options,
+        )
+    else:
+        commands = defaultdict(lambda: None)
+        commands["#eigenmode_band"] = ["band 6e9 14e9 3"]
+        commands["#eigenmode_excitation"] = ["1 1 auto n"]
+        tail = "" if tracking is None else f" tracking={tracking}"
+        commands["#eigenmode_port"] = [
+            "1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto" + tail
+        ]
+        port = next(obj for obj in process_multicmds(commands) if isinstance(obj, EigenmodePort))
+    grid = FDTDGrid()
+    grid.eigenmodeband = SimpleNamespace()
+    if coordinator is not None:
+        grid.is_coordinator = lambda: coordinator
+
+    with caplog.at_level("WARNING", logger="gprMax.user_objects.cmds_multiuse"):
+        port.build(grid)
+
+    warnings = [record.message for record in caplog.records if "uses legacy mode tracking" in record.message]
+    expected = tracking != "auto" and coordinator is not False
+    assert len(warnings) == int(expected)
+    if expected:
+        assert 'Set tracking="auto"' in warnings[0]
+        assert "tracking=auto in hash input" in warnings[0]
+        assert "Eigenmode port 1" in warnings[0]
+    assert grid.eigenmodeportdefs[1].tracking == (tracking or "legacy")
+    assert grid.eigenmodeportdefs[1].anchors == "auto"
 
 
 @pytest.mark.parametrize("phase", (1.0, 1j))

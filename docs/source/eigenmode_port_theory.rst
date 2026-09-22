@@ -722,9 +722,11 @@ used for TF/SF source corrections.
 Limitations
 -----------
 
-Automatic mode tracking is under development and remains opt-in through
-``tracking="auto"``. The default ``tracking="legacy"`` retains the established
-ordering and manual degenerate-group behaviour.
+Automatic mode tracking is the new, preferred feature and is enabled with
+``tracking="auto"``. The default remains ``tracking="legacy"`` for compatibility
+with existing models; legacy ports emit a setup warning recommending automatic
+tracking. The additional matching and diagnostic evidence does not remove the
+following numerical and physical limitations.
 
 * Material tensors are diagonal in the local ``u``/``v``/``w`` basis.
 * The finite-difference operators use first-order sparse Yee-grid differences.
@@ -1075,8 +1077,14 @@ never used by TF/SF source synthesis or treated as power waves.
 
 .. _eigenmode-auto-tracking-theory:
 
-Automatic branch assignment and diagnostic evidence
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Automatic mode tracking theory
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Automatic tracking is preferred over legacy tracking because it resolves
+branch identity before interpolation and separates numerical validity from
+confinement evidence. It is selected per port with ``tracking="auto"``;
+``anchors`` independently selects the primary solve frequencies. The user
+controls and their defaults are listed in :ref:`eigenmode-mode-tracking`.
 
 With ``tracking="auto"``, public labels are seeded at the solved anchor nearest
 the band centre, choosing the lower frequency on a tie. Tracking proceeds
@@ -1088,9 +1096,68 @@ an ambiguous assignment is not forced merely to keep a mode number present.
 Extra internal candidates, including missing degenerate partners, do not
 create additional public source or monitor channels.
 
+Field overlap and eigenvalue prediction
+"""""""""""""""""""""""""""""""""""""""
+
+For candidate :math:`i` at anchor :math:`k`, concatenate the native physical
+electric and impedance-scaled magnetic fields into a normalized column:
+
+.. math::
+
+   q_{k,i} = \frac{(\mathbf E_{k,i},\eta_0\mathbf H_{k,i})}
+                   {\|(\mathbf E_{k,i},\eta_0\mathbf H_{k,i})\|_2},
+   \qquad
+   O_{ij}=|q_{k,i}^{\mathrm H}q_{k+1,j}|^2.
+
+The squared overlap is insensitive to arbitrary complex phase and is clipped
+to :math:`[0,1]` against round-off. Invalid or nonfinite field columns cannot
+provide a valid matched anchor. With two previously tracked anchors, the
+native eigenvalue is predicted by linear extrapolation in frequency:
+
+.. math::
+
+   \widehat\lambda_i(f_{k+1}) = \lambda_i(f_k)
+     + \frac{f_{k+1}-f_k}{f_k-f_{k-1}}
+       [\lambda_i(f_k)-\lambda_i(f_{k-1})].
+
+The first step uses the previous eigenvalue without extrapolation. The same
+rule applies while traversing anchors towards lower frequencies. For an
+individual-mode candidate, the assignment cost is
+
+.. math::
+
+   d_{ij} &= \frac{|\lambda_j(f_{k+1})-\widehat\lambda_i(f_{k+1})|}
+                       {\max(1,|\lambda_i(f_k)|)},\\
+   C_{ij} &= 1-O_{ij}+0.1\min(d_{ij}^2,4).
+
+Candidates below ``tracking_overlap`` (default squared overlap 0.8) are
+excluded. Additional unmatched columns have cost ``unmatched_cost`` (0.65).
+A minimum-total-cost one-to-one assignment prevents two public labels from
+claiming the same candidate. For each proposed individual match, the solver
+repeats assignment with that edge forbidden. The increase in total cost must
+be at least ``assignment_margin`` (0.02); otherwise the identity remains
+unmatched. Thus a locally strong overlap is insufficient if an almost equally
+good competing assignment exists.
+
+Degenerate spans and adaptive frequency solves
+""""""""""""""""""""""""""""""""""""""""""""""
+
 Degenerate candidate spans are orthonormalized before principal-angle
 comparison, so their scores do not depend on arbitrary raw eigenvector
-phases, ordering, rotations, or nonorthogonal bases. Field mixing requires
+phases, ordering, rotations, or nonorthogonal bases. For orthonormal bases
+:math:`Q_a,Q_b` of equal rank, the score is
+
+.. math::
+
+   O_{\mathrm{span}} = \sigma_{\min}^2(Q_a^{\mathrm H}Q_b).
+
+Candidate clusters use connected relative eigenvalue gaps no larger than
+``cluster_gap`` (``1e-5``). Equal-rank spans are reserved using this score and
+the predicted cluster-centre eigenvalue before assigning the remaining
+individual candidates. This broad matching cluster is not a permission to
+mix fields. Automatic mixing groups must satisfy the tighter ``1e-8``
+eigenvalue-spread condition at the reference anchor and throughout the solved
+bank; branches with resolved splitting remain separate. Field mixing requires
 the stricter degeneracy, propagation-branch, positive-power, rank, and
 mixed-residual checks in :ref:`eigenmode-degenerate-theory`. A crossing does
 not by itself justify mixing two branches with resolved splitting.
@@ -1102,9 +1169,25 @@ Required primary anchors are not removed to meet that budget. Persistent
 ambiguity follows the anchor policy: automatic anchors may fall back to a
 single band-centre profile; multiple explicit anchors raise an error.
 
+Residuals and verification evidence
+"""""""""""""""""""""""""""""""""""
+
 Numerical validity uses eigenpair and reconstructed Maxwell-equation residuals
-from the actual discrete operators, with default tolerance ``1e-8``. Full
-verification compares propagation constants and E/H fields against a refined
+from the actual discrete operators, with default tolerance ``1e-8``. For the
+reduced eigenproblem :math:`Av=\lambda v`, the eigenpair residual is
+
+.. math::
+
+   r_{\mathrm{eig}} =
+   \frac{\|Av-\lambda v\|_2}{\|Av\|_2+\|\lambda v\|_2}.
+
+The denominator is protected against zero. The reconstructed-field residual
+checks the discrete Maxwell equations with the solver's numerical-dispersion
+operators; the larger of the eigenpair and field residuals controls numerical
+validity. A small eigenpair residual alone does not establish a correct
+reconstructed E/H profile.
+
+Full verification compares propagation constants and E/H fields against a refined
 transverse mesh and, for open cross-sections, windows padded by approximately
 25% and 50% of the original extent. The larger windows use available model
 geometry at unchanged spacing and exclude PML. Degenerate groups are compared
@@ -1112,6 +1195,23 @@ as subspaces. Default acceptance thresholds are normalized beta drift
 ``1e-3``, verification overlap ``0.999``, and outer-edge field-norm fraction
 ``1e-3``; physical enclosing walls are distinguished from artificial edges.
 These controls belong to ``EigenmodeTrackingConfig``.
+
+The propagation-constant comparison uses
+
+.. math::
+
+   \delta_\beta = \frac{|\beta_{\mathrm{test}}-\beta_{\mathrm{base}}|}
+                            {\max(|\beta_{\mathrm{base}}|,k_0)}.
+
+For a degenerate group it uses the mean beta and compares complete spans.
+Verification fields are compared on the original window after cropping a
+larger solve or averaging refined cell fields back to the original cells.
+The edge fraction is the sum of :math:`|\mathbf E|^2+\eta_0^2|\mathbf H|^2`
+in the outer 10% strips (at least one cell per edge), divided by that sum over
+the full cross-section. This is a field-norm diagnostic, not a leakage-power
+measurement. A recognized physical PEC/PMC enclosure is not penalized for
+field near its wall. ``verification="fast"`` evaluates residual and edge
+evidence without the refinement/window comparisons.
 
 Confinement, artifact suspicion, tracking confidence, and propagation/power
 eligibility are separate diagnostics. Domain sensitivity or appreciable

@@ -26,7 +26,7 @@
      - ``True`` forces modal-field PNGs, ``False`` suppresses them. ``None`` enables them only in geometry-only runs.
    * - ``tracking``
      - ``"legacy"``
-     - ``"auto"`` opts into branch assignment, automatic degeneracy detection, and mode-quality diagnostics. The legacy path preserves existing ordering, solve counts, and manual degeneracy behaviour.
+     - Preferred ``"auto"`` enables branch assignment, automatic degeneracy detection, and mode-quality diagnostics. The compatibility default ``"legacy"`` preserves existing ordering, solve counts, and manual degeneracy behaviour, and emits a recommendation to use ``"auto"``.
    * - ``verification``
      - ``"full"``
      - Applies only with automatic tracking. ``"full"`` requests mesh and open-window checks; ``"fast"`` uses residual and artificial-edge diagnostics without verification solves.

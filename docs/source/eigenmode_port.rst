@@ -65,11 +65,11 @@ cell sizes are in metres, frequencies in Hz, and times in seconds.
    ))
    scene.add(gprMax.EigenmodePort(
        port=1, p1=(0.02, 0.005, 0), p2=(0.02, 0.075, inf),
-       direction="+", modes=(1, 2), anchors="auto",
+       direction="+", modes=(1, 2), anchors="auto", tracking="auto",
    ))
    scene.add(gprMax.EigenmodePort(
        port=2, p1=(0.235, 0.005, 0), p2=(0.235, 0.075, inf),
-       direction="-", modes=(1, 2), anchors="auto",
+       direction="-", modes=(1, 2), anchors="auto", tracking="auto",
    ))
    scene.add(gprMax.EigenmodeExcitation(port=1, mode=1, waveform="auto"))
    gprMax.run(scenes=[scene], outputfile=Path("straight_waveguide"),
@@ -150,7 +150,7 @@ EigenmodePort arguments
    gprMax.EigenmodePort(
        port=1, p1=(0.02, 0.005, 0), p2=(0.02, 0.075, float("inf")),
        direction="+", modes=(1, 2), anchors="auto", plot_fields=None,
-       tracking="legacy",
+       tracking="auto",
    )
 
 .. include:: _includes/eigenmode_port_parameters.rstinc
@@ -162,56 +162,10 @@ port, equal y coordinates a y-normal port. Mode numbers are solver ordering,
 not guaranteed physical labels. Inspect the E/H profiles before identifying
 a solution as TE10, quasi-TEM, or a particular guided slab mode.
 
-Automatic mode tracking is deliberately opt-in while it gains validation across
-more guide families. Set ``tracking="auto"`` to follow physical branches from
-the anchor nearest the band centre, detect exact degenerate subspaces, and run
-mode-quality diagnostics. ``verification="full"`` (the opt-in default) compares
-the represented voxel geometry on a refined mesh and, for open apertures, on two
-larger in-model windows. If surrounding non-PML geometry is unavailable, the
-classification is ``unresolved`` and the usable primary mode is retained with a
-warning. ``verification="fast"`` avoids those extra solves.
-
-For an automatically detected two-mode degenerate space, gprMax first tries to
-orient mode 1 and mode 2 along the port's two global transverse axes. If the
-integrated electric-field moments cannot define those axes, it constructs a
-repeatable basis from the complete E/H subspace. ``mode_polarizations`` remains
-available when a different physical orientation is wanted; ``degenerate`` is
-ignored in automatic mode because the solved spectrum defines the groups.
-
-Confinement and numerical validity are independent. A numerically valid,
-confidently tracked mode with forward real power remains an anchor when it is
-unbound-suspect or unresolved; gprMax warns that injection and S-parameters may
-be less accurate. Nonfinite fields, failed eigenpair residuals, rank loss, and
-singular reconstruction remain unusable. This is useful for low-frequency CPW
-modes whose evanescent tails have not decayed at the chosen aperture boundary.
-
-In geometry-only runs, automatic tracking adds ``Re(n_eff)`` and
-``-Im(n_eff)`` dispersion panels above each tracked modal-field figure. Red
-crosses identify anchors with confinement warnings. Inspect these curves and
-the E/H profiles before running the time-domain model.
-
-.. warning::
-
-   Automatic mode tracking and its confinement/artifact diagnostics are under
-   development. Keep ``tracking="legacy"`` for established production models,
-   and inspect the generated dispersion and modal-field plots before relying on
-   an automatically tracked profile.
-
-Two focused examples exercise the new path:
-
-* :download:`automatic circular TE11 degeneracy <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`
-  omits both ``degenerate`` and ``mode_polarizations``, letting the tracker
-  discover the pair, apply its default x/y directions, and measure S11/S21
-  between two ports on a straight guide;
-* :download:`automatic mode crossing <../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py>`
-  uses one anisotropic guide whose polarized propagation constants cross, so
-  raw eigenvalue order changes while the tracked polarization identities remain
-  consistent between its two S-parameter ports.
-
-Both scripts set ``plot_fields=True``. Running either one generates the combined
-dispersion and field inspection plots; ``--geometry-only`` skips time stepping.
-See :ref:`eigenmode-example-8` and :ref:`eigenmode-example-9` for complete run
-commands and the expected reflection, transmission, and tracking behaviour.
+Automatic mode tracking is the new, preferred feature. Set ``tracking="auto"``
+on each port to use branch assignment, automatic degeneracy detection, and
+mode-quality diagnostics. See :ref:`eigenmode-mode-tracking` for setup,
+parameters, and interpretation. The compatibility default remains ``"legacy"``.
 
 An excited port launches the selected modal field and measures returning
 waves, but it does not absorb those waves. Continue the guide behind the
@@ -224,9 +178,8 @@ Hash command: #eigenmode_port
 
 .. code-block:: none
 
-   #eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto
    #eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto tracking=auto verification=full
-   #eigenmode_port: 2 0.235 0.005 0 0.235 0.075 inf - 1,2 4e9 5e9 6e9 y
+   #eigenmode_port: 2 0.235 0.005 0 0.235 0.075 inf - 1,2 4e9 5e9 6e9 y tracking=auto
 
 Use ``inf`` for an invariant extent and comma-separated mode indices such as
 ``1,2``. Specify ``auto`` or space-separated modal anchor frequencies. The
@@ -341,6 +294,159 @@ refine the mesh. Check that S11 and any requested radiation patterns or gain
 change by less than the accuracy your application needs. A finite PML is an
 approximation to a matched termination, so the defaults are a starting point,
 not a guarantee of negligible reflection for every guide and frequency band.
+
+.. _eigenmode-mode-tracking:
+
+Mode tracking
+-------------
+
+Mode tracking keeps a public mode label attached to the same physical branch
+as frequency changes. Sorting eigenvalues alone cannot do this when branches
+cross or a degenerate pair rotates its numerical basis. The new automatic
+tracker is preferred over legacy tracking: it combines field overlap,
+eigenvalue prediction, one-to-one assignment, and degenerate-subspace transport.
+
+Enable it on every participating port with ``tracking="auto"``. This is
+independent of ``anchors="auto"``: **anchors choose the solve frequencies;
+tracking chooses how solutions at those frequencies are matched**. Explicit
+frequency anchors also work with automatic tracking, as Examples 8 and 9 show.
+Public labels start at the anchor nearest the band centre, choosing the lower
+frequency on a tie. Extra internal candidates can complete a degenerate group
+without adding public channels to ``modes``.
+
+.. code-block:: python
+
+   scene.add(gprMax.EigenmodePort(
+       port=1, p1=(0.02, 0.005, 0), p2=(0.02, 0.075, float("inf")),
+       direction="+", modes=(1, 2), anchors="auto",
+       tracking="auto", verification="full", plot_fields=True,
+   ))
+
+``tracking="legacy"`` remains the default for compatibility with existing
+models. Each legacy port emits a setup warning recommending ``tracking="auto"``;
+the warning does not change its solver settings or numerical behaviour. MPI
+workers do not repeat this recommendation. For a migration, enable automatic
+tracking at both source and receiver and inspect their physical labels before
+comparing S-parameters with an older run.
+
+Tracking and verification options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* ``tracking="auto"`` enables branch assignment and automatic grouping.
+  ``tracking="legacy"`` preserves the older ordering and manual grouping.
+* ``verification="full"`` is the default for automatic tracking. It checks
+  discrete residuals and compares the represented voxel geometry with twice
+  the transverse resolution and, for open cross-sections, two larger PML-free
+  windows extracted from the model. These comparisons add setup solves.
+* ``verification="fast"`` retains residual and artificial-edge checks but skips
+  the mesh/window comparison solves. It is useful for quick inspection; its
+  confinement classification has less evidence. Verification settings apply
+  only to automatic tracking.
+* ``degenerate`` is ignored with automatic tracking. A detected two-mode group
+  uses the port's global transverse electric directions when its integrated
+  field moments support them, otherwise a deterministic subspace basis.
+  ``mode_polarizations`` optionally overrides those directions and is validated
+  against the detected group. Use the same mapping at both ports.
+* ``plot_fields=True`` writes tracked dispersion and modal-field figures in
+  both geometry-only and full runs. ``None`` enables them only in geometry-only
+  runs; ``False`` suppresses them.
+
+Advanced thresholds and limits
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Pass ``tracking_config=gprMax.EigenmodeTrackingConfig(...)`` or a mapping to
+override the defaults below. Omitted fields keep their defaults. All thresholds
+are dimensionless; integer controls count candidates, refinement steps, or
+additional solves. These controls apply only to automatic tracking.
+Thresholds must be finite and in ``(0, 1]``; ``extra_candidates`` and
+``max_depth`` are nonnegative integers, and ``max_solves`` is a positive integer.
+
+.. list-table:: EigenmodeTrackingConfig
+   :header-rows: 1
+   :widths: 25 15 60
+
+   * - Parameter
+     - Default
+     - Meaning
+   * - ``residual_tolerance``
+     - ``1e-8``
+     - Maximum relative eigenpair and reconstructed-field residual for numerical validity. Mixed degenerate fields also retain the stricter ``1e-9`` residual check.
+   * - ``beta_drift_tolerance``
+     - ``1e-3``
+     - Maximum normalized propagation-constant drift in mesh/window verification.
+   * - ``verification_overlap``
+     - ``0.999``
+     - Minimum squared field overlap, or smallest squared principal subspace overlap, in verification comparisons.
+   * - ``edge_fraction_max``
+     - ``1e-3``
+     - Maximum fraction of the squared E/H field norm in the outer edge strip (10% of each transverse extent, at least one cell) used as confinement evidence at artificial boundaries.
+   * - ``tracking_overlap``
+     - ``0.8``
+     - Minimum squared field/subspace overlap for a candidate match. This is distinct from the stricter verification overlap.
+   * - ``assignment_margin``
+     - ``0.02``
+     - Minimum total-cost advantage over an alternative one-to-one assignment for an individual-mode match.
+   * - ``unmatched_cost``
+     - ``0.65``
+     - Cost of leaving an individual mode unmatched rather than forcing a poor match.
+   * - ``cluster_gap``
+     - ``1e-5``
+     - Relative eigenvalue gap for candidate clusters. It does not relax the stricter ``1e-8`` degeneracy condition for mixing fields.
+   * - ``extra_candidates``
+     - ``4``
+     - Additional internal eigenpairs requested per solve, subject to solver size, to find competing branches or missing partners.
+   * - ``max_depth``
+     - ``8``
+     - Maximum adaptive midpoint-refinement steps for resolving identity ambiguity; ``0`` disables these extra frequency solves.
+   * - ``min_relative_step``
+     - ``1e-5``
+     - Stop refining an ambiguous interval when its width divided by its midpoint frequency reaches this threshold.
+   * - ``max_solves``
+     - ``200``
+     - Budget for additional adaptive and verification solves per port. Required primary anchors are retained independently of this budget.
+
+For example, allow more internal candidates while retaining all other defaults:
+
+.. code-block:: python
+
+   tracking_config = gprMax.EigenmodeTrackingConfig(extra_candidates=6)
+   # Pass tracking="auto", tracking_config=tracking_config to EigenmodePort.
+
+The equivalent hash options use the field names directly, without a
+``tracking_config`` prefix:
+
+.. code-block:: none
+
+   #eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto y tracking=auto verification=full extra_candidates=6
+
+Warnings and inspection
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Confinement, artifact suspicion, tracking confidence, and numerical validity
+are separate. A numerically valid, confidently tracked profile with forward
+real power remains eligible when confinement is suspect or unresolved. The
+warning states that it remains in use and injection/S-parameter accuracy may
+be reduced. This is useful for a low-frequency CPW whose evanescent tail has
+not decayed at the aperture boundary. Confinement warnings alone do not trim
+anchors, change mode numbers, or force fallback.
+
+Failed residuals, nonfinite fields, singular reconstruction, and rank loss
+still prevent usable fields. Missing exterior geometry, unsupported faithful
+refinement, or exhausted verification budgets instead leave the confinement
+evidence unresolved. Tracking ambiguity is different: the tracker tries extra
+frequency solves, then follows the automatic-anchor fallback or explicit-anchor
+error policy if identity remains unresolved. It never interpolates through
+an unresolved identity gap. Below-cutoff modes retain the existing generalized
+reference and power restrictions.
+
+Inspect the ``Re(n_eff)`` and ``-Im(n_eff)`` panels above the E/H fields, including
+diagnostic markers for retained questionable profiles. HDF5 ``mode_tracking``
+records mappings, residuals, verification evidence, and unresolved intervals;
+the existing anchor and power validity masks retain their meanings.
+:ref:`eigenmode-example-8` demonstrates automatic circular degeneracy and
+:ref:`eigenmode-example-9` demonstrates a crossing in an anisotropic guide.
+Both models generate these figures with ``--geometry-only`` or a full run.
+The equations and decision rules are in :ref:`eigenmode-auto-tracking-theory`.
 
 Choosing frequency anchors
 --------------------------
@@ -1427,7 +1533,7 @@ consistent orthogonal polarizations. After each full run, the plotter writes
 ``auto_degenerate_te11_modeN_results.png`` showing co- and cross-polarized
 S11/S21 and the centre receiver's Ex/Ey traces.
 
-Automatic tracking is under development. This example uses
+Automatic tracking is the new, preferred tracking feature. This example uses
 ``verification="fast"`` for quick inspection; omitting that argument selects
 the automatic tracker's default full verification. Fast diagnostics do not
 include mesh or larger-window comparison solves. In the tested
@@ -1472,7 +1578,7 @@ produces these figures without time stepping. After a full run,
 ``auto_mode_crossing_modeN_results.png`` shows both modes' S11/S21, marks the
 crossing frequency, and plots the guide-centre polarization.
 
-Automatic tracking remains under development, and this example also selects
+Automatic tracking is preferred over legacy tracking. This example also selects
 ``verification="fast"``. Use ``verification="full"`` to request the extra
 verification solves. Tested double-precision CPU runs give worst co-polarized
 S11 of about -81.1 dB for mode 1 and -62.4 dB for mode 2, with co-polarized S21

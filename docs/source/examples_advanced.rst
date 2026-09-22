@@ -11,7 +11,7 @@ The nine numbered examples under ``examples/features/eigenmode_ports`` progress
 from straight and curved guides to a closed-surface horn, a complete modal
 matrix study, a phase-steered array, a guide crossing cutoff, and physically
 aligned degenerate circular TE11 modes. Examples 8 and 9 demonstrate the
-under-development automatic tracker on an automatically detected TE11 pair and
+new, preferred automatic tracker on an automatically detected TE11 pair and
 a true crossing of two polarized branches in an anisotropic waveguide.
 :doc:`eigenmode_port` provides a step-by-step tutorial for users who primarily
 want S-parameters and far fields.
