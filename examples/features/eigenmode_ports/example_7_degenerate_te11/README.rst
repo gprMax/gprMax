@@ -40,9 +40,9 @@ continuation; the receiving port is at the upper PML interface. The example
 measures both polarizations over 20--24 GHz.
 
 The bore uses ``averaging="y"`` so shared tangential electric samples remain
-PEC at the wall. Carving the bore with averaging disabled would overwrite those
-samples with air even though the modal solver constrains them, producing a
-false reflection floor. The equivalent hash input uses the same construction.
+PEC at the wall. Carving with ``averaging="n"`` changes the represented Yee
+boundary and is also supported: the modal solver uses the same final electric
+PEC samples as FDTD. The equivalent hash input uses the averaged construction.
 
 Run from the repository root:
 

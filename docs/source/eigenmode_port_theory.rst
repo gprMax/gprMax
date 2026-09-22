@@ -549,6 +549,13 @@ Each electric component is treated independently:
 * ``pec_v_mask`` constrains ``E_v`` to zero.
 * ``pec_w_mask`` constrains ``E_w`` to zero.
 
+Port extraction uses the final native Yee electric material IDs, including
+samples shared by neighbouring geometry objects. It does not expand
+cell-centred PEC voxels into extra electric constraints. Consequently an air
+bore carved with averaging disabled is solved with the same electric clamps
+as its FDTD update. Averaging and object order can still change the represented
+geometry and its cutoff.
+
 After masks are built, PEC material entries are replaced by finite placeholders
 before matrix assembly:
 
@@ -622,6 +629,48 @@ of freedom from the eigenproblem:
 .. code-block:: python
 
    Omega = Omega[self.free_euv_mask, :][:, self.free_euv_mask]
+
+Removing electric samples does not, in general, justify setting their paired
+transverse magnetic samples to zero. Write :math:`s=i n_{\mathrm{op}}` and use
+the solver's normalized transverse magnetic vector :math:`h`, so that the
+unconstrained equations are :math:`s e=P h` and :math:`s h=Q e`. Split magnetic
+samples into :math:`a`, whose paired transverse electric update is live, and
+:math:`c`, whose paired electric sample is PEC. The latter have no live Ampere
+equation, but Faraday's law at the clamped electric sample still requires
+
+.. math::
+
+   P_{ca}h_a+P_{cc}h_c=0,\qquad
+   s h_a=Q_a e,\qquad
+   s h_c=-P_{cc}^{-1}P_{ca}Q_a e.
+
+Here the first index of :math:`P` selects electric rows (free :math:`f` or
+constrained :math:`c`); the second selects magnetic samples. The exact reduced
+electric operator is therefore
+
+.. math::
+
+   \left(P_{fa}Q_a-P_{fc}P_{cc}^{-1}P_{ca}Q_a\right)e
+   =s^2 e=-n_{\mathrm{op}}^2 e.
+
+For conventional voxel PEC walls the forcing :math:`P_{ca}Q_a` vanishes on the
+free electric columns, and the usual sparse product suffices. Otherwise the
+solver applies this Schur complement through a sparse factorization of
+:math:`P_{cc}`. Shift-invert iteration factors the sparse block system
+
+.. math::
+
+   \begin{pmatrix}
+   P_{fa}Q_a-\sigma I & P_{fc}\\
+   P_{ca}Q_a & P_{cc}
+   \end{pmatrix},
+
+whose upper inverse block is the shifted reduced inverse. No dense Schur
+matrix is formed for the sparse eigensolve. The same static reconstruction
+supplies the modal H fields and the operator used for tracking residuals.
+A singular reconstruction is a numerical failure. Actual PMC constraints and
+impedance-volume retained-sample masks continue to exclude their own magnetic
+degrees of freedom.
 
 When the reduced matrix has only one more degree of freedom than the requested
 mode count, the solver uses a dense eigensolve because ARPACK requires

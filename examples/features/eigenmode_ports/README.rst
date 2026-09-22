@@ -149,9 +149,9 @@ subspace transport but is not added as a public monitor channel. Two ports on
 the straight guide expose co- and cross-polarized S11 and S21.
 
 The free-space bore uses ``averaging="y"`` to preserve the tangential electric
-PEC samples shared with wall voxels. Carving it with ``averaging="n"`` overwrites
-those samples and makes the time-domain guide differ from the modal solver's
-PEC cross-section. Explicit frequency anchors resolve the modal impedance
+PEC samples shared with wall voxels. ``averaging="n"`` represents a different
+Yee boundary and is also supported: the modal solver reads the final electric
+PEC samples used by FDTD. Explicit frequency anchors resolve the modal impedance
 between 20 and 24 GHz; degeneracy detection and polarization remain automatic.
 The output and virtual-feed terminations use 16-cell PMLs.
 
@@ -210,8 +210,12 @@ in ``tests/test_eigenmode_tracking_examples.py`` checks S11 below -60 dB,
 S21 within 0.005 dB, retained degeneracy/crossing identities, and matching PEC
 samples in the modal and time-domain geometry.
 
-The earlier roughly -30 dB reflection floor came primarily from overwritten
-wall samples; manual tracking reproduced it. Once those samples agree,
+The earlier roughly -30 dB reflection floor came primarily from a mismatch
+between overwritten wall samples and the voxel-derived modal PEC mask; manual
+tracking reproduced it. The solver now samples the final electric Yee masks
+and reconstructs the adjacent magnetic fields consistently. Example 7 with a
+non-averaged bore reaches -61.1 dB worst-case S11 for both polarizations with
+either tracking method. Once the modal and FDTD boundaries agree,
 interpolation between sparse modal anchors and finite PML reflection become
 visible. Confident tracking does not by itself guarantee an accurate
 interpolated impedance. Check convergence in anchor spacing, PML thickness,

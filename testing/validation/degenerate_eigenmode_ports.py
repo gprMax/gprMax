@@ -22,6 +22,7 @@ def circular_scene(
     monitor=False,
     tracking="legacy",
     verification="full",
+    averaging="y",
 ):
     dl = 1e-3
     transverse = tuple(axis for axis in range(3) if axis != normal_axis)
@@ -50,8 +51,8 @@ def circular_scene(
             p2=point((8, 8, 72)),
             r=6e-3,
             material_id="free_space",
-            # Match the modal PEC mask at the air/metal interface on every axis.
-            averaging="y",
+            # Both constructions are supported; they represent different walls.
+            averaging=averaging,
         )
     )
     plane = (24 if virtual else 12) if direction == "+" else (48 if virtual else 60)

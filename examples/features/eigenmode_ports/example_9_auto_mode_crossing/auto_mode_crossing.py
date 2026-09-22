@@ -64,8 +64,8 @@ def build_scene(mode=1):
         )
     )
     # Build the PEC walls after the anisotropic fill, whose Yee components are
-    # assigned without averaging. This preserves the tangential-E constraints
-    # shared by the FDTD geometry and modal solver at all four walls.
+    # assigned without averaging. This preserves the intended shared wall
+    # samples; the modal solver follows the final Yee PEC mask in either order.
     for x0, y0, x1, y1 in (
         (0, 0, 0.002, 0.012),
         (0.018, 0, 0.020, 0.012),

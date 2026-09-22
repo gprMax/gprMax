@@ -15,15 +15,17 @@ from gprMax.sources import EigenmodeSource
 @pytest.mark.integration
 @pytest.mark.parametrize("mode", (1, 2))
 @pytest.mark.parametrize(
-    "example,reflection_limit",
+    "example,reflection_limit,averaging,tracking",
     (
-        ("example_7_degenerate_te11/circular_te11", -55),
-        ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60),
-        ("example_9_auto_mode_crossing/auto_mode_crossing", -60),
+        ("example_7_degenerate_te11/circular_te11", -55, "y", "legacy"),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy"),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto"),
+        ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60, None, "auto"),
+        ("example_9_auto_mode_crossing/auto_mode_crossing", -60, None, "auto"),
     ),
 )
 def test_tracking_example_straight_guide(
-    tmp_path, monkeypatch, example, reflection_limit, mode, record_property
+    tmp_path, monkeypatch, example, reflection_limit, averaging, tracking, mode, record_property
 ):
     root = Path(__file__).resolve().parents[1]
     path = root / "examples/features/eigenmode_ports" / f"{example}.py"
@@ -36,7 +38,7 @@ def test_tracking_example_straight_guide(
         build(grid)
         for port in grid.eigenmodeports:
             owner = port.owner
-            masks = owner._cell_pec_electric_component_masks(grid)
+            masks = owner._yee_pec_electric_component_masks(grid)
             properties = (
                 owner.complex_eps_r_uu,
                 owner.complex_eps_r_vv,
@@ -45,13 +47,21 @@ def test_tracking_example_straight_guide(
             # Carving a bore without averaging used to overwrite these live
             # Yee samples while the modal solver still imposed zero E on them.
             for mask, values in zip(masks, properties):
-                assert not np.any(mask & np.isfinite(values))
+                np.testing.assert_array_equal(mask, ~np.isfinite(values))
 
     monkeypatch.setattr(FDTDGrid, "build", check_walls)
     monkeypatch.setattr(EigenmodeSource, "_should_plot_eigenmode_fields", lambda self: False)
     stem = tmp_path / "guide"
+    scene = module.build_scene(mode=mode)
+    if averaging is not None:
+        for obj in scene.geometry_objects:
+            if isinstance(obj, gprMax.Cylinder):
+                obj.kwargs["averaging"] = averaging
+        for obj in scene.grid_objects:
+            if isinstance(obj, gprMax.EigenmodePort):
+                obj.kwargs["tracking"] = tracking
     gprMax.run(
-        scenes=[module.build_scene(mode=mode)],
+        scenes=[scene],
         outputfile=stem,
         cpu_precision="double",
         hide_progress_bars=True,
@@ -62,10 +72,11 @@ def test_tracking_example_straight_guide(
         destination = output["eigenmode_ports/port2"]
         for port in (source, destination):
             assert np.all(port["power_wave_valid_S"])
-            if not example.startswith("example_7"):
+            if tracking == "auto":
                 assert np.all(port["mode_tracking/numerical_valid"])
                 assert port["mode_tracking/unresolved_interval_modes"].size == 0
-                assert len(port.attrs["AnchorFrequencies"]) == len(module.ANCHORS)
+                if hasattr(module, "ANCHORS"):
+                    assert len(port.attrs["AnchorFrequencies"]) == len(module.ANCHORS)
         reflection_db = 20 * np.log10(np.abs(source["S"][mode - 1]))
         transmission_db = 20 * np.log10(np.abs(destination["S"][mode - 1]))
         record_property("maximum_s11_db", float(np.max(reflection_db)))
@@ -108,7 +119,7 @@ def test_circular_hash_models_preserve_pec_wall_samples(tmp_path, monkeypatch, m
         ports = [*grid.eigenmodesources, *grid.eigenmodereceivers]
         assert len(ports) == 2
         for port in ports:
-            masks = port._cell_pec_electric_component_masks(grid)
+            masks = port._yee_pec_electric_component_masks(grid)
             tensors = port._extract_local_complex_property_tensors(grid, electric=True)
             for mask, values in zip(masks, tensors):
                 assert not np.any(mask & np.isfinite(values))

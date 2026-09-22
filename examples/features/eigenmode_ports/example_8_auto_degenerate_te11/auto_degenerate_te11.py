@@ -37,8 +37,8 @@ def build_scene(mode=1):
             r=0.006,
             material_id="free_space",
             # Preserve the PEC tangential-E samples shared with wall voxels.
-            # Disabling averaging while carving the bore overwrites them with
-            # free space, making the FDTD guide differ from the modal PEC mask.
+            # Averaging="n" is also supported, but represents a different wall
+            # on the Yee grid. The modal solver follows the final E samples.
             averaging="y",
         )
     )

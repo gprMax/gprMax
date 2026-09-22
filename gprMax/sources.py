@@ -1735,7 +1735,7 @@ class EigenmodeSource(Source):
 
     def _solve_eigenmode_3d(self, G):
         """Solve the local 2D eigenmode and map fields onto global components."""
-        pec_u_mask, pec_v_mask, pec_w_mask = self._cell_pec_electric_component_masks(G)
+        pec_u_mask, pec_v_mask, pec_w_mask = self._yee_pec_electric_component_masks(G)
         pmc_u_mask, pmc_v_mask, pmc_w_mask = self._cell_pmc_magnetic_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
@@ -1895,7 +1895,7 @@ class EigenmodeSource(Source):
             self.complex_mu_r_vv,
             self.complex_mu_r_ww,
         )
-        pec = self._cell_pec_electric_component_masks(G)
+        pec = self._yee_pec_electric_component_masks(G)
         pmc = self._cell_pmc_magnetic_component_masks(G)
         return {
             "eps_r_t": self._sample_1d_component(eps[t_local]),
@@ -2619,36 +2619,18 @@ class EigenmodeSource(Source):
             masks.append(~is_void[ids])
         return tuple(masks)
 
-    def _cell_pec_electric_component_masks(self, G):
-        """Build local Yee electric PEC masks from cell-centred PEC geometry.
+    def _yee_pec_electric_component_masks(self, G):
+        """Use the final electric material samples, including shared edges.
 
-        Component IDs on non-averaged PEC boxes are one-sided at Yee faces.
-        These masks supplement the component-sampled material IDs so opposite
-        PEC faces produce symmetric constraints in the transverse mode solve.
+        These are the same native Yee IDs used by the FDTD update. Expanding
+        cell-centred PEC voxels would incorrectly clamp samples overwritten
+        by later non-averaged geometry. The tensor extractor also assembles
+        the global port plane for MPI grids.
         """
-        cell_pec_mask = self._slice_cell_pec_mask(G)
-        nu, nv = self._transverse_cell_shape()
-        pec_u_mask = np.zeros((nu, nv + 1), dtype=bool)
-        pec_v_mask = np.zeros((nu + 1, nv), dtype=bool)
-        pec_w_mask = np.zeros((nu + 1, nv + 1), dtype=bool)
-        if cell_pec_mask.size == 0:
-            return pec_u_mask, pec_v_mask, pec_w_mask
-
-        cu, cv = cell_pec_mask.shape
-        pec_u_mask[:cu, :cv] |= cell_pec_mask
-        pec_u_mask[:cu, 1 : cv + 1] |= cell_pec_mask
-
-        pec_v_mask[:cu, :cv] |= cell_pec_mask
-        pec_v_mask[1 : cu + 1, :cv] |= cell_pec_mask
-
-        pec_w_mask[:cu, :cv] |= cell_pec_mask
-        pec_w_mask[1 : cu + 1, :cv] |= cell_pec_mask
-        pec_w_mask[:cu, 1 : cv + 1] |= cell_pec_mask
-        pec_w_mask[1 : cu + 1, 1 : cv + 1] |= cell_pec_mask
-        return pec_u_mask, pec_v_mask, pec_w_mask
-
-    def _slice_cell_pec_mask(self, G):
-        return self._slice_cell_constraint_mask(G, electric=True)
+        return tuple(
+            ~np.isfinite(values)
+            for values in self._extract_local_complex_property_tensors(G, electric=True)
+        )
 
     def _cell_pmc_magnetic_component_masks(self, G):
         """Build local Yee magnetic PMC masks from cell-centred PMC geometry.

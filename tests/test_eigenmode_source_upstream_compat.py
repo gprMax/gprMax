@@ -182,6 +182,26 @@ def test_pmc_component_ids_become_infinite_permeability_on_source_slice():
     assert np.isinf(mu_ww[1, 1])
 
 
+@pytest.mark.parametrize("normal_axis", range(3))
+def test_pec_masks_follow_component_ids_even_when_voxels_disagree(normal_axis):
+    pec, pmc, free_space = _materials()
+    ids = np.full((6, 3, 3, 3), free_space.numID, dtype=np.uint32)
+    grid = SimpleNamespace(
+        materials=[pec, pmc, free_space], ID=ids, dt=1e-12,
+        solid=np.full((3, 3, 3), pec.numID, dtype=np.uint32),
+    )
+    source = _source(grid)
+    source.normal_axis = normal_axis
+    source.transverse_axes = tuple(a for a in range(3) if a != normal_axis)
+    # All voxels are PEC, but only these three electric samples are clamped.
+    ids[:3, 1, 1, 1] = pec.numID
+    masks = source._yee_pec_electric_component_masks(grid)
+    assert [mask.shape for mask in masks] == [(2, 3), (3, 2), (3, 3)]
+    for mask in masks:
+        assert np.count_nonzero(mask) == 1
+        assert mask[1, 1]
+
+
 def test_pmc_cell_expands_to_all_local_magnetic_faces():
     """A PMC cell constrains two own-axis H faces and its normal H face."""
     pec, pmc, free_space = _materials()

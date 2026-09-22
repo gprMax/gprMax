@@ -266,14 +266,11 @@ the retained-host and extrusion restrictions described in :ref:`sibc-pml`.
 Main-grid CPU, CUDA, OpenCL, Metal, and domain-decomposed MPI CPU paths are
 supported; HSG subgrid virtual ports use the CPU or CUDA fine-grid update cycle.
 
-For PEC guides, preserve the tangential electric Yee samples shared with the
-walls. An isotropic bore carved out of a PEC volume should use
-``averaging="y"``. An anisotropic fill uses component assignments without
-averaging; build the surrounding PEC walls after the fill. Otherwise the fill
-can overwrite wall samples while the modal solver still constrains them,
-causing apparent reflection even in a straight uniform guide. Examples 8 and 9
-demonstrate these constructions and test both modal polarizations.
-See :ref:`eigenmode-pec-wall-sampling` under Example 7 for the construction rules.
+For PEC guides, the modal solver samples the final electric Yee PEC masks used
+by FDTD. Both averaging settings are supported; object order and averaging
+still determine the represented wall shape. Examples 8 and 9 demonstrate two
+constructions and test both modal polarizations. See
+:ref:`eigenmode-pec-wall-sampling` under Example 7 for the geometry implications.
 
 Tracking confidence controls mode identity, not the interpolation error of
 modal impedance between anchors. For small-reflection measurements, also
@@ -1476,30 +1473,33 @@ PEC wall construction and averaging
 
 Example 7 builds a PEC volume and then carves out the circular air bore. The
 bore uses ``averaging="y"`` to preserve the electric samples shared with the
-PEC wall. Preserve this setting when adapting the circular guide.
+PEC wall. This is a geometry choice, not a requirement for agreement between
+the modal solver and FDTD.
 
 With ``averaging="n"``, a volume writes its material directly to the Yee electric
 samples belonging to its voxels, including samples shared with neighbouring
 voxels. Carving an air or dielectric bore *after* a PEC volume can therefore
-replace a wall sample with a non-PEC material. The FDTD update allows electric
-field there, while the modal solver's voxel-derived PEC mask still constrains
-it to zero. Injection and modal decomposition then use a different discrete
-boundary from the time-domain guide, producing apparent S11 even without a
-physical discontinuity. Near cutoff, the resulting impedance mismatch can be
-especially pronounced.
+replace a wall sample with a non-PEC material. The modal solver reads those
+final component samples directly, rather than expanding the PEC voxel mask.
+Its magnetic reconstruction also satisfies the discrete Faraday equations at
+the constrained electric samples, rather than imposing an additional zero-H
+mask. Injection, modal decomposition, and FDTD therefore use the same discrete
+PEC boundary, including bores carved with ``averaging="n"``. This applies to
+both legacy and automatic tracking.
 
-* For an isotropic bore carved from PEC, use ``averaging="y"`` (the trailing
-  ``y`` on a hash ``#box`` or ``#cylinder`` command). Component construction
-  then preserves the PEC electric samples shared with the wall.
+* For an isotropic bore carved from PEC, ``averaging="y"`` (the trailing
+  ``y`` on a hash ``#box`` or ``#cylinder`` command)
+  preserves the PEC electric samples shared with the wall.
 * For an anisotropic fill, which assigns directional materials without
-  averaging, construct the fill first and the surrounding PEC walls afterwards.
-  Example 9 uses this order.
+  averaging, building the fill first and the surrounding PEC walls afterwards
+  preserves shared wall samples. Example 9 uses this order.
 
-``averaging="n"`` remains valid for directly constructed PEC walls and other
-models whose shared material samples are intentional. It is the combination
-of object order, shared Yee samples, and the modal PEC constraints that must
-agree. Unexpected reflection in a uniform guide warrants checking this
-construction as well as frequency-anchor spacing, PML thickness, and recording
+``averaging="n"`` is also valid when carving a bore. It can change the effective
+aperture, cutoff, and impedance relative to ``averaging="y"``, because the two
+settings represent different boundaries on the Yee grid. Neither setting
+removes the staircasing error of a circular wall; check mesh convergence for
+the intended physical geometry. Unexpected reflection in a uniform guide
+also warrants checking frequency-anchor spacing, PML thickness, and recording
 duration; identity tracking alone does not establish reflection accuracy.
 
 .. _eigenmode-example-8:
