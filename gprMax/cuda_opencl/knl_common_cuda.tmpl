@@ -1,7 +1,9 @@
 {% extends "knl_common_base.tmpl" %}
 
 {% block header %}
+{% if DRUDELORENTZ %}
 #include <pycuda-complex.hpp>
+{% endif %}
 
 // Uniform dispersive arithmetic used by the shared CUDA/OpenCL/Metal
 // field-update kernel. CUDA's scalar and pycuda::complex types both provide
