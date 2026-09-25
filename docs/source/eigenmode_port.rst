@@ -75,7 +75,7 @@ cell sizes are in metres, frequencies in Hz, and times in seconds.
    gprMax.run(scenes=[scene], outputfile=Path("straight_waveguide"),
               geometry_only=True)
 
-.. figure:: _images/eigenmode/straight_waveguide_geometry.png
+.. figure:: ../../images_shared/straight_waveguide_geometry.png
 
    :alt: Two-dimensional dielectric guide with a full-height port at each end, a dielectric core, and boundary PML.
    :width: 100%
@@ -475,7 +475,7 @@ How the virtual waveguide works
 The following diagram separates the physical horn geometry from its numerical
 continuation; it is schematic and not drawn to scale.
 
-.. figure:: _images/eigenmode/virtual_horn_geometry.png
+.. figure:: ../../images_shared/virtual_horn_geometry.png
 
    :alt: A horn and port inside the main grid with a closed NTFF surface, coupled to a separate virtual waveguide containing the modal source and absorber.
    :width: 100%
@@ -1449,7 +1449,7 @@ show mode-1 S21 near 0 dB with small reflection and mode-2 conversion.
 through right-PML absorption. Residual ripple depends on grid dispersion,
 finite recording time, discretization, and boundary reflections.
 
-.. figure:: ../../examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide_sparameters.png
+.. figure:: ../../images_shared/straight_waveguide_sparameters.png
 
    :alt: Straight-guide S-parameters showing mode-1 transmission near zero decibels and much smaller reflection and mode conversion.
    :width: 85%
@@ -1457,7 +1457,7 @@ finite recording time, discretization, and boundary reflections.
    Example 1: mode 1 transmits through the uniform guide; reflected and
    converted components are much smaller on the plotted scale.
 
-.. figure:: ../../examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide_field_propagation.png
+.. figure:: ../../images_shared/straight_waveguide_field_propagation.png
 
    :alt: Twelve Ez field snapshots showing a pulse travelling from the first port toward the right-hand PML.
    :width: 100%
@@ -1524,7 +1524,7 @@ is possible because the region behind the physical feed is homogeneous air.
 Refine the mesh and vary the NTFF surface, feed length, auxiliary PML, and
 time window before using the values quantitatively.
 
-.. figure:: ../../examples/features/eigenmode_ports/example_3_antenna_and_farfield/horn_principal_planes.png
+.. figure:: ../../images_shared/horn_principal_planes.png
 
    :alt: Simulated horn E-plane and H-plane radiation cuts at ten gigahertz, comparing directivity, gain, and realized gain.
    :width: 100%
@@ -1620,7 +1620,7 @@ but its squared magnitude is not transported real power. At exact cutoff
 the forward/backward basis coalesces: inspect conditioning, move the DFT grid,
 and refine the anchor sampling to check sensitivity.
 
-.. figure:: ../../examples/features/eigenmode_ports/example_6_near_cutoff/near_cutoff_sparameters.png
+.. figure:: ../../images_shared/near_cutoff_sparameters.png
 
    :alt: Near-cutoff S-parameter magnitude and unwrapped phase, with below-cutoff frequencies shaded and an analytical TE10 comparison.
    :width: 85%
@@ -1662,13 +1662,13 @@ source-port pictures below show E on the left and H on the right, with one
 row per retained anchor, including guard frequencies. Local u/v are global
 x/y; E and H magnitudes are normalised independently.
 
-.. figure:: ../../examples/features/eigenmode_ports/example_7_degenerate_te11/te11_mode1.png
+.. figure:: ../../images_shared/te11_mode1.png
    :alt: Mode 1 retains vertical electric polarization at every frequency anchor.
    :width: 100%
 
    Degenerate TE11 mode 1: global y electric polarization.
 
-.. figure:: ../../examples/features/eigenmode_ports/example_7_degenerate_te11/te11_mode2.png
+.. figure:: ../../images_shared/te11_mode2.png
    :alt: Mode 2 retains horizontal electric polarization at every frequency anchor.
    :width: 100%
 
@@ -1762,7 +1762,7 @@ consistent orthogonal polarizations. After each full run, the plotter writes
 ``auto_degenerate_te11_modeN_results.png`` showing co- and cross-polarized
 S11/S21 and the centre receiver's Ex/Ey traces.
 
-.. figure:: ../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode1_results.png
+.. figure:: ../../images_shared/auto_degenerate_te11_mode1_results.png
 
    :alt: Automatically tracked circular TE11 mode 1 with co-polarized transmission and a guide-centre Ex pulse, while the orthogonal channel remains small.
    :width: 100%
@@ -1816,7 +1816,7 @@ produces these figures without time stepping. After a full run,
 ``auto_mode_crossing_modeN_results.png`` shows both modes' S11/S21, marks the
 crossing frequency, and plots the guide-centre polarization.
 
-.. figure:: ../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing_mode1_results.png
+.. figure:: ../../images_shared/auto_mode_crossing_mode1_results.png
 
    :alt: Mode-1 transmission remains near zero decibels across the tracked crossing near 14.42 gigahertz, while the centre receiver remains polarized along y.
    :width: 100%

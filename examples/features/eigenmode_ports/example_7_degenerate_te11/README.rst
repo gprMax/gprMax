@@ -83,13 +83,13 @@ Arrows show field direction and colour shows relative magnitude, normalised
 independently for E and H. The built-in plotter uses the aligned modal basis
 and labels its requested electric direction in the title.
 
-.. figure:: te11_mode1.png
+.. figure:: ../../../../images_shared/te11_mode1.png
    :alt: Standard mode-1 E/H plots with vertical electric polarization at every anchor.
    :width: 100%
 
    Mode 1 retains global y electric polarization across all anchors.
 
-.. figure:: te11_mode2.png
+.. figure:: ../../../../images_shared/te11_mode2.png
    :alt: Standard mode-2 E/H plots with horizontal electric polarization at every anchor.
    :width: 100%
 
