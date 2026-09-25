@@ -141,165 +141,170 @@ def build_dispersive_material_templates():
         f.write(r)
 
 
-# Generate Cython file for dispersive materials update functions
-cython_disp_file = os.path.join("gprMax", "cython", "fields_updates_dispersive.pyx")
-if not os.path.isfile(cython_disp_file):
-    build_dispersive_material_templates()
+def main():
+    # Generate Cython file for dispersive materials update functions
+    cython_disp_file = os.path.join("gprMax", "cython", "fields_updates_dispersive.pyx")
+    if not os.path.isfile(cython_disp_file):
+        build_dispersive_material_templates()
 
-# Process 'build' command line argument
-if "build" in sys.argv:
-    print("Running 'build_ext --inplace'")
-    sys.argv.remove("build")
-    sys.argv.append("build_ext")
-    sys.argv.append("--inplace")
+    # Process 'build' command line argument
+    if "build" in sys.argv:
+        print("Running 'build_ext --inplace'")
+        sys.argv.remove("build")
+        sys.argv.append("build_ext")
+        sys.argv.append("--inplace")
 
-# Build a list of all the files that need to be Cythonized looking in gprMax
-# directory
-cythonfiles = []
-for root, dirs, files in os.walk(os.path.join(os.getcwd(), "gprMax"), topdown=True):
-    for file in files:
-        if file.endswith(".pyx"):
-            cythonfiles.append(os.path.relpath(os.path.join(root, file)))
+    # Build a list of all the files that need to be Cythonized looking in gprMax
+    # directory
+    cythonfiles = []
+    for root, dirs, files in os.walk(os.path.join(os.getcwd(), "gprMax"), topdown=True):
+        for file in files:
+            if file.endswith(".pyx"):
+                cythonfiles.append(os.path.relpath(os.path.join(root, file)))
 
-# Process 'cleanall' command line argument
-if "cleanall" in sys.argv:
-    for file in cythonfiles:
-        filebase = os.path.splitext(file)[0]
-        # Remove Cython C files
-        if os.path.isfile(f"{filebase}.c"):
-            try:
-                os.remove(f"{filebase}.c")
-                print(f"Removed: {filebase}.c")
-            except OSError:
-                print(f"Could not remove: {filebase}.c")
-        # Remove compiled Cython modules
-        libfile = glob.glob(
-            os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.pyd"
-        ) + glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.so")
-        if libfile:
-            libfile = libfile[0]
-            try:
-                os.remove(libfile)
-                print(f"Removed: {os.path.abspath(libfile)}")
-            except OSError:
-                print(f"Could not remove: {os.path.abspath(libfile)}")
+    # Process 'cleanall' command line argument
+    if "cleanall" in sys.argv:
+        for file in cythonfiles:
+            filebase = os.path.splitext(file)[0]
+            # Remove Cython C files
+            if os.path.isfile(f"{filebase}.c"):
+                try:
+                    os.remove(f"{filebase}.c")
+                    print(f"Removed: {filebase}.c")
+                except OSError:
+                    print(f"Could not remove: {filebase}.c")
+            # Remove compiled Cython modules
+            libfile = glob.glob(
+                os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.pyd"
+            ) + glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + "*.so")
+            if libfile:
+                libfile = libfile[0]
+                try:
+                    os.remove(libfile)
+                    print(f"Removed: {os.path.abspath(libfile)}")
+                except OSError:
+                    print(f"Could not remove: {os.path.abspath(libfile)}")
 
-    # Remove build, dist, egg and __pycache__ directories
-    shutil.rmtree(Path.cwd().joinpath("build"), ignore_errors=True)
-    shutil.rmtree(Path.cwd().joinpath("dist"), ignore_errors=True)
-    shutil.rmtree(Path.cwd().joinpath("gprMax.egg-info"), ignore_errors=True)
-    for p in Path.cwd().rglob("__pycache__"):
-        shutil.rmtree(p, ignore_errors=True)
-        print(f"Removed: {p}")
+        # Remove build, dist, egg and __pycache__ directories
+        shutil.rmtree(Path.cwd().joinpath("build"), ignore_errors=True)
+        shutil.rmtree(Path.cwd().joinpath("dist"), ignore_errors=True)
+        shutil.rmtree(Path.cwd().joinpath("gprMax.egg-info"), ignore_errors=True)
+        for p in Path.cwd().rglob("__pycache__"):
+            shutil.rmtree(p, ignore_errors=True)
+            print(f"Removed: {p}")
 
-    # Remove 'gprMax/cython/fields_updates_dispersive.jinja' if its there
-    if os.path.isfile(cython_disp_file):
-        os.remove(cython_disp_file)
+        # Remove 'gprMax/cython/fields_updates_dispersive.jinja' if its there
+        if os.path.isfile(cython_disp_file):
+            os.remove(cython_disp_file)
 
-    # Now do a normal clean
-    sys.argv[1] = "clean"  # this is what distutils understands
+        # Now do a normal clean
+        sys.argv[1] = "clean"  # this is what distutils understands
 
-else:
-    compiler = compiler_configuration()
-    parallel_build_jobs = build_jobs()
+    else:
+        compiler = compiler_configuration()
+        parallel_build_jobs = build_jobs()
 
-    # Build list of all the extensions - Cython source files
-    extensions = []
-    for file in cythonfiles:
-        tmp = os.path.splitext(file)
-        extension = Extension(
-            tmp[0].replace(os.sep, "."),
-            [tmp[0] + tmp[1]],
-            language="c",
-            include_dirs=[np.get_include(), *compiler.include_dirs],
-            library_dirs=list(compiler.library_dirs),
-            extra_compile_args=list(compiler.compile_args),
-            extra_link_args=list(compiler.linker_args),
-            libraries=list(compiler.libraries),
+        # Build list of all the extensions - Cython source files
+        extensions = []
+        for file in cythonfiles:
+            tmp = os.path.splitext(file)
+            extension = Extension(
+                tmp[0].replace(os.sep, "."),
+                [tmp[0] + tmp[1]],
+                language="c",
+                include_dirs=[np.get_include(), *compiler.include_dirs],
+                library_dirs=list(compiler.library_dirs),
+                extra_compile_args=list(compiler.compile_args),
+                extra_link_args=list(compiler.linker_args),
+                libraries=list(compiler.libraries),
+            )
+            extensions.append(extension)
+
+        # Cythonize - build .c files
+        extensions = cythonize(
+            extensions,
+            compiler_directives={
+                "boundscheck": False,
+                "wraparound": False,
+                "initializedcheck": False,
+                "embedsignature": True,
+                "language_level": 3,
+            },
+            nthreads=parallel_build_jobs,
+            annotate=False,
         )
-        extensions.append(extension)
 
-    # Cythonize - build .c files
-    extensions = cythonize(
-        extensions,
-        compiler_directives={
-            "boundscheck": False,
-            "wraparound": False,
-            "initializedcheck": False,
-            "embedsignature": True,
-            "language_level": 3,
-        },
-        nthreads=parallel_build_jobs,
-        annotate=False,
-    )
+        # Parse long_description from README.rst file.
+        with open("README.rst", "r", encoding="utf-8") as fd:
+            long_description = fd.read()
 
-    # Parse long_description from README.rst file.
-    with open("README.rst", "r", encoding="utf-8") as fd:
-        long_description = fd.read()
-
-    setup(
-        name="gprMax",
-        version=version,
-        author="Craig Warren, Antonis Giannopoulos, and John Hartley",
-        url="https://www.gprmax.org",
-        description="Electromagnetic Modelling Software based on the "
-        + "Finite-Difference Time-Domain (FDTD) method",
-        long_description=long_description,
-        long_description_content_type="text/x-rst",
-        license="GPLv3+",
-        python_requires=(
-            f">={MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]},"
-            f"<{MAX_PYTHON_VERSION[0]}.{MAX_PYTHON_VERSION[1]}"
-        ),
-        install_requires=[
-            "colorama",
-            "cython",
-            "h5py",
-            "humanize",
-            "jinja2",
-            "matplotlib",
-            "numpy",
-            "numpy-stl",
-            "Pillow",
-            "psutil",
-            "scipy",
-            "terminaltables",
-            "tqdm",
-            "typing_extensions",
-        ],
-        extras_require={
-            "cuda": ["pycuda; sys_platform != 'darwin'"],
-            "opencl": ["pyopencl"],
-            "metal": ["pyobjc-framework-Metal; sys_platform == 'darwin'"],
-            "accelerators": [
-                "pycuda; sys_platform != 'darwin'",
-                "pyopencl",
-                "pyobjc-framework-Metal; sys_platform == 'darwin'",
+        setup(
+            name="gprMax",
+            version=version,
+            author="Craig Warren, Antonis Giannopoulos, and John Hartley",
+            url="https://www.gprmax.org",
+            description="Electromagnetic Modelling Software based on the "
+            + "Finite-Difference Time-Domain (FDTD) method",
+            long_description=long_description,
+            long_description_content_type="text/x-rst",
+            license="GPLv3+",
+            python_requires=(
+                f">={MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]},"
+                f"<{MAX_PYTHON_VERSION[0]}.{MAX_PYTHON_VERSION[1]}"
+            ),
+            install_requires=[
+                "colorama",
+                "cython",
+                "h5py",
+                "humanize",
+                "jinja2",
+                "matplotlib",
+                "numpy",
+                "numpy-stl",
+                "Pillow",
+                "psutil",
+                "scipy",
+                "terminaltables",
+                "tqdm",
+                "typing_extensions",
             ],
-            "mpi": ["mpi4py"],
-            "mpi-fractals": ["mpi4py", "mpi4py-fft"],
-            "marimo": ["marimo>=0.23.8", "plotly>=6.1.1", "kaleido>=1.0"],
-        },
-        ext_modules=extensions,
-        packages=distribution_packages(),
-        package_dir={EXAMPLES_PACKAGE: str(EXAMPLES_SOURCE)},
-        package_data={EXAMPLES_PACKAGE: packaged_example_files()},
-        exclude_package_data=EXCLUDED_PACKAGE_DATA,
-        include_package_data=True,
-        include_dirs=[np.get_include()],
-        options={"build_ext": {"parallel": parallel_build_jobs}},
-        zip_safe=False,
-        classifiers=[
-            "Environment :: Console",
-            "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-            "Operating System :: MacOS",
-            "Operating System :: Microsoft :: Windows",
-            "Operating System :: POSIX :: Linux",
-            "Programming Language :: Cython",
-            "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.11",
-            "Programming Language :: Python :: 3.12",
-            "Programming Language :: Python :: 3.13",
-            "Topic :: Scientific/Engineering",
-        ],
-    )
+            extras_require={
+                "cuda": ["pycuda; sys_platform != 'darwin'"],
+                "opencl": ["pyopencl"],
+                "metal": ["pyobjc-framework-Metal; sys_platform == 'darwin'"],
+                "accelerators": [
+                    "pycuda; sys_platform != 'darwin'",
+                    "pyopencl",
+                    "pyobjc-framework-Metal; sys_platform == 'darwin'",
+                ],
+                "mpi": ["mpi4py"],
+                "mpi-fractals": ["mpi4py", "mpi4py-fft"],
+                "marimo": ["marimo>=0.23.8", "plotly>=6.1.1", "kaleido>=1.0"],
+            },
+            ext_modules=extensions,
+            packages=distribution_packages(),
+            package_dir={EXAMPLES_PACKAGE: str(EXAMPLES_SOURCE)},
+            package_data={EXAMPLES_PACKAGE: packaged_example_files()},
+            exclude_package_data=EXCLUDED_PACKAGE_DATA,
+            include_package_data=True,
+            include_dirs=[np.get_include()],
+            options={"build_ext": {"parallel": parallel_build_jobs}},
+            zip_safe=False,
+            classifiers=[
+                "Environment :: Console",
+                "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+                "Operating System :: MacOS",
+                "Operating System :: Microsoft :: Windows",
+                "Operating System :: POSIX :: Linux",
+                "Programming Language :: Cython",
+                "Programming Language :: Python :: 3",
+                "Programming Language :: Python :: 3.11",
+                "Programming Language :: Python :: 3.12",
+                "Programming Language :: Python :: 3.13",
+                "Topic :: Scientific/Engineering",
+            ],
+        )
+
+
+if __name__ == "__main__":
+    main()
