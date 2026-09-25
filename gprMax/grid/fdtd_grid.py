@@ -447,7 +447,7 @@ class FDTDGrid:
         compile_impedance_surfaces(self)
 
     def _validate_pml_thickness(self) -> None:
-        """Check that no PML reaches or crosses the domain midpoint.
+        """Check that opposing PML slabs do not overlap.
 
         ``PMLThickness.build()`` performs this check when the user supplies
         ``#pml_cells`` explicitly. Grids otherwise retain their default
@@ -457,12 +457,9 @@ class FDTDGrid:
         """
         thickness = self.pmls["thickness"]
         if (
-            2 * thickness["x0"] >= self.nx
-            or 2 * thickness["y0"] >= self.ny
-            or 2 * thickness["z0"] >= self.nz
-            or 2 * thickness["xmax"] >= self.nx
-            or 2 * thickness["ymax"] >= self.ny
-            or 2 * thickness["zmax"] >= self.nz
+            thickness["x0"] + thickness["xmax"] >= self.nx
+            or thickness["y0"] + thickness["ymax"] >= self.ny
+            or thickness["z0"] + thickness["zmax"] >= self.nz
         ):
             raise ValueError("PML has too many cells for the domain size")
 

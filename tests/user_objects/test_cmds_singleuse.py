@@ -35,6 +35,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
+from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
@@ -376,11 +377,38 @@ class TestPMLThickness:
         with pytest.raises(ValueError):
             PMLThickness(tuple([10] * bad_len)).build(stub_model)
 
-    def test_build_rejects_pml_thicker_than_half_domain(self, stub_model):
-        # nx=50; pml x0=30 ⇒ 2*30 ≥ 50 → fails domain check
-        stub_model.G.pmls["thickness"]["x0"] = 30
-        with pytest.raises(ValueError):
-            PMLThickness(10).build(stub_model)
+    @pytest.mark.parametrize("axis", range(3))
+    @pytest.mark.parametrize(
+        "pair", [(30, 0), (0, 30), (30, 19), (19, 30), (30, 20), (20, 30), (30, 25), (25, 30)]
+    )
+    @pytest.mark.parametrize("validation_path", ["command", "grid"])
+    def test_opposing_pml_slabs_must_leave_non_pml_cells(
+        self, stub_model, axis, pair, validation_path
+    ):
+        # Each axis has 50 cells. A slab may exceed half the domain, but
+        # opposing slabs must neither touch nor overlap. Exercise both
+        # validation paths so their acceptance criteria cannot drift apart.
+        thickness = [10] * 6
+        thickness[axis], thickness[axis + 3] = pair
+        thickness = tuple(thickness)
+        grid = stub_model.G
+        # Use the real setter rather than validating stale mock state.
+        grid.set_pml_thickness.side_effect = lambda values: FDTDGrid.set_pml_thickness(
+            grid, values
+        )
+
+        def validate():
+            if validation_path == "command":
+                PMLThickness(thickness).build(stub_model)
+            else:
+                grid.set_pml_thickness(thickness)
+                FDTDGrid._validate_pml_thickness(grid)
+
+        if sum(pair) >= 50:
+            with pytest.raises(ValueError, match="too many cells"):
+                validate()
+        else:
+            validate()
 
     @pytest.mark.parametrize("bad", [1.5, np.nan, True, "10"])
     def test_build_rejects_non_integer_thickness(self, stub_model, bad):

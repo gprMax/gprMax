@@ -687,16 +687,13 @@ class PMLThickness(ModelUserObject):
         )
         model.G.set_pml_thickness(canonical_thickness)
 
-        # Check each PML does not take up more than half the grid
+        # Check opposing PML slabs do not overlap
         # TODO: MPI ranks not containing a PML will not throw an error
         # here.
         if (
-            2 * grid.pmls["thickness"]["x0"] >= model.nx
-            or 2 * grid.pmls["thickness"]["y0"] >= model.ny
-            or 2 * grid.pmls["thickness"]["z0"] >= model.nz
-            or 2 * grid.pmls["thickness"]["xmax"] >= model.nx
-            or 2 * grid.pmls["thickness"]["ymax"] >= model.ny
-            or 2 * grid.pmls["thickness"]["zmax"] >= model.nz
+            grid.pmls["thickness"]["x0"] + grid.pmls["thickness"]["xmax"] >= model.nx
+            or grid.pmls["thickness"]["y0"] + grid.pmls["thickness"]["ymax"] >= model.ny
+            or grid.pmls["thickness"]["z0"] + grid.pmls["thickness"]["zmax"] >= model.nz
         ):
             raise ValueError(f"{self} has too many cells for the domain size")
 
