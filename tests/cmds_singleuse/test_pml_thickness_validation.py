@@ -79,3 +79,18 @@ def test_positive_pml_thickness_still_works(tmp_path):
     scene = _base_scene((0.05, 0.05, 0.05))
     scene.add(gprMax.PMLThickness(thickness=5))
     _run(scene, tmp_path, "pos_pml")
+
+
+def test_asymmetric_pml_fitting_single_side_passes(tmp_path):
+    # nx=50: x0=30, xmax=0 fits (30<50) but old per-face 2*30>=50 check
+    # falsely rejected it.
+    scene = _base_scene((0.05, 0.05, 0.05))
+    scene.add(gprMax.PMLThickness(thickness=(30, 5, 5, 0, 5, 5)))
+    _run(scene, tmp_path, "asym_pml_ok")
+
+
+def test_asymmetric_pml_overlap_still_rejected(tmp_path):
+    # nx=50: x0=30, xmax=25 overlaps (55>=50), must still raise.
+    scene = _base_scene((0.05, 0.05, 0.05))
+    scene.add(gprMax.PMLThickness(thickness=(30, 5, 5, 25, 5, 5)))
+    with pytest.raises(ValueError):
