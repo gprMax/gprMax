@@ -21,6 +21,9 @@ not roughness, plating, temperature dependence, or optical materials.
 This guide starts with setup and result checks. The equations and validation
 evidence are in :doc:`impedance_surfaces_theory`.
 
+The `published HTML guide <https://docs.gprmax.com/en/latest/impedance_surfaces.html>`_
+renders the shared parameter table that GitHub's source preview cannot expand.
+
 .. contents:: On this page
    :local:
    :depth: 1

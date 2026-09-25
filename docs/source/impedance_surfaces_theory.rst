@@ -10,6 +10,9 @@ discrete implementation, then records the validation evidence. Runtime
 restrictions are listed once in the practical guide; a derivation here is
 not a claim of support for additional geometries or backends.
 
+The `published HTML guide <https://docs.gprmax.com/en/latest/impedance_surfaces_theory.html>`_
+renders the equations and cross-references in full.
+
 .. contents:: On this page
    :local:
    :depth: 2

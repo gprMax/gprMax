@@ -10,6 +10,9 @@ defines the operators and conventions used by the solvers, sources, and
 monitors. It distinguishes physical-frequency quantities from the discrete
 symbols needed to reproduce the FDTD update.
 
+The `published HTML guide <https://docs.gprmax.com/en/latest/eigenmode_port_theory.html>`_
+renders the equations and cross-references in full.
+
 .. contents:: On this page
    :local:
    :depth: 2

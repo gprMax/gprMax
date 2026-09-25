@@ -16,6 +16,9 @@ electromagnetic simulation. Python comes first, followed by compact hash
 equivalents. The field equations, discrete operators, and numerical
 algorithms are in :doc:`eigenmode_port_theory`.
 
+The `published HTML guide <https://docs.gprmax.com/en/latest/eigenmode_port.html>`_
+renders the shared parameter tables that GitHub's source preview cannot expand.
+
 .. contents:: On this page
    :local:
    :depth: 1
