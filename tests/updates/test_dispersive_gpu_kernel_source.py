@@ -76,6 +76,21 @@ def test_cpp_gpu_backends_extract_real_part_after_complete_product(backend):
     assert "#define GPRMAX_CREAL(a) ((a).real())" in source
 
 
+@pytest.mark.parametrize("real", ["float", "double"])
+@pytest.mark.parametrize("drudelorentz", [False, True])
+def test_cuda_complex_header_is_only_included_for_complex_poles(real, drudelorentz):
+    source = _render_common("cuda", real, drudelorentz=drudelorentz)
+
+    if drudelorentz:
+        assert "#include <pycuda-complex.hpp>" in source
+        assert "#define GPRMAX_CREAL(a) ((a).real())" in source
+    else:
+        # Nondispersive and Debye models use real arithmetic. Any include
+        # makes PyCUDA run nvcc preprocessing even for a cached kernel.
+        assert "#include" not in source
+        assert "#define GPRMAX_CREAL(a) (a)" in source
+
+
 def test_shared_gpu_kernel_uses_backend_complex_operations_in_both_phases():
     phase_a = knl_fields_updates.update_electric_dispersive_A["func"].template
     phase_b = knl_fields_updates.update_electric_dispersive_B["func"].template
