@@ -75,6 +75,15 @@ cell sizes are in metres, frequencies in Hz, and times in seconds.
    gprMax.run(scenes=[scene], outputfile=Path("straight_waveguide"),
               geometry_only=True)
 
+.. figure:: _images/eigenmode/straight_waveguide_geometry.png
+
+   :alt: Two-dimensional dielectric guide with a full-height port at each end, a dielectric core, and boundary PML.
+   :width: 100%
+
+   The two port planes span the guided field and its tails. Port 1 launches
+   towards +x; port 2 faces the arriving wave from the opposite end. The
+   uniform guide continues to the boundary PML.
+
 First use ``geometry_only=True`` to build the material grid and solve the
 modes without FDTD time stepping. Inspect the modal-field and waveform PNGs.
 Set ``geometry_only=False`` to accumulate the spectra and write the HDF5 and
@@ -463,14 +472,17 @@ How the virtual waveguide works
    aperture into the physical feed. If there is no excitation on that port,
    it simply acts as a passive matched termination.
 
-The following shows the wave paths, not the physical layout of the grids:
+The following diagram separates the physical horn geometry from its numerical
+continuation; it is schematic and not drawn to scale.
 
-.. code-block:: text
+.. figure:: _images/eigenmode/virtual_horn_geometry.png
 
-   Separate auxiliary grid                  Main simulation grid
-   [PML] --- [modal source] --- connection --- [port] --- [antenna]
-                 launched wave -------------------------->
-     <--------------------------- wave returning from antenna
+   :alt: A horn and port inside the main grid with a closed NTFF surface, coupled to a separate virtual waveguide containing the modal source and absorber.
+   :width: 100%
+
+   The port plane couples the two grids. The virtual guide carries a launched
+   wave into the horn and a returning wave towards its own PML. The NTFF rear
+   face remains in air behind the physical feed.
 
 The auxiliary guide does not occupy space behind the port in the main
 geometry, so it does not cross the NTFF box. Its fields are still calculated
@@ -1437,6 +1449,22 @@ show mode-1 S21 near 0 dB with small reflection and mode-2 conversion.
 through right-PML absorption. Residual ripple depends on grid dispersion,
 finite recording time, discretization, and boundary reflections.
 
+.. figure:: ../../examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide_sparameters.png
+
+   :alt: Straight-guide S-parameters showing mode-1 transmission near zero decibels and much smaller reflection and mode conversion.
+   :width: 85%
+
+   Example 1: mode 1 transmits through the uniform guide; reflected and
+   converted components are much smaller on the plotted scale.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide_field_propagation.png
+
+   :alt: Twelve Ez field snapshots showing a pulse travelling from the first port toward the right-hand PML.
+   :width: 100%
+
+   The launched ``Ez`` pulse crosses the 2D guide and exits through the
+   right-hand PML.
+
 Try ``mode=2`` in the excitation, or refine the mesh and compare S11/S21.
 Temporarily requesting ``modes=(1, 2, 3, 4)`` exposes artificial aperture box
 modes in this geometry. Inspect their boundary interaction and sensitivity to
@@ -1495,6 +1523,14 @@ efficiency, and realized gain also includes feed mismatch. The closed surface
 is possible because the region behind the physical feed is homogeneous air.
 Refine the mesh and vary the NTFF surface, feed length, auxiliary PML, and
 time window before using the values quantitatively.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_3_antenna_and_farfield/horn_principal_planes.png
+
+   :alt: Simulated horn E-plane and H-plane radiation cuts at ten gigahertz, comparing directivity, gain, and realized gain.
+   :width: 100%
+
+   Example 3: the horn's principal-plane patterns at 10 GHz. The main beam
+   points along +x, at zero degrees in both cuts.
 
 Example 4: the complete dominant-mode S matrix
 ----------------------------------------------
@@ -1583,6 +1619,15 @@ below-cutoff region. There, ``coefficient_valid_S`` may be true while
 but its squared magnitude is not transported real power. At exact cutoff
 the forward/backward basis coalesces: inspect conditioning, move the DFT grid,
 and refine the anchor sampling to check sensitivity.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_6_near_cutoff/near_cutoff_sparameters.png
+
+   :alt: Near-cutoff S-parameter magnitude and unwrapped phase, with below-cutoff frequencies shaded and an analytical TE10 comparison.
+   :width: 85%
+
+   Example 6: the shaded frequencies lie below TE10 cutoff. The plotted
+   generalized coefficient can describe a decaying field there, but not a
+   transported real-power ratio.
 
 Example 7: physically aligned circular TE11
 -------------------------------------------
@@ -1717,6 +1762,15 @@ consistent orthogonal polarizations. After each full run, the plotter writes
 ``auto_degenerate_te11_modeN_results.png`` showing co- and cross-polarized
 S11/S21 and the centre receiver's Ex/Ey traces.
 
+.. figure:: ../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode1_results.png
+
+   :alt: Automatically tracked circular TE11 mode 1 with co-polarized transmission and a guide-centre Ex pulse, while the orthogonal channel remains small.
+   :width: 100%
+
+   Example 8, launched mode 1: the detected pair retains its global x/y
+   polarization labels across the band; the plotted output is dominated by
+   the driven x-polarized channel.
+
 Automatic tracking is experimental; use it at your discretion. This example uses
 ``verification="fast"`` for quick inspection; omitting that argument selects
 the automatic tracker's default full verification. Fast diagnostics do not
@@ -1761,6 +1815,14 @@ and the tracked E/H polarization at each anchor. The geometry-only command
 produces these figures without time stepping. After a full run,
 ``auto_mode_crossing_modeN_results.png`` shows both modes' S11/S21, marks the
 crossing frequency, and plots the guide-centre polarization.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing_mode1_results.png
+
+   :alt: Mode-1 transmission remains near zero decibels across the tracked crossing near 14.42 gigahertz, while the centre receiver remains polarized along y.
+   :width: 100%
+
+   Example 9, launched tracked mode 1: the response remains on one
+   polarization branch through the crossing near 14.42 GHz.
 
 Automatic tracking is experimental; use it at your discretion. This example also selects
 ``verification="fast"``. Use ``verification="full"`` to request the extra
