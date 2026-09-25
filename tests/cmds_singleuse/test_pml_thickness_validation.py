@@ -81,16 +81,26 @@ def test_positive_pml_thickness_still_works(tmp_path):
     _run(scene, tmp_path, "pos_pml")
 
 
-def test_asymmetric_pml_fitting_single_side_passes(tmp_path):
-    # nx=50: x0=30, xmax=0 fits (30<50) but old per-face 2*30>=50 check
-    # falsely rejected it.
+@pytest.mark.parametrize("axis", range(3))
+@pytest.mark.parametrize("pair", [(30, 0), (0, 30), (30, 19), (19, 30)])
+def test_asymmetric_pml_fits_with_non_pml_cells_remaining(tmp_path, axis, pair):
+    # Each axis has 50 cells. Either face may exceed half the domain,
+    # provided the opposing slabs leave at least one non-PML cell.
+    thickness = [5] * 6
+    thickness[axis], thickness[axis + 3] = pair
     scene = _base_scene((0.05, 0.05, 0.05))
-    scene.add(gprMax.PMLThickness(thickness=(30, 5, 5, 0, 5, 5)))
+    scene.add(gprMax.PMLThickness(thickness=tuple(thickness)))
     _run(scene, tmp_path, "asym_pml_ok")
 
 
-def test_asymmetric_pml_overlap_still_rejected(tmp_path):
-    # nx=50: x0=30, xmax=25 overlaps (55>=50), must still raise.
+@pytest.mark.parametrize("axis", range(3))
+@pytest.mark.parametrize("pair", [(30, 20), (20, 30), (30, 25), (25, 30)])
+def test_asymmetric_pml_touching_or_overlapping_still_rejected(tmp_path, axis, pair):
+    # Touching slabs (sum == 50) consume the entire domain, and overlapping
+    # slabs (sum > 50) are invalid too. Check both face orientations.
+    thickness = [5] * 6
+    thickness[axis], thickness[axis + 3] = pair
     scene = _base_scene((0.05, 0.05, 0.05))
-    scene.add(gprMax.PMLThickness(thickness=(30, 5, 5, 25, 5, 5)))
-    with pytest.raises(ValueError):
+    scene.add(gprMax.PMLThickness(thickness=tuple(thickness)))
+    with pytest.raises(ValueError, match="too many cells"):
+        _run(scene, tmp_path, "asym_pml_overlap")
