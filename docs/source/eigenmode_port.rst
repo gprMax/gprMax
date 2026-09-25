@@ -79,7 +79,6 @@ cell sizes are in metres, frequencies in Hz, and times in seconds.
               geometry_only=True)
 
 .. figure:: ../../images_shared/straight_waveguide_geometry.png
-
    :alt: Two-dimensional dielectric guide with a full-height port at each end, a dielectric core, and boundary PML.
    :width: 100%
 
@@ -479,7 +478,6 @@ The following diagram separates the physical horn geometry from its numerical
 continuation; it is schematic and not drawn to scale.
 
 .. figure:: ../../images_shared/virtual_horn_geometry.png
-
    :alt: A horn and port inside the main grid with a closed NTFF surface, coupled to a separate virtual waveguide containing the modal source and absorber.
    :width: 100%
 
@@ -1453,7 +1451,6 @@ through right-PML absorption. Residual ripple depends on grid dispersion,
 finite recording time, discretization, and boundary reflections.
 
 .. figure:: ../../images_shared/straight_waveguide_sparameters.png
-
    :alt: Straight-guide S-parameters showing mode-1 transmission near zero decibels and much smaller reflection and mode conversion.
    :width: 85%
 
@@ -1461,7 +1458,6 @@ finite recording time, discretization, and boundary reflections.
    converted components are much smaller on the plotted scale.
 
 .. figure:: ../../images_shared/straight_waveguide_field_propagation.png
-
    :alt: Twelve Ez field snapshots showing a pulse travelling from the first port toward the right-hand PML.
    :width: 100%
 
@@ -1528,7 +1524,6 @@ Refine the mesh and vary the NTFF surface, feed length, auxiliary PML, and
 time window before using the values quantitatively.
 
 .. figure:: ../../images_shared/horn_principal_planes.png
-
    :alt: Simulated horn E-plane and H-plane radiation cuts at ten gigahertz, comparing directivity, gain, and realized gain.
    :width: 100%
 
@@ -1624,7 +1619,6 @@ the forward/backward basis coalesces: inspect conditioning, move the DFT grid,
 and refine the anchor sampling to check sensitivity.
 
 .. figure:: ../../images_shared/near_cutoff_sparameters.png
-
    :alt: Near-cutoff S-parameter magnitude and unwrapped phase, with below-cutoff frequencies shaded and an analytical TE10 comparison.
    :width: 85%
 
@@ -1766,7 +1760,6 @@ consistent orthogonal polarizations. After each full run, the plotter writes
 S11/S21 and the centre receiver's Ex/Ey traces.
 
 .. figure:: ../../images_shared/auto_degenerate_te11_mode1_results.png
-
    :alt: Automatically tracked circular TE11 mode 1 with co-polarized transmission and a guide-centre Ex pulse, while the orthogonal channel remains small.
    :width: 100%
 
@@ -1820,7 +1813,6 @@ produces these figures without time stepping. After a full run,
 crossing frequency, and plots the guide-centre polarization.
 
 .. figure:: ../../images_shared/auto_mode_crossing_mode1_results.png
-
    :alt: Mode-1 transmission remains near zero decibels across the tracked crossing near 14.42 gigahertz, while the centre receiver remains polarized along y.
    :width: 100%
 
