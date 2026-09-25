@@ -16,6 +16,7 @@ from scipy.optimize import linear_sum_assignment
 _CONDITION_LIMIT = 1e8
 _DEGENERACY_TOLERANCE = 1e-8
 _RESIDUAL_TOLERANCE = 1e-9
+_SUBSPACE_PIVOT_TOLERANCE = 1e-12
 logger = logging.getLogger(__name__)
 
 
@@ -855,17 +856,27 @@ def _canonical_subspace_transform(frame):
     basis = []
     available = set(range(span.shape[0]))
     for _ in range(rank):
-        best = None
+        strengths = {}
         for coordinate in available:
             candidate = span @ span[coordinate].conj()
             if basis:
                 existing = np.column_stack(basis)
                 candidate -= existing @ (existing.conj().T @ candidate)
-            norm = float(np.linalg.norm(candidate))
-            choice = (norm, -coordinate, coordinate, candidate)
-            if best is None or choice[:2] > best[:2]:
-                best = choice
-        norm, _, coordinate, candidate = best
+            strengths[coordinate] = float(np.linalg.norm(candidate))
+        strongest = max(strengths.values())
+        # Symmetric apertures can give several mathematically equal pivots.
+        # Choose the lowest coordinate among numerical ties so BLAS rounding
+        # cannot swap the two oriented modes between platforms or raw gauges.
+        coordinate = min(
+            coordinate
+            for coordinate, strength in strengths.items()
+            if strongest - strength <= _SUBSPACE_PIVOT_TOLERANCE
+        )
+        candidate = span @ span[coordinate].conj()
+        if basis:
+            existing = np.column_stack(basis)
+            candidate -= existing @ (existing.conj().T @ candidate)
+        norm = float(np.linalg.norm(candidate))
         if not np.isfinite(norm) or norm <= np.finfo(float).eps:
             raise ValueError("Degenerate modal group has no deterministic full-rank basis.")
         candidate /= norm

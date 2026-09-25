@@ -8,6 +8,7 @@ import pytest
 
 import gprMax.config as config
 from gprMax.eigenmode_tracking import (
+    _canonical_subspace_transform,
     _moments,
     _power,
     align_groups,
@@ -377,6 +378,15 @@ def test_group_guard_trimming_never_falls_back_by_member(monkeypatch, circular_s
     else:
         with pytest.raises(ValueError, match="subspace overlap"):
             bank(circular_solvers)
+
+
+def test_canonical_subspace_basis_ignores_numerical_pivot_ties():
+    frame = np.array(((1, 0), (0, 1), (1, 0), (0, 1)), dtype=complex)
+    perturbed = frame.copy()
+    perturbed[1, 1] += 2e-13
+    reference = frame @ _canonical_subspace_transform(frame)
+    actual = perturbed @ _canonical_subspace_transform(perturbed)
+    np.testing.assert_allclose(actual, reference, atol=1e-10, rtol=1e-10)
 
 
 def test_higher_order_zero_moment_and_multiple_groups():
