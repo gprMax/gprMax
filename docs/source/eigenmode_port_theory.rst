@@ -767,6 +767,10 @@ For magnetic materials:
 * ``sm == inf`` is converted to ``np.inf + 0j``, which the solver treats as
   PMC.
 
+PMC constraints, like PEC constraints, follow the final native Yee component
+material IDs. Cell-centred PMC voxels are not expanded into additional magnetic
+constraints, including when reducing the port cross-section to a 1D solve.
+
 After solving, ``sources.py`` maps local modal fields back to global component
 slots. The Cython injection kernels consume the transverse components with
 their native staggered shapes; longitudinal modal fields are stored but are not
@@ -1256,6 +1260,26 @@ duplicate main-grid continuation behind the aperture is disconnected. The
 3D axis/direction variants use compiled Cython kernels. Reduced 2D coupling
 uses vectorized operations on the live field layer, preserving its native
 staggering without introducing invariant-axis side walls.
+
+On the non-distributed CPU solver, bulk electric dispersion is supported in
+both 3D and reduced TE/TM virtual guides. Conductivity and instantaneous
+polarization storage are included in the electric update coefficients. For
+each dispersive aperture sample, the curl result above is completed by
+
+.. math::
+
+   \Phi^n &= \sum_m \operatorname{Re}(a_m T_m^n),\\
+   E^{n+1} &= E_{\mathrm{curl}}^{n+1} - C_\Phi\Phi^n,\\
+   T_m^{n+1} &= f_m T_m^n + b_m(E^n-E^{n+1}).
+
+These are the same real or complex bulk ADE coefficients used inside the
+grid. The auxiliary boundary owns this history because the ordinary bulk
+kernels omit tangential E on its outer plane. The final corrected field is
+shared with the main grid. For SIBC contact rows, the auxiliary guide instead
+copies the complete sparse constitutive equation, including every retained
+bulk pole and independent Foster history, and uses the coupled sparse solve.
+This also applies inside its longitudinal PML. Dispersive aperture coupling
+on accelerator and MPI backends remains unsupported.
 
 .. _eigenmode-measurement-theory:
 

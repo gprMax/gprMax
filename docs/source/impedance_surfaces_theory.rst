@@ -1064,11 +1064,14 @@ to the ordinary curl from the native PML histories. The surface equation is
 
    d_e E_e^{n+1}
    = a_e E_e^n + r_{H,e}^{n+1/2}
-     - \sum_p (g_p/Z_{0p})h_p^n + A_e Q_e^{n+1/2},
+     - \Phi_e^n - \sum_p (g_p/Z_{0p})h_p^n + A_e Q_e^{n+1/2},
 
 where :math:`d_e` is the local implicit denominator, :math:`a_e` its
-old-field numerator, and :math:`h_p` the sum of the Foster histories at port
-:math:`p`. Uniform extrusion makes the longitudinal clipped-H fraction
+old-field numerator, :math:`\Phi_e^n` the bulk-polarization history load,
+and :math:`h_p` the sum of the Foster histories at port :math:`p`.
+The denominator and numerator include the retained-area sums of electric
+storage, conductivity, and instantaneous polarization terms. Uniform
+extrusion makes the longitudinal clipped-H fraction
 cancel against the retained area, so the native stretched derivative is
 applicable. For the continuous stretched-coordinate interpretation and its
 limitations, see Steven G. Johnson's `Notes on Perfectly Matched Layers
@@ -1080,10 +1083,19 @@ it applies
 .. math::
 
    \Delta E_e = A_e Q_e/d_e,\qquad
-   \Delta y_{pm}=q_{pm}\Delta E_e/(2Z_{0p}).
+    \Delta y_{pm}=q_{pm}\Delta E_e/(2Z_{0p}),\qquad
+    \Delta S_{em}=-b_{em}\Delta E_e.
+
+Here :math:`S_{em}` is a bulk-polarization state satisfying
+:math:`S_{em}^{n+1}=f_{em}S_{em}^n+b_{em}(E_e^n-E_e^{n+1})`.
+The geometric curl scaling does not require a homogeneous or lossless host.
+Different retained materials contribute their own masses and polarization
+histories; no effective bulk pole model is assigned to the PML capture row.
+That row has unit curl-correction coefficient and zero ordinary curl and
+bulk-polarization update, preventing duplicate constitutive updates.
 
 This is algebraically the same coupled solve, including the midpoint-time
-surface-current history. Adding the PML increment to :math:`E^n` before
+surface-current and bulk-polarization histories. Adding the PML increment to :math:`E^n` before
 solving would give the wrong damping and history for finite impedance.
 The automatic time-step factor of at most 0.99 also applies to these models.
 
@@ -1095,6 +1107,21 @@ image comparisons are in
 ``testing/validation/sibc_based_pmc/pml_mirror.py``. These test the supported
 extruded configurations; they do not establish stability for arbitrary
 PML profiles or unsupported bulk media.
+Lossy and Debye/Lorentz/Drude bulk contacts, including layered interfaces,
+are checked against independent mirrored bulk grids in
+``tests/impedance_surfaces/test_pmc_pml.py``. Finite surface and bulk histories
+are compared with a simultaneous dense solve in
+``tests/impedance_surfaces/test_lossy_dispersive_pml.py``. The copper microstrip
+comparison is ``testing/validation/impedance_surface/validate_microstrip_pml.py``.
+CPU virtual guides extrude the complete retained-area conductivity and bulk
+pole coefficients, with independent polarization and Foster histories on
+every auxiliary edge. Their ordinary dispersive aperture samples use the
+same bulk ADE recurrence as the continuous grid. Comparisons in
+``tests/test_virtual_waveguide_impedance.py`` cover lossy, Debye, Lorentz,
+and Drude contacts, mixed hosts, both precisions, rotated 3D and TE/TM
+guides, and active excitation. The comparison fixes the PML profile in both
+models: cropping opaque padding otherwise changes the cross-section average
+used to choose the default maximum PML conductivity.
 The profile audit retained in
 ``testing/validation/impedance_surface/results/sibc_pml/profile_audit.json``
 found late growth with two duplicated unshifted HORIPML terms in both an

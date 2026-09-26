@@ -597,8 +597,10 @@ class SurfaceImpedance(GridUserObject):
     model and emits a warning when built. ``resistance=float('inf')`` selects
     the exact voxel-face PMC limit with zero tangential surface admittance.
     Passive impedance walls can continue uniformly along a PML absorption
-    direction, including the auxiliary PML of a virtual waveguide; the
-    retained host there must be isotropic, lossless, and nondispersive.
+    direction. Domain and CPU virtual-guide PML support heterogeneous isotropic
+    retained hosts, including loss and electric dispersion, with each constituent uniformly
+    extruded through the slab. Virtual apertures advance independent bulk
+    polarization and surface-current histories with the coupled electric field.
     """
 
     @property

@@ -107,10 +107,21 @@ def test_pml_cannot_stretch_normal_to_pmc():
 
 
 @pytest.mark.parametrize("attribute,value", [("se", 0.01), ("sm", 0.01), ("poles", 1)])
-def test_pmc_pml_rejects_lossy_or_dispersive_host(attribute, value):
+def test_pmc_pml_keeps_loss_and_poles_out_of_curl_capture_material(attribute, value):
     grid, system, *_ = sparse_fixture()
     setattr(grid.materials[0], attribute, value)
-    with pytest.raises(ValueError, match="lossless.*nondispersive"):
+    prepare_impedance_pml(grid, system)
+    hold = grid.materials[-1]
+    assert isinstance(hold, _ImpedancePMLHoldMaterial)
+    assert hold.se == hold.sm == 0
+    assert not getattr(hold, "poles", 0)
+
+
+@pytest.mark.parametrize("attribute,value", [("se", np.inf), ("sm", np.inf), ("er", 0), ("se", -0.1)])
+def test_pmc_pml_rejects_invalid_retained_host(attribute, value):
+    grid, system, *_ = sparse_fixture()
+    setattr(grid.materials[0], attribute, value)
+    with pytest.raises(ValueError, match="isotropic retained host"):
         prepare_impedance_pml(grid, system)
 
 
@@ -153,3 +164,17 @@ def test_pmc_pml_image_comparison_detects_missing_pml_forcing(tmp_path):
     result = pml_image_case(tmp_path, steps=80, disable_coupling=True)
     assert not result["passed"]
     assert result["maximum_field_relative_error"] > 0.01
+
+
+@pytest.mark.parametrize("kind", ("lossy", "debye", "lorentz", "drude"))
+@pytest.mark.parametrize("layered", (False, True))
+@pytest.mark.parametrize("formulation,order", (("HORIPML", 1), ("MRIPML", 2)))
+@pytest.mark.parametrize("stretch,precision", ((0, "double"), (1, "single"), (2, "double")))
+def test_pml_material_contacts_match_independent_mirrored_bulk_grid(
+    tmp_path, kind, layered, formulation, order, stretch, precision,
+):
+    from testing.validation.sibc_based_pmc.pml_mirror import pml_image_case
+
+    result = pml_image_case(tmp_path, steps=80, host_kind=kind, layered=layered,
+                            formulation=formulation, order=order, stretch=stretch, precision=precision)
+    assert result["passed"], result

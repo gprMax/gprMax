@@ -29,6 +29,23 @@ ETA = np.sqrt(mu_0 / epsilon_0)
 FIELD_NAMES = ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz")
 
 
+def add_bulk_host(scene, kind):
+    """Lossy epsilon-infinity host with optional real or complex bulk poles."""
+    scene.add(gprMax.DispersiveAveraging(enabled=True))
+    scene.add(gprMax.Material(er=3, se=0.02, mr=1, sm=0, id="host"))
+    common = dict(poles=2, material_ids=["host"])
+    if kind == "debye":
+        scene.add(gprMax.AddDebyeDispersion(er_delta=[2., 1.], tau=[3e-11, 8e-11], **common))
+    elif kind == "lorentz":
+        scene.add(gprMax.AddLorentzDispersion(
+            er_delta=[2., 1.], omega=[8e9, 12e9], delta=[2e9, 3e9], **common,
+        ))
+    elif kind == "drude":
+        scene.add(gprMax.AddDrudeDispersion(omega=[5e9, 9e9], alpha=[4e9, 6e9], **common))
+    elif kind != "lossy":
+        raise ValueError(kind)
+
+
 def surface(kind):
     if kind == "pec":
         return None
@@ -67,6 +84,8 @@ def scene_for(
     pml_cells=16,
     order=1,
     duplicated_unshifted=False,
+    host_kind=None,
+    layered=False,
 ):
     scene = gprMax.Scene()
     thickness = [0] * 6
@@ -126,6 +145,13 @@ def scene_for(
                     sigmamax=smax,
                 )
             )
+    if host_kind is not None:
+        add_bulk_host(scene, host_kind)
+        scene.add(gprMax.Box(
+            p1=(0, 0, 0),
+            p2=xyz(np.asarray((8 if layered else 16, 12, length)) * DL, axis),
+            material_id="host",
+        ))
     for lower, upper in (
         ((3, 3, 0), (4, 9, length)),
         ((12, 3, 0), (13, 9, length)),
@@ -209,15 +235,20 @@ def run_packet(
     precision="double",
     steps=600,
     omit_boundary_pml=False,
+    host_kind=None,
+    layered=False,
 ):
-    name = f"{kind}_{axis}_{formulation}_{order}_{precision}_{length}"
+    name = f"{kind}_{axis}_{formulation}_{order}_{precision}_{length}_{host_kind}_{layered}"
     grid = build_grid(
-        scene_for(length, kind=kind, axis=axis, formulation=formulation, order=order),
+        scene_for(length, kind=kind, axis=axis, formulation=formulation, order=order,
+                  host_kind=host_kind, layered=layered),
         cache / name,
         precision,
     )
     seed_pulse(grid, axis)
     updates = CPUUpdates(grid)
+    if grid.maxpoles:
+        updates.set_dispersive_updates()
     probe = tuple(int(x) for x in xyz((8, 6, 64), axis))
     field = getattr(grid, FIELD_NAMES[permutation(axis)[1]])
     trace = np.empty(steps)

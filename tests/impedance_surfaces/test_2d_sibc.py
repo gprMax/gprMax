@@ -8,6 +8,8 @@ from testing.validation.impedance_surface.validate_2d import (
     run_2d,
 )
 
+pytestmark = pytest.mark.usefixtures("suppress_sibc_fit_plots")
+
 
 @pytest.mark.parametrize("polarization", ("TE", "TM"))
 @pytest.mark.parametrize("invariant,normal", ((0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)))

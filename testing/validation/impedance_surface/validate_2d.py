@@ -38,7 +38,9 @@ def scene_2d(
     length=72,
     repaired=False,
     spacing=DL,
+    host_kind=None,
 ):
+    frequency = 12e9 if host_kind is not None else 22e9
     transverse = next(axis for axis in range(3) if axis not in (invariant, normal))
     if port is None:
         port = virtual or active
@@ -83,6 +85,17 @@ def scene_2d(
                     sigmamax=SIGMA_MAX,
                 )
             )
+    if host_kind is not None:
+        from .validate_sibc_pml import add_bulk_host
+
+        if not repaired:
+            scene.add(gprMax.PMLCFS(
+                alphascalingprofile="constant", alphascalingdirection="forward", alphamin=0, alphamax=0,
+                kappascalingprofile="constant", kappascalingdirection="forward", kappamin=1, kappamax=1,
+                sigmascalingprofile="quartic", sigmascalingdirection="forward", sigmamin=0, sigmamax=8,
+            ))
+        add_bulk_host(scene, host_kind)
+        scene.add(gprMax.Box(p1=point(0, 0), p2=point(length, 13, np.inf), material_id="host"))
     surface = (
         gprMax.SurfaceImpedance(
             id="wall", conductivity=1e4, fit_frequency_range=(1e9, 200e9), fit_order=4
@@ -107,7 +120,7 @@ def scene_2d(
         )
     scene.add(
         gprMax.Waveform(
-            wave_type="contsine" if active else "gaussian", amp=1.0, freq=22e9, id="pulse"
+            wave_type="contsine" if active else "gaussian", amp=1.0, freq=frequency, id="pulse"
         )
     )
     plane = 24 if direction == "+" else 48
@@ -126,7 +139,7 @@ def scene_2d(
         scene.add(gprMax.Rx(p1=point(36, t, np.inf), id=f"probe_{t}"))
     if port:
         window = (5, 21) if resistance == "pec" else (3, 23)
-        scene.add(gprMax.EigenmodeBand(id="band", fmin=22e9, fmax=22e9, points=1))
+        scene.add(gprMax.EigenmodeBand(id="band", fmin=frequency, fmax=frequency, points=1))
         scene.add(
             gprMax.EigenmodePort(
                 port=1,
@@ -134,7 +147,7 @@ def scene_2d(
                 p2=point(plane, window[1], np.inf),
                 direction=direction,
                 modes=(1,),
-                anchors=(22e9,),
+                anchors=(frequency,),
                 plot_fields=False,
             )
         )

@@ -71,6 +71,7 @@ class VirtualWaveguide:
 
         self._validate()
         self.aux_grid = self._build_auxiliary_grid()
+        self._prepare_dispersive_aperture()
         if self._impedance_edges:
             self._prepare_impedance_edge_indices()
             self._freeze_impedance_main_rows()
@@ -157,10 +158,10 @@ class VirtualWaveguide:
             for material in materials
             if material.numID in material_ids and getattr(material, "poles", 0) > 0
         ]
-        if dispersive:
+        if dispersive and (self.mpi or config.sim_config.general["solver"] != "cpu"):
             raise ValueError(
-                "Virtual-waveguide aperture coupling does not yet support "
-                "dispersive guide materials; found " + ", ".join(dispersive) + "."
+                "Dispersive virtual-waveguide aperture coupling requires the "
+                "non-distributed CPU solver; found " + ", ".join(dispersive) + "."
             )
         self._validate_impedance_cross_section()
 
@@ -199,19 +200,6 @@ class VirtualWaveguide:
                 raise ValueError(
                     "Surface-impedance virtual-waveguide walls must be propagation-invariant."
                 )
-            if (
-                system.pole_coeffs.size
-                and system.pole_offsets[index + 1] != system.pole_offsets[index]
-            ):
-                raise ValueError(
-                    "Surface-impedance virtual waveguides require nondispersive boundary hosts."
-                )
-            if not np.isclose(
-                system.edge_params[index, 0], system.edge_params[index, 1], rtol=0, atol=0
-            ):
-                raise ValueError(
-                    "Surface-impedance virtual waveguides require lossless boundary hosts."
-                )
             selected.append(index)
 
         if not selected:
@@ -221,16 +209,20 @@ class VirtualWaveguide:
             if material.numID in grid.impedance_marker_models or material.is_pec:
                 continue
             if (
-                getattr(material, "poles", 0)
-                or material.se != 0
-                or material.sm != 0
+                material.is_pmc
+                or material.directional_materials is not None
+                or not np.isfinite(material.se)
+                or material.se < 0
+                or not np.isfinite(material.sm)
+                or material.sm < 0
                 or not np.isfinite(material.er)
                 or not np.isfinite(material.mr)
                 or material.er <= 0
                 or material.mr <= 0
             ):
                 raise ValueError(
-                    "Surface-impedance virtual waveguides require lossless nondispersive retained materials."
+                    "Surface-impedance virtual waveguides require isotropic retained materials "
+                    "with finite nonnegative conductivities and positive finite er and mr."
                 )
         self._impedance_edges = tuple(selected)
 
@@ -300,6 +292,15 @@ class VirtualWaveguide:
         def packed(values, dtype=dtype):
             return np.ascontiguousarray(values, dtype=dtype)
 
+        # Each extruded row owns an independent copy of every retained bulk
+        # pole, just as it owns independent Foster surface-current histories.
+        pole_offsets, pole_coeffs = [0], []
+        if source.pole_coeffs.size:
+            for original_index in original_rows:
+                start, stop = source.pole_offsets[original_index : original_index + 2]
+                pole_coeffs.extend(source.pole_coeffs[start:stop])
+                pole_offsets.append(len(pole_coeffs))
+
         system = ImpedanceSurfaceSystem(
             edge_info=packed(edge_info, np.int32).reshape(-1, 8),
             edge_params=packed(source.edge_params[original_rows]),
@@ -319,9 +320,74 @@ class VirtualWaveguide:
             model_Z0=source.model_Z0.copy(),
             state_y=np.zeros(max(1, state_count), dtype=dtype),
             model_ids=source.model_ids,
+            edge_dispersion=packed(source.edge_dispersion[original_rows]) if pole_coeffs else None,
+            pole_offsets=packed(pole_offsets, np.int32) if pole_coeffs else None,
+            pole_coeffs=packed(pole_coeffs) if pole_coeffs else None,
         )
         aux.impedance_surfaces = system
         prepare_impedance_pml(aux, system)
+
+    def _prepare_dispersive_aperture(self):
+        """Index bulk ADE samples omitted by the auxiliary boundary kernels."""
+
+        self._dispersive_aperture = []
+        aux = self.aux_grid
+        if not aux.maxpoles or self.mpi or config.sim_config.general["solver"] != "cpu":
+            return
+        aperture = 0 if self.direction_sign < 0 else self.spec.length_cells
+        material_poles = np.asarray([getattr(material, "poles", 0) for material in aux.materials])
+        for component in self.transverse_axes:
+            if self.reduced and "E" + "xyz"[component] not in self.reduced.active_electric:
+                continue
+            ranges = []
+            for axis in range(3):
+                if axis == self.normal_axis:
+                    values = [aperture]
+                elif self.reduced and axis == self.reduced.invariant_axis:
+                    values = [self.reduced.live_index]
+                else:
+                    values = np.arange(int(axis != component), aux.size[axis])
+                ranges.append(values)
+            coordinates = tuple(values.ravel() for values in np.meshgrid(*ranges, indexing="ij"))
+            ids = aux.ID[(component,) + coordinates]
+            selected = material_poles[ids] > 0
+            if not np.any(selected):
+                continue
+            coordinates = tuple(values[selected] for values in coordinates)
+            main_coordinates = [values.copy() for values in coordinates]
+            main_coordinates[self.normal_axis][:] = self.plane_index
+            main_coordinates[self.transverse_axes[0]] += self.u0
+            main_coordinates[self.transverse_axes[1]] += self.v0
+            ids = ids[selected]
+            coefficients = aux.updatecoeffsdispersive[ids].T
+            self._dispersive_aperture.append(
+                (
+                    component, coordinates, tuple(main_coordinates), aux.updatecoeffsE[ids, 4],
+                    coefficients[0::3], coefficients[1::3], coefficients[2::3],
+                )
+            )
+
+    def _complete_dispersive_aperture(self, old_fields):
+        """Finish the same bulk A/B recurrence as an interior Yee sample.
+
+        Aperture curl coupling already includes the instantaneous dispersive
+        mass and conductivity. Add the old polarization load, advance its
+        independent state with the final E, and publish the corrected field.
+        Sparse SIBC rows have pole-free hold IDs and are advanced separately.
+        """
+
+        aux, main = self.aux_grid, self.main_grid
+        for data, old_e in zip(self._dispersive_aperture, old_fields):
+            component, coordinates, main_coordinates, scale, a, f, b = data
+            electric = getattr(aux, "E" + "xyz"[component])
+            history = getattr(aux, "T" + "xyz"[component])
+            history_indices = (slice(None),) + coordinates
+            old_t = history[history_indices]
+            phi = np.sum((a * old_t).real, axis=0)
+            electric[coordinates] -= scale * phi
+            # Match the native A-then-B arithmetic, including complex poles.
+            history[history_indices] = (f * old_t + b * old_e) - b * electric[coordinates]
+            getattr(main, "E" + "xyz"[component])[main_coordinates] = electric[coordinates]
 
     def _prepare_impedance_edge_indices(self):
         """Index auxiliary source and aperture rows for coupling and diagnostics."""
@@ -1120,12 +1186,17 @@ class VirtualWaveguide:
             self._deposit_mpi_aperture_electric()
             self._clear_mpi_rear_electric()
             return
+        old_aperture_fields = [
+            getattr(self.aux_grid, "E" + "xyz"[component])[coordinates].copy()
+            for component, coordinates, *_ in self._dispersive_aperture
+        ]
         if self.reduced:
             from gprMax.virtual_waveguide_2d import couple_electric
 
             couple_electric(self)
         else:
             self._couple_electric_3d()
+        self._complete_dispersive_aperture(old_aperture_fields)
         if self._impedance_edges:
             self._copy_impedance_aperture_magnetic()
             self.aux_updates.update_impedance_surfaces()

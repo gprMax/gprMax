@@ -1736,7 +1736,7 @@ class EigenmodeSource(Source):
     def _solve_eigenmode_3d(self, G):
         """Solve the local 2D eigenmode and map fields onto global components."""
         pec_u_mask, pec_v_mask, pec_w_mask = self._yee_pec_electric_component_masks(G)
-        pmc_u_mask, pmc_v_mask, pmc_w_mask = self._cell_pmc_magnetic_component_masks(G)
+        pmc_u_mask, pmc_v_mask, pmc_w_mask = self._yee_pmc_magnetic_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
             du=G.dl[self.transverse_axes[0]],
@@ -1896,7 +1896,7 @@ class EigenmodeSource(Source):
             self.complex_mu_r_ww,
         )
         pec = self._yee_pec_electric_component_masks(G)
-        pmc = self._cell_pmc_magnetic_component_masks(G)
+        pmc = self._yee_pmc_magnetic_component_masks(G)
         return {
             "eps_r_t": self._sample_1d_component(eps[t_local]),
             "eps_r_a": self._sample_1d_component(eps[a_local]),
@@ -2632,100 +2632,16 @@ class EigenmodeSource(Source):
             for values in self._extract_local_complex_property_tensors(G, electric=True)
         )
 
-    def _cell_pmc_magnetic_component_masks(self, G):
-        """Build local Yee magnetic PMC masks from cell-centred PMC geometry.
+    def _yee_pmc_magnetic_component_masks(self, G):
+        """Use final magnetic Yee samples without expanding cell-centred PMC.
 
-        Component-sampled PMC material IDs constrain their exact H positions
-        through the non-finite permeability tensors. These masks supplement
-        those IDs so both own-axis H faces of every PMC cell are constrained.
+        As for PEC, only the component IDs used by the FDTD update constrain
+        the modal fields. The tensor extractor also assembles MPI port planes.
         """
-        cell_pmc_mask = self._slice_cell_pmc_mask(G)
-        nu, nv = self._transverse_cell_shape()
-        pmc_u_mask = np.zeros((nu + 1, nv), dtype=bool)
-        pmc_v_mask = np.zeros((nu, nv + 1), dtype=bool)
-        pmc_w_mask = np.zeros((nu, nv), dtype=bool)
-        if cell_pmc_mask.size == 0:
-            return pmc_u_mask, pmc_v_mask, pmc_w_mask
-
-        cu, cv = cell_pmc_mask.shape
-        pmc_u_mask[:cu, :cv] |= cell_pmc_mask
-        pmc_u_mask[1 : cu + 1, :cv] |= cell_pmc_mask
-
-        pmc_v_mask[:cu, :cv] |= cell_pmc_mask
-        pmc_v_mask[:cu, 1 : cv + 1] |= cell_pmc_mask
-
-        pmc_w_mask[:cu, :cv] |= cell_pmc_mask
-        return pmc_u_mask, pmc_v_mask, pmc_w_mask
-
-    def _slice_cell_pmc_mask(self, G):
-        return self._slice_cell_constraint_mask(G, electric=False)
-
-    def _slice_cell_constraint_mask(self, G, electric):
-        """Return source-cross-section cells occupied by PEC or PMC."""
-        if hasattr(G, "global_size"):
-            return self._mpi_cell_constraint_mask(G, electric)
-
-        u0, v0 = self.transverse_start
-        u1, v1 = self.transverse_stop
-        normal_indices = [
-            index
-            for index in (self.plane_index - 1, self.plane_index)
-            if 0 <= index < G.solid.shape[self.normal_axis]
-        ]
-        if not normal_indices:
-            return np.zeros((u1 - u0, v1 - v0), dtype=bool)
-
-        material_is_constrained = np.zeros(len(G.materials), dtype=bool)
-        for material in G.materials:
-            property_value = self._complex_er(material) if electric else self._complex_mur(material)
-            material_is_constrained[material.numID] = not np.isfinite(property_value)
-
-        cell_constraint_mask = np.zeros((u1 - u0, v1 - v0), dtype=bool)
-        for n in normal_indices:
-            if self.normal_axis == 0:
-                ids = G.solid[n, u0:u1, v0:v1]
-            elif self.normal_axis == 1:
-                ids = G.solid[u0:u1, n, v0:v1]
-            else:
-                ids = G.solid[u0:u1, v0:v1, n]
-            cell_constraint_mask |= material_is_constrained[ids]
-        return cell_constraint_mask
-
-    def _mpi_cell_constraint_mask(self, G, electric):
-        """Assemble the PEC/PMC cell mask adjacent to an MPI modal plane."""
-
-        from mpi4py import MPI
-
-        nu, nv = self._transverse_cell_shape()
-        local_mask = np.zeros((nu, nv), dtype=np.uint8)
-        materials_by_id = {material.numID: material for material in G.materials}
-        normal_indices = tuple(
-            index
-            for index in (self.global_plane_index - 1, self.global_plane_index)
-            if 0 <= index < G.global_size[self.normal_axis]
+        return tuple(
+            ~np.isfinite(values)
+            for values in self._extract_local_complex_property_tensors(G, electric=False)
         )
-
-        for u in range(nu):
-            for v in range(nv):
-                for normal_index in normal_indices:
-                    coordinate = np.zeros(3, dtype=np.int32)
-                    coordinate[self.normal_axis] = normal_index
-                    coordinate[self.transverse_axes[0]] = self.global_transverse_start[0] + u
-                    coordinate[self.transverse_axes[1]] = self.global_transverse_start[1] + v
-                    if G.get_rank_from_coordinate(coordinate) != G.rank:
-                        continue
-                    local_coordinate = G.global_to_local_coordinate(coordinate)
-                    material_id = int(G.solid[tuple(local_coordinate)])
-                    material = materials_by_id[material_id]
-                    property_value = (
-                        self._complex_er(material) if electric else self._complex_mur(material)
-                    )
-                    if not np.isfinite(property_value):
-                        local_mask[u, v] = 1
-
-        mask = np.empty_like(local_mask)
-        G.comm.Allreduce(local_mask, mask, op=MPI.MAX)
-        return mask.astype(bool)
 
     def _complex_er(self, material, fdtd_dt=None):
         conductivity = getattr(material, "se", 0)
