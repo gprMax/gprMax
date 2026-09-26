@@ -32,6 +32,7 @@ from gprMax.cython.virtual_waveguide import (
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import process_materials
+from gprMax.modal_window import pec_electric_masks, sibc_window_pec_masks
 from gprMax.mode2d import mode2d_geometry
 from gprMax.updates.cpu_updates import CPUUpdates
 
@@ -68,12 +69,14 @@ class VirtualWaveguide:
         self._mpi_h_local = None
         self._mpi_h_global = None
         self._impedance_edges = ()
+        self._impedance_window_edges = ()
 
         self._validate()
         self.aux_grid = self._build_auxiliary_grid()
         self._prepare_dispersive_aperture()
         if self._impedance_edges:
             self._prepare_impedance_edge_indices()
+        if self._impedance_window_edges:
             self._freeze_impedance_main_rows()
         self.aux_source = self._build_auxiliary_source()
         self.aux_sources = [] if self.aux_source is None else [self.aux_source]
@@ -176,24 +179,38 @@ class VirtualWaveguide:
             raise ValueError(
                 "Surface-impedance virtual waveguides currently require the CPU solver."
             )
-        selected = []
+        selected, window_edges = [], []
+        invariant_local = (
+            None if not self.reduced else self.transverse_axes.index(self.reduced.invariant_axis)
+        )
+        window_pec = sibc_window_pec_masks(
+            system,
+            self.plane_index,
+            self.transverse_axes,
+            (self.u0, self.v0),
+            (self.u1, self.v1),
+            invariant_local,
+        )
+        rim = pec_electric_masks((self.nu, self.nv), invariant_local)
+        local_axes = (*self.transverse_axes, self.normal_axis)
         for index, edge in enumerate(system.edge_info):
             coordinate = edge[1:4]
             if coordinate[self.normal_axis] != self.plane_index:
                 continue
             u, v = coordinate[list(self.transverse_axes)]
-            if not (self.u0 <= u <= self.u1 and self.v0 <= v <= self.v1):
+            mask = window_pec[local_axes.index(int(edge[0]))]
+            local_index = (int(u - self.u0), int(v - self.v0))
+            if not all(0 <= value < size for value, size in zip(local_index, mask.shape)):
                 continue
-            if any(
-                not low < coordinate[axis] < high
-                for axis, low, high in zip(
-                    self.transverse_axes, (self.u0, self.v0), (self.u1, self.v1)
-                )
-                if not self.reduced or axis != self.reduced.invariant_axis
-            ):
+            window_edges.append(index)
+            if mask[local_index]:
+                # The dense guide/coupling kernels leave tangential rim E
+                # at zero. Do not let a sparse ADE row overwrite that PEC.
+                continue
+            if rim[local_axes.index(int(edge[0]))][local_index]:
                 raise ValueError(
-                    "Impedance surfaces must lie strictly inside the virtual-waveguide "
-                    "modal window, with an opaque voxel beyond each wall."
+                    "A physical SIBC wall on the virtual-waveguide rim needs opaque "
+                    "padding beyond it for transverse PML coupling."
                 )
             ports = slice(int(edge[6]), int(edge[6] + edge[7]))
             if np.any(system.port_normal[ports, 0] == self.normal_axis):
@@ -202,6 +219,8 @@ class VirtualWaveguide:
                 )
             selected.append(index)
 
+        self._impedance_window_edges = tuple(window_edges)
+        self._impedance_edges = tuple(selected)
         if not selected:
             return
         for material_id in np.unique(self._solid_cross_section()):
@@ -224,7 +243,6 @@ class VirtualWaveguide:
                     "Surface-impedance virtual waveguides require isotropic retained materials "
                     "with finite nonnegative conductivities and positive finite er and mr."
                 )
-        self._impedance_edges = tuple(selected)
 
     def _build_impedance_auxiliary_system(self, aux):
         """Extrude full dual-cell rows and independent ADE histories.
@@ -269,7 +287,13 @@ class VirtualWaveguide:
                 # cross-aperture samples, including the low-side -1 images.
                 outside = translated[:, normal + 1] < 0
                 translated[outside, normal + 1] = self.spec.length_cells
-                if np.any(translated[:, 1:4] < 0) or np.any(translated[:, 1:4] > aux.size):
+                invalid = np.any(translated[:, 1:4] < 0) or np.any(translated[:, 1:4] > aux.size)
+                for axis in self.transverse_axes:
+                    # H is node-sampled only along its own component axis;
+                    # allocated upper padding on the other axes is not a DOF.
+                    limit = aux.size[axis] + (translated[:, 0] == axis)
+                    invalid = invalid or np.any(translated[:, axis + 1] >= limit)
+                if invalid:
                     raise ValueError(
                         "Surface-impedance modal window omits a required magnetic sample."
                     )
@@ -417,7 +441,10 @@ class VirtualWaveguide:
             component, i, j, k = (int(value) for value in edge[:4])
             coordinate = np.asarray((i, j, k))
             u, v = coordinate[list(self.transverse_axes)]
-            if not (self.u0 <= u <= self.u1 and self.v0 <= v <= self.v1):
+            if not (
+                self.u0 <= u < self.u1 + int(component != self.transverse_axes[0])
+                and self.v0 <= v < self.v1 + int(component != self.transverse_axes[1])
+            ):
                 continue
             position = coordinate[self.normal_axis]
             detached = (

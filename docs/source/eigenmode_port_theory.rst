@@ -227,7 +227,8 @@ The constructor signature is:
 
 ``guess``
     Optional ARPACK shift. If omitted, the solver derives a shift from the
-    largest finite material magnitude.
+    largest finite bulk material magnitude, before SIBC adds surface
+    admittance to the electric coefficients. SIBC remains in the eigenproblem.
 
 ``fdtd_dt``
     Optional keyword-only FDTD time step in seconds. A positive finite value
@@ -492,7 +493,8 @@ The constructor signature is:
 
 ``guess``
     Optional ARPACK shift. If omitted, the solver chooses a conservative shift
-    from the largest finite material magnitude.
+    from the largest finite bulk material magnitude, before SIBC adds surface
+    admittance to the electric coefficients. SIBC remains in the eigenproblem.
 
 ``surface_boundary``
     Optional compiled impedance-volume boundary. See :doc:`impedance_surfaces`
@@ -1218,9 +1220,13 @@ the two derivatives need not be negative adjoints at a clipped wall.
 ``resistance=float('inf')`` gives exactly zero surface admittance.
 
 CPU ``VirtualWaveguide`` supports all 2D TE/TM orientations. Its modal window
-spans the full invariant storage dimension; SIBC walls need opaque padding
-only in the physical transverse direction. The guide and its retained host
-must remain uniform along propagation through the aperture and PML. Both
+spans the full invariant storage dimension. Its artificial PEC rim constrains
+tangential E only at the ends of the physical transverse coordinate, including
+where a cropped SIBC row needs a magnetic sample outside the window. A complete
+physical SIBC wall at the rim retains its surface equation in the direct modal
+solve; a virtual guide requires opaque padding beyond that wall for its PML.
+The guide and its retained host must remain uniform along propagation through
+the aperture and PML. Both
 ordinary and virtual sources apply the surface-row modal forcing and ADE
 correction. See :ref:`sibc-pml` for setup and :ref:`impedance-pml-theory` for validation.
 

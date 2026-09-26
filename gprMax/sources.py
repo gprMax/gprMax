@@ -39,6 +39,7 @@ from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     boundary_edge_relative_permittivity,
     evaluate_surface_ade,
 )
+from gprMax.modal_window import sibc_window_pec_masks
 from gprMax.waveforms import Waveform
 
 from .cython.eigenmode_source import update_eigenmode_electric as updateEigenmode_electric
@@ -907,6 +908,10 @@ class EigenmodeSource(Source):
         global_to_local = {axis: local for local, axis in enumerate(local_to_global)}
         electric_retained = self._impedance_component_retained_masks(G, electric=True)
         magnetic_retained = self._impedance_component_retained_masks(G, electric=False)
+        # Match the auxiliary Yee guide's PEC transverse termination. A
+        # constrained row has no Ampere equation and needs no exterior H;
+        # every unconstrained surface row still requires its entire stencil.
+        window_pec = self._surface_window_pec_masks(G)
         electric_shapes = tuple(mask.shape for mask in electric_retained)
         magnetic_shapes = tuple(mask.shape for mask in magnetic_retained)
         if not system.model_ids:
@@ -953,6 +958,8 @@ class EigenmodeSource(Source):
             local_axis = global_to_local[component]
             local_index = self._surface_local_index(coordinate)
             if not self._index_in_shape(local_index, electric_shapes[local_axis]):
+                continue
+            if window_pec[local_axis][local_index]:
                 continue
 
             port_start = int(edge[6])
@@ -2627,9 +2634,27 @@ class EigenmodeSource(Source):
         by later non-averaged geometry. The tensor extractor also assembles
         the global port plane for MPI grids.
         """
-        return tuple(
+        masks = tuple(
             ~np.isfinite(values)
             for values in self._extract_local_complex_property_tensors(G, electric=True)
+        )
+        if getattr(G, "impedance_surfaces", None) is not None:
+            # Use actual PEC constraints, not excluded-volume masks: Faraday's
+            # static H reconstruction must still hold at a clamped E sample.
+            masks = tuple(mask | rim for mask, rim in zip(masks, self._surface_window_pec_masks(G)))
+        return masks
+
+    def _surface_window_pec_masks(self, G):
+        invariant_local = (
+            None if self.invariant_axis is None else self.transverse_axes.index(self.invariant_axis)
+        )
+        return sibc_window_pec_masks(
+            G.impedance_surfaces,
+            self.plane_index,
+            self.transverse_axes,
+            self.transverse_start,
+            self.transverse_stop,
+            invariant_local,
         )
 
     def _yee_pmc_magnetic_component_masks(self, G):

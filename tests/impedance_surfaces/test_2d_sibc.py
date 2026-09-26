@@ -13,6 +13,37 @@ pytestmark = pytest.mark.usefixtures("suppress_sibc_fit_plots")
 
 @pytest.mark.parametrize("polarization", ("TE", "TM"))
 @pytest.mark.parametrize("invariant,normal", ((0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)))
+def test_physical_sibc_wall_on_port_rim_keeps_surface_rows(tmp_path, monkeypatch, polarization, invariant, normal):
+    import gprMax
+    from testing.validation.impedance_surface import validate_2d as validation
+
+    original = validation.scene_2d
+    transverse = next(axis for axis in range(3) if axis not in (invariant, normal))
+
+    def scene(**kwargs):
+        result = original(**kwargs)
+        for obj in result.grid_objects:
+            if isinstance(obj, gprMax.EigenmodePort):
+                for name, value in (("p1", 5e-3), ("p2", 21e-3)):
+                    point = list(obj.kwargs[name])
+                    point[transverse] = value
+                    obj.kwargs[name] = tuple(point)
+        return result
+
+    monkeypatch.setattr(validation, "scene_2d", scene)
+    traces, grid = run_2d(
+        tmp_path / "cropped", polarization=polarization, invariant=invariant, normal=normal,
+        resistance="foster", virtual=False, active=True, steps=150,
+        direction="+" if normal % 2 else "-",
+    )
+    assert np.all(np.isfinite(traces)) and np.max(np.abs(traces)) > 0
+    solver = grid.eigenmodesources[0].mode_solver
+    assert solver.surface_boundary_rows
+    assert np.imag(solver.modal_complex_neff) < 0
+
+
+@pytest.mark.parametrize("polarization", ("TE", "TM"))
+@pytest.mark.parametrize("invariant,normal", ((0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)))
 @pytest.mark.parametrize("resistance", (np.inf, 5.0, "foster"))
 def test_reduced_boundary_and_modal_build(tmp_path, polarization, invariant, normal, resistance):
     _, grid = run_2d(

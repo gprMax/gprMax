@@ -515,8 +515,14 @@ the physical geometry yourself.
 
 For passive surface-impedance walls, CPU main-grid 3D and 2D TE/TM models
 can use the same continuation, including fitted metal and infinite-resistance
-PMC. Follow :ref:`sibc-pml` for uniform extrusion, retained-host restrictions,
-and opaque padding. In 2D, padding is needed only along the physical
+PMC. Follow :ref:`sibc-pml` for uniform extrusion and retained-host restrictions.
+The window may cut across an SIBC ground plane: both the modal solve and
+auxiliary guide replace rows whose magnetic stencil crosses the artificial
+PEC rim. A physical SIBC wall exactly at the rim retains its surface law in
+the direct modal solve when its complete stencil is inside the window. A
+virtual guide needs opaque padding beyond a physical wall for transverse PML
+coupling. Enlarge the window to check that an artificial cut does not
+materially affect the result. In 2D the rim applies only along the physical
 transverse axis. The general virtual-guide backend support does not extend
 SIBC to accelerators, MPI, or subgrids.
 

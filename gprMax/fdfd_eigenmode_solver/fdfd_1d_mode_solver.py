@@ -163,9 +163,11 @@ class FDFD_1D_mode_solver:
             setattr(self, name, mask)
             getattr(self, material_name)[mask] = 1.0 + 0j
 
+        # SIBC row coefficients include surface admittance, not just bulk
+        # permittivity. Choose the spectral shift before installing them.
+        self.guess = guess if guess is not None else self._default_guess()
         self.surface_boundary = surface_boundary
         self._prepare_surface_boundary()
-        self.guess = guess if guess is not None else self._default_guess()
         self.eigenvalues = None
         self.eigenvectors = None
         self.operator_neff = None

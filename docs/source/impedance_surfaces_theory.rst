@@ -1122,6 +1122,16 @@ and Drude contacts, mixed hosts, both precisions, rotated 3D and TE/TM
 guides, and active excitation. The comparison fixes the PML profile in both
 models: cropping opaque padding otherwise changes the cross-section average
 used to choose the default maximum PML conductivity.
+The cropped-window cases in that test file also compare a copper ground plane
+and lossy FR-4 microstrip against a physical continuation with explicit PEC
+plates at the window edges, in all three orientations and both directions,
+with active and passive ports. The modal PEC constraints include the static
+Faraday equations at clamped E samples. The auxiliary grid omits those entire
+surface rows and freezes their detached main-grid counterparts, while retaining
+every magnetic term and ADE coefficient of unconstrained rows. A physical SIBC
+wall at the rim keeps its equation in the direct modal solve when all its
+magnetic samples are inside the window; a virtual guide needs opaque padding
+beyond that physical wall for transverse PML coupling.
 The profile audit retained in
 ``testing/validation/impedance_surface/results/sibc_pml/profile_audit.json``
 found late growth with two duplicated unshifted HORIPML terms in both an
