@@ -173,6 +173,12 @@ port, equal y coordinates a y-normal port. Mode numbers are solver ordering,
 not guaranteed physical labels. Inspect the E/H profiles before identifying
 a solution as TE10, quasi-TEM, or a particular guided slab mode.
 
+Every port window has a PEC transverse rim: tangential electric fields are
+zero there, whether or not a virtual waveguide is attached. To retain an SIBC
+wall's impedance and loss, put that wall inside the window with at least one
+opaque voxel beyond it. An SIBC wall exactly on the rim becomes PEC in the
+modal solve and virtual guide.
+
 Automatic mode tracking is experimental and requires further testing. Set
 ``tracking="auto"`` at your discretion to use branch assignment, automatic
 degeneracy detection, and mode-quality diagnostics. See
@@ -518,13 +524,13 @@ can use the same continuation, including fitted metal and infinite-resistance
 PMC. Follow :ref:`sibc-pml` for uniform extrusion and retained-host restrictions.
 The window may cut across an SIBC ground plane: both the modal solve and
 auxiliary guide replace rows whose magnetic stencil crosses the artificial
-PEC rim. A physical SIBC wall exactly at the rim retains its surface law in
-the direct modal solve when its complete stencil is inside the window. A
-virtual guide needs opaque padding beyond a physical wall for transverse PML
-coupling. Enlarge the window to check that an artificial cut does not
-materially affect the result. In 2D the rim applies only along the physical
-transverse axis. The general virtual-guide backend support does not extend
-SIBC to accelerators, MPI, or subgrids.
+PEC rim. Every port uses a PEC window boundary, with or without a virtual
+guide, including where a complete SIBC wall lies on the rim. Extend the window
+at least one opaque voxel beyond a wall to retain its surface impedance and
+loss in the modal solve and auxiliary guide. Enlarge the window to check that
+a PEC cut does not materially affect the result. In 2D the rim applies only
+along the physical transverse axis. The general virtual-guide backend support
+does not extend SIBC to accelerators, MPI, or subgrids.
 
 For example, this is the feed configuration from `Example 3: a pyramidal
 horn antenna`_. It assumes that ``scene`` already contains the 3D domain,

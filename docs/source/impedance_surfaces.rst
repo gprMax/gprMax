@@ -332,16 +332,17 @@ strictly inside its total-field/scattered-field box.
 
 A direct :class:`gprMax.EigenmodePort` in 3D or 2D may cross an
 impedance guide. The guide boundary must be invariant along the propagation
-direction through both cells adjacent to the modal plane. Surface-impedance
-modal windows use a PEC termination at artificial transverse cuts, matching
-the auxiliary waveguide. A SIBC row whose magnetic stencil extends outside
-the window is replaced by the PEC constraint on its tangential electric
-component. A physical SIBC wall at the rim retains its surface equation if
-its complete stencil lies inside the window. A virtual guide requires opaque
-padding beyond such a wall for transverse PML coupling. The retained rows keep
-their magnetic circulation, bulk mass, surface admittance, and histories;
-missing samples in these rows are still rejected. A guide end cap normal to
-the propagation axis cannot cross the retained solve region.
+direction through both cells adjacent to the modal plane. Every port window
+has a PEC transverse boundary, whether or not a ``VirtualWaveguide`` is
+attached. Tangential electric fields on the rim are zero. This constraint
+replaces complete SIBC rows on the rim as well as rows whose magnetic stencil
+would extend outside the window, so the modal solve and auxiliary guide use
+the same boundary condition. The build reports when this replaces surface
+rows. To retain a wall's surface impedance and loss, extend the window at
+least one opaque voxel beyond it. The interior rows keep their magnetic
+circulation, bulk mass, surface admittance, and histories; missing samples in
+these rows are still rejected. A guide end cap normal to the propagation
+axis cannot cross the retained solve region.
 
 The window may cut across a ground plane or another uniformly extruded
 impedance volume. This is an artificial PEC truncation, not an open boundary
@@ -351,7 +352,7 @@ fields reach its edges. Opaque padding remains useful when the whole guide
 fits within the window.
 
 Choosing an SIBC eigenmode port window
--------------------------------------
+--------------------------------------
 
 The drawings below show cross-sections looking along the propagation axis.
 Place the port plane perpendicular to the guide, on a section where both the
@@ -368,26 +369,28 @@ port normals.
    field. The window can cut the extended SIBC ground plane at its side edges.
    Those cropped surface rows meet the artificial PEC port boundary; the
    ground interface and lossy FR-4 within the aperture remain physical. The
-   opaque copper below the ground provides padding for a virtual guide.
+   opaque copper below the ground keeps the ground interface inside the
+   window, preserving its SIBC loss.
 
 .. figure:: ../../images_shared/sibc_eigenmode_rectangular_guide.png
    :alt: Rectangular SIBC waveguide with a modal window extending into opaque metal beyond each wall.
    :width: 80%
 
    **Rectangular waveguide.** Put the entire air aperture and all four SIBC
-   walls inside the window. For a virtual guide, extend the window at least
-   one opaque voxel past every wall so its transverse PML includes the wall
-   samples. A direct modal solve can keep a wall exactly on the rim when its
-   magnetic stencil is complete, but the virtual guide requires this padding.
+   walls inside the window. Extend the window at least one opaque voxel past
+   every wall to retain its surface impedance in the modal solve and, when
+   attached, the auxiliary PML. If a wall lies exactly on the rim, it becomes
+   PEC in the modal solve and virtual guide, removing that wall's impedance
+   and loss from the modeled continuation.
 
 .. figure:: ../../images_shared/sibc_eigenmode_cylindrical_guide.png
    :alt: Cylindrical SIBC waveguide inside a rectangular modal window with opaque padding around the curved wall.
    :width: 75%
 
    **Cylindrical waveguide.** Enclose the circular bore and its SIBC wall in
-   the rectangular modal window, with opaque voxels outside the wall for a
-   virtual guide. The circle is schematic: the solver sees a voxelized wall.
-   Refine the transverse grid and check the mode and S-parameters for
+   the rectangular modal window, with opaque voxels outside the wall to keep
+   it inside the PEC rim. The circle is schematic: the solver sees a voxelized
+   wall. Refine the transverse grid and check the mode and S-parameters for
    convergence, especially near the curved boundary.
 
 .. _sibc-pml:
@@ -417,10 +420,11 @@ requirements are collected here:
   volume to cover the wall's electric and magnetic samples. Ending a bound
   exactly on the wall can omit required samples and is rejected.
 * A virtual-guide modal window may intersect SIBC walls at its artificial PEC
-  rim, using the same electric constraints as the modal solve. A complete
-  physical surface wall exactly at the rim still requires opaque padding for
-  transverse PML coupling. In 2D the artificial constraints apply only along
-  the physical transverse axis, not the synthetic invariant dimension.
+  rim. The modal solve and auxiliary guide both clamp tangential electric
+  fields there, including on complete physical SIBC walls at the rim. Use
+  opaque padding beyond a wall to retain its surface impedance. In 2D these
+  constraints apply only along the physical transverse axis, not the
+  synthetic invariant dimension.
   CPU virtual guides support the same lossy/dispersive retained hosts as
   domain PML, including independent bulk and surface histories at the
   aperture and throughout the auxiliary absorber.

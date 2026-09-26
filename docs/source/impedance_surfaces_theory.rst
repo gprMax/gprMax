@@ -880,7 +880,10 @@ This shared geometry is as important as sharing the exact discrete ADE law
 (``f``, ``q``, and ``Z0`` in its local Foster form): a half-cell area or sign
 mismatch would change both loss and mode phase.
 
-For a rectangular impedance guide, a typical source/monitor definition is:
+For a rectangular impedance guide, extend the port one cell into the opaque
+wall beyond the inner aperture bounds ``guide_y0``, ``guide_y1``, ``guide_z0``,
+and ``guide_z1``. Here ``dy`` and ``dz`` are the transverse cell sizes. This
+keeps the SIBC wall inside the port's PEC rim, with or without a virtual guide:
 
 .. code-block:: python
 
@@ -889,8 +892,8 @@ For a rectangular impedance guide, a typical source/monitor definition is:
     ))
     scene.add(gprMax.EigenmodePort(
         port=1,
-        p1=(0.04, guide_y0, guide_z0),
-        p2=(0.04, guide_y1, guide_z1),
+        p1=(0.04, guide_y0 - dy, guide_z0 - dz),
+        p2=(0.04, guide_y1 + dy, guide_z1 + dz),
         direction='+',
         modes=(1,),
         anchors=(8e9, 9e9, 10e9, 11e9, 12e9),
@@ -898,8 +901,8 @@ For a rectangular impedance guide, a typical source/monitor definition is:
     ))
     scene.add(gprMax.EigenmodePort(
         port=2,
-        p1=(0.08, guide_y0, guide_z0),
-        p2=(0.08, guide_y1, guide_z1),
+        p1=(0.08, guide_y0 - dy, guide_z0 - dz),
+        p2=(0.08, guide_y1 + dy, guide_z1 + dz),
         direction='-',
         modes=(1,),
         anchors=(8e9, 9e9, 10e9, 11e9, 12e9),
@@ -1128,10 +1131,12 @@ plates at the window edges, in all three orientations and both directions,
 with active and passive ports. The modal PEC constraints include the static
 Faraday equations at clamped E samples. The auxiliary grid omits those entire
 surface rows and freezes their detached main-grid counterparts, while retaining
-every magnetic term and ADE coefficient of unconstrained rows. A physical SIBC
-wall at the rim keeps its equation in the direct modal solve when all its
-magnetic samples are inside the window; a virtual guide needs opaque padding
-beyond that physical wall for transverse PML coupling.
+every magnetic term and ADE coefficient of unconstrained rows. All ports
+replace complete physical SIBC walls on the rim by PEC, matching the auxiliary
+update when a virtual guide is attached. The physical-continuation
+tests cover one or both walls on that rim, active and passive ports, all three
+normals, and both propagation directions. Opaque padding beyond a physical
+wall retains its surface equation in both direct and virtual ports.
 The profile audit retained in
 ``testing/validation/impedance_surface/results/sibc_pml/profile_audit.json``
 found late growth with two duplicated unshifted HORIPML terms in both an

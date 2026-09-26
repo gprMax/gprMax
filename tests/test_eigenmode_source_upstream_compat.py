@@ -193,13 +193,18 @@ def test_pec_masks_follow_component_ids_even_when_voxels_disagree(normal_axis):
     source = _source(grid)
     source.normal_axis = normal_axis
     source.transverse_axes = tuple(a for a in range(3) if a != normal_axis)
-    # All voxels are PEC, but only these three electric samples are clamped.
+    # Away from the artificial PEC rim, only these three electric samples
+    # are clamped; the cell-centred PEC voxels must not constrain the rest.
     ids[:3, 1, 1, 1] = pec.numID
     masks = source._yee_pec_electric_component_masks(grid)
     assert [mask.shape for mask in masks] == [(2, 3), (3, 2), (3, 3)]
-    for mask in masks:
-        assert np.count_nonzero(mask) == 1
-        assert mask[1, 1]
+    expected = (
+        [[True, False, True], [True, True, True]],
+        [[True, True], [False, True], [True, True]],
+        [[True, True, True], [True, True, True], [True, True, True]],
+    )
+    for mask, wanted in zip(masks, expected):
+        np.testing.assert_array_equal(mask, wanted)
 
 
 @pytest.mark.parametrize("normal_axis", range(3))

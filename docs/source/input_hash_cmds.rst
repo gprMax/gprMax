@@ -458,8 +458,12 @@ See :doc:`impedance_surfaces` for model selection, geometry, and troubleshooting
 
     Direct 3-D and 2-D TE/TM ``#eigenmode_port`` planes are supported when the impedance
     boundary is propagation-invariant through the modal plane and the modal
-    window contains its required boundary field components. The FDFD operator
-    uses the exact time-discrete ADE response and clipped Yee Ampere rows.
+    window contains its required boundary field components. Every modal
+    window has a PEC rim, with or without a virtual waveguide: tangential
+    electric fields there are zero, replacing any SIBC rows on the rim.
+    Extend the window at least one opaque voxel beyond a wall to retain its
+    surface impedance and loss. The FDFD operator uses the exact time-discrete
+    ADE response and clipped Yee Ampere rows for the retained interior walls.
     Keep every eigenmode anchor and its trapezoidal bilinear-warped evaluation
     frequency inside the surface model's declared fit band; extrapolation is
     rejected. The bulk operator uses the Yee temporal and longitudinal
@@ -467,9 +471,10 @@ See :doc:`impedance_surfaces` for model selection, geometry, and troubleshooting
     physical-frequency response. The surface ADE reduction uses its exact
     discrete response; see :doc:`eigenmode_port_theory`.
     ``#virtual_waveguide`` supports passive SIBC walls, including fitted
-    metal models, uniformly extruded along the propagation direction. Walls
-    must lie strictly inside the modal window with opaque-voxel padding
-    along each physical transverse axis (only one such axis in 2-D).
+    metal models, uniformly extruded along the propagation direction. Its
+    transverse PEC boundary matches the modal solve. Opaque-voxel padding
+    keeps SIBC walls active inside the window along each physical transverse
+    axis (only one such axis in 2-D).
     SIBC can continue through a longitudinal PML when its wall and every
     retained material are uniformly extruded along the absorption direction,
     including neighbouring stencil cells. At intersecting edges, retained

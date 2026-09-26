@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
-"""Shared Yee constraints at a surface-impedance port's artificial PEC rim."""
+"""Shared Yee constraints at a modal port's artificial PEC rim."""
 
 import numpy as np
 
@@ -40,45 +40,4 @@ def pec_electric_masks(cell_shape, invariant_local=None):
                 face[axis] = position
                 mask[tuple(face)] = True
         masks.append(mask)
-    return tuple(masks)
-
-
-def sibc_window_pec_masks(system, plane, transverse_axes, start, stop, invariant_local=None):
-    """Constrain artificial cuts, but retain complete physical SIBC walls.
-
-    A surface row on the rim is a physical wall if its entire ordinary-H
-    circulation is present in the port. If cropping removes any H sample,
-    the artificial PEC wall replaces that complete electric row instead.
-    """
-    cell_shape = tuple(int(high - low) for low, high in zip(start, stop))
-    masks = list(pec_electric_masks(cell_shape, invariant_local))
-    local_axes = (*transverse_axes, next(axis for axis in range(3) if axis not in transverse_axes))
-    magnetic_shapes = (
-        (cell_shape[0] + 1, cell_shape[1]),
-        (cell_shape[0], cell_shape[1] + 1),
-        cell_shape,
-    )
-    for edge in system.edge_info:
-        if edge[1 + local_axes[2]] != plane:
-            continue
-        electric_axis = local_axes.index(int(edge[0]))
-        index = tuple(int(edge[1 + axis] - low) for axis, low in zip(transverse_axes, start))
-        mask = masks[electric_axis]
-        if not all(0 <= value < size for value, size in zip(index, mask.shape)):
-            continue
-        if not mask[index]:
-            continue
-        h_start, h_count = (int(value) for value in edge[4:6])
-        if h_count == 0:
-            continue
-        for h in system.h_info[h_start : h_start + h_count]:
-            magnetic_axis = local_axes.index(int(h[0]))
-            h_index = tuple(int(h[1 + axis] - low) for axis, low in zip(transverse_axes, start))
-            if not all(
-                0 <= value < size
-                for value, size in zip(h_index, magnetic_shapes[magnetic_axis])
-            ):
-                break
-        else:
-            mask[index] = False
     return tuple(masks)

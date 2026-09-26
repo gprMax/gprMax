@@ -32,7 +32,7 @@ from gprMax.cython.virtual_waveguide import (
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import process_materials
-from gprMax.modal_window import pec_electric_masks, sibc_window_pec_masks
+from gprMax.modal_window import pec_electric_masks
 from gprMax.mode2d import mode2d_geometry
 from gprMax.updates.cpu_updates import CPUUpdates
 
@@ -183,15 +183,7 @@ class VirtualWaveguide:
         invariant_local = (
             None if not self.reduced else self.transverse_axes.index(self.reduced.invariant_axis)
         )
-        window_pec = sibc_window_pec_masks(
-            system,
-            self.plane_index,
-            self.transverse_axes,
-            (self.u0, self.v0),
-            (self.u1, self.v1),
-            invariant_local,
-        )
-        rim = pec_electric_masks((self.nu, self.nv), invariant_local)
+        window_pec = pec_electric_masks((self.nu, self.nv), invariant_local)
         local_axes = (*self.transverse_axes, self.normal_axis)
         for index, edge in enumerate(system.edge_info):
             coordinate = edge[1:4]
@@ -207,11 +199,6 @@ class VirtualWaveguide:
                 # The dense guide/coupling kernels leave tangential rim E
                 # at zero. Do not let a sparse ADE row overwrite that PEC.
                 continue
-            if rim[local_axes.index(int(edge[0]))][local_index]:
-                raise ValueError(
-                    "A physical SIBC wall on the virtual-waveguide rim needs opaque "
-                    "padding beyond it for transverse PML coupling."
-                )
             ports = slice(int(edge[6]), int(edge[6] + edge[7]))
             if np.any(system.port_normal[ports, 0] == self.normal_axis):
                 raise ValueError(

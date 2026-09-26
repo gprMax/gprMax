@@ -13,7 +13,10 @@ pytestmark = pytest.mark.usefixtures("suppress_sibc_fit_plots")
 
 @pytest.mark.parametrize("polarization", ("TE", "TM"))
 @pytest.mark.parametrize("invariant,normal", ((0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)))
-def test_physical_sibc_wall_on_port_rim_keeps_surface_rows(tmp_path, monkeypatch, polarization, invariant, normal):
+@pytest.mark.parametrize("virtual", (False, True))
+def test_physical_sibc_wall_on_port_rim(
+    tmp_path, monkeypatch, polarization, invariant, normal, virtual,
+):
     import gprMax
     from testing.validation.impedance_surface import validate_2d as validation
 
@@ -33,13 +36,21 @@ def test_physical_sibc_wall_on_port_rim_keeps_surface_rows(tmp_path, monkeypatch
     monkeypatch.setattr(validation, "scene_2d", scene)
     traces, grid = run_2d(
         tmp_path / "cropped", polarization=polarization, invariant=invariant, normal=normal,
-        resistance="foster", virtual=False, active=True, steps=150,
+        resistance="foster", virtual=virtual, active=True, steps=150,
         direction="+" if normal % 2 else "-",
     )
     assert np.all(np.isfinite(traces)) and np.max(np.abs(traces)) > 0
-    solver = grid.eigenmodesources[0].mode_solver
-    assert solver.surface_boundary_rows
-    assert np.imag(solver.modal_complex_neff) < 0
+    port = grid.virtual_waveguides[0].port if virtual else grid.eigenmodesources[0]
+    solver = port.mode_solver
+    assert not solver.surface_boundary_rows
+    assert abs(np.imag(solver.modal_complex_neff)) < 1e-12
+    if virtual:
+        guide = grid.virtual_waveguides[0]
+        assert guide._impedance_window_edges and not guide._impedance_edges
+        for component in (invariant, normal):
+            field = getattr(guide.aux_grid, "E" + "xyz"[component])
+            for side in (0, guide.aux_grid.size[transverse]):
+                assert not np.any(np.take(field, side, axis=transverse))
 
 
 @pytest.mark.parametrize("polarization", ("TE", "TM"))

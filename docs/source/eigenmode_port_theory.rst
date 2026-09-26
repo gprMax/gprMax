@@ -1222,9 +1222,11 @@ the two derivatives need not be negative adjoints at a clipped wall.
 CPU ``VirtualWaveguide`` supports all 2D TE/TM orientations. Its modal window
 spans the full invariant storage dimension. Its artificial PEC rim constrains
 tangential E only at the ends of the physical transverse coordinate, including
-where a cropped SIBC row needs a magnetic sample outside the window. A complete
-physical SIBC wall at the rim retains its surface equation in the direct modal
-solve; a virtual guide requires opaque padding beyond that wall for its PML.
+where a cropped SIBC row needs a magnetic sample outside the window. All
+ports constrain complete SIBC rows on that rim to PEC too, whether or not a
+virtual guide is attached. This matches the auxiliary aperture and PML
+updates. Opaque padding moves a physical wall inside the window and retains
+its SIBC equation.
 The guide and its retained host must remain uniform along propagation through
 the aperture and PML. Both
 ordinary and virtual sources apply the surface-row modal forcing and ADE

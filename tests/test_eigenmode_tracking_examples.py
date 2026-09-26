@@ -121,8 +121,14 @@ def test_circular_hash_models_preserve_pec_wall_samples(tmp_path, monkeypatch, m
         for port in ports:
             masks = port._yee_pec_electric_component_masks(grid)
             tensors = port._extract_local_complex_property_tensors(grid, electric=True)
-            for mask, values in zip(masks, tensors):
-                assert not np.any(mask & np.isfinite(values))
+            for component, (mask, values) in enumerate(zip(masks, tensors)):
+                # Tangential samples on the artificial port rim are always
+                # PEC. Interior wall constraints must still follow Yee IDs.
+                interior = tuple(
+                    slice(None) if axis == component else slice(1, -1)
+                    for axis in range(2)
+                )
+                np.testing.assert_array_equal(mask[interior], ~np.isfinite(values[interior]))
         raise GeometryAudited()
 
     monkeypatch.setattr(FDTDGrid, "_eigenmode_port_grid_init", audit)
