@@ -2169,7 +2169,9 @@ port/mode channels.
   Exact-mode mappings such as ``1:y;2:x`` require ``tracking=legacy``,
   declared ``degenerate`` pairs, and both members of each selected pair.
   With ``tracking=auto``, replace mappings with one or two shared directions.
-  Directions in an explicit pair need not be orthogonal, but must be independent. Zero/nonfinite, normal-to-port, or
+  Directions in an explicit pair need not be orthogonal, but must be clearly
+  distinct: their normalized direction-matrix condition number must not exceed
+  ``10`` (an angle of approximately 11.4 to 168.6 degrees). Zero/nonfinite, normal-to-port, or
   dependent directions are rejected. Values are parsed literally without
   expression evaluation, after the anchor and plotting arguments.
 

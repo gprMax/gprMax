@@ -14,6 +14,8 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 _CONDITION_LIMIT = 1e8
+# User-selected unit directions must be at least ~11.4 degrees from collinearity.
+_POLARIZATION_CONDITION_LIMIT = 10.0
 _DEGENERACY_TOLERANCE = 1e-8
 _RESIDUAL_TOLERANCE = 1e-9
 _SUBSPACE_PIVOT_TOLERANCE = 1e-12
@@ -774,9 +776,11 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
         shared_pair = sequence and len(value) == 2
         if shared_pair:
             primary, partner = (normalize_direction(direction) for direction in value)
-            if np.linalg.cond(np.asarray((primary, partner)).T) > _CONDITION_LIMIT:
+            if np.linalg.cond(np.asarray((primary, partner)).T) > _POLARIZATION_CONDITION_LIMIT:
                 raise ValueError(
-                    "Requested polarization directions are linearly dependent or ill-conditioned."
+                    "Requested polarization directions are linearly dependent or ill-conditioned. "
+                    "Choose clearly distinct transverse directions: condition number must be "
+                    "at most 10 (about 11.4 degrees away from parallel or antiparallel)."
                 )
         else:
             primary = normalize_direction(value)
@@ -795,9 +799,11 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
                     "Physical polarization mappings require both members of a two-mode pair."
                 )
             matrix = np.asarray([result[item] for item in group]).T
-            if np.linalg.cond(matrix) > _CONDITION_LIMIT:
+            if np.linalg.cond(matrix) > _POLARIZATION_CONDITION_LIMIT:
                 raise ValueError(
-                    "Requested polarization directions are linearly dependent or ill-conditioned."
+                    "Requested polarization directions are linearly dependent or ill-conditioned. "
+                    "Choose clearly distinct transverse directions: condition number must be "
+                    "at most 10 (about 11.4 degrees away from parallel or antiparallel)."
                 )
     return result
 

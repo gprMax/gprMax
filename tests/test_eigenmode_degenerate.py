@@ -617,3 +617,17 @@ def test_shared_pair_rejects_out_of_plane_component(axis, member):
     directions[member][axis] = 1e-6
     with pytest.raises(ValueError, match="transverse to the port normal"):
         normalize_polarizations(directions, (), axis, unresolved=True)
+
+
+@pytest.mark.parametrize("mapping", (False, True))
+@pytest.mark.parametrize("unresolved", (False, True))
+@pytest.mark.parametrize("angle, accepted", [(10, False), (12, True), (45, True), (90, True), (168, True), (170, False)])
+def test_user_directions_must_be_clearly_distinct(mapping, unresolved, angle, accepted):
+    radians = np.deg2rad(angle)
+    directions = ("x", (np.cos(radians), np.sin(radians), 0))
+    value = dict(zip((1, 2), directions)) if mapping else directions
+    if accepted:
+        normalize_polarizations(value, ((1, 2),), 2, unresolved=unresolved)
+    else:
+        with pytest.raises(ValueError, match="clearly distinct.*at most 10"):
+            normalize_polarizations(value, ((1, 2),), 2, unresolved=unresolved)

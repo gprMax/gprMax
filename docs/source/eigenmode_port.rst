@@ -713,8 +713,9 @@ All axes are global and must be transverse to the port normal: ``"z"`` is
 invalid for a z-normal port. Vectors must be finite, nonzero and real, and are
 normalized. A normalized normal component larger than ``1e-12`` is rejected
 (roundoff below that tolerance is removed). For two directions, gprMax rejects
-a direction matrix condition number above ``1e8``; this catches parallel,
-antiparallel, and nearly dependent directions before solving. These errors
+a normalized direction matrix condition number above ``10``. The angle between
+the directions must therefore be approximately 11.4 to 168.6 degrees; directions
+too close to parallel or antiparallel are rejected before solving. These errors
 also apply to explicit legacy mappings. Choose two well-separated transverse
 directions, ideally orthogonal. gprMax does not repair an invalid pair by
 projecting it into the transverse plane or orthogonalizing it.

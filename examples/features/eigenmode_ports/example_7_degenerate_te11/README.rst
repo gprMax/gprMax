@@ -56,7 +56,9 @@ For two directions, the second is taken literally. Both must be transverse,
 finite, real, nonzero and linearly independent. Out-of-plane directions and
 nearly parallel or antiparallel directions raise an error before solving.
 The normalized normal-component tolerance is ``1e-12``; the direction matrix
-condition-number limit is ``1e8``. Prefer orthogonal directions.
+normalized direction-matrix condition-number limit is ``10``. The angle between
+the directions must be approximately 11.4 to 168.6 degrees. Prefer orthogonal
+directions.
 Real vectors are normalized:
 ``(1, 1, 0)`` is one direction, whereas ``((1, 1, 0), (-1, 1, 0))`` is two.
 Only numerically degenerate pairs can be mixed; isolated modes stay unchanged.
