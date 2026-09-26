@@ -347,6 +347,17 @@ class FDFD_1D_mode_solver:
         self.free_scalar_mask = free_scalar.copy()
         self.eigenvalues, self.eigenvectors = self._solve_reduced(operator, free_scalar)
         self.operator_neff = self._passive_positive_neff(-self.eigenvalues)
+        if getattr(self, "calculate_diagnostics", False):
+            reduced_vectors = self.eigenvectors[free_scalar, :]
+            applied = operator[free_scalar, :][:, free_scalar] @ reduced_vectors
+            target = reduced_vectors * self.eigenvalues[None, :]
+            denominator = np.linalg.norm(applied, axis=0) + np.linalg.norm(target, axis=0)
+            self.eigenpair_residuals = np.linalg.norm(applied - target, axis=0) / np.maximum(
+                denominator, 1e-300
+            )
+            # The scalar formulation reconstructs the complementary fields by
+            # direct application of the same discrete first-order operators.
+            self.field_residuals = self.eigenpair_residuals.copy()
         self._calculate_fields(longitudinal_inverse)
         self._zero_constrained_fields()
         self._orient_backward_modes_to_forward_power(longitudinal_inverse)

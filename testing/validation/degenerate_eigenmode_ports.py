@@ -20,6 +20,9 @@ def circular_scene(
     combination=None,
     steps=400,
     monitor=False,
+    tracking="legacy",
+    verification="full",
+    averaging="y",
 ):
     dl = 1e-3
     transverse = tuple(axis for axis in range(3) if axis != normal_axis)
@@ -48,7 +51,8 @@ def circular_scene(
             p2=point((8, 8, 72)),
             r=6e-3,
             material_id="free_space",
-            averaging="n",
+            # Both constructions are supported; they represent different walls.
+            averaging=averaging,
         )
     )
     plane = (24 if virtual else 12) if direction == "+" else (48 if virtual else 60)
@@ -69,7 +73,9 @@ def circular_scene(
             modes=(1, 2),
             anchors="auto" if broadband else (22e9,),
             plot_fields=False,
-            degenerate=(1, 2),
+            tracking=tracking,
+            verification=verification,
+            degenerate=(1, 2) if tracking == "legacy" else None,
             mode_polarizations={1: "xyz"[transverse[1]], 2: "xyz"[transverse[0]]},
         )
     )
@@ -83,7 +89,9 @@ def circular_scene(
                 modes=(1, 2),
                 anchors="auto" if broadband else (22e9,),
                 plot_fields=False,
-                degenerate=(1, 2),
+                tracking=tracking,
+                verification=verification,
+                degenerate=(1, 2) if tracking == "legacy" else None,
                 mode_polarizations={1: "xyz"[transverse[1]], 2: "xyz"[transverse[0]]},
             )
         )

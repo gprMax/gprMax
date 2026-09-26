@@ -41,6 +41,47 @@ def _solver_constants(monkeypatch):
     )
 
 
+@pytest.mark.parametrize("epsilon", (2.0, 2.0 - 0.2j))
+def test_independent_yee_pec_sample_preserves_faraday_equation(monkeypatch, epsilon):
+    """An E clamp is not an H clamp when its longitudinal neighbours are live."""
+    nu, nv = 8, 6
+    eu = np.full((nu, nv + 1), epsilon, dtype=complex)
+    ev = np.full((nu + 1, nv), epsilon, dtype=complex)
+    ew = np.full((nu + 1, nv + 1), epsilon, dtype=complex)
+    eu[:, [0, -1]] = np.inf
+    ev[[0, -1], :] = np.inf
+    ew[:, [0, -1]] = np.inf
+    ew[[0, -1], :] = np.inf
+    eu[3, 3] = np.inf
+    solver = FDFD_2D_mode_solver(
+        20e9, 1e-3, 1e-3, 1, eu, ev, ew,
+        np.ones_like(ev), np.ones_like(eu), np.ones((nu, nv)),
+    )
+    captured = {}
+    reduce = solver._reduce_transverse_operators
+
+    def capture(P, Q):
+        captured.update(P=P, Q=Q)
+        return reduce(P, Q)
+
+    monkeypatch.setattr(solver, "_reduce_transverse_operators", capture)
+    solver.calculate_diagnostics = True
+    solver.retain_tracking_operator = True
+    solver.solve()
+    e = np.concatenate((solver.Eu.reshape(-1, 2, order="F"), solver.Ev.reshape(-1, 2, order="F")))
+    h = -1j * solver.eta0 * np.concatenate((
+        solver.Hu.reshape(-1, 2, order="F"), solver.Hv.reshape(-1, 2, order="F")
+    ))
+    roots = 1j * solver.operator_neff
+    # Faraday holds even on PEC electric rows; Ampere only on live E updates.
+    np.testing.assert_allclose(captured["P"] @ h, e * roots, atol=1e-8, rtol=1e-10)
+    active_h = ~np.concatenate((solver.pec_v_mask.ravel(order="F"), solver.pec_u_mask.ravel(order="F")))
+    np.testing.assert_allclose((captured["Q"] @ e)[active_h], (h * roots)[active_h], atol=1e-8, rtol=1e-10)
+    assert np.max(abs(solver.Hv[3, 3])) > 1e-4
+    assert np.max(solver.eigenpair_residuals) < 1e-10
+    assert np.max(solver.field_residuals) < 1e-10
+
+
 def test_lossy_pec_waveguide_mode_uses_same_passive_branch_for_neff_and_h():
     nu, nv = 8, 6
     spacing = 5e-3
@@ -247,8 +288,8 @@ def test_rectangular_te10_enforces_pec_normal_h_and_wave_impedance():
     )
     solver.solve()
 
-    np.testing.assert_array_equal(solver.hu_constraint_mask, pec_v)
-    np.testing.assert_array_equal(solver.hv_constraint_mask, pec_u)
+    assert not np.any(solver.hu_constraint_mask)
+    assert not np.any(solver.hv_constraint_mask)
     np.testing.assert_array_equal(solver.modal_Hu[pec_v], 0.0)
     np.testing.assert_array_equal(solver.modal_Hv[pec_u], 0.0)
 

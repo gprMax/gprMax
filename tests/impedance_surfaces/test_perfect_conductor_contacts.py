@@ -29,7 +29,7 @@ import gprMax.impedance_surfaces as implementation
 
 
 DL = 0.001
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("suppress_sibc_fit_plots")]
 EDGE = np.array((4, 4, 4))
 # Cyclic quadrants in the two transverse directions of each E component.
 OFFSETS = (

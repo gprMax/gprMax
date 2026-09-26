@@ -76,6 +76,38 @@ def test_vector_plot_uses_two_columns_and_one_row_per_anchor(tmp_path, monkeypat
     assert sum("65 GHz" in axis.get_title() for axis in main_axes) == 2
 
 
+def test_tracked_vector_plot_adds_dispersion_and_warning_markers(tmp_path, monkeypatch):
+    captured = {}
+    original_savefig = Figure.savefig
+
+    def capture_figure(figure, *args, **kwargs):
+        captured["figure"] = figure
+        return original_savefig(figure, *args, **kwargs)
+
+    monkeypatch.setattr(Figure, "savefig", capture_figure)
+    solvers = (_full_vector_solver(45e9), _full_vector_solver(65e9, scale=1.2))
+    output = tmp_path / "tracked.png"
+    plot_eigenmode_port_fields(
+        solvers=solvers,
+        frequencies=(45e9, 65e9),
+        mode_index=1,
+        port_index=1,
+        output_path=output,
+        tracking_diagnostics={"schema_version": 1},
+        quality_diagnostics=(
+            {"mode": 1, "frequency": 45e9, "confinement": "unbound_suspect"},
+        ),
+        tracked_mode_indices=(1,),
+        dispersion_solvers=solvers,
+        dispersion_frequencies=(45e9, 65e9),
+    )
+
+    titles = [axis.get_title() for axis in captured["figure"].axes]
+    assert any("Tracked dispersion: phase index" in title for title in titles)
+    assert any("Tracked dispersion: attenuation index" in title for title in titles)
+    assert output.is_file()
+
+
 def test_vector_plot_rejects_mismatched_anchor_counts(tmp_path):
     output = Path(tmp_path) / "guide_Port1_Mode1.png"
     with pytest.raises(ValueError, match="counts must match"):

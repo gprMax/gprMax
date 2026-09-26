@@ -17,6 +17,9 @@ Directory layout
     severe tracking mismatch should warn and fall back to one band-centre
     anchor. The common DFT still covers 45--65 GHz. The expected
     fundamental-mode S21 is approximately 0 dB and S11 is very small.
+    The air bore uses ``averaging=y`` to retain the PEC electric samples shared
+    with the cylindrical shell; disabling it would change the FDTD wall while
+    the modal solver still applies the original voxel PEC constraints.
 
 ``bending_waveguide``
     Broadband 2D TM and TE 90-degree curved dielectric bends made from

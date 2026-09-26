@@ -296,7 +296,10 @@ def test_sfcw_output_cannot_overwrite_an_input(tmp_path, input_role, alias_kind)
     if alias_kind != "same_path":
         destination = tmp_path / "alias.h5"
         if alias_kind == "symlink":
-            destination.symlink_to(files[input_role])
+            try:
+                destination.symlink_to(files[input_role])
+            except OSError as error:
+                pytest.skip(f"Filesystem does not permit symlink creation: {error}")
         else:
             destination.hardlink_to(files[input_role])
 

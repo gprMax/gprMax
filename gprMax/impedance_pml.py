@@ -1,8 +1,9 @@
 """Longitudinal CPU PML coupling for uniformly extruded impedance surfaces.
 
-For a wall extruded along a PML stretch direction, the retained fraction
-in the longitudinal H circulation cancels its retained electric area. The
-ordinary PML derivative and convolution histories therefore remain valid.
+For a wall extruded along a PML stretch direction, the longitudinal H
+circulation has the same geometric retained fraction as the electric area.
+This identity is independent of the retained materials' constitutive laws.
+The ordinary PML derivative and convolution histories therefore remain valid.
 The sparse system captures the PML increment as an additional circulation,
 preserving the original electric field for its implicit boundary/ADE solve.
 """
@@ -61,6 +62,8 @@ def prepare_impedance_pml(grid, system):
     its grid retains the original solid marker IDs and marker-model mapping.
     Only affected edges are changed. Passive constant and Foster loads,
     including exact zero-admittance PMC, use the same captured forcing.
+    Loss and bulk polarization remain owned by the compiled sparse edge;
+    its denominator and history corrections include every retained quadrant.
 
     Internal slab upper transverse bounds must extend into the excluded
     volume: existing CPU kernels use half-open transverse bounds for both
@@ -108,25 +111,28 @@ def prepare_impedance_pml(grid, system):
             raise ValueError("surface-impedance walls inside PML require passive models")
 
         cells = tuple(_edge_cells(grid, component, coordinate))
-        retained = {int(grid.solid[cell]) for cell in cells if int(grid.solid[cell]) not in markers}
-        if len(retained) != 1:
-            raise ValueError("SIBC edges inside PML require a homogeneous retained host material")
-        host = grid.materials[retained.pop()]
-        if (
+        retained = [
+            grid.materials[int(grid.solid[cell])]
+            for cell in cells
+            if int(grid.solid[cell]) not in markers
+        ]
+        if not retained or any(
             host.is_pec
             or host.is_pmc
-            or getattr(host, "poles", 0)
             or host.directional_materials is not None
-            or host.se != 0
-            or host.sm != 0
+            or not np.isfinite(host.se)
+            or host.se < 0
+            or not np.isfinite(host.sm)
+            or host.sm < 0
             or not np.isfinite(host.er)
             or host.er <= 0
             or not np.isfinite(host.mr)
             or host.mr <= 0
+            for host in retained
         ):
             raise ValueError(
-                "SIBC edges inside PML require an isotropic, lossless, "
-                "nondispersive retained host material"
+                "SIBC edges inside PML require isotropic retained host materials "
+                "with finite nonnegative conductivities and positive finite er and mr"
             )
 
         for index, pml in overlaps:
@@ -165,11 +171,16 @@ def prepare_impedance_pml(grid, system):
                     )
                 extrusion_checked.add(key)
 
-        material = holds.get(host.er)
+        # This private material only captures the curl correction (srce=1).
+        # Never put an effective conductivity or bulk poles here: the sparse
+        # row already owns their area-weighted masses and histories. Retain
+        # the quarter-area mean epsilon-infinity as descriptive material data.
+        effective_er = float(np.mean([host.er for host in retained]))
+        material = holds.get(effective_er)
         if material is None:
-            material = _ImpedancePMLHoldMaterial(len(grid.materials), float(host.er))
+            material = _ImpedancePMLHoldMaterial(len(grid.materials), effective_er)
             grid.materials.append(material)
-            holds[host.er] = material
+            holds[effective_er] = material
         grid.ID[component, i, j, k] = material.numID
         affected.append(edge_index)
         areas.append(

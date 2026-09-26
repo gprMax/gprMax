@@ -182,32 +182,82 @@ def test_pmc_component_ids_become_infinite_permeability_on_source_slice():
     assert np.isinf(mu_ww[1, 1])
 
 
-def test_pmc_cell_expands_to_all_local_magnetic_faces():
-    """A PMC cell constrains two own-axis H faces and its normal H face."""
+@pytest.mark.parametrize("normal_axis", range(3))
+def test_pec_masks_follow_component_ids_even_when_voxels_disagree(normal_axis):
     pec, pmc, free_space = _materials()
+    ids = np.full((6, 3, 3, 3), free_space.numID, dtype=np.uint32)
     grid = SimpleNamespace(
-        materials=[pec, pmc, free_space],
-        ID=np.full((6, 3, 3, 3), free_space.numID, dtype=np.uint32),
-        solid=np.full((3, 3, 3), free_space.numID, dtype=np.uint32),
+        materials=[pec, pmc, free_space], ID=ids, dt=1e-12,
+        solid=np.full((3, 3, 3), pec.numID, dtype=np.uint32),
     )
-    grid.solid[0, 0, 0] = pmc.numID
     source = _source(grid)
-
-    pmc_u, pmc_v, pmc_w = source._cell_pmc_magnetic_component_masks(grid)
-
-    expected_u = np.zeros((3, 2), dtype=bool)
-    expected_u[0:2, 0] = True
-    expected_v = np.zeros((2, 3), dtype=bool)
-    expected_v[0, 0:2] = True
-    expected_w = np.zeros((2, 2), dtype=bool)
-    expected_w[0, 0] = True
-    assert np.array_equal(pmc_u, expected_u)
-    assert np.array_equal(pmc_v, expected_v)
-    assert np.array_equal(pmc_w, expected_w)
+    source.normal_axis = normal_axis
+    source.transverse_axes = tuple(a for a in range(3) if a != normal_axis)
+    # All voxels are PEC, but only these three electric samples are clamped.
+    ids[:3, 1, 1, 1] = pec.numID
+    masks = source._yee_pec_electric_component_masks(grid)
+    assert [mask.shape for mask in masks] == [(2, 3), (3, 2), (3, 3)]
+    for mask in masks:
+        assert np.count_nonzero(mask) == 1
+        assert mask[1, 1]
 
 
-def test_eigenmode_source_passes_cell_pmc_masks_to_solver(monkeypatch):
-    """Cell-derived PMC masks reach the FDFD solver constructor."""
+@pytest.mark.parametrize("normal_axis", range(3))
+def test_pmc_masks_follow_component_ids_even_when_voxels_disagree(normal_axis):
+    pec, pmc, free_space = _materials()
+    ids = np.full((6, 3, 3, 3), free_space.numID, dtype=np.uint32)
+    grid = SimpleNamespace(
+        materials=[pec, pmc, free_space], ID=ids, dt=1e-12,
+        solid=np.full((3, 3, 3), pmc.numID, dtype=np.uint32),
+    )
+    source = _source(grid)
+    source.normal_axis = normal_axis
+    source.transverse_axes = tuple(a for a in range(3) if a != normal_axis)
+    # PMC voxels must not clamp any of the free-space component samples.
+    assert not any(mask.any() for mask in source._yee_pmc_magnetic_component_masks(grid))
+    ids[3:, 1, 1, 1] = pmc.numID
+    masks = source._yee_pmc_magnetic_component_masks(grid)
+    assert [mask.shape for mask in masks] == [(3, 2), (2, 3), (2, 2)]
+    for mask in masks:
+        assert np.count_nonzero(mask) == 1
+        assert mask[1, 1]
+
+
+@pytest.mark.parametrize("normal_axis", range(3))
+@pytest.mark.parametrize("invariant_local", (0, 1))
+@pytest.mark.parametrize("polarization", ("TE", "TM"))
+def test_1d_pmc_masks_follow_live_yee_layer(normal_axis, invariant_local, polarization):
+    pec, pmc, free_space = _materials()
+    ids = np.full((6, 3, 3, 3), free_space.numID, dtype=np.uint32)
+    grid = SimpleNamespace(
+        materials=[pec, pmc, free_space], ID=ids, dt=1e-12,
+        solid=np.full((3, 3, 3), pmc.numID, dtype=np.uint32),
+    )
+    source = _source(grid)
+    source.normal_axis = normal_axis
+    source.transverse_axes = tuple(a for a in range(3) if a != normal_axis)
+    source.invariant_axis = source.transverse_axes[invariant_local]
+    source.physical_transverse_axis = source.transverse_axes[1 - invariant_local]
+    source.domain_polarization = polarization
+    # Place PMC samples only on the TE layer; the TM layer remains free space.
+    ids[3:, 1, 1, 1] = pmc.numID
+    for electric, prefix in ((True, "eps"), (False, "mu")):
+        tensors = source._extract_local_complex_property_tensors(grid, electric=electric)
+        for component, values in zip(("uu", "vv", "ww"), tensors):
+            setattr(source, f"complex_{prefix}_r_{component}", values)
+
+    inputs = source._one_dimensional_solver_inputs(grid)
+
+    for component in ("t", "a", "w"):
+        mask = inputs[f"pmc_{component}_mask"]
+        assert np.count_nonzero(mask) == (1 if polarization == "TE" else 0)
+        if polarization == "TE":
+            assert mask[1]
+        np.testing.assert_array_equal(mask, ~np.isfinite(inputs[f"mu_r_{component}"]))
+
+
+def test_eigenmode_source_passes_only_yee_pmc_masks_to_solver(monkeypatch):
+    """Only final H component constraints reach the FDFD solver constructor."""
     pec, pmc, free_space = _materials()
     grid = SimpleNamespace(
         materials=[pec, pmc, free_space],
@@ -216,15 +266,18 @@ def test_eigenmode_source_passes_cell_pmc_masks_to_solver(monkeypatch):
         dl=np.full(3, 1e-3),
         dt=1e-12,
     )
-    grid.solid[0, 0, 0] = pmc.numID
+    grid.solid[:] = pmc.numID
+    grid.ID[3:, 1, 1, 1] = pmc.numID
     source = _source(grid)
     source.mode_index = 1
     source.complex_eps_r_uu = np.ones((2, 3), dtype=np.complex128)
     source.complex_eps_r_vv = np.ones((3, 2), dtype=np.complex128)
     source.complex_eps_r_ww = np.ones((3, 3), dtype=np.complex128)
-    source.complex_mu_r_uu = np.ones((3, 2), dtype=np.complex128)
-    source.complex_mu_r_vv = np.ones((2, 3), dtype=np.complex128)
-    source.complex_mu_r_ww = np.ones((2, 2), dtype=np.complex128)
+    (
+        source.complex_mu_r_uu,
+        source.complex_mu_r_vv,
+        source.complex_mu_r_ww,
+    ) = source._extract_local_complex_property_tensors(grid, electric=False)
 
     captured = {}
 
@@ -253,11 +306,11 @@ def test_eigenmode_source_passes_cell_pmc_masks_to_solver(monkeypatch):
 
     source._solve_eigenmode(grid)
 
-    assert captured["pmc_u_mask"][0, 0]
-    assert captured["pmc_u_mask"][1, 0]
-    assert captured["pmc_v_mask"][0, 0]
-    assert captured["pmc_v_mask"][0, 1]
-    assert captured["pmc_w_mask"][0, 0]
+    for component in ("u", "v", "w"):
+        mask = captured[f"pmc_{component}_mask"]
+        assert np.count_nonzero(mask) == 1
+        assert mask[1, 1]
+        np.testing.assert_array_equal(mask, ~np.isfinite(captured[f"mu_r_{component * 2}"]))
 
 
 def test_fdfd_solver_interprets_nonfinite_permeability_as_pmc(monkeypatch):

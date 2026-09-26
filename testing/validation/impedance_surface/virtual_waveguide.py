@@ -23,10 +23,13 @@ def guide_scene(
     steps=600,
     formulation="HORIPML",
     active=False,
+    host_kind=None,
+    layered=False,
 ):
     """Mixed PEC/SIBC guide; auxiliary and monolithic PML positions coincide."""
 
     dl = 1e-3
+    frequency = 12e9 if host_kind is not None else 22e9
     transverse = tuple(axis for axis in range(3) if axis != normal_axis)
     basis = (*transverse, normal_axis)
 
@@ -48,6 +51,21 @@ def guide_scene(
     pml[normal_axis] = pml[normal_axis + 3] = 8
     scene.add(gprMax.PMLThickness(thickness=tuple(pml)))
     scene.add(gprMax.PMLFormulation(formulation=formulation))
+    if host_kind is not None:
+        from .validate_sibc_pml import add_bulk_host
+
+        # Cropping opaque padding changes the default cross-section average
+        # used to choose sigma_max. Fix it in both guides so this comparison
+        # measures aperture coupling rather than different PML profiles.
+        scene.add(gprMax.PMLCFS(
+            alphascalingprofile="constant", alphascalingdirection="forward", alphamin=0, alphamax=0,
+            kappascalingprofile="constant", kappascalingdirection="forward", kappamin=1, kappamax=1,
+            sigmascalingprofile="quartic", sigmascalingdirection="forward", sigmamin=0, sigmamax=8,
+        ))
+        add_bulk_host(scene, host_kind)
+        scene.add(gprMax.Box(
+            p1=point((0, 0, 0)), p2=point((8 if layered else 16, 16, 72)), material_id="host"
+        ))
     for lower, upper in (((0, 0, 0), (3, 16, 72)), ((13, 0, 0), (16, 16, 72))):
         scene.add(gprMax.Box(p1=point(lower), p2=point(upper), material_id="pec"))
     surface = (
@@ -62,10 +80,12 @@ def guide_scene(
         scene.add(gprMax.Box(p1=point(lower), p2=point(upper), material_id="wall"))
     scene.add(
         gprMax.Waveform(
-            wave_type="contsine" if active else "gaussian", amp=1, freq=22e9, id="pulse"
+            wave_type="contsine" if active else "gaussian", amp=1, freq=frequency, id="pulse"
         )
     )
     plane = 24 if direction == "+" else 48
+    if active and not virtual:
+        plane += -12 if direction == "+" else 12
     source = 48 if direction == "+" else 24
     if not active:
         scene.add(
@@ -75,8 +95,8 @@ def guide_scene(
         )
     for y in (4, 8):
         scene.add(gprMax.Rx(p1=point((8, y, 36)), id=f"probe_{y}"))
-    if virtual:
-        scene.add(gprMax.EigenmodeBand(id="band", fmin=22e9, fmax=22e9, points=1))
+    if virtual or active:
+        scene.add(gprMax.EigenmodeBand(id="band", fmin=frequency, fmax=frequency, points=1))
         scene.add(
             gprMax.EigenmodePort(
                 port=1,
@@ -84,13 +104,14 @@ def guide_scene(
                 p2=point((14, 14, plane)),
                 direction=direction,
                 modes=(1,),
-                anchors=(22e9,),
+                anchors=(frequency,),
                 plot_fields=False,
             )
         )
-        scene.add(
-            gprMax.VirtualWaveguide(port=1, length_cells=24, pml_cells=8, source_clearance_cells=4)
-        )
+        if virtual:
+            scene.add(
+                gprMax.VirtualWaveguide(port=1, length_cells=24, pml_cells=8, source_clearance_cells=4)
+            )
         if active:
             scene.add(
                 gprMax.EigenmodeExcitation(port=1, mode=1, waveform="pulse", plot_waveform=False)
@@ -98,7 +119,7 @@ def guide_scene(
     return scene
 
 
-def run_guide(path, **kwargs):
+def run_guide(path, *, precision="double", **kwargs):
     grids = []
     original = FDTDGrid.build
 
@@ -110,7 +131,7 @@ def run_guide(path, **kwargs):
         gprMax.run(
             scenes=[guide_scene(**kwargs)],
             outputfile=path,
-            cpu_precision="double",
+            cpu_precision=precision,
             hide_progress_bars=True,
             log_level=40,
         )

@@ -325,7 +325,19 @@ def _plot_1d_vector(ax, field, component, stagger, phase, field_label):
     colorbar.set_label(f"relative |{field_label}$_t$|")
 
 
-def plot_eigenmode_port_fields(solvers, frequencies, mode_index, port_index, output_path):
+def plot_eigenmode_port_fields(
+    solvers,
+    frequencies,
+    mode_index,
+    port_index,
+    output_path,
+    *,
+    tracking_diagnostics=None,
+    quality_diagnostics=(),
+    tracked_mode_indices=(),
+    dispersion_solvers=None,
+    dispersion_frequencies=None,
+):
     """Write one two-column tangential-vector figure for a port mode.
 
     Each solver/frequency pair occupies one row. Electric and magnetic fields
@@ -345,14 +357,122 @@ def plot_eigenmode_port_fields(solvers, frequencies, mode_index, port_index, out
     if mode < 0 or any(mode >= solver.num_modes for solver in solvers):
         raise ValueError(f"Mode index {mode_index} is outside the solved range.")
 
-    fig = Figure(figsize=(12, max(3.8, 3.8 * len(solvers))), constrained_layout=True)
+    tracked = tracking_diagnostics is not None
+    extra_rows = 1 if tracked else 0
+    fig = Figure(
+        figsize=(12, max(3.8, 3.8 * (len(solvers) + extra_rows))),
+        constrained_layout=True,
+    )
     FigureCanvasAgg(fig)
-    axes = fig.subplots(len(solvers), 2, squeeze=False)
+    axes = fig.subplots(len(solvers) + extra_rows, 2, squeeze=False)
     direction = getattr(solvers[0], "mode_polarizations", {}).get(mode_index)
     label = "" if direction is None else f", E direction {tuple(direction)}"
     fig.suptitle(f"Port {port_index}, Mode {mode_index}{label}: tangential modal vector fields")
 
-    for row, (solver, frequency) in enumerate(zip(solvers, frequencies)):
+    if tracked:
+        dispersion_solvers = tuple(dispersion_solvers or solvers)
+        dispersion_frequencies = np.asarray(
+            frequencies if dispersion_frequencies is None else dispersion_frequencies,
+            dtype=float,
+        )
+        plotted_modes = tuple(tracked_mode_indices or (mode_index,))
+        suspect = {
+            (int(record["mode"]), float(record["frequency"]))
+            for record in quality_diagnostics
+            if record.get("numerical_valid", True)
+            and record.get("confinement") != "bound"
+        }
+        invalid = {
+            (int(record["mode"]), float(record["frequency"]))
+            for record in quality_diagnostics
+            if not record.get("numerical_valid", True)
+        }
+        for mode_position, tracked_mode in enumerate(plotted_modes):
+            values = np.asarray(
+                [solver.complex_neff[tracked_mode - 1] for solver in dispersion_solvers]
+            )
+            width = 2.5 if tracked_mode == mode_index else 1.2
+            alpha = 1.0 if tracked_mode == mode_index else 0.65
+            line = axes[0, 0].plot(
+                dispersion_frequencies,
+                np.real(values),
+                marker="o",
+                linewidth=width,
+                alpha=alpha,
+                label=f"Mode {tracked_mode}",
+            )[0]
+            axes[0, 1].plot(
+                dispersion_frequencies,
+                -np.imag(values),
+                marker="o",
+                linewidth=width,
+                alpha=alpha,
+                color=line.get_color(),
+                label=f"Mode {tracked_mode}",
+            )
+            flagged = np.asarray(
+                [
+                    (tracked_mode, float(frequency)) in suspect
+                    for frequency in dispersion_frequencies
+                ],
+                dtype=bool,
+            )
+            if np.any(flagged):
+                axes[0, 0].scatter(
+                    dispersion_frequencies[flagged],
+                    np.real(values)[flagged],
+                    marker="x",
+                    s=70,
+                    linewidths=2,
+                    color="red",
+                    zorder=5,
+                    label="retained warning" if mode_position == 0 else None,
+                )
+                axes[0, 1].scatter(
+                    dispersion_frequencies[flagged],
+                    -np.imag(values)[flagged],
+                    marker="x",
+                    s=70,
+                    linewidths=2,
+                    color="red",
+                    zorder=5,
+                )
+            rejected = np.asarray(
+                [
+                    (tracked_mode, float(frequency)) in invalid
+                    for frequency in dispersion_frequencies
+                ],
+                dtype=bool,
+            )
+            if np.any(rejected):
+                axes[0, 0].scatter(
+                    dispersion_frequencies[rejected],
+                    np.real(values)[rejected],
+                    marker="X",
+                    s=75,
+                    color="black",
+                    zorder=6,
+                    label="numerically invalid" if mode_position == 0 else None,
+                )
+                axes[0, 1].scatter(
+                    dispersion_frequencies[rejected],
+                    -np.imag(values)[rejected],
+                    marker="X",
+                    s=75,
+                    color="black",
+                    zorder=6,
+                )
+        axes[0, 0].set_title("Tracked dispersion: phase index")
+        axes[0, 1].set_title("Tracked dispersion: attenuation index")
+        axes[0, 0].set_ylabel("Re($n_{eff}$)")
+        axes[0, 1].set_ylabel("-Im($n_{eff}$)")
+        for axis in axes[0]:
+            axis.set_xlabel("Frequency (Hz)")
+            axis.grid(True, alpha=0.25)
+            axis.legend(loc="best")
+
+    for field_row, (solver, frequency) in enumerate(zip(solvers, frequencies)):
+        row = field_row + extra_rows
         if isinstance(solver, FDFD_2D_mode_solver):
             electric = (
                 solver._field_to_cells(solver.Eu[:, :, mode], "u"),

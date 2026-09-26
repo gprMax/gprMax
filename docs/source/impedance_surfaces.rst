@@ -21,6 +21,9 @@ not roughness, plating, temperature dependence, or optical materials.
 This guide starts with setup and result checks. The equations and validation
 evidence are in :doc:`impedance_surfaces_theory`.
 
+The `published HTML guide <https://docs.gprmax.com/en/latest/impedance_surfaces.html>`_
+renders the shared parameter table that GitHub's source preview cannot expand.
+
 .. contents:: On this page
    :local:
    :depth: 1
@@ -349,8 +352,13 @@ requirements are collected here:
   PML absorption direction, including neighbouring stencil cells. Wall faces
   must be tangent to that direction; end caps, steps, and changes of surface
   model inside the absorber are rejected.
-* At the intersecting edges, the retained bulk host must be homogeneous,
-  isotropic, lossless, and nondispersive. The surface itself may be dispersive.
+* At the intersecting edges, retained bulk materials may be heterogeneous,
+  lossy, and electrically dispersive (Debye, Lorentz, Drude, or inclusive
+  mixtures). Each must be isotropic, with positive finite high-frequency
+  permittivity and permeability and finite nonnegative conductivities.
+  Air/substrate junctions are supported. Each constituent must continue
+  unchanged through the absorber and its neighbouring stencil cells.
+  The surface itself may also be dispersive.
 * Both HORIPML and MRIPML support one or two CFS terms for this coupling.
   For an internal ``PMLSlab``, extend its transverse bounds into the opaque
   volume to cover the wall's electric and magnetic samples. Ending a bound
@@ -358,6 +366,9 @@ requirements are collected here:
 * A virtual-guide modal window must enclose the walls with opaque-voxel
   padding beyond them. In 2D, require padding only along the physical
   transverse axis, not the synthetic invariant dimension.
+  CPU virtual guides support the same lossy/dispersive retained hosts as
+  domain PML, including independent bulk and surface histories at the
+  aperture and throughout the auxiliary absorber.
 * Keep the existing source clearance and fit-band requirements. SIBC
   coupling is available on CPU main grids in 3D and all TE/TM orientations,
   in either propagation direction; it does not support subgrids, MPI, or
@@ -378,6 +389,16 @@ Try the executable reduced-mode examples:
 The source and auxiliary surface histories receive the coupled boundary
 correction, including for exact PMC. The update equations and comparisons
 with physical continuations are in :ref:`impedance-pml-theory`.
+
+A copper microstrip with air above a lossy or dispersive substrate may
+continue into longitudinal domain PML with the same cross-section. The
+strip and ground must occupy finite-thickness voxels and extend through the
+absorber; keep their transverse end faces clear of transverse PML. For
+dispersive substrates, ``DispersiveAveraging(enabled=True)`` makes the bulk
+interface sampling consistent with the surface solver's retained-area
+integration. A pulse comparison with a causally longer line is available as::
+
+    python -m testing.validation.impedance_surface.validate_microstrip_pml --host all
 
 Custom PML errors
 -----------------

@@ -116,6 +116,40 @@ def test_single_explicit_anchor_is_intentional_constant_basis(monkeypatch):
     assert grid.eigenmodereceivers[0].frequencies == (5e9,)
 
 
+def test_automatic_tracking_is_explicitly_opted_in(monkeypatch):
+    grid = _configure_grid(monkeypatch)
+    EigenmodeBand(id="wg", fmin=4e9, fmax=6e9, points=21).build(grid)
+    EigenmodePort(
+        port=1,
+        p1=(0.01, 0.005, 0),
+        p2=(0.01, 0.035, float("inf")),
+        direction="+",
+        modes=(1, 2),
+        anchors="auto",
+        tracking="auto",
+        verification="fast",
+        tracking_config={"max_solves": 17},
+        degenerate=(1, 2),
+    ).build(grid)
+
+    spec = grid.eigenmodeportdefs[1]
+    assert spec.tracking == "auto"
+    assert spec.verification == "fast"
+    assert spec.tracking_config.max_solves == 17
+    assert spec.degenerate == ()
+
+    legacy_grid = _configure_grid(monkeypatch)
+    EigenmodeBand(id="wg", fmin=4e9, fmax=6e9, points=21).build(legacy_grid)
+    EigenmodePort(
+        port=1,
+        p1=(0.01, 0.005, 0),
+        p2=(0.01, 0.035, float("inf")),
+        direction="+",
+        modes=(1,),
+    ).build(legacy_grid)
+    assert legacy_grid.eigenmodeportdefs[1].tracking == "legacy"
+
+
 def test_duplicate_global_band_is_rejected(monkeypatch):
     grid = _configure_grid(monkeypatch)
     EigenmodeBand(id="first", fmin=4e9, fmax=6e9, points=21).build(grid)
@@ -150,6 +184,24 @@ def test_hash_commands_parse_global_band_per_port_anchors_and_excitation(monkeyp
         "waveform": "auto",
         "plot_waveform": False,
     }
+
+
+def test_hash_port_parses_tracking_and_verification_options():
+    commands = defaultdict(lambda: None)
+    commands["#eigenmode_band"] = ["wg 4e9 6e9 21"]
+    commands["#eigenmode_port"] = [
+        "1 0.01 0.005 0 0.01 0.035 inf + 1 auto "
+        "tracking=auto verification=fast max_solves=12 edge_fraction_max=0.02"
+    ]
+    commands["#eigenmode_excitation"] = ["1 1 auto n"]
+
+    objects = process_multicmds(commands)
+    port = next(obj for obj in objects if isinstance(obj, EigenmodePort))
+
+    assert port.kwargs["tracking"] == "auto"
+    assert port.kwargs["verification"] == "fast"
+    assert port.kwargs["tracking_config"].max_solves == 12
+    assert port.kwargs["tracking_config"].edge_fraction_max == pytest.approx(0.02)
 
 
 def test_band_additional_frequencies_are_sorted_deduplicated_and_shared(monkeypatch):

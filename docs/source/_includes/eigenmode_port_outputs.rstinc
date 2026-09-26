@@ -19,3 +19,9 @@ not the conventional ``plot_port`` tool. See :ref:`eigenmode-port-output`
 for shapes and files and :ref:`study-eigenmode` for complete matrices and
 array synthesis. Ports must satisfy the owning grid/backend restrictions in
 the eigenmode guide.
+
+Ports using automatic tracking also write a versioned ``mode_tracking`` group.
+It contains original candidate mappings, overlaps, residuals, requested and
+adaptive frequencies, and per-anchor confinement/artifact diagnostics. These
+quality records do not alter the established ``anchor_mode_valid`` or power-wave
+masks; they explain warnings about anchors that remain in use.

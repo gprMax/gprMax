@@ -22,7 +22,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from scipy.linalg import eig
 from scipy.sparse import bmat, coo_matrix, diags
-from scipy.sparse.linalg import eigs
+from scipy.sparse.linalg import LinearOperator, eigs, splu
 
 import gprMax.config as config
 from gprMax.fdfd_eigenmode_solver.numerical_dispersion import (
@@ -36,6 +36,41 @@ from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     BoundaryMagneticTerm,
     FDFDSurfaceBoundary,
 )
+
+
+class _StaticConstraintOperator(LinearOperator):
+    """Apply A - B D^-1 C without forming a dense Schur complement."""
+
+    def __init__(self, A, B, C, D):
+        self.A, self.B, self.C, self.D = A, B, C, D
+        try:
+            self.factor = splu(D.tocsc())
+        except RuntimeError as exc:
+            raise ValueError("Singular magnetic reconstruction at Yee PEC samples.") from exc
+        super().__init__(dtype=np.dtype(np.complex128), shape=A.shape)
+
+    def _matvec(self, values):
+        return self.A @ values - self.B @ self.factor.solve(self.C @ values)
+
+    def _matmat(self, values):
+        return self._matvec(values)
+
+    def toarray(self):
+        # Used only by the small-problem dense eigensolver.
+        return self @ np.eye(self.shape[0], dtype=np.complex128)
+
+    def shift_inverse(self, shift):
+        # The upper block of this sparse inverse is exactly (Schur-shift I)^-1.
+        size = self.shape[0]
+        shifted = self.A - diags(np.full(size, shift), format="csr")
+        factor = splu(bmat([[shifted, self.B], [self.C, self.D]], format="csc"))
+
+        def apply(values):
+            rhs = np.zeros((size + self.D.shape[0], *values.shape[1:]), dtype=np.complex128)
+            rhs[:size] = values
+            return factor.solve(rhs)[:size]
+
+        return LinearOperator(self.shape, matvec=apply, matmat=apply, dtype=self.dtype)
 
 
 class FDFD_2D_mode_solver:
@@ -58,9 +93,9 @@ class FDFD_2D_mode_solver:
         mu_r_ww, H_w:       (Nu,     Nv)
 
     Electric PEC and magnetic PMC masks constrain the corresponding component
-    DOFs. A PEC tangential-E constraint also constrains the collocated,
-    surface-normal transverse H component, and a PMC tangential-H constraint
-    likewise constrains the collocated, surface-normal transverse E component.
+    DOFs. H adjacent to a PEC electric sample is reconstructed from the static
+    Faraday constraint, rather than assumed zero. A PMC tangential-H constraint
+    still constrains the collocated, surface-normal transverse E component.
     Non-finite electric and magnetic material entries are interpreted as PEC
     and PMC respectively, then replaced by finite placeholders after the masks
     have been built.
@@ -167,11 +202,10 @@ class FDFD_2D_mode_solver:
         self.pmc_v_mask = self._component_constraint_mask(self.mu_r_vv, pmc_v_mask, self.shape_hv)
         self.pmc_w_mask = self._component_constraint_mask(self.mu_r_ww, pmc_w_mask, self.shape_hw)
 
-        # H_u is collocated with E_v and is normal to a u-oriented PEC face;
-        # H_v is collocated with E_u and is normal to a v-oriented PEC face.
-        # Keep tangential H unconstrained so it can represent PEC surface current.
-        self.hu_constraint_mask = self.pmc_u_mask | self.pec_v_mask
-        self.hv_constraint_mask = self.pmc_v_mask | self.pec_u_mask
+        # PEC clamps E only. The corresponding H samples obey Faraday's law,
+        # including when object ordering produces non-voxel PEC boundaries.
+        self.hu_constraint_mask = self.pmc_u_mask.copy()
+        self.hv_constraint_mask = self.pmc_v_mask.copy()
 
         # By electromagnetic duality, tangential PMC H_v constrains normal E_u,
         # and tangential PMC H_u constrains normal E_v. Tangential E remains free.
@@ -202,8 +236,6 @@ class FDFD_2D_mode_solver:
         self.free_hw_mask &= ~self.pmc_w_mask.ravel(order="F")
         self.free_eu_mask &= ~self.pmc_v_mask.ravel(order="F")
         self.free_ev_mask &= ~self.pmc_u_mask.ravel(order="F")
-        self.free_hu_mask &= ~self.pec_v_mask.ravel(order="F")
-        self.free_hv_mask &= ~self.pec_u_mask.ravel(order="F")
         self.free_euv_mask = np.concatenate((self.free_eu_mask, self.free_ev_mask))
         self.free_huv_mask = np.concatenate((self.free_hu_mask, self.free_hv_mask))
 
@@ -565,23 +597,76 @@ class FDFD_2D_mode_solver:
             # other randomised work.
             v0 = np.random.default_rng(0).standard_normal(size)
             try:
+                options = {"OPinv": operator.shift_inverse(self.guess)} if isinstance(
+                    operator, _StaticConstraintOperator
+                ) else {}
                 eigenvalues, eigenvectors = eigs(
                     operator,
                     k=self.num_modes,
                     sigma=self.guess,
                     v0=v0,
+                    **options,
                 )
             except RuntimeError:
                 shifted_guess = self.guess * (1.0 + 1e-9) - 1e-12
+                options = {"OPinv": operator.shift_inverse(shifted_guess)} if isinstance(
+                    operator, _StaticConstraintOperator
+                ) else {}
                 eigenvalues, eigenvectors = eigs(
                     operator,
                     k=self.num_modes,
                     sigma=shifted_guess,
                     v0=v0,
+                    **options,
                 )
 
         order = np.argsort(np.real(eigenvalues))
         return eigenvalues[order], eigenvectors[:, order]
+
+    def _reduce_transverse_operators(self, P, Q):
+        """Enforce the actual electric clamps without adding magnetic clamps.
+
+        For s = i*operator_neff, s E = P H and s H = Q E hold on live
+        update rows. At PEC E rows the second relation is absent, but the
+        first still requires P_c H = 0. Partition H into dynamic (a) and
+        static (c) samples, giving s H_c = -P_cc^-1 P_ca Q_a E.
+        """
+        pec_paired_h = np.concatenate((
+            self.pec_v_mask.ravel(order="F"), self.pec_u_mask.ravel(order="F")
+        ))
+        active = self.free_huv_mask & ~pec_paired_h
+        passive = np.flatnonzero(self.free_huv_mask & pec_paired_h)
+        P_reduced = P[:, self.free_huv_mask]
+        Qa = Q[active, :]
+        # H_u pairs with E_v; H_v pairs with E_u, with different block sizes.
+        rows = np.where(passive < self.n_hu, self.n_eu + passive, passive - self.n_hu)
+        forcing = P[rows, :][:, active] @ Qa
+        forcing = forcing[:, self.free_euv_mask]
+        forcing.eliminate_zeros()
+        if not forcing.nnz:
+            # Conventional voxel PEC walls have zero static H. Preserve the
+            # ordinary sparse eigenproblem and its cost in that common case.
+            Q_reduced = diags(active[self.free_huv_mask].astype(float)) @ Q[self.free_huv_mask, :]
+            omega = P_reduced @ Q_reduced
+            return P_reduced, Q_reduced, omega[self.free_euv_mask, :][:, self.free_euv_mask]
+
+        D = P[rows, :][:, passive]
+        A = P[self.free_euv_mask, :][:, active] @ Qa[:, self.free_euv_mask]
+        B = P[self.free_euv_mask, :][:, passive]
+        omega = _StaticConstraintOperator(A, B, forcing, D)
+        active_positions = active[self.free_huv_mask]
+
+        def reconstruct(values):
+            result = np.zeros((P_reduced.shape[1], *values.shape[1:]), dtype=np.complex128)
+            result[active_positions] = Qa @ values
+            result[~active_positions] = -omega.factor.solve(forcing @ values[self.free_euv_mask])
+            return result
+
+        Q_reduced = LinearOperator(
+            (P_reduced.shape[1], self.n_e_transverse),
+            matvec=reconstruct, matmat=reconstruct, dtype=np.complex128,
+        )
+        return P_reduced, Q_reduced, omega
 
     def solve(self):
         eps_uu_diag = self._diag(self.eps_r_uu)
@@ -603,10 +688,7 @@ class FDFD_2D_mode_solver:
         Q22 = -self.DHV_HW_TO_HV @ mu_ww_inv @ self.DEU_EV_TO_HW
         Q = bmat([[Q11, Q12], [Q21, Q22]], format="csr")
 
-        P_reduced = P[:, self.free_huv_mask]
-        Q_reduced = Q[self.free_huv_mask, :]
-        omega_matrix = P_reduced @ Q_reduced
-        omega_matrix = omega_matrix[self.free_euv_mask, :][:, self.free_euv_mask]
+        P_reduced, Q_reduced, omega_matrix = self._reduce_transverse_operators(P, Q)
         if getattr(self, "retain_tracking_operator", False):
             self.mode_tracking_operator = omega_matrix
         eigenvalues, reduced_eigenvectors = self._solve_reduced(omega_matrix)
@@ -616,6 +698,30 @@ class FDFD_2D_mode_solver:
         self.eigenvalues = eigenvalues
         self.eigenvectors = eigenvectors
         self.operator_neff = self._passive_positive_neff(-self.eigenvalues)
+
+        if getattr(self, "calculate_diagnostics", False):
+            applied = omega_matrix @ reduced_eigenvectors
+            target = reduced_eigenvectors * self.eigenvalues[None, :]
+            denominator = np.linalg.norm(applied, axis=0) + np.linalg.norm(target, axis=0)
+            self.eigenpair_residuals = np.linalg.norm(applied - target, axis=0) / np.maximum(
+                denominator, 1e-300
+            )
+            roots = 1j * self.operator_neff
+            reconstructed_h = Q_reduced @ self.eigenvectors / roots[None, :]
+            # Include the static Faraday equations at PEC E samples, not just
+            # the eigenproblem's free electric rows. PMC-paired rows are absent.
+            faraday_rows = np.concatenate((
+                (self.surface_electric_retained[0] & ~self.pmc_v_mask).ravel(order="F"),
+                (self.surface_electric_retained[1] & ~self.pmc_u_mask).ravel(order="F"),
+            ))
+            reconstructed_e = (P_reduced @ reconstructed_h)[faraday_rows, :]
+            field_target = self.eigenvectors[faraday_rows, :] * roots[None, :]
+            field_denominator = np.linalg.norm(reconstructed_e, axis=0) + np.linalg.norm(
+                field_target, axis=0
+            )
+            self.field_residuals = np.linalg.norm(
+                reconstructed_e - field_target, axis=0
+            ) / np.maximum(field_denominator, 1e-300)
 
         self._calculate_fields(Q_reduced, eps_ww_inv, mu_ww_inv)
         self._orient_backward_modes_to_forward_power(

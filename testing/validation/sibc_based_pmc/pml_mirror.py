@@ -16,6 +16,7 @@ import gprMax
 from gprMax.cython.fields_updates_normal import update_electric, update_magnetic
 from gprMax.impedance_surfaces import _component_valid_view
 from gprMax.pml import CFS
+from gprMax.updates.cpu_updates import CPUUpdates
 
 from .runtime import assert_zero_admittance, build_grid
 from .validate import ETA, fields
@@ -47,6 +48,8 @@ def pml_image_case(
     order=1,
     steps=200,
     disable_coupling=False,
+    host_kind=None,
+    layered=False,
 ):
     """Compare the exact PMC half with its independent full-domain image."""
     normal = (stretch + 1) % 3
@@ -71,6 +74,15 @@ def pml_image_case(
             if axis != stretch:
                 for side in ("0", "max"):
                     scene.add(gprMax.SymmetryBoundary(face="xyz"[axis] + side, type="pec"))
+        if host_kind is not None:
+            from testing.validation.impedance_surface.validate_sibc_pml import add_bulk_host
+
+            add_bulk_host(scene, host_kind)
+            upper = cells * spacing
+            if layered:
+                transverse = (stretch + 2) % 3
+                upper[transverse] *= 0.5
+            scene.add(gprMax.Box(p1=(0, 0, 0), p2=tuple(upper), material_id="host"))
         if is_pmc:
             scene.add(gprMax.SurfaceImpedance(id="wall", resistance=np.inf))
             lower = np.zeros(3)
@@ -81,7 +93,7 @@ def pml_image_case(
                 )
             )
         scenes.append(scene)
-    label = f"{stretch}_{precision}_{formulation}_{order}"
+    label = f"{stretch}_{precision}_{formulation}_{order}_{host_kind}_{layered}"
     full = build_grid(scenes[0], Path(cache) / f"pml_full_{label}", precision)
     half = build_grid(scenes[1], Path(cache) / f"pml_pmc_{label}", precision)
     system = assert_zero_admittance(half)
@@ -137,9 +149,18 @@ def pml_image_case(
         )
     )
     errors, history_errors = [], []
+    updates = [CPUUpdates(grid) for grid in (full, half)]
+    for update in updates:
+        if update.grid.maxpoles:
+            update.set_dispersive_updates()
     for _ in range(steps):
-        advance_pml(full)
-        advance_pml(half)
+        for update in updates:
+            update.update_magnetic()
+            update.update_magnetic_pml()
+            update.update_electric_a()
+            update.update_electric_pml()
+            update.update_electric_b()
+            update.update_impedance_surfaces()
         error = sum(
             np.sum(
                 (

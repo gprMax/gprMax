@@ -531,6 +531,18 @@ def process_multicmds(multicmds):
         from gprMax.eigenmode_tracking import parse_port_options
 
         tail, options = parse_port_options(tmp[9:])
+        from gprMax.eigenmode_config import EigenmodeTrackingConfig
+
+        tracking_config_keys = {
+            "residual_tolerance", "beta_drift_tolerance", "verification_overlap",
+            "edge_fraction_max", "tracking_overlap", "assignment_margin", "unmatched_cost",
+            "cluster_gap", "extra_candidates", "max_depth", "min_relative_step", "max_solves",
+        }
+        tracking_values = {
+            key: options.pop(key) for key in tuple(options) if key in tracking_config_keys
+        }
+        if tracking_values:
+            options["tracking_config"] = EigenmodeTrackingConfig(**tracking_values)
         plot_fields = None
         if tail and tail[-1].lower() in ("y", "n"):
             plot_fields = tail[-1].lower() == "y"

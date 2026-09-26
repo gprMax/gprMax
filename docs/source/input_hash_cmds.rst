@@ -470,11 +470,16 @@ See :doc:`impedance_surfaces` for model selection, geometry, and troubleshooting
     metal models, uniformly extruded along the propagation direction. Walls
     must lie strictly inside the modal window with opaque-voxel padding
     along each physical transverse axis (only one such axis in 2-D).
-    SIBC can continue through a longitudinal PML when its wall and retained
-    host are invariant along the absorption direction. The host at each
-    intersecting edge must be homogeneous, isotropic, lossless, and
-    nondispersive; the surface model may be dispersive. See :ref:`sibc-pml`
-    for the slab-coverage and aperture requirements.
+    SIBC can continue through a longitudinal PML when its wall and every
+    retained material are uniformly extruded along the absorption direction,
+    including neighbouring stencil cells. At intersecting edges, retained
+    materials may be heterogeneous, lossy, and electrically dispersive.
+    Each must be isotropic, with positive finite high-frequency permittivity
+    and permeability and finite nonnegative conductivities. The surface
+    model may also be dispersive. Domain PML and CPU virtual guides support
+    these hosts; SIBC coupling remains unavailable on MPI, subgrids, and
+    accelerator backends. See :ref:`sibc-pml` for the slab-coverage and
+    aperture requirements.
 
     ``#surface_impedance: wall resistance inf`` selects an exact PMC on the
     voxel face. It retains the clipped H circulation and electric dual area

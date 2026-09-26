@@ -19,6 +19,12 @@ def run(path, *, randomize=False, precision="double", device_options=None, **kwa
 
     def capture(grid):
         build(grid)
+        for monitor in grid.eigenmodeports:
+            port = monitor.owner
+            masks = port._yee_pec_electric_component_masks(grid)
+            tensors = port._extract_local_complex_property_tensors(grid, electric=True)
+            for mask, values in zip(masks, tensors):
+                assert not np.any(mask & np.isfinite(values))
         grids.append(grid)
 
     def solve(solver):
@@ -56,6 +62,18 @@ def run(path, *, randomize=False, precision="double", device_options=None, **kwa
         assert metadata.attrs["PhysicalPolarization"]
         assert np.max(metadata["anchor0/residual"]) < 1e-9
     return traces, grids[0]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("normal_axis,direction", [(a, d) for a in range(3) for d in ("+", "-")])
+def test_nonaveraged_bore_physical_virtual_agree(tmp_path, normal_axis, direction):
+    options = dict(normal_axis=normal_axis, direction=direction, averaging="n", combination=90)
+    reference, _ = run(tmp_path / "physical", virtual=False, **options)
+    actual, _ = run(tmp_path / "virtual", virtual=True, randomize=True, **options)
+    weights = np.array([1, 1, 1, 376.730313668, 376.730313668, 376.730313668])[None, :, None]
+    assert np.max(abs(reference * weights)) > 0
+    error = np.max(abs((actual - reference) * weights)) / np.max(abs(reference * weights))
+    assert error < 2e-8
 
 
 @pytest.mark.integration

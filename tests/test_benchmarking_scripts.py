@@ -158,7 +158,11 @@ def test_python_source_headers_do_not_contain_legacy_author_bylines():
     root = Path(__file__).parents[1]
     offenders = []
     for path in root.rglob("*.py"):
-        if any(part in {".git", "__pycache__", "build", "dist"} for part in path.parts):
+        relative_parts = path.relative_to(root).parts
+        if any(
+            part.startswith(".") or part in {"__pycache__", "build", "dist"}
+            for part in relative_parts
+        ):
             continue
         for line_number, line in enumerate(
             path.read_text(encoding="utf-8").splitlines(), start=1

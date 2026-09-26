@@ -29,6 +29,58 @@ from scipy.special import erf
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class EigenmodeTrackingConfig:
+    """Numerical controls for optional automatic eigenmode tracking."""
+
+    residual_tolerance: float = 1e-8
+    beta_drift_tolerance: float = 1e-3
+    verification_overlap: float = 0.999
+    edge_fraction_max: float = 1e-3
+    tracking_overlap: float = 0.8
+    assignment_margin: float = 0.02
+    unmatched_cost: float = 0.65
+    cluster_gap: float = 1e-5
+    extra_candidates: int = 4
+    max_depth: int = 8
+    min_relative_step: float = 1e-5
+    max_solves: int = 200
+
+    def __post_init__(self):
+        unit_interval = (
+            "residual_tolerance",
+            "beta_drift_tolerance",
+            "verification_overlap",
+            "edge_fraction_max",
+            "tracking_overlap",
+            "assignment_margin",
+            "unmatched_cost",
+            "cluster_gap",
+            "min_relative_step",
+        )
+        for name in unit_interval:
+            value = float(getattr(self, name))
+            if not np.isfinite(value) or value <= 0 or value > 1:
+                raise ValueError(f"{name} must be finite and in (0, 1].")
+            object.__setattr__(self, name, value)
+        for name, allow_zero in (("extra_candidates", True), ("max_depth", True), ("max_solves", False)):
+            value = getattr(self, name)
+            if isinstance(value, bool) or int(value) != value or value < (0 if allow_zero else 1):
+                qualifier = "non-negative" if allow_zero else "positive"
+                raise ValueError(f"{name} must be a {qualifier} integer.")
+            object.__setattr__(self, name, int(value))
+
+    @classmethod
+    def from_value(cls, value):
+        if value is None:
+            return cls()
+        if isinstance(value, cls):
+            return value
+        if hasattr(value, "items"):
+            return cls(**dict(value))
+        raise TypeError("tracking_config must be an EigenmodeTrackingConfig or mapping.")
+
+
 def _padded_sample_count(sample_count: int) -> int:
     return 1 << int(np.ceil(np.log2(max(2, 2 * sample_count))))
 
@@ -360,6 +412,9 @@ class EigenmodePortSpec:
     modes: tuple[int, ...]
     anchors: str | tuple[float, ...]
     plot_fields: bool | None
+    tracking: str = 'legacy'
+    verification: str = 'full'
+    tracking_config: EigenmodeTrackingConfig = field(default_factory=EigenmodeTrackingConfig)
     resolved_anchors: tuple[float, ...] = field(default_factory=tuple)
     degenerate: tuple[tuple[int, ...], ...] = ()
     mode_polarizations: dict = field(default_factory=dict)

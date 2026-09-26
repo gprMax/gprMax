@@ -18,7 +18,11 @@ def test_every_installed_package_is_under_gprmax():
     packages = distribution_packages()
     assert "gprMax.toolboxes" in packages
     assert all(name == "gprMax" or name.startswith("gprMax.") for name in packages)
-    assert not (ROOT / "toolboxes").exists()
+    legacy = ROOT / "toolboxes"
+    # Empty directories and ignored bytecode caches can remain after testing
+    # an older checkout; only source files could provide the legacy package.
+    if legacy.exists():
+        assert not any(legacy.rglob("*.py"))
 
 
 def test_toolbox_imports_do_not_depend_on_an_unqualified_toolboxes_package():
