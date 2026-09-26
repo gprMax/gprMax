@@ -458,8 +458,12 @@ See :doc:`impedance_surfaces` for model selection, geometry, and troubleshooting
 
     Direct 3-D and 2-D TE/TM ``#eigenmode_port`` planes are supported when the impedance
     boundary is propagation-invariant through the modal plane and the modal
-    window contains its required boundary field components. The FDFD operator
-    uses the exact time-discrete ADE response and clipped Yee Ampere rows.
+    window contains its required boundary field components. Every modal
+    window has a PEC rim, with or without a virtual waveguide: tangential
+    electric fields there are zero, replacing any SIBC rows on the rim.
+    Extend the window at least one opaque voxel beyond a wall to retain its
+    surface impedance and loss. The FDFD operator uses the exact time-discrete
+    ADE response and clipped Yee Ampere rows for the retained interior walls.
     Keep every eigenmode anchor and its trapezoidal bilinear-warped evaluation
     frequency inside the surface model's declared fit band; extrapolation is
     rejected. The bulk operator uses the Yee temporal and longitudinal
@@ -467,9 +471,10 @@ See :doc:`impedance_surfaces` for model selection, geometry, and troubleshooting
     physical-frequency response. The surface ADE reduction uses its exact
     discrete response; see :doc:`eigenmode_port_theory`.
     ``#virtual_waveguide`` supports passive SIBC walls, including fitted
-    metal models, uniformly extruded along the propagation direction. Walls
-    must lie strictly inside the modal window with opaque-voxel padding
-    along each physical transverse axis (only one such axis in 2-D).
+    metal models, uniformly extruded along the propagation direction. Its
+    transverse PEC boundary matches the modal solve. Opaque-voxel padding
+    keeps SIBC walls active inside the window along each physical transverse
+    axis (only one such axis in 2-D).
     SIBC can continue through a longitudinal PML when its wall and every
     retained material are uniformly extruded along the absorption direction,
     including neighbouring stencil cells. At intersecting edges, retained
@@ -2153,21 +2158,30 @@ port/mode channels.
   separated by semicolons (``1,2;3,4``). Every member must be in the monitored
   mode list. Groups must be exactly or numerically unresolved degenerate;
   resolved splitting is an error.
-* ``mode_polarizations`` optionally maps both members of a two-mode group
-  to physical transverse electric directions in a 3-D cross-section.
-  Separate entries with semicolons: ``1:y;2:x`` or
-  ``1:1,1,0;2:-1,1,0``. Axes are global; vectors are real and normalized
-  automatically. Zero/nonfinite, normal-to-port, or dependent directions
-  and incomplete pairs are rejected. These options are parsed literally,
-  without expression evaluation, after the anchor and plotting arguments.
+* ``mode_polarizations=y`` (or ``x``/``z``) sets the first member of every
+  degenerate pair to that global transverse electric direction. The second
+  follows the positive port-normal axis crossed with the first, independently
+  of propagation sign. A real vector such as ``1,1,0`` is also accepted and
+  normalized. Omitting this option preserves the current automatic assignment
+  (Python default ``None``). Physical selection requires a 3-D cross-section.
+  Use ``mode_polarizations=y;x`` to explicitly set both directions for every
+  pair, or ``mode_polarizations=1,1,0;-1,1,0`` for two real vectors.
+  Exact-mode mappings such as ``1:y;2:x`` require ``tracking=legacy``,
+  declared ``degenerate`` pairs, and both members of each selected pair.
+  With ``tracking=auto``, replace mappings with one or two shared directions.
+  Directions in an explicit pair need not be orthogonal, but must be clearly
+  distinct: their normalized direction-matrix condition number must not exceed
+  ``10`` (an angle of approximately 11.4 to 168.6 degrees). Zero/nonfinite, normal-to-port, or
+  dependent directions are rejected. Values are parsed literally without
+  expression evaluation, after the anchor and plotting arguments.
 
 For a z-normal circular TE11 pair, for example:
 
 .. code-block:: none
 
-    #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto y degenerate=1,2 mode_polarizations=1:y;2:x
+    #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto y degenerate=1,2 mode_polarizations=y
 
-Mode 1 then means global y electric polarization and mode 2 means global x,
+Mode 1 then means global y electric polarization and mode 2 means global -x,
 including in the standard modal plots. Excitation syntax is unchanged.
 See :doc:`eigenmode_port` for the runnable example.
 

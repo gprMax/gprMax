@@ -14,6 +14,8 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 _CONDITION_LIMIT = 1e8
+# User-selected unit directions must be at least ~11.4 degrees from collinearity.
+_POLARIZATION_CONDITION_LIMIT = 10.0
 _DEGENERACY_TOLERANCE = 1e-8
 _RESIDUAL_TOLERANCE = 1e-9
 _SUBSPACE_PIVOT_TOLERANCE = 1e-12
@@ -738,15 +740,18 @@ def normalize_groups(value, modes):
 
 
 def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False):
+    """Normalize one/two shared directions or explicit per-mode directions.
+
+    The inferred partner is n_positive cross first, independent of the port's
+    propagation sign. Automatic tracking expands it after detecting groups.
+    """
     if value is None:
         return {}
-    if not hasattr(value, "items"):
-        raise ValueError("mode_polarizations must map mode labels to axes or real vectors.")
-    if value and invariant_axis is not None:
+    mapping = hasattr(value, "items")
+    if (not mapping or value) and invariant_axis is not None:
         raise ValueError("Physical mode_polarizations require a 3D port cross-section.")
-    result = {}
-    for mode, direction in value.items():
-        mode = _index(mode)
+
+    def normalize_direction(direction):
         if isinstance(direction, str):
             if direction.lower() not in ("x", "y", "z"):
                 raise ValueError("Mode polarization axes must be x, y, or z.")
@@ -762,17 +767,43 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
         if abs(vector[normal_axis]) > 1e-12:
             raise ValueError("Mode polarization must be transverse to the port normal.")
         vector[normal_axis] = 0
-        result[mode] = tuple(float(value) for value in vector / np.linalg.norm(vector))
+        return tuple(float(value) for value in vector / np.linalg.norm(vector))
+
+    if mapping:
+        result = {_index(mode): normalize_direction(direction) for mode, direction in value.items()}
+    else:
+        sequence = isinstance(value, (tuple, list)) or (isinstance(value, np.ndarray) and value.ndim > 0)
+        shared_pair = sequence and len(value) == 2
+        if shared_pair:
+            primary, partner = (normalize_direction(direction) for direction in value)
+            if np.linalg.cond(np.asarray((primary, partner)).T) > _POLARIZATION_CONDITION_LIMIT:
+                raise ValueError(
+                    "Requested polarization directions are linearly dependent or ill-conditioned. "
+                    "Choose clearly distinct transverse directions: condition number must be "
+                    "at most 10 (about 11.4 degrees away from parallel or antiparallel)."
+                )
+        else:
+            primary = normalize_direction(value)
+            partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
+        if unresolved:
+            return (primary, partner) if shared_pair else primary
+        if not groups or any(len(group) != 2 for group in groups):
+            raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
+        result = {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
     if not unresolved and not set(result).issubset({item for group in groups for item in group}):
         raise ValueError("mode_polarizations must belong to a declared degenerate group.")
     for group in groups:
         if set(group).intersection(result):
             if len(group) != 2 or not set(group).issubset(result):
-                raise ValueError("Physical polarization selection requires both members of a pair.")
-            matrix = np.asarray([result[item] for item in group]).T
-            if np.linalg.cond(matrix) > _CONDITION_LIMIT:
                 raise ValueError(
-                    "Requested polarization directions are linearly dependent or ill-conditioned."
+                    "Physical polarization mappings require both members of a two-mode pair."
+                )
+            matrix = np.asarray([result[item] for item in group]).T
+            if np.linalg.cond(matrix) > _POLARIZATION_CONDITION_LIMIT:
+                raise ValueError(
+                    "Requested polarization directions are linearly dependent or ill-conditioned. "
+                    "Choose clearly distinct transverse directions: condition number must be "
+                    "at most 10 (about 11.4 degrees away from parallel or antiparallel)."
                 )
     return result
 
@@ -810,6 +841,14 @@ def parse_port_options(tokens):
                 options[key] = tuple(
                     tuple(int(v) for v in group.split(",")) for group in value.split(";")
                 )
+            elif ":" not in value:
+                directions = [
+                    tuple(float(v) for v in entry.split(",")) if "," in entry else entry
+                    for entry in value.split(";")
+                ]
+                if len(directions) > 2:
+                    raise ValueError("Supply one or two shared polarization directions.")
+                options[key] = directions[0] if len(directions) == 1 else tuple(directions)
             else:
                 directions = {}
                 for entry in value.split(";"):

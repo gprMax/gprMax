@@ -6,6 +6,12 @@ This example builds the same short rectangular TE10 waveguide twice. The
 first guide uses ideal PEC walls. The second assigns a fitted copper
 ``SurfaceImpedance`` ID directly to the same four ordinary ``Box`` objects.
 
+Both port windows extend one cell into the opaque walls beyond the air
+aperture. This keeps the copper surfaces inside the port's PEC rim, so their
+impedance and loss remain in the modal solve. A window ending exactly on a
+wall would replace that wall's modal boundary condition with PEC, whether or
+not a virtual waveguide is attached.
+
 It demonstrates three finite-conductivity effects:
 
 * the impedance-aware FDFD solve returns a complex effective index;

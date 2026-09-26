@@ -212,15 +212,18 @@ class FDFD_2D_mode_solver:
         self.eu_constraint_mask = self.pec_u_mask | self.pmc_v_mask
         self.ev_constraint_mask = self.pec_v_mask | self.pmc_u_mask
 
-        self.surface_boundary = surface_boundary
-        self._prepare_surface_boundary()
-
         self.eps_r_uu[self.pec_u_mask] = 1.0 + 0j
         self.eps_r_vv[self.pec_v_mask] = 1.0 + 0j
         self.eps_r_ww[self.pec_w_mask] = 1.0 + 0j
         self.mu_r_uu[self.pmc_u_mask] = 1.0 + 0j
         self.mu_r_vv[self.pmc_v_mask] = 1.0 + 0j
         self.mu_r_ww[self.pmc_w_mask] = 1.0 + 0j
+
+        # SIBC row coefficients include surface admittance, not just bulk
+        # permittivity. Choose the spectral shift before installing them.
+        self.guess = guess if guess is not None else self._default_guess()
+        self.surface_boundary = surface_boundary
+        self._prepare_surface_boundary()
 
         self.free_eu_mask = self.surface_electric_retained[0].ravel(order="F").copy()
         self.free_ev_mask = self.surface_electric_retained[1].ravel(order="F").copy()
@@ -239,7 +242,6 @@ class FDFD_2D_mode_solver:
         self.free_euv_mask = np.concatenate((self.free_eu_mask, self.free_ev_mask))
         self.free_huv_mask = np.concatenate((self.free_hu_mask, self.free_hv_mask))
 
-        self.guess = guess if guess is not None else self._default_guess()
         self.eigenvalues = None
         self.eigenvectors = None
         self.operator_neff = None

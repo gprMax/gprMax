@@ -9,9 +9,9 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 
 
 def build_scene(mode=1):
-    """Launch mode 1 (global y) or mode 2 (global x) into a circular guide."""
+    """Launch mode 1 (global y) or mode 2 (global -x) into a circular guide."""
     if mode not in (1, 2):
-        raise ValueError("Choose TE11 mode 1 (vertical/y) or mode 2 (horizontal/x).")
+        raise ValueError("Choose TE11 mode 1 (vertical/y) or mode 2 (horizontal/-x).")
     scene = gprMax.Scene()
     scene.add(gprMax.Title(name="Example 7 - physically aligned circular TE11 modes"))
     scene.add(gprMax.Domain(p1=(0.016, 0.016, 0.072)))
@@ -48,7 +48,7 @@ def build_scene(mode=1):
                 # These two arguments give both ports the same physical basis
                 # at EVERY frequency anchor, despite raw eigensolver rotations.
                 degenerate=(1, 2),
-                mode_polarizations={1: "y", 2: "x"},
+                mode_polarizations="y",
             )
         )
 
@@ -73,7 +73,7 @@ def main():
         type=int,
         choices=(1, 2),
         default=1,
-        help="1: vertical/global y; 2: horizontal/global x",
+        help="1: vertical/global y; 2: horizontal/global -x",
     )
     parser.add_argument(
         "--geometry-only",

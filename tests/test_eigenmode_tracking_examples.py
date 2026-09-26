@@ -15,17 +15,19 @@ from gprMax.sources import EigenmodeSource
 @pytest.mark.integration
 @pytest.mark.parametrize("mode", (1, 2))
 @pytest.mark.parametrize(
-    "example,reflection_limit,averaging,tracking",
+    "example,reflection_limit,averaging,tracking,polarizations",
     (
-        ("example_7_degenerate_te11/circular_te11", -55, "y", "legacy"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto"),
-        ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60, None, "auto"),
-        ("example_9_auto_mode_crossing/auto_mode_crossing", -60, None, "auto"),
+        ("example_7_degenerate_te11/circular_te11", -55, "y", "legacy", "y"),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", "y"),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", ("y", "x")),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", "y"),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", ("y", "x")),
+        ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60, None, "auto", None),
+        ("example_9_auto_mode_crossing/auto_mode_crossing", -60, None, "auto", None),
     ),
 )
 def test_tracking_example_straight_guide(
-    tmp_path, monkeypatch, example, reflection_limit, averaging, tracking, mode, record_property
+    tmp_path, monkeypatch, example, reflection_limit, averaging, tracking, polarizations, mode, record_property
 ):
     root = Path(__file__).resolve().parents[1]
     path = root / "examples/features/eigenmode_ports" / f"{example}.py"
@@ -60,6 +62,7 @@ def test_tracking_example_straight_guide(
         for obj in scene.grid_objects:
             if isinstance(obj, gprMax.EigenmodePort):
                 obj.kwargs["tracking"] = tracking
+                obj.kwargs["mode_polarizations"] = polarizations
     gprMax.run(
         scenes=[scene],
         outputfile=stem,
@@ -121,8 +124,14 @@ def test_circular_hash_models_preserve_pec_wall_samples(tmp_path, monkeypatch, m
         for port in ports:
             masks = port._yee_pec_electric_component_masks(grid)
             tensors = port._extract_local_complex_property_tensors(grid, electric=True)
-            for mask, values in zip(masks, tensors):
-                assert not np.any(mask & np.isfinite(values))
+            for component, (mask, values) in enumerate(zip(masks, tensors)):
+                # Tangential samples on the artificial port rim are always
+                # PEC. Interior wall constraints must still follow Yee IDs.
+                interior = tuple(
+                    slice(None) if axis == component else slice(1, -1)
+                    for axis in range(2)
+                )
+                np.testing.assert_array_equal(mask[interior], ~np.isfinite(values[interior]))
         raise GeometryAudited()
 
     monkeypatch.setattr(FDTDGrid, "_eigenmode_port_grid_init", audit)

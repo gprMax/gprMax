@@ -649,7 +649,19 @@ def test_straight_example_auto_ports_share_broadband_anchors(tmp_path):
         port1 = output["eigenmode_ports/port1"]
         port2 = output["eigenmode_ports/port2"]
         assert port1.attrs["ResolvedAnchorPolicy"] == "auto_broadband"
-        assert port2.attrs["ResolvedAnchorPolicy"] == "auto_broadband"
+        assert port2.attrs["ResolvedAnchorPolicy"] == "auto_mixed_mode_policies"
+        # With a PEC window rim the second mode is evanescent at the lowest
+        # guard anchor. Both ports must retain it only as a generalized
+        # reference and use the same propagating anchors for power waves.
+        for port in (port1, port2):
+            np.testing.assert_array_equal(
+                port.attrs["ModeAnchorPolicies"],
+                ["auto_broadband", "auto_broadband_nonpropagating_trimmed"],
+            )
+            assert not port["anchor_mode_propagating"][0, 1]
+            assert port["anchor_mode_reference_valid"][0, 1]
+        np.testing.assert_array_equal(port1["anchor_mode_valid"], port2["anchor_mode_valid"])
+        np.testing.assert_allclose(port1["anchor_complex_neff"], port2["anchor_complex_neff"])
         np.testing.assert_array_equal(
             port1.attrs["AnchorFrequencies"],
             port2.attrs["AnchorFrequencies"],
