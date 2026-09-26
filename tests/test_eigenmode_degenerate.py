@@ -365,7 +365,16 @@ def test_invalid_solved_group(circular_solvers, kind):
         bank(solvers, references={1: "x", 2: "y"})
 
 
-def test_python_hash_build_equivalence(monkeypatch):
+@pytest.mark.parametrize("tracking", ("legacy", "auto"))
+@pytest.mark.parametrize("hash_value, python_value", [
+    ("y", "y"),
+    ("1,1,0", (1, 1, 0)),
+    ("y;x", ("y", "x")),
+    ("0,1,0;x", ((0, 1, 0), "x")),
+    ("1,1,0;-1,1,0", ((1, 1, 0), (-1, 1, 0))),
+    ("1:y;2:1,0,0", {1: "y", 2: "x"}),
+])
+def test_python_hash_build_equivalence(monkeypatch, tracking, hash_value, python_value):
     from gprMax.grid.fdtd_grid import FDTDGrid
     from gprMax.hash_cmds_multiuse import process_multicmds
     from gprMax.user_objects.cmds_multiuse import EigenmodePort
@@ -376,7 +385,7 @@ def test_python_hash_build_equivalence(monkeypatch):
     commands["#eigenmode_band"] = ["band 6e9 14e9 3"]
     commands["#eigenmode_excitation"] = ["1 1 auto n"]
     commands["#eigenmode_port"] = [
-        "1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto n degenerate=1,2 mode_polarizations=1:y;2:1,0,0"
+        f"1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto n degenerate=1,2 tracking={tracking} mode_polarizations={hash_value}"
     ]
     parsed = next(obj for obj in process_multicmds(commands) if isinstance(obj, EigenmodePort))
     explicit = EigenmodePort(
@@ -388,12 +397,19 @@ def test_python_hash_build_equivalence(monkeypatch):
         anchors="auto",
         plot_fields=False,
         degenerate=(1, 2),
-        mode_polarizations={1: "y", 2: "x"},
+        mode_polarizations=python_value,
+        tracking=tracking,
     )
     grids = [FDTDGrid(), FDTDGrid()]
     for obj, grid in zip((parsed, explicit), grids):
         grid.eigenmodeband = SimpleNamespace()
-        obj.build(grid)
+        if tracking == "auto" and isinstance(python_value, dict):
+            with pytest.raises(ValueError, match="mappings require tracking='legacy'"):
+                obj.build(grid)
+        else:
+            obj.build(grid)
+    if tracking == "auto" and isinstance(python_value, dict):
+        return
     assert grids[0].eigenmodeportdefs[1] == grids[1].eigenmodeportdefs[1]
 
 
@@ -552,3 +568,52 @@ def test_plots_exclude_unaligned_cutoff_anchors(circular_solvers, monkeypatch, t
     assert len(calls) == 2
     assert all(call["frequencies"] == (10e9, 14e9) for call in calls)
     assert all(call["solvers"][0].mode_polarizations == owner.mode_polarizations for call in calls)
+
+
+@pytest.mark.parametrize("directions", [("y", "x"), ((1, 1, 0), (-1, 1, 0)), ("x", (1, 1, 0))])
+def test_two_shared_directions_apply_to_every_pair(directions):
+    pending = normalize_polarizations(directions, (), 2, unresolved=True)
+    resolved = normalize_polarizations(pending, ((1, 2), (4, 5)), 2)
+    expected = normalize_polarizations({1: directions[0], 2: directions[1]}, ((1, 2),), 2)
+    assert resolved == {1: expected[1], 2: expected[2], 4: expected[1], 5: expected[2]}
+
+
+@pytest.mark.parametrize("directions", [("x", "x"), ("x", "z"), ("x", (0, 0, 0)), ("x", (1j, 1, 0)), ("x", "y", "z")])
+def test_invalid_two_direction_input_rejected_before_solving(directions):
+    with pytest.raises(ValueError):
+        normalize_polarizations(directions, (), 2, unresolved=True)
+
+
+@pytest.mark.parametrize("direction", ("+", "-"))
+@pytest.mark.parametrize("references", [("y", "x"), ((1, 1, 0), (-1, 1, 0)), ("x", (1, 1, 0))])
+def test_two_directions_align_like_exact_modes(circular_solvers, direction, references):
+    _, _, e, h = bank(deepcopy(circular_solvers), references=references, direction=direction)
+    _, _, expected_e, expected_h = bank(
+        deepcopy(circular_solvers), references=dict(zip((1, 2), references)), direction=direction
+    )
+    for actual, expected in ((e, expected_e), (h, expected_h)):
+        for anchor, reference in zip(actual, expected):
+            for mode, reference_mode in zip(anchor, reference):
+                for component, reference_component in zip(mode, reference_mode):
+                    np.testing.assert_allclose(component, reference_component, atol=1e-12)
+
+
+@pytest.mark.parametrize("axis", range(3))
+@pytest.mark.parametrize("scale", (1e-100, 1.0, 1e100))
+@pytest.mark.parametrize("sign", (-1, 1))
+def test_shared_pair_rejects_nearly_dependent_directions(axis, scale, sign):
+    transverse = [i for i in range(3) if i != axis]
+    first = np.eye(3)[transverse[0]]
+    second = scale * (sign * first + 1e-10 * np.eye(3)[transverse[1]])
+    with pytest.raises(ValueError, match="linearly dependent or ill-conditioned"):
+        normalize_polarizations((first, second), (), axis, unresolved=True)
+
+
+@pytest.mark.parametrize("axis", range(3))
+@pytest.mark.parametrize("member", (0, 1))
+def test_shared_pair_rejects_out_of_plane_component(axis, member):
+    transverse = [i for i in range(3) if i != axis]
+    directions = [np.eye(3)[i] for i in transverse]
+    directions[member][axis] = 1e-6
+    with pytest.raises(ValueError, match="transverse to the port normal"):
+        normalize_polarizations(directions, (), axis, unresolved=True)

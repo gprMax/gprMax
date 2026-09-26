@@ -2673,9 +2673,11 @@ class EigenmodePort(GridUserObject):
             ignored when ``tracking="auto"``.
         mode_polarizations: optional global transverse E axis or real three-vector
             shared by the first member of every degenerate pair; the second uses
-            positive port normal cross that direction. Explicit mappings from
-            both pair labels to directions are also accepted (3D only),
-            including groups detected by automatic tracking.
+            positive port normal cross that direction. Two directions explicitly set
+            both members of every pair. Mappings from absolute mode indices
+            to directions require tracking="legacy" and declared pairs.
+            None preserves the current assignment. Physical selection requires a
+            3D cross-section and independent transverse directions.
         tracking: ``"legacy"`` (default) or experimental ``"auto"`` branch
             tracking, enabled at the user's discretion.
         verification: ``"full"`` or ``"fast"`` quality checks for automatic tracking.
@@ -2776,8 +2778,15 @@ class EigenmodePort(GridUserObject):
             if tracking == "auto"
             else normalize_groups(self.kwargs.get("degenerate"), modes)
         )
+        polarization_input = self.kwargs.get("mode_polarizations")
+        if tracking == "auto" and hasattr(polarization_input, "items"):
+            raise ValueError(
+                f"{self.params_str()} mode_polarizations mappings require tracking='legacy' "
+                "and declared degenerate pairs. With tracking='auto', use None, one "
+                "direction (e.g. 'y'), or two directions (e.g. ('y', 'x')) for every pair."
+            )
         mode_polarizations = normalize_polarizations(
-            self.kwargs.get("mode_polarizations"), degenerate, normal_axis, invariant_axis,
+            polarization_input, degenerate, normal_axis, invariant_axis,
             unresolved=tracking == "auto" and not degenerate,
         )
         plot_fields = self.kwargs.get("plot_fields")

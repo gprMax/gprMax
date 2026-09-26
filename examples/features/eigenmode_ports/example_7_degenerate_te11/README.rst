@@ -23,6 +23,57 @@ every automatic frequency anchor and agree at the source and receiving port,
 including the receiving port's reversed direction. Polarization describes
 the integrated transverse E field, rather than every local field vector.
 
+Choosing one of the three polarization forms
+--------------------------------------------
+
+Edit the ``EigenmodePort`` arguments inside the loop in ``circular_te11.py``
+so both ports receive the same setting. Choose one of these alternatives:
+
+.. code-block:: python
+
+   # 1. One direction: every pair is y/-x in this z-normal guide.
+   tracking="auto",
+   mode_polarizations="y",
+
+   # 2. Two directions: every pair is explicitly y/+x.
+   tracking="auto",
+   mode_polarizations=("y", "x"),
+
+   # 3. Exact mode indices: only modes 1 and 2 get these assignments.
+   tracking="legacy",
+   degenerate=(1, 2),
+   mode_polarizations={1: "y", 2: "x"},
+
+Use one block, not all three. With automatic tracking, remove ``degenerate``;
+it is ignored because the pairs are detected. Set ``mode_polarizations=None``
+to retain the current automatic direction assignment. ``anchors="auto"``
+controls frequency anchors and is separate from ``tracking="auto"``.
+
+The first member is the lower tracked mode index within each pair. For one
+direction the orthogonal partner is positive port normal cross that direction;
+this convention does not change when the receiving port reverses propagation.
+For two directions, the second is taken literally. Both must be transverse,
+finite, real, nonzero and linearly independent. Out-of-plane directions and
+nearly parallel or antiparallel directions raise an error before solving.
+The normalized normal-component tolerance is ``1e-12``; the direction matrix
+condition-number limit is ``1e8``. Prefer orthogonal directions.
+Real vectors are normalized:
+``(1, 1, 0)`` is one direction, whereas ``((1, 1, 0), (-1, 1, 0))`` is two.
+Only numerically degenerate pairs can be mixed; isolated modes stay unchanged.
+
+For ``circular_te11.in``, change the options on **both** port lines to one of:
+
+.. code-block:: none
+
+   tracking=auto mode_polarizations=y
+   tracking=auto mode_polarizations=y;x
+   tracking=legacy degenerate=1,2 mode_polarizations=1:y;2:x
+
+For two vectors use ``mode_polarizations=1,1,0;-1,1,0`` with no spaces.
+An exact-mode mapping with automatic tracking is rejected: choose a shared
+form or switch to legacy tracking and declare the pair. To launch the second
+member, change the excitation's mode to 2; the port definitions stay unchanged.
+
 Why declare the pair?
 ---------------------
 

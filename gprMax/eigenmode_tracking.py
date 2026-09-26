@@ -738,7 +738,7 @@ def normalize_groups(value, modes):
 
 
 def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False):
-    """Normalize a shared pair direction or explicit per-mode directions.
+    """Normalize one/two shared directions or explicit per-mode directions.
 
     The inferred partner is n_positive cross first, independent of the port's
     propagation sign. Automatic tracking expands it after detecting groups.
@@ -770,12 +770,21 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
     if mapping:
         result = {_index(mode): normalize_direction(direction) for mode, direction in value.items()}
     else:
-        primary = normalize_direction(value)
+        sequence = isinstance(value, (tuple, list)) or (isinstance(value, np.ndarray) and value.ndim > 0)
+        shared_pair = sequence and len(value) == 2
+        if shared_pair:
+            primary, partner = (normalize_direction(direction) for direction in value)
+            if np.linalg.cond(np.asarray((primary, partner)).T) > _CONDITION_LIMIT:
+                raise ValueError(
+                    "Requested polarization directions are linearly dependent or ill-conditioned."
+                )
+        else:
+            primary = normalize_direction(value)
+            partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
         if unresolved:
-            return primary
+            return (primary, partner) if shared_pair else primary
         if not groups or any(len(group) != 2 for group in groups):
             raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
-        partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
         result = {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
     if not unresolved and not set(result).issubset({item for group in groups for item in group}):
         raise ValueError("mode_polarizations must belong to a declared degenerate group.")
@@ -827,7 +836,13 @@ def parse_port_options(tokens):
                     tuple(int(v) for v in group.split(",")) for group in value.split(";")
                 )
             elif ":" not in value:
-                options[key] = tuple(float(v) for v in value.split(",")) if "," in value else value
+                directions = [
+                    tuple(float(v) for v in entry.split(",")) if "," in entry else entry
+                    for entry in value.split(";")
+                ]
+                if len(directions) > 2:
+                    raise ValueError("Supply one or two shared polarization directions.")
+                options[key] = directions[0] if len(directions) == 1 else tuple(directions)
             else:
                 directions = {}
                 for entry in value.split(";"):

@@ -2164,8 +2164,12 @@ port/mode channels.
   of propagation sign. A real vector such as ``1,1,0`` is also accepted and
   normalized. Omitting this option preserves the current automatic assignment
   (Python default ``None``). Physical selection requires a 3-D cross-section.
-  Existing explicit mappings such as ``1:y;2:x`` remain supported and require
-  both members of each selected pair. Zero/nonfinite, normal-to-port, or
+  Use ``mode_polarizations=y;x`` to explicitly set both directions for every
+  pair, or ``mode_polarizations=1,1,0;-1,1,0`` for two real vectors.
+  Exact-mode mappings such as ``1:y;2:x`` require ``tracking=legacy``,
+  declared ``degenerate`` pairs, and both members of each selected pair.
+  With ``tracking=auto``, replace mappings with one or two shared directions.
+  Directions in an explicit pair need not be orthogonal, but must be independent. Zero/nonfinite, normal-to-port, or
   dependent directions are rejected. Values are parsed literally without
   expression evaluation, after the anchor and plotting arguments.
 

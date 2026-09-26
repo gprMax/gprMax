@@ -15,17 +15,19 @@ from gprMax.sources import EigenmodeSource
 @pytest.mark.integration
 @pytest.mark.parametrize("mode", (1, 2))
 @pytest.mark.parametrize(
-    "example,reflection_limit,averaging,tracking",
+    "example,reflection_limit,averaging,tracking,polarizations",
     (
-        ("example_7_degenerate_te11/circular_te11", -55, "y", "legacy"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto"),
-        ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60, None, "auto"),
-        ("example_9_auto_mode_crossing/auto_mode_crossing", -60, None, "auto"),
+        ("example_7_degenerate_te11/circular_te11", -55, "y", "legacy", "y"),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", "y"),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", ("y", "x")),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", "y"),
+        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", ("y", "x")),
+        ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60, None, "auto", None),
+        ("example_9_auto_mode_crossing/auto_mode_crossing", -60, None, "auto", None),
     ),
 )
 def test_tracking_example_straight_guide(
-    tmp_path, monkeypatch, example, reflection_limit, averaging, tracking, mode, record_property
+    tmp_path, monkeypatch, example, reflection_limit, averaging, tracking, polarizations, mode, record_property
 ):
     root = Path(__file__).resolve().parents[1]
     path = root / "examples/features/eigenmode_ports" / f"{example}.py"
@@ -60,6 +62,7 @@ def test_tracking_example_straight_guide(
         for obj in scene.grid_objects:
             if isinstance(obj, gprMax.EigenmodePort):
                 obj.kwargs["tracking"] = tracking
+                obj.kwargs["mode_polarizations"] = polarizations
     gprMax.run(
         scenes=[scene],
         outputfile=stem,

@@ -1951,7 +1951,10 @@ The default ``None`` preserves this automatic assignment. A single axis
 (``"x"``, ``"y"``, or ``"z"``) or real transverse three-vector applies to the
 first member of every degenerate pair; its partner follows the positive
 port-normal axis crossed with that direction, independently of propagation
-sign. Per-mode mapping keys remain absolute mode indices.
+sign. Two supplied directions explicitly select both members of every pair;
+independent nonorthogonal directions retain their power Gram matrix. Per-mode
+mapping keys are absolute mode indices and require legacy tracking with
+declared groups. Automatic tracking accepts only shared directions or ``None``.
 
 The native discrete eigenvalue spread must be below
 :math:`10^{-8}\max(1,\max|\lambda|)`, and mixed-mode relative eigen-residuals
