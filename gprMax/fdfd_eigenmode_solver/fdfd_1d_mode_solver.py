@@ -101,6 +101,7 @@ class FDFD_1D_mode_solver:
         pmc_w_mask=None,
         guess=None,
         *,
+        artificial_pec_masks=None,
         fdtd_dt=None,
         propagation_spacing=None,
         surface_boundary=None,
@@ -149,6 +150,18 @@ class FDFD_1D_mode_solver:
             "pmc_w_mask": pmc_w_mask,
         }
         self._validate_material_shapes()
+        # Keep geometry provenance before adding the numerical window rim.
+        # The combined masks constrain fields; only physical masks imply walls.
+        if artificial_pec_masks is None:
+            self.artificial_pec_masks = tuple(
+                np.zeros_like(getattr(self, f"eps_r_{axis}"), dtype=bool) for axis in "taw"
+            )
+        else:
+            self.artificial_pec_masks = tuple(
+                np.asarray(mask, dtype=bool).copy() for mask in artificial_pec_masks
+            )
+        if len(self.artificial_pec_masks) != 3:
+            raise ValueError("artificial_pec_masks must contain three component masks.")
         for name, values in mask_values.items():
             material_name = ("eps_r_" if name.startswith("pec") else "mu_r_") + name[4]
             expected = self.shape_cell if self.FIELD_SHAPES[name] == "cell" else self.shape_node
@@ -160,6 +173,12 @@ class FDFD_1D_mode_solver:
                         f"{name} shape {values.shape} does not match expected shape {expected}."
                     )
                 mask |= values
+            setattr(self, "physical_" + name, mask.copy())
+            if name.startswith("pec"):
+                rim = self.artificial_pec_masks["taw".index(name[4])]
+                if rim.shape != mask.shape:
+                    raise ValueError("Artificial PEC mask shape must match its Yee component.")
+                mask |= rim
             setattr(self, name, mask)
             getattr(self, material_name)[mask] = 1.0 + 0j
 

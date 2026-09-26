@@ -355,7 +355,15 @@ def _refined_solver(solver, factor=2):
             "eps_r_uu", "eps_r_vv", "eps_r_ww", "mu_r_uu", "mu_r_vv", "mu_r_ww",
             "pec_u_mask", "pec_v_mask", "pec_w_mask", "pmc_u_mask", "pmc_v_mask", "pmc_w_mask",
         )
-        values = {name: _refine_array(getattr(solver, name), cells, factor) for name in names}
+        values = {
+            name: _refine_array(
+                getattr(solver, "physical_" + name, getattr(solver, name)), cells, factor
+            ) for name in names
+        }
+        if hasattr(solver, "artificial_pec_masks"):
+            values["artificial_pec_masks"] = tuple(
+                _refine_array(mask, cells, factor) for mask in solver.artificial_pec_masks
+            )
         refined = FDFD_2D_mode_solver(
             frequency=solver.frequency,
             du=solver.du / factor,
@@ -374,7 +382,15 @@ def _refined_solver(solver, factor=2):
             "eps_r_t", "eps_r_a", "eps_r_w", "mu_r_t", "mu_r_a", "mu_r_w",
             "pec_t_mask", "pec_a_mask", "pec_w_mask", "pmc_t_mask", "pmc_a_mask", "pmc_w_mask",
         )
-        values = {name: _refine_array(getattr(solver, name), (solver.N,), factor) for name in names}
+        values = {
+            name: _refine_array(
+                getattr(solver, "physical_" + name, getattr(solver, name)), (solver.N,), factor
+            ) for name in names
+        }
+        if hasattr(solver, "artificial_pec_masks"):
+            values["artificial_pec_masks"] = tuple(
+                _refine_array(mask, (solver.N,), factor) for mask in solver.artificial_pec_masks
+            )
         refined = FDFD_1D_mode_solver(
             frequency=solver.frequency,
             dt=solver.dt / factor,
@@ -455,23 +471,27 @@ def _edge_fraction(solver, mode):
 
 def _physical_enclosure(solver):
     """Conservatively recognize physical PEC/PMC walls on every outer edge."""
+    def physical(name):
+        # Legacy/direct solvers use explicit masks as physical constraints.
+        return getattr(solver, "physical_" + name, getattr(solver, name))
+
     if hasattr(solver, "Eu"):
         pec = (
-            np.all(solver.pec_v_mask[0, :]) and np.all(solver.pec_w_mask[0, :]),
-            np.all(solver.pec_v_mask[-1, :]) and np.all(solver.pec_w_mask[-1, :]),
-            np.all(solver.pec_u_mask[:, 0]) and np.all(solver.pec_w_mask[:, 0]),
-            np.all(solver.pec_u_mask[:, -1]) and np.all(solver.pec_w_mask[:, -1]),
+            np.all(physical("pec_v_mask")[0, :]) and np.all(physical("pec_w_mask")[0, :]),
+            np.all(physical("pec_v_mask")[-1, :]) and np.all(physical("pec_w_mask")[-1, :]),
+            np.all(physical("pec_u_mask")[:, 0]) and np.all(physical("pec_w_mask")[:, 0]),
+            np.all(physical("pec_u_mask")[:, -1]) and np.all(physical("pec_w_mask")[:, -1]),
         )
         pmc = (
-            np.all(solver.pmc_v_mask[0, :]) and np.all(solver.pmc_w_mask[0, :]),
-            np.all(solver.pmc_v_mask[-1, :]) and np.all(solver.pmc_w_mask[-1, :]),
-            np.all(solver.pmc_u_mask[:, 0]) and np.all(solver.pmc_w_mask[:, 0]),
-            np.all(solver.pmc_u_mask[:, -1]) and np.all(solver.pmc_w_mask[:, -1]),
+            np.all(physical("pmc_v_mask")[0, :]) and np.all(physical("pmc_w_mask")[0, :]),
+            np.all(physical("pmc_v_mask")[-1, :]) and np.all(physical("pmc_w_mask")[-1, :]),
+            np.all(physical("pmc_u_mask")[:, 0]) and np.all(physical("pmc_w_mask")[:, 0]),
+            np.all(physical("pmc_u_mask")[:, -1]) and np.all(physical("pmc_w_mask")[:, -1]),
         )
         return bool(all(a or b for a, b in zip(pec, pmc)))
     if solver.polarization == "TM":
-        return bool(solver.pec_a_mask[0] and solver.pec_a_mask[-1])
-    return bool(solver.pmc_a_mask[0] and solver.pmc_a_mask[-1])
+        return bool(physical("pec_a_mask")[0] and physical("pec_a_mask")[-1])
+    return bool(physical("pmc_a_mask")[0] and physical("pmc_a_mask")[-1])
 
 
 def _verification_check(

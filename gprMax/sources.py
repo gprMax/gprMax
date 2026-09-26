@@ -1754,7 +1754,7 @@ class EigenmodeSource(Source):
 
     def _solve_eigenmode_3d(self, G):
         """Solve the local 2D eigenmode and map fields onto global components."""
-        pec_u_mask, pec_v_mask, pec_w_mask = self._yee_pec_electric_component_masks(G)
+        pec_u_mask, pec_v_mask, pec_w_mask = self._yee_pec_electric_component_masks(G, include_window=False)
         pmc_u_mask, pmc_v_mask, pmc_w_mask = self._yee_pmc_magnetic_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
@@ -1767,6 +1767,7 @@ class EigenmodeSource(Source):
             mu_r_uu=self.complex_mu_r_uu,
             mu_r_vv=self.complex_mu_r_vv,
             mu_r_ww=self.complex_mu_r_ww,
+            artificial_pec_masks=self._window_pec_electric_masks(),
             pec_u_mask=pec_u_mask,
             pec_v_mask=pec_v_mask,
             pec_w_mask=pec_w_mask,
@@ -1914,9 +1915,13 @@ class EigenmodeSource(Source):
             self.complex_mu_r_vv,
             self.complex_mu_r_ww,
         )
-        pec = self._yee_pec_electric_component_masks(G)
+        pec = self._yee_pec_electric_component_masks(G, include_window=False)
+        rim = self._window_pec_electric_masks()
         pmc = self._yee_pmc_magnetic_component_masks(G)
         return {
+            "artificial_pec_masks": tuple(
+                self._sample_1d_component(rim[axis]) for axis in (t_local, a_local, 2)
+            ),
             "eps_r_t": self._sample_1d_component(eps[t_local]),
             "eps_r_a": self._sample_1d_component(eps[a_local]),
             "eps_r_w": self._sample_1d_component(eps[2]),
@@ -2638,8 +2643,8 @@ class EigenmodeSource(Source):
             masks.append(~is_void[ids])
         return tuple(masks)
 
-    def _yee_pec_electric_component_masks(self, G):
-        """Combine the PEC port rim with final electric material constraints.
+    def _yee_pec_electric_component_masks(self, G, *, include_window=True):
+        """Return physical PEC constraints, optionally combined with the port rim.
 
         These are the same native Yee IDs used by the FDTD update. Expanding
         cell-centred PEC voxels would incorrectly clamp samples overwritten
@@ -2653,6 +2658,8 @@ class EigenmodeSource(Source):
         )
         # Use actual PEC constraints, not excluded-volume masks: Faraday's
         # static H reconstruction must still hold at a clamped E sample.
+        if not include_window:
+            return masks
         return tuple(mask | rim for mask, rim in zip(masks, self._window_pec_electric_masks()))
 
     def _window_pec_electric_masks(self):
