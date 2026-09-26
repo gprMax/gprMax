@@ -10,9 +10,9 @@ import pytest
 from gprMax.toolboxes.Utilities.outputfiles_dt1 import TRACE_HEADER_FORMAT, export_dt1
 
 
-def _write_output(filename, trace_number=1, *, dt=4.7e-12, samples=6):
+def _write_output(filename, trace_number=1, *, dt=4.7e-12, samples=6, title="DT1 export test"):
     with h5py.File(filename, "w") as output:
-        output.attrs["Title"] = "DT1 export test"
+        output.attrs["Title"] = title
         output.attrs["dt"] = dt
         source = output.create_group("srcs/src1")
         source.attrs["Position"] = (0.1 + 0.01 * trace_number, 0.2, 0.3)
@@ -124,3 +124,15 @@ def test_export_dt1_refuses_partial_pair_overwrite(tmp_path):
     summary = export_dt1([filename], tmp_path / "survey", 1, "Ez", overwrite=True)
     assert summary.dt1_outputfile.is_file()
     assert summary.hd_outputfile.is_file()
+
+
+def test_export_dt1_handles_non_ascii_title_metadata(tmp_path):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename, title="Survey: ε_r=9.0, 20°C — model 1")
+
+    summary = export_dt1([filename], tmp_path / "survey", 1, "Ez")
+    assert summary.dt1_outputfile.is_file()
+    assert summary.hd_outputfile.is_file()
+    hd_lines = summary.hd_outputfile.read_text(encoding="ascii").splitlines()
+    assert any("GPRMAX TITLE = Survey: ?_r=9.0, 20?C ? model 1" in line for line in hd_lines)
+

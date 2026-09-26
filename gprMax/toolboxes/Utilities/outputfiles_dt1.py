@@ -281,7 +281,7 @@ def write_dt1(
                     )
                 )
                 stream.write(samples.tobytes(order="C"))
-        hd_temporary.write_text(hd, encoding="ascii", newline="")
+        hd_temporary.write_text(hd, encoding="ascii", errors="replace", newline="")
         os.replace(dt1_temporary, dt1_destination)
         os.replace(hd_temporary, hd_destination)
     finally:
