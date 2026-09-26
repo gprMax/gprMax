@@ -7,11 +7,18 @@ air-filled PEC waveguide along global z. Both ports use:
 .. code-block:: python
 
    degenerate=(1, 2),
-   mode_polarizations={1: "y", 2: "x"},
+   mode_polarizations="y",
    plot_fields=True,
 
+The default ``mode_polarizations=None`` preserves automatic direction assignment
+with ``tracking="auto"``. Here the single ``"y"`` overrides every degenerate
+pair: the first member follows y and the second follows the orthogonal
+direction (positive port-normal axis cross y), independent of propagation sign.
+For this z-normal guide the partner is -x. ``"x"`` or ``"z"`` can likewise
+select a direction when transverse to the port normal.
+
 Mode 1 means vertical electric polarization (global y); mode 2 means
-horizontal electric polarization (global x). The directions are enforced at
+horizontal electric polarization (global -x). The directions are enforced at
 every automatic frequency anchor and agree at the source and receiving port,
 including the receiving port's reversed direction. Polarization describes
 the integrated transverse E field, rather than every local field vector.
@@ -101,7 +108,7 @@ Selecting the excitation
 In Python, switching polarization requires changing only the excitation's
 ``mode=1`` to ``mode=2``; leave both port definitions unchanged. For diagonal
 polarizations, change both ports to
-``mode_polarizations={1: (1, 1, 0), 2: (-1, 1, 0)}``. For quadrature,
+``mode_polarizations=(1, 1, 0)``. For quadrature,
 add a second excitation with the same waveform and ``mode=2, phase_deg=90``
 while retaining the mode-1 excitation. This produces an active driven state,
 so use its active-S outputs rather than this single-excitation S-parameter

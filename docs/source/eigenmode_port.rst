@@ -647,7 +647,7 @@ Which option should I use?
 * Use ``degenerate=(1, 2)`` when you want the pair tracked together but do
   not need mode numbers to mean particular physical directions with legacy
   tracking. Its initial basis is arbitrary; subsequent anchors follow it smoothly.
-* Also use ``mode_polarizations={1: "y", 2: "x"}`` when you want mode 1
+* Also use ``mode_polarizations="y"`` when you want mode 1
   to mean vertical and mode 2 horizontal for a z-directed guide. gprMax
   enforces those physical directions independently at each retained anchor.
   Use the same assignments at the receiving port to measure the same labels.
@@ -673,6 +673,15 @@ thresholds and alignment method are in :ref:`eigenmode-degenerate-theory`.
 Physically labelled degenerate modes
 ------------------------------------
 
+The default ``mode_polarizations=None`` preserves the current automatic
+assignment when using ``tracking="auto"``. Set ``mode_polarizations="x"``,
+``"y"``, or ``"z"`` to apply one transverse direction to **every degenerate
+pair**. The first member of each pair follows that direction; the second
+follows its orthogonal direction, defined as the positive port-normal axis
+cross the first direction. This convention is independent of propagation sign.
+For a z-normal port, ``"y"`` gives y/-x for pairs (1, 2), (3, 4), and so on.
+The chosen axis must be transverse: ``"z"`` is invalid for a z-normal port.
+
 For circular TE11 propagating along z, assign the two channels once:
 
 .. code-block:: python
@@ -680,27 +689,33 @@ For circular TE11 propagating along z, assign the two channels once:
    scene.add(gprMax.EigenmodePort(
        port=1, p1=(0, 0, 0.02), p2=(0.05, 0.05, 0.02), direction="+",
        modes=(1, 2), anchors="auto", degenerate=(1, 2),
-       mode_polarizations={1: "y", 2: "x"},
+       mode_polarizations="y",
    ))
    scene.add(gprMax.EigenmodeExcitation(port=1, mode=1, waveform="auto"))
 
 Here mode 1 is vertically polarized (global y); changing only ``mode=1`` to
-``mode=2`` launches horizontal polarization (global x). Reversing propagation
+``mode=2`` launches horizontal polarization (global -x). Reversing propagation
 does not change these electric-field labels. Use the same assignments on the
 receiving port. For diagonal directions, use
-``mode_polarizations={1: (1, 1, 0), 2: (-1, 1, 0)}``.
+``mode_polarizations=(1, 1, 0)``.
 
 Equivalent hash options follow the existing anchor and plotting arguments:
 
 .. code-block:: none
 
-   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto degenerate=1,2 mode_polarizations=1:y;2:x
-   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto n degenerate=1,2 mode_polarizations=1:1,1,0;2:-1,1,0
+   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto degenerate=1,2 mode_polarizations=y
+   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto n degenerate=1,2 mode_polarizations=1,1,0
 
-Separate groups with semicolons (``degenerate=1,2;3,4``), and polarization
-entries with semicolons. Components inside a vector use commas. Values are
-parsed literally, with no expression evaluation. Partially specified pairs,
-dependent directions, and directions normal to the port are errors.
+Separate groups with semicolons (``degenerate=1,2;3,4``). The single direction
+applies to all pairs. Components inside a vector use commas. Omitting the hash
+option preserves automatic assignment. Existing per-mode mappings remain
+supported, for example ``{1: "y", 2: "x"}`` in Python or ``1:y;2:x`` in hash
+input, when different pairs need different assignments. Mapping keys are absolute
+mode indices: ``{1: "y", 2: "x"}`` affects only modes 1 and 2, not every pair.
+Such mappings require
+both members of each selected pair. Values are parsed literally, with no
+expression evaluation. Dependent directions and directions normal to the port
+are errors.
 
 Polarization describes the direction of the transverse electric field
 integrated across the aperture; local arrows need not all be parallel. gprMax
@@ -1185,8 +1200,8 @@ Automatic tracking recognizes the pair and aligns it **as a pair**. In
 :ref:`eigenmode-example-8`, it chooses x/y directions consistently at the
 anchors, so a selected input polarization keeps its meaning across the band.
 The pair does not need to be declared with ``degenerate``, and
-``mode_polarizations`` is optional. Supply that mapping when you want different
-directions, such as y/x instead of x/y, and use the same choice at both ports.
+``mode_polarizations`` is optional. Supply ``"y"`` when you want y/-x
+directions instead of x/y, and use the same choice at both ports.
 
 Even if you request only ``modes=(1,)``, the tracker can solve the second member
 internally to align the pair. That extra solve does not add another public
@@ -1642,8 +1657,8 @@ Example 7: physically aligned circular TE11
 -------------------------------------------
 
 The circular PEC guide assigns global y electric polarization to mode 1
-and global x polarization to mode 2 using ``degenerate=(1, 2)`` and
-``mode_polarizations={1: "y", 2: "x"}`` on both ports. Automatic broadband
+and global -x polarization to mode 2 using ``degenerate=(1, 2)`` and
+``mode_polarizations="y"`` on both ports. Automatic broadband
 anchors preserve those physical labels. The source uses a virtual guide;
 the receiving port sits at the opposite longitudinal PML interface.
 

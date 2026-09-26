@@ -738,15 +738,18 @@ def normalize_groups(value, modes):
 
 
 def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False):
+    """Normalize a shared pair direction or explicit per-mode directions.
+
+    The inferred partner is n_positive cross first, independent of the port's
+    propagation sign. Automatic tracking expands it after detecting groups.
+    """
     if value is None:
         return {}
-    if not hasattr(value, "items"):
-        raise ValueError("mode_polarizations must map mode labels to axes or real vectors.")
-    if value and invariant_axis is not None:
+    mapping = hasattr(value, "items")
+    if (not mapping or value) and invariant_axis is not None:
         raise ValueError("Physical mode_polarizations require a 3D port cross-section.")
-    result = {}
-    for mode, direction in value.items():
-        mode = _index(mode)
+
+    def normalize_direction(direction):
         if isinstance(direction, str):
             if direction.lower() not in ("x", "y", "z"):
                 raise ValueError("Mode polarization axes must be x, y, or z.")
@@ -762,13 +765,26 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
         if abs(vector[normal_axis]) > 1e-12:
             raise ValueError("Mode polarization must be transverse to the port normal.")
         vector[normal_axis] = 0
-        result[mode] = tuple(float(value) for value in vector / np.linalg.norm(vector))
+        return tuple(float(value) for value in vector / np.linalg.norm(vector))
+
+    if mapping:
+        result = {_index(mode): normalize_direction(direction) for mode, direction in value.items()}
+    else:
+        primary = normalize_direction(value)
+        if unresolved:
+            return primary
+        if not groups or any(len(group) != 2 for group in groups):
+            raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
+        partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
+        result = {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
     if not unresolved and not set(result).issubset({item for group in groups for item in group}):
         raise ValueError("mode_polarizations must belong to a declared degenerate group.")
     for group in groups:
         if set(group).intersection(result):
             if len(group) != 2 or not set(group).issubset(result):
-                raise ValueError("Physical polarization selection requires both members of a pair.")
+                raise ValueError(
+                    "Physical polarization mappings require both members of a two-mode pair."
+                )
             matrix = np.asarray([result[item] for item in group]).T
             if np.linalg.cond(matrix) > _CONDITION_LIMIT:
                 raise ValueError(
@@ -810,6 +826,8 @@ def parse_port_options(tokens):
                 options[key] = tuple(
                     tuple(int(v) for v in group.split(",")) for group in value.split(";")
                 )
+            elif ":" not in value:
+                options[key] = tuple(float(v) for v in value.split(",")) if "," in value else value
             else:
                 directions = {}
                 for entry in value.split(";"):

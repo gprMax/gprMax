@@ -2671,8 +2671,10 @@ class EigenmodePort(GridUserObject):
             retains the geometry-only default.
         degenerate: optional legacy mode pair or disjoint groups tracked as subspaces;
             ignored when ``tracking="auto"``.
-        mode_polarizations: optional mapping from both labels of a degenerate
-            pair to global transverse E axes or real direction vectors (3D only),
+        mode_polarizations: optional global transverse E axis or real three-vector
+            shared by the first member of every degenerate pair; the second uses
+            positive port normal cross that direction. Explicit mappings from
+            both pair labels to directions are also accepted (3D only),
             including groups detected by automatic tracking.
         tracking: ``"legacy"`` (default) or experimental ``"auto"`` branch
             tracking, enabled at the user's discretion.

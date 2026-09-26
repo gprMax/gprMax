@@ -11,9 +11,9 @@
 #cylinder: 0.008 0.008 0 0.008 0.008 0.072 0.006 free_space y
 #eigenmode_band: te11 20e9 24e9 41
 
-## Mode 1 = global y; mode 2 = global x, on both ports and at every anchor.
-#eigenmode_port: 1 0.001 0.001 0.024 0.015 0.015 0.024 + 1,2 auto y degenerate=1,2 mode_polarizations=1:y;2:x
-#eigenmode_port: 2 0.001 0.001 0.064 0.015 0.015 0.064 - 1,2 auto y degenerate=1,2 mode_polarizations=1:y;2:x
+## Mode 1 = global y; mode 2 = global -x, on both ports and at every anchor.
+#eigenmode_port: 1 0.001 0.001 0.024 0.015 0.015 0.024 + 1,2 auto y degenerate=1,2 mode_polarizations=y
+#eigenmode_port: 2 0.001 0.001 0.064 0.015 0.015 0.064 - 1,2 auto y degenerate=1,2 mode_polarizations=y
 #virtual_waveguide: 1 24 8 4
 
 ## Change the second integer below from 1 to 2 for horizontal polarization.

@@ -417,7 +417,7 @@ class EigenmodePortSpec:
     tracking_config: EigenmodeTrackingConfig = field(default_factory=EigenmodeTrackingConfig)
     resolved_anchors: tuple[float, ...] = field(default_factory=tuple)
     degenerate: tuple[tuple[int, ...], ...] = ()
-    mode_polarizations: dict = field(default_factory=dict)
+    mode_polarizations: dict | tuple[float, float, float] = field(default_factory=dict)
 
     @property
     def anchor_policy(self) -> str:

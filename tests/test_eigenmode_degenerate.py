@@ -238,6 +238,12 @@ def test_invalid_groups(groups):
     "directions",
     [
         {1: "y"},
+        {2: "y"},
+        "z",
+        "bad",
+        (0, 0, 0),
+        (1j, 0, 0),
+        (1, 0),
         {1: "x", 2: "x"},
         {1: "z", 2: "y"},
         {1: (0, 0, 0), 2: "y"},
@@ -249,6 +255,59 @@ def test_invalid_groups(groups):
 def test_invalid_polarizations(directions):
     with pytest.raises(ValueError):
         normalize_polarizations(directions, ((1, 2),), 2)
+
+
+def test_default_polarization_preserves_automatic_assignment():
+    assert normalize_polarizations(None, (), 2, unresolved=True) == {}
+    assert normalize_polarizations(None, ((1, 2), (3, 4)), 2) == {}
+
+
+@pytest.mark.parametrize("axis", range(3))
+@pytest.mark.parametrize("first", ("axis", "diagonal", "name"))
+def test_single_direction_completes_each_pair(axis, first):
+    transverse = [i for i in range(3) if i != axis]
+    direction = np.eye(3)[transverse[0]]
+    if first == "diagonal":
+        direction += np.eye(3)[transverse[1]]
+    if first == "name":
+        direction = "xyz"[transverse[0]]
+    result = normalize_polarizations(direction, ((1, 2), (3, 4)), axis)
+    assert result[1] == result[3]
+    for one, two in ((1, 2), (3, 4)):
+        np.testing.assert_allclose(result[two], np.cross(np.eye(3)[axis], result[one]))
+        assert np.dot(result[one], result[two]) == pytest.approx(0, abs=1e-15)
+        assert np.linalg.norm(result[two]) == pytest.approx(1)
+
+
+@pytest.mark.parametrize("value, primary", [("y", (0, 1, 0)), ("1,1,0", np.array((1, 1, 0)) / np.sqrt(2))])
+def test_single_direction_hash_and_auto_group_resolution(value, primary):
+    _, options = parse_port_options([f"mode_polarizations={value}"])
+    pending = normalize_polarizations(options["mode_polarizations"], (), 2, unresolved=True)
+    np.testing.assert_allclose(pending, primary)
+    resolved = normalize_polarizations(pending, ((1, 2), (3, 4)), 2)
+    assert resolved[1] == resolved[3]
+    assert resolved[2] == resolved[4]
+    np.testing.assert_allclose(resolved[2], np.cross((0, 0, 1), primary))
+    assert normalize_polarizations(resolved, ((1, 2), (3, 4)), 2) == resolved
+
+
+@pytest.mark.parametrize("direction", ("+", "-"))
+def test_single_direction_alignment_matches_explicit_pair(circular_solvers, direction):
+    _, _, e, h = bank(deepcopy(circular_solvers), references="y", direction=direction)
+    _, _, expected_e, expected_h = bank(
+        deepcopy(circular_solvers), references={1: "y", 2: (-1, 0, 0)}, direction=direction
+    )
+    for actual, expected in ((e, expected_e), (h, expected_h)):
+        for anchor, reference in zip(actual, expected):
+            for mode, reference_mode in zip(anchor, reference):
+                for component, reference_component in zip(mode, reference_mode):
+                    np.testing.assert_allclose(component, reference_component, atol=1e-12)
+
+
+@pytest.mark.parametrize("groups, invariant", [((), None), (((1, 2, 3),), None), (((1, 2),), 0)])
+def test_shared_direction_requires_3d_pairs(groups, invariant):
+    with pytest.raises(ValueError):
+        normalize_polarizations("y", groups, 2, invariant)
 
 
 def test_nonorthogonal_references_retain_power_gram(circular_solvers):

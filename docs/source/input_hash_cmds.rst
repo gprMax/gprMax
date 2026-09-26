@@ -2158,21 +2158,24 @@ port/mode channels.
   separated by semicolons (``1,2;3,4``). Every member must be in the monitored
   mode list. Groups must be exactly or numerically unresolved degenerate;
   resolved splitting is an error.
-* ``mode_polarizations`` optionally maps both members of a two-mode group
-  to physical transverse electric directions in a 3-D cross-section.
-  Separate entries with semicolons: ``1:y;2:x`` or
-  ``1:1,1,0;2:-1,1,0``. Axes are global; vectors are real and normalized
-  automatically. Zero/nonfinite, normal-to-port, or dependent directions
-  and incomplete pairs are rejected. These options are parsed literally,
-  without expression evaluation, after the anchor and plotting arguments.
+* ``mode_polarizations=y`` (or ``x``/``z``) sets the first member of every
+  degenerate pair to that global transverse electric direction. The second
+  follows the positive port-normal axis crossed with the first, independently
+  of propagation sign. A real vector such as ``1,1,0`` is also accepted and
+  normalized. Omitting this option preserves the current automatic assignment
+  (Python default ``None``). Physical selection requires a 3-D cross-section.
+  Existing explicit mappings such as ``1:y;2:x`` remain supported and require
+  both members of each selected pair. Zero/nonfinite, normal-to-port, or
+  dependent directions are rejected. Values are parsed literally without
+  expression evaluation, after the anchor and plotting arguments.
 
 For a z-normal circular TE11 pair, for example:
 
 .. code-block:: none
 
-    #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto y degenerate=1,2 mode_polarizations=1:y;2:x
+    #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto y degenerate=1,2 mode_polarizations=y
 
-Mode 1 then means global y electric polarization and mode 2 means global x,
+Mode 1 then means global y electric polarization and mode 2 means global -x,
 including in the standard modal plots. Excitation syntax is unchanged.
 See :doc:`eigenmode_port` for the runnable example.
 

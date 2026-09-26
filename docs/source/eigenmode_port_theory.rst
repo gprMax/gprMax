@@ -1947,6 +1947,11 @@ solved spectrum. ``mode_polarizations`` is optional: a detected two-mode group
 uses the port's global transverse axes when its integrated electric moments
 support them, otherwise a deterministic subspace basis. Explicit polarization
 directions override this choice and are validated against the detected groups.
+The default ``None`` preserves this automatic assignment. A single axis
+(``"x"``, ``"y"``, or ``"z"``) or real transverse three-vector applies to the
+first member of every degenerate pair; its partner follows the positive
+port-normal axis crossed with that direction, independently of propagation
+sign. Per-mode mapping keys remain absolute mode indices.
 
 The native discrete eigenvalue spread must be below
 :math:`10^{-8}\max(1,\max|\lambda|)`, and mixed-mode relative eigen-residuals
