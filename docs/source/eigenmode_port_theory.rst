@@ -227,7 +227,8 @@ The constructor signature is:
 
 ``guess``
     Optional ARPACK shift. If omitted, the solver derives a shift from the
-    largest finite material magnitude.
+    largest finite bulk material magnitude, before SIBC adds surface
+    admittance to the electric coefficients. SIBC remains in the eigenproblem.
 
 ``fdtd_dt``
     Optional keyword-only FDTD time step in seconds. A positive finite value
@@ -492,7 +493,8 @@ The constructor signature is:
 
 ``guess``
     Optional ARPACK shift. If omitted, the solver chooses a conservative shift
-    from the largest finite material magnitude.
+    from the largest finite bulk material magnitude, before SIBC adds surface
+    admittance to the electric coefficients. SIBC remains in the eigenproblem.
 
 ``surface_boundary``
     Optional compiled impedance-volume boundary. See :doc:`impedance_surfaces`
@@ -1218,9 +1220,15 @@ the two derivatives need not be negative adjoints at a clipped wall.
 ``resistance=float('inf')`` gives exactly zero surface admittance.
 
 CPU ``VirtualWaveguide`` supports all 2D TE/TM orientations. Its modal window
-spans the full invariant storage dimension; SIBC walls need opaque padding
-only in the physical transverse direction. The guide and its retained host
-must remain uniform along propagation through the aperture and PML. Both
+spans the full invariant storage dimension. Its artificial PEC rim constrains
+tangential E only at the ends of the physical transverse coordinate, including
+where a cropped SIBC row needs a magnetic sample outside the window. All
+ports constrain complete SIBC rows on that rim to PEC too, whether or not a
+virtual guide is attached. This matches the auxiliary aperture and PML
+updates. Opaque padding moves a physical wall inside the window and retains
+its SIBC equation.
+The guide and its retained host must remain uniform along propagation through
+the aperture and PML. Both
 ordinary and virtual sources apply the surface-row modal forcing and ADE
 correction. See :ref:`sibc-pml` for setup and :ref:`impedance-pml-theory` for validation.
 
@@ -1939,6 +1947,14 @@ solved spectrum. ``mode_polarizations`` is optional: a detected two-mode group
 uses the port's global transverse axes when its integrated electric moments
 support them, otherwise a deterministic subspace basis. Explicit polarization
 directions override this choice and are validated against the detected groups.
+The default ``None`` preserves this automatic assignment. A single axis
+(``"x"``, ``"y"``, or ``"z"``) or real transverse three-vector applies to the
+first member of every degenerate pair; its partner follows the positive
+port-normal axis crossed with that direction, independently of propagation
+sign. Two supplied directions explicitly select both members of every pair;
+independent nonorthogonal directions retain their power Gram matrix. Per-mode
+mapping keys are absolute mode indices and require legacy tracking with
+declared groups. Automatic tracking accepts only shared directions or ``None``.
 
 The native discrete eigenvalue spread must be below
 :math:`10^{-8}\max(1,\max|\lambda|)`, and mixed-mode relative eigen-residuals

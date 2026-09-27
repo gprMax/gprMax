@@ -23,6 +23,7 @@ import numpy as np
 import pytest
 
 import gprMax.config as config
+from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     BoundaryAmpereRow,
@@ -69,6 +70,51 @@ def _solver_inputs(nu=2, nv=2):
 def _row_entries(matrix, row):
     values = matrix.getrow(row)
     return dict(zip(values.indices.tolist(), values.data.tolist()))
+
+
+@pytest.mark.parametrize("kind", ("1d_tm", "1d_te", "2d"))
+@pytest.mark.parametrize("surface_epsilon", (1e6 - 2e8j, 4.4 - 1e10j))
+@pytest.mark.parametrize("guess", (None, -3.5 + 0.1j))
+def test_guess_uses_bulk_properties_before_surface_admittance(kind, surface_epsilon, guess):
+    bulk_epsilon, bulk_mu = 4.4 - 0.02j, 1.2
+    if kind == "2d":
+        inputs = _solver_inputs()
+        solver_type = FDFD_2D_mode_solver
+        electric_names = ("eps_r_uu", "eps_r_vv", "eps_r_ww")
+        magnetic_names = ("mu_r_uu", "mu_r_vv", "mu_r_ww")
+        electric_axis, magnetic_axis, index = 0, 2, (0, 0)
+    else:
+        inputs = dict(
+            frequency=3e9, dt=0.7e-3, mode_index=0,
+            polarization="TM" if kind == "1d_tm" else "TE",
+            eps_r_t=np.ones(2), eps_r_a=np.ones(3), eps_r_w=np.ones(3),
+            mu_r_t=np.ones(3), mu_r_a=np.ones(2), mu_r_w=np.ones(2),
+        )
+        solver_type = FDFD_1D_mode_solver
+        electric_names = ("eps_r_t", "eps_r_a", "eps_r_w")
+        magnetic_names = ("mu_r_t", "mu_r_a", "mu_r_w")
+        electric_axis, magnetic_axis = (1, 2) if kind == "1d_tm" else (2, 1)
+        index = (0,)
+    for name in electric_names:
+        inputs[name] = np.full(inputs[name].shape, bulk_epsilon, dtype=complex)
+    for name in magnetic_names:
+        inputs[name] = np.full(inputs[name].shape, bulk_mu)
+    boundary = FDFDSurfaceBoundary.create(
+        electric_retained=[np.ones(inputs[name].shape, dtype=bool) for name in electric_names],
+        magnetic_retained=[np.ones(inputs[name].shape, dtype=bool) for name in magnetic_names],
+        rows=(BoundaryAmpereRow(
+            electric_axis, index, 1e-6, surface_epsilon,
+            (BoundaryMagneticTerm(magnetic_axis, index, 1e-3),),
+        ),),
+    )
+    solver = solver_type(**inputs, surface_boundary=boundary, guess=guess)
+
+    expected_guess = -abs(bulk_epsilon) * bulk_mu if guess is None else guess
+    assert solver.guess == pytest.approx(expected_guess)
+    # The change is only to mode targeting: the physical boundary coefficient
+    # must still be installed in the actual eigenproblem.
+    assert getattr(solver, electric_names[electric_axis])[index] == surface_epsilon
+    assert solver.surface_boundary_rows[0].relative_permittivity == surface_epsilon
 
 
 def _rectangular_impedance_boundary(nu, nv, du, dv, response):

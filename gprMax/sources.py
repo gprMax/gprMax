@@ -39,6 +39,7 @@ from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     boundary_edge_relative_permittivity,
     evaluate_surface_ade,
 )
+from gprMax.modal_window import pec_electric_masks
 from gprMax.waveforms import Waveform
 
 from .cython.eigenmode_source import update_eigenmode_electric as updateEigenmode_electric
@@ -371,6 +372,7 @@ class EigenmodeSource(Source):
         self.complex_mu_r_vv = None
         self.complex_mu_r_ww = None
         self.surface_impedance_fdfd_edges = 0
+        self._reported_surface_pec_rows = None
         self.fdfd_surface_boundary = None
         self.modal_e = None
         self.modal_h = None
@@ -907,6 +909,10 @@ class EigenmodeSource(Source):
         global_to_local = {axis: local for local, axis in enumerate(local_to_global)}
         electric_retained = self._impedance_component_retained_masks(G, electric=True)
         magnetic_retained = self._impedance_component_retained_masks(G, electric=False)
+        # Match the auxiliary Yee guide's PEC transverse termination. A
+        # constrained row has no Ampere equation and needs no exterior H;
+        # every unconstrained surface row still requires its entire stencil.
+        window_pec = self._window_pec_electric_masks()
         electric_shapes = tuple(mask.shape for mask in electric_retained)
         magnetic_shapes = tuple(mask.shape for mask in magnetic_retained)
         if not system.model_ids:
@@ -945,6 +951,7 @@ class EigenmodeSource(Source):
             return responses[model_index]
 
         rows = []
+        clamped_rows = 0
         for edge_index, edge in enumerate(system.edge_info):
             component = int(edge[0])
             coordinate = np.asarray(edge[1:4], dtype=np.int32)
@@ -953,6 +960,9 @@ class EigenmodeSource(Source):
             local_axis = global_to_local[component]
             local_index = self._surface_local_index(coordinate)
             if not self._index_in_shape(local_index, electric_shapes[local_axis]):
+                continue
+            if window_pec[local_axis][local_index]:
+                clamped_rows += 1
                 continue
 
             port_start = int(edge[6])
@@ -1019,6 +1029,15 @@ class EigenmodeSource(Source):
             )
 
         self.surface_impedance_fdfd_edges = len(rows)
+        if clamped_rows and clamped_rows != self._reported_surface_pec_rows:
+            logger.warning(
+                "Eigenmode port %s uses a PEC window boundary, replacing %s "
+                "SIBC electric rows on its rim. Extend the window into opaque "
+                "padding to retain the impedance and loss of a wall on that rim. "
+                "A virtual guide uses the same PEC boundary.",
+                self.port_index, clamped_rows,
+            )
+            self._reported_surface_pec_rows = clamped_rows
         return FDFDSurfaceBoundary.create(
             electric_retained=electric_retained,
             magnetic_retained=magnetic_retained,
@@ -1735,7 +1754,7 @@ class EigenmodeSource(Source):
 
     def _solve_eigenmode_3d(self, G):
         """Solve the local 2D eigenmode and map fields onto global components."""
-        pec_u_mask, pec_v_mask, pec_w_mask = self._yee_pec_electric_component_masks(G)
+        pec_u_mask, pec_v_mask, pec_w_mask = self._yee_pec_electric_component_masks(G, include_window=False)
         pmc_u_mask, pmc_v_mask, pmc_w_mask = self._yee_pmc_magnetic_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
@@ -1748,6 +1767,7 @@ class EigenmodeSource(Source):
             mu_r_uu=self.complex_mu_r_uu,
             mu_r_vv=self.complex_mu_r_vv,
             mu_r_ww=self.complex_mu_r_ww,
+            artificial_pec_masks=self._window_pec_electric_masks(),
             pec_u_mask=pec_u_mask,
             pec_v_mask=pec_v_mask,
             pec_w_mask=pec_w_mask,
@@ -1895,9 +1915,13 @@ class EigenmodeSource(Source):
             self.complex_mu_r_vv,
             self.complex_mu_r_ww,
         )
-        pec = self._yee_pec_electric_component_masks(G)
+        pec = self._yee_pec_electric_component_masks(G, include_window=False)
+        rim = self._window_pec_electric_masks()
         pmc = self._yee_pmc_magnetic_component_masks(G)
         return {
+            "artificial_pec_masks": tuple(
+                self._sample_1d_component(rim[axis]) for axis in (t_local, a_local, 2)
+            ),
             "eps_r_t": self._sample_1d_component(eps[t_local]),
             "eps_r_a": self._sample_1d_component(eps[a_local]),
             "eps_r_w": self._sample_1d_component(eps[2]),
@@ -2619,18 +2643,33 @@ class EigenmodeSource(Source):
             masks.append(~is_void[ids])
         return tuple(masks)
 
-    def _yee_pec_electric_component_masks(self, G):
-        """Use the final electric material samples, including shared edges.
+    def _yee_pec_electric_component_masks(self, G, *, include_window=True):
+        """Return physical PEC constraints, optionally combined with the port rim.
 
         These are the same native Yee IDs used by the FDTD update. Expanding
         cell-centred PEC voxels would incorrectly clamp samples overwritten
         by later non-averaged geometry. The tensor extractor also assembles
-        the global port plane for MPI grids.
+        the global port plane for MPI grids. The artificial window rim is
+        PEC for every port, independently of its materials or termination.
         """
-        return tuple(
+        masks = tuple(
             ~np.isfinite(values)
             for values in self._extract_local_complex_property_tensors(G, electric=True)
         )
+        # Use actual PEC constraints, not excluded-volume masks: Faraday's
+        # static H reconstruction must still hold at a clamped E sample.
+        if not include_window:
+            return masks
+        return tuple(mask | rim for mask, rim in zip(masks, self._window_pec_electric_masks()))
+
+    def _window_pec_electric_masks(self):
+        invariant_local = (
+            None if self.invariant_axis is None else self.transverse_axes.index(self.invariant_axis)
+        )
+        cell_shape = tuple(
+            int(high - low) for low, high in zip(self.transverse_start, self.transverse_stop)
+        )
+        return pec_electric_masks(cell_shape, invariant_local)
 
     def _yee_pmc_magnetic_component_masks(self, G):
         """Use final magnetic Yee samples without expanding cell-centred PMC.

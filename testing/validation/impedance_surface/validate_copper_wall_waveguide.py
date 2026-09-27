@@ -336,8 +336,9 @@ def build_scene(threads: int = 4) -> gprMax.Scene:
         scene.add(
             gprMax.EigenmodePort(
                 port=port,
-                p1=(x, GUIDE_LOWER[0], GUIDE_LOWER[1]),
-                p2=(x, GUIDE_UPPER[0], GUIDE_UPPER[1]),
+                # Keep the SIBC walls inside the port's PEC rim.
+                p1=(x, GUIDE_LOWER[0] - DL, GUIDE_LOWER[1] - DL),
+                p2=(x, GUIDE_UPPER[0] + DL, GUIDE_UPPER[1] + DL),
                 direction=direction,
                 modes=(1,),
                 anchors=SOURCE_ANCHORS if port == 1 else PROPAGATION_ANCHORS,

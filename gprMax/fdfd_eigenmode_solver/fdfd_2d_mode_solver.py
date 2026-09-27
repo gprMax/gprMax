@@ -143,6 +143,7 @@ class FDFD_2D_mode_solver:
         guess=None,
         surface_boundary=None,
         *,
+        artificial_pec_masks=None,
         fdtd_dt=None,
         propagation_spacing=None,
     ):
@@ -202,6 +203,30 @@ class FDFD_2D_mode_solver:
         self.pmc_v_mask = self._component_constraint_mask(self.mu_r_vv, pmc_v_mask, self.shape_hv)
         self.pmc_w_mask = self._component_constraint_mask(self.mu_r_ww, pmc_w_mask, self.shape_hw)
 
+        # Keep geometry provenance before adding the numerical window rim.
+        # The combined masks constrain fields; only physical masks imply walls.
+        self.physical_pec_u_mask = self.pec_u_mask.copy()
+        self.physical_pec_v_mask = self.pec_v_mask.copy()
+        self.physical_pec_w_mask = self.pec_w_mask.copy()
+        self.physical_pmc_u_mask = self.pmc_u_mask.copy()
+        self.physical_pmc_v_mask = self.pmc_v_mask.copy()
+        self.physical_pmc_w_mask = self.pmc_w_mask.copy()
+        if artificial_pec_masks is None:
+            self.artificial_pec_masks = tuple(
+                np.zeros_like(getattr(self, f"pec_{axis}_mask")) for axis in "uvw"
+            )
+        else:
+            self.artificial_pec_masks = tuple(
+                np.asarray(mask, dtype=bool).copy() for mask in artificial_pec_masks
+            )
+        if len(self.artificial_pec_masks) != 3:
+            raise ValueError("artificial_pec_masks must contain three component masks.")
+        for axis, rim in zip("uvw", self.artificial_pec_masks):
+            mask = getattr(self, f"pec_{axis}_mask")
+            if rim.shape != mask.shape:
+                raise ValueError("Artificial PEC mask shape must match its Yee component.")
+            mask |= rim
+
         # PEC clamps E only. The corresponding H samples obey Faraday's law,
         # including when object ordering produces non-voxel PEC boundaries.
         self.hu_constraint_mask = self.pmc_u_mask.copy()
@@ -212,15 +237,18 @@ class FDFD_2D_mode_solver:
         self.eu_constraint_mask = self.pec_u_mask | self.pmc_v_mask
         self.ev_constraint_mask = self.pec_v_mask | self.pmc_u_mask
 
-        self.surface_boundary = surface_boundary
-        self._prepare_surface_boundary()
-
         self.eps_r_uu[self.pec_u_mask] = 1.0 + 0j
         self.eps_r_vv[self.pec_v_mask] = 1.0 + 0j
         self.eps_r_ww[self.pec_w_mask] = 1.0 + 0j
         self.mu_r_uu[self.pmc_u_mask] = 1.0 + 0j
         self.mu_r_vv[self.pmc_v_mask] = 1.0 + 0j
         self.mu_r_ww[self.pmc_w_mask] = 1.0 + 0j
+
+        # SIBC row coefficients include surface admittance, not just bulk
+        # permittivity. Choose the spectral shift before installing them.
+        self.guess = guess if guess is not None else self._default_guess()
+        self.surface_boundary = surface_boundary
+        self._prepare_surface_boundary()
 
         self.free_eu_mask = self.surface_electric_retained[0].ravel(order="F").copy()
         self.free_ev_mask = self.surface_electric_retained[1].ravel(order="F").copy()
@@ -239,7 +267,6 @@ class FDFD_2D_mode_solver:
         self.free_euv_mask = np.concatenate((self.free_eu_mask, self.free_ev_mask))
         self.free_huv_mask = np.concatenate((self.free_hu_mask, self.free_hv_mask))
 
-        self.guess = guess if guess is not None else self._default_guess()
         self.eigenvalues = None
         self.eigenvectors = None
         self.operator_neff = None

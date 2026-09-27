@@ -114,8 +114,9 @@ def build_scene(case: str, threads: int = 1) -> gprMax.Scene:
     scene.add(
         gprMax.EigenmodePort(
             port=1,
-            p1=(PORT_X, GUIDE_LOWER[0], GUIDE_LOWER[1]),
-            p2=(PORT_X, GUIDE_UPPER[0], GUIDE_UPPER[1]),
+            # One opaque voxel keeps wall loss inside the port's PEC rim.
+            p1=(PORT_X, GUIDE_LOWER[0] - DL, GUIDE_LOWER[1] - DL),
+            p2=(PORT_X, GUIDE_UPPER[0] + DL, GUIDE_UPPER[1] + DL),
             direction="+",
             modes=(1,),
             anchors=ANCHORS,

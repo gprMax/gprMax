@@ -1,7 +1,5 @@
 """Physical split-guide checks for extruded surface-impedance walls."""
 
-import copy
-
 import numpy as np
 import pytest
 
@@ -168,7 +166,7 @@ def test_active_surface_source_and_histories_terminate_with_low_reflection(tmp_p
 
 
 @pytest.mark.integration
-def test_virtual_surface_histories_reset_and_require_opaque_window_padding(tmp_path):
+def test_virtual_surface_histories_reset(tmp_path):
     _, grid = run_guide(tmp_path / "state", virtual=True, resistance="copper", steps=400)
     guide = grid.virtual_waveguides[0]
     system = guide.aux_grid.impedance_surfaces
@@ -185,7 +183,163 @@ def test_virtual_surface_histories_reset_and_require_opaque_window_padding(tmp_p
     for name in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz"):
         assert not np.any(getattr(guide.aux_grid, name))
 
-    cropped = copy.copy(guide)
-    cropped.v0 = 4  # The lower SIBC wall now coincides with the modal-window edge.
-    with pytest.raises(ValueError, match="strictly inside"):
-        cropped._validate_impedance_cross_section()
+
+@pytest.mark.integration
+@pytest.mark.parametrize("normal_axis,direction", [(axis, sign) for axis in range(3) for sign in ("+", "-")])
+@pytest.mark.parametrize("active", (False, True))
+@pytest.mark.parametrize("walls_on_rim", ("lower", "upper", "both"))
+def test_sibc_wall_on_virtual_rim_matches_physical_pec_continuation(
+    tmp_path, monkeypatch, normal_axis, direction, active, walls_on_rim,
+):
+    """A wall on the rim becomes PEC in the modal solve and time-domain guide."""
+    import gprMax
+    from testing.validation.impedance_surface import virtual_waveguide as validation
+    from testing.validation.impedance_surface.validate_2d import normalized_field_error
+
+    original_scene = validation.guide_scene
+    transverse = tuple(axis for axis in range(3) if axis != normal_axis)
+    basis = (*transverse, normal_axis)
+    v0 = 4 if walls_on_rim in ("lower", "both") else 2
+    v1 = 12 if walls_on_rim in ("upper", "both") else 14
+
+    def point(local):
+        result = np.zeros(3)
+        result[list(basis)] = np.asarray(local) * 1e-3
+        return tuple(result)
+
+    def scene(**kwargs):
+        result = original_scene(**kwargs)
+        for obj in result.grid_objects:
+            if isinstance(obj, gprMax.EigenmodePort):
+                plane = obj.kwargs["p1"][normal_axis] / 1e-3
+                obj.kwargs.update(p1=point((2, v0, plane)), p2=point((14, v1, plane)))
+        if not kwargs["virtual"]:
+            # Replace only the rear continuation's rim with real PEC plates;
+            # the main-domain side retains its original lossy copper walls.
+            low, high = (0, 24) if direction == "+" else (48, 72)
+            for v in (v0, v1):
+                result.add(gprMax.Plate(
+                    p1=point((2, v, low)), p2=point((14, v, high)), material_id="pec"
+                ))
+        return result
+
+    monkeypatch.setattr(validation, "guide_scene", scene)
+    options = dict(resistance="copper", host_kind="lossy", steps=400,
+                   normal_axis=normal_axis, direction=direction, active=active,
+                   formulation="HORIPML" if direction == "+" else "MRIPML")
+    reference, reference_grid = run_guide(tmp_path / "physical", virtual=False, **options)
+    actual, grid = run_guide(tmp_path / "virtual", virtual=True, **options)
+    assert np.max(np.abs(reference)) > 0
+    assert normalized_field_error(reference, actual) < 2e-8
+
+    guide = grid.virtual_waveguides[0]
+    assert len(guide._impedance_window_edges) > len(guide._impedance_edges)
+    assert bool(guide._impedance_edges) == (walls_on_rim != "both")
+    for component in (transverse[0], normal_axis):
+        field = getattr(guide.aux_grid, "E" + "xyz"[component])
+        for v in (0, guide.nv):
+            assert not np.any(np.take(field, v, axis=transverse[1]))
+    # An active drive also exercises the modal fields copied to the auxiliary
+    # source, rather than only passive time-domain aperture coupling.
+    if active:
+        assert guide.port.mode_solver.modal_complex_neff == pytest.approx(
+            reference_grid.eigenmodesources[0].mode_solver.modal_complex_neff,
+            rel=1e-10,
+        )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("normal_axis,direction", [(axis, sign) for axis in range(3) for sign in ("+", "-")])
+@pytest.mark.parametrize("active", (False, True))
+@pytest.mark.parametrize("geometry", ("guide", "microstrip"))
+def test_cropped_sibc_guide_matches_physical_pec_continuation(
+    tmp_path, monkeypatch, normal_axis, direction, active, geometry,
+):
+    """A real PEC rim must give the same fields as the artificial cropped rim."""
+    import gprMax
+    from testing.validation.impedance_surface import virtual_waveguide as validation
+
+    original_scene = validation.guide_scene
+    transverse = tuple(axis for axis in range(3) if axis != normal_axis)
+    basis = (*transverse, normal_axis)
+
+    def point(local):
+        result = np.zeros(3)
+        result[list(basis)] = np.asarray(local) * 1e-3
+        return tuple(result)
+
+    def cropped_scene(**kwargs):
+        scene = original_scene(**kwargs)
+        if geometry == "microstrip":
+            # Finite copper ground wider than the aperture, a lossy FR-4
+            # substrate, and a narrower copper strip above it.
+            scene.geometry_objects.clear()
+            for lower, upper, material in (
+                ((1, 3, 0), (15, 4, 72), "wall"),
+                ((1, 4, 0), (15, 6, 72), "host"),
+                ((7, 6, 0), (9, 7, 72), "wall"),
+            ):
+                scene.add(gprMax.Box(p1=point(lower), p2=point(upper), material_id=material))
+            for obj in scene.grid_objects:
+                if isinstance(obj, gprMax.Material) and obj.kwargs["id"] == "host":
+                    obj.kwargs.update(er=4.4, se=0.005)
+                if isinstance(obj, gprMax.HertzianDipole):
+                    obj.kwargs["polarisation"] = "xyz"[transverse[1]]
+                if isinstance(obj, gprMax.Waveform):
+                    obj.kwargs["freq"] = 10e9
+                if isinstance(obj, gprMax.EigenmodeBand):
+                    obj.kwargs.update(fmin=10e9, fmax=10e9)
+                if isinstance(obj, gprMax.EigenmodePort):
+                    obj.kwargs["anchors"] = (10e9,)
+        plane = 24 if direction == "+" else 48
+        for obj in scene.grid_objects:
+            if isinstance(obj, gprMax.EigenmodePort):
+                port_plane = obj.kwargs["p1"][normal_axis] / 1e-3
+                obj.kwargs.update(p1=point((5, 2, port_plane)), p2=point((11, 14, port_plane)))
+        if not kwargs["virtual"]:
+            # Explicit plates isolate precisely the same physical rear volume
+            # as the auxiliary grid. Copper crosses both side plates.
+            low, high = (0, plane) if direction == "+" else (plane, 72)
+            for u in (5, 11):
+                scene.add(gprMax.Plate(p1=point((u, 2, low)), p2=point((u, 14, high)), material_id="pec"))
+            for v in (2, 14):
+                scene.add(gprMax.Plate(p1=point((5, v, low)), p2=point((11, v, high)), material_id="pec"))
+        return scene
+
+    monkeypatch.setattr(validation, "guide_scene", cropped_scene)
+    options = dict(resistance="copper", host_kind="lossy", layered=True, steps=400,
+                   normal_axis=normal_axis, direction=direction, active=active)
+    reference, _ = run_guide(tmp_path / "physical", virtual=False, **options)
+    actual, grid = run_guide(tmp_path / "cropped", virtual=True, **options)
+    weights = np.asarray((1, 1, 1, 376.730313668, 376.730313668, 376.730313668))[None, :, None]
+    scale = np.max(np.abs(reference * weights))
+    assert scale > 0
+    assert np.max(np.abs((actual - reference) * weights)) / scale < 2e-8
+
+    guide = grid.virtual_waveguides[0]
+    assert len(guide._impedance_window_edges) > len(guide._impedance_edges) > 0
+    # E normal to a cut face remains active; E tangent to it is clamped.
+    rows = guide.aux_grid.impedance_surfaces.edge_info
+    assert np.any(rows[:, 0] == transverse[0])
+    for component in (transverse[1], normal_axis):
+        for u in (0, guide.nu):
+            assert not np.any((rows[:, 0] == component) & (rows[:, 1 + transverse[0]] == u))
+            assert not np.any(np.take(getattr(guide.aux_grid, "E" + "xyz"[component]), u, axis=transverse[0]))
+    assert np.any(guide.aux_grid.impedance_surfaces.state_y)
+    frozen = grid.impedance_surfaces.virtual_frozen_edges
+    assert not np.any((frozen[:, 0] == transverse[0]) & (frozen[:, 1 + transverse[0]] == guide.u1))
+
+    # Neither extractor may accept an absent sample on a retained row.
+    if geometry == "microstrip" and active and normal_axis == 0 and direction == "+":
+        system = grid.impedance_surfaces
+        edge = system.edge_info[guide._impedance_edges[0]]
+        candidates = range(int(edge[4]), int(edge[4] + edge[5]))
+        sample = next(i for i in candidates if edge[0] == normal_axis or system.h_info[i, 0] == normal_axis)
+        with monkeypatch.context() as patch:
+            corrupted = system.h_info.copy()
+            corrupted[sample, 1 + transverse[0]] = guide.u0 - 1
+            patch.setattr(system, "h_info", corrupted)
+            with pytest.raises(ValueError, match="required magnetic DOF"):
+                guide.port._build_surface_impedance_fdfd_boundary(grid)
+            with pytest.raises(ValueError, match="required magnetic sample"):
+                guide._build_impedance_auxiliary_system(guide.aux_grid)

@@ -404,3 +404,20 @@ def test_line_plot_contains_all_three_fields(tmp_path, polarization):
     assert solver.plot_fields(output) == output
     assert output.is_file()
     assert output.stat().st_size > 0
+
+
+@pytest.mark.parametrize("enclosed", [False, True])
+def test_artificial_rim_is_not_a_physical_tm_enclosure(enclosed):
+    from gprMax.eigenmode_tracking import _physical_enclosure, _refined_solver
+
+    n = 12
+    rim = np.zeros(n + 1, dtype=bool)
+    rim[[0, -1]] = True
+    solver = _solver("TM", n=n, frequency=40e9,
+                     pec_a_mask=rim if enclosed else None,
+                     pec_w_mask=rim if enclosed else None,
+                     artificial_pec_masks=(np.zeros(n, dtype=bool), rim, rim))
+    solver.solve()
+    assert _physical_enclosure(solver) is enclosed
+    assert np.all(solver.pec_a_mask[[0, -1]])
+    assert _physical_enclosure(_refined_solver(solver)) is enclosed

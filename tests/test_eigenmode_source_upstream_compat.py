@@ -193,13 +193,18 @@ def test_pec_masks_follow_component_ids_even_when_voxels_disagree(normal_axis):
     source = _source(grid)
     source.normal_axis = normal_axis
     source.transverse_axes = tuple(a for a in range(3) if a != normal_axis)
-    # All voxels are PEC, but only these three electric samples are clamped.
+    # Away from the artificial PEC rim, only these three electric samples
+    # are clamped; the cell-centred PEC voxels must not constrain the rest.
     ids[:3, 1, 1, 1] = pec.numID
     masks = source._yee_pec_electric_component_masks(grid)
     assert [mask.shape for mask in masks] == [(2, 3), (3, 2), (3, 3)]
-    for mask in masks:
-        assert np.count_nonzero(mask) == 1
-        assert mask[1, 1]
+    expected = (
+        [[True, False, True], [True, True, True]],
+        [[True, True], [False, True], [True, True]],
+        [[True, True, True], [True, True, True], [True, True, True]],
+    )
+    for mask, wanted in zip(masks, expected):
+        np.testing.assert_array_equal(mask, wanted)
 
 
 @pytest.mark.parametrize("normal_axis", range(3))
@@ -359,3 +364,63 @@ def test_fdfd_solver_interprets_nonfinite_permeability_as_pmc(monkeypatch):
     assert solver.mu_r_uu[1, 0] == 1
     assert solver.mu_r_vv[0, 1] == 1
     assert solver.mu_r_ww[1, 1] == 1
+
+
+@pytest.mark.parametrize("enclosed", [False, True])
+def test_port_rim_does_not_supply_physical_enclosure(monkeypatch, enclosed):
+    """Exercise material extraction, the real solver, and both quality policies."""
+    import gprMax.eigenmode_tracking as tracking
+    from gprMax.eigenmode_config import EigenmodeTrackingConfig
+
+    monkeypatch.setattr(config, "sim_config", SimpleNamespace(
+        em_consts={"e0": 8.8541878128e-12, "m0": 1.25663706212e-6,
+                   "c": 299792458.0, "z0": 376.73031366686166},
+        dtypes={"float_or_double": np.float64},
+    ))
+    pec, pmc, free_space = _materials()
+    n = 10
+    grid = SimpleNamespace(
+        materials=[pec, pmc, free_space],
+        ID=np.full((6, 3, n + 1, n + 1), free_space.numID, dtype=np.uint32),
+        dl=np.full(3, 2e-3), dt=1e-12,
+    )
+    source = _source(grid)
+    source.transverse_stop[:] = n
+    source.frequency = 15e9
+    source.mode_index = 1
+    source.tracking = "auto"
+    source.tracking_config = EigenmodeTrackingConfig(extra_candidates=0)
+    # Physical walls deliberately coincide with the artificial rim. Their
+    # provenance must survive; subtracting the rim from a union would fail.
+    if enclosed:
+        for local_axis, global_axis in enumerate((*source.transverse_axes, source.normal_axis)):
+            ids = source._slice_local_component_ids(grid, global_axis, local_axis, "E")
+            ids[source._window_pec_electric_masks()[local_axis]] = pec.numID
+    source._extract_frequency_dependent_materials(grid)
+    source._solve_eigenmode(grid)
+    solver = source.mode_solver
+    assert tracking._physical_enclosure(solver) is enclosed
+    for axis, rim in zip("uvw", solver.artificial_pec_masks):
+        assert np.all(getattr(solver, f"pec_{axis}_mask")[rim])
+        assert bool(np.any(getattr(solver, f"physical_pec_{axis}_mask"))) is enclosed
+
+    source.tracking_diagnostics = {}
+    source.mpi_coordinator = False
+    source.verification = "fast"
+    assert tracking._edge_fraction(solver, 0) > source.tracking_config.edge_fraction_max
+    record = tracking.assess_anchor_quality(source, grid, (source.frequency,), (solver,), (1,))[0]
+    assert record["physical_enclosure"] is enclosed
+    assert record["confinement"] == ("bound" if enclosed else "unbound_suspect")
+    assert record["artifact"] == ("none" if enclosed else "artificial_boundary_or_box_suspect")
+
+    refined = tracking._refined_solver(solver)
+    assert tracking._physical_enclosure(refined) is enclosed
+    requested = []
+    def padding(grid, frequency, fraction):
+        requested.append(fraction)
+        return None, None, "padding_unavailable_for_test"
+    monkeypatch.setattr(source, "_solve_padding_verification", padding)
+    monkeypatch.setattr(tracking, "_refined_solver", lambda *_: refined)
+    source.verification = "full"
+    tracking.assess_anchor_quality(source, grid, (source.frequency,), (solver,), (1,))
+    assert requested == ([] if enclosed else [0.25, 0.5])
