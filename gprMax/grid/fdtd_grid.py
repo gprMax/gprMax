@@ -666,15 +666,24 @@ class FDTDGrid:
         elif pml.ID[0] == "x":
             n1 = self.ny
             n2 = self.nz
+            # Sample the zero-loss entrance plane, not the high-stretch end.
             solid = self.solid[pml.xs, :, :]
+            if pml.direction == "xminus":
+                solid = self.solid[pml.xf - 1, :, :]
         elif pml.ID[0] == "y":
             n1 = self.nx
             n2 = self.nz
+            # Sample the zero-loss entrance plane, not the high-stretch end.
             solid = self.solid[:, pml.ys, :]
+            if pml.direction == "yminus":
+                solid = self.solid[:, pml.yf - 1, :]
         elif pml.ID[0] == "z":
             n1 = self.nx
             n2 = self.ny
+            # Sample the zero-loss entrance plane, not the high-stretch end.
             solid = self.solid[:, :, pml.zs]
+            if pml.direction == "zminus":
+                solid = self.solid[:, :, pml.zf - 1]
         else:
             raise ValueError(f"Unknown PML ID '{pml.ID}'")
 
