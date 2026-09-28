@@ -1070,19 +1070,24 @@ class MPIGrid(FDTDGrid):
             o2 = self.negative_halo_offset[2]
             n1 = self.ny - o1
             n2 = self.nz - o2
-            solid = self.solid[pml.xs, o1:, o2:]
+            # Match serial calibration at the entrance-side voxel while
+            # excluding transverse halos from the face-wide reduction.
+            entrance = pml.xf - 1 if pml.direction == "xminus" else pml.xs
+            solid = self.solid[entrance, o1:, o2:]
         elif pml.ID[0] == "y":
             o1 = self.negative_halo_offset[0]
             o2 = self.negative_halo_offset[2]
             n1 = self.nx - o1
             n2 = self.nz - o2
-            solid = self.solid[o1:, pml.ys, o2:]
+            entrance = pml.yf - 1 if pml.direction == "yminus" else pml.ys
+            solid = self.solid[o1:, entrance, o2:]
         elif pml.ID[0] == "z":
             o1 = self.negative_halo_offset[0]
             o2 = self.negative_halo_offset[1]
             n1 = self.nx - o1
             n2 = self.ny - o2
-            solid = self.solid[o1:, o2:, pml.zs]
+            entrance = pml.zf - 1 if pml.direction == "zminus" else pml.zs
+            solid = self.solid[o1:, o2:, entrance]
         else:
             raise ValueError(f"Unknown PML ID '{pml.ID}'")
 
