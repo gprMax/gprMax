@@ -45,7 +45,7 @@ class MPIModel(Model):
 
         self.G = self._create_grid()
 
-        return super().__init__()
+        super().__init__()
 
     @property
     def nx(self) -> float:
