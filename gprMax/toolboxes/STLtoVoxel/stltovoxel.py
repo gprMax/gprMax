@@ -186,6 +186,12 @@ def main():
         help="write an editable assignment CSV and exit",
     )
     parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="overwrite existing assignment template",
+    )
+    parser.add_argument(
         "-dxdydz",
         type=float,
         help="discretisation to use in voxelisation process (required for conversion)",
@@ -212,8 +218,11 @@ def main():
         parser.error(f"No STL files found in: {input_path}")
 
     if args.prepare is not None:
-        write_assignment_template(files, args.prepare)
-        logger.info(f"Written STL assignment template: {args.prepare}")
+        try:
+            write_assignment_template(files, args.prepare, overwrite=args.overwrite)
+            logger.info(f"Written STL assignment template: {args.prepare}")
+        except FileExistsError as exc:
+            parser.error(f"Assignment template already exists: {exc}. Use --overwrite to replace it.")
         return
     if args.dxdydz is None:
         parser.error("-dxdydz is required when converting STL geometry")
