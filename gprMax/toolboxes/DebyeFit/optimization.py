@@ -30,7 +30,7 @@ class Optimizer(object):
         self.seed = seed
         self.calc_weights = None
 
-    def fit(self, func, lb, ub, funckwargs={}):
+    def fit(self, func, lb, ub, funckwargs=None):
         """Call the optimization function that tries to find an optimal set
         of relaxation times that minimise the error
         between the actual and the approximated electric permittivity
@@ -55,6 +55,8 @@ class Optimizer(object):
             im (ndarray): Imaginary parts of chosen relaxation function
                           for given frequency points.
         """
+        if funckwargs is None:
+            funckwargs = {}
         np.random.seed(self.seed)
         # find the relaxation frequencies using choosen optimization alghoritm
         tau, _ = self.calc_relaxation_times(func, lb, ub, funckwargs)
@@ -147,7 +149,7 @@ class PSO_DLS(Optimizer):
         self.pflag = pflag
         self.calc_weights = DLS
 
-    def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
+    def calc_relaxation_times(self, func, lb, ub, funckwargs=None):
         """
         A particle swarm optimisation that tries to find an optimal set
         of relaxation times that minimise the error
@@ -167,6 +169,8 @@ class PSO_DLS(Optimizer):
             g (ndarray): The swarm's best known position (relaxation times).
             fg (float): The objective value at ``g``.
         """
+        if funckwargs is None:
+            funckwargs = {}
         np.random.seed(self.seed)
         # check input parameters
         assert len(lb) == len(ub), "Lower- and upper-bounds must be the same length"
@@ -298,7 +302,7 @@ class DA_DLS(Optimizer):
     def __init__(
         self,
         maxiter=1000,
-        local_search_options={},
+        local_search_options=None,
         initial_temp=5230.0,
         restart_temp_ratio=2e-05,
         visit=2.62,
@@ -310,6 +314,8 @@ class DA_DLS(Optimizer):
         seed=None,
     ):
         super(DA_DLS, self).__init__(maxiter, seed)
+        if local_search_options is None:
+            local_search_options = {}
         self.local_search_options = local_search_options
         self.initial_temp = initial_temp
         self.restart_temp_ratio = restart_temp_ratio
@@ -321,7 +327,7 @@ class DA_DLS(Optimizer):
         self.x0 = x0
         self.calc_weights = DLS
 
-    def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
+    def calc_relaxation_times(self, func, lb, ub, funckwargs=None):
         """
         Find the global minimum of a function using Dual Annealing.
         The current class is a modified edition of the scipy.optimize
@@ -341,6 +347,8 @@ class DA_DLS(Optimizer):
             x (ndarray): The solution array (relaxation times).
             fun (float): The objective value at the best solution.
         """
+        if funckwargs is None:
+            funckwargs = {}
         np.random.seed(self.seed)
         result = scipy.optimize.dual_annealing(
             func,
@@ -405,7 +413,7 @@ class DE_DLS(Optimizer):
         self.constraints = constraints
         self.calc_weights = DLS
 
-    def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
+    def calc_relaxation_times(self, func, lb, ub, funckwargs=None):
         """
         Find the global minimum of a function using Differential Evolution.
         The current class is a modified edition of the scipy.optimize
@@ -425,6 +433,8 @@ class DE_DLS(Optimizer):
             x (ndarray): The solution array (relaxation times).
             fun (float): The objective value at the best solution.
         """
+        if funckwargs is None:
+            funckwargs = {}
         np.random.seed(self.seed)
         result = scipy.optimize.differential_evolution(
             func,

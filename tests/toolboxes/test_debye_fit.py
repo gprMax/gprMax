@@ -156,3 +156,31 @@ def test_short_havriliak_negami_fit_produces_gprmax_material_commands():
     assert np.isfinite(error)
     assert any(line.startswith("#material:") for line in properties)
     assert any(line.startswith("#add_dispersion_debye:") for line in properties)
+
+
+def test_debye_fit_and_optimizer_defaults_not_mutable():
+    import inspect
+    from gprMax.toolboxes.DebyeFit import Debye_Fit, optimization
+
+    classes = [
+        Debye_Fit.Relaxation,
+        Debye_Fit.HavriliakNegami,
+        Debye_Fit.Jonscher,
+        Debye_Fit.Crim,
+        Debye_Fit.Rawdata,
+    ]
+    for cls in classes:
+        sig = inspect.signature(cls.__init__)
+        assert sig.parameters["optimizer_options"].default is None
+
+    optimizer_classes = [
+        optimization.PSO_DLS,
+        optimization.DA_DLS,
+        optimization.DE_DLS,
+    ]
+    assert inspect.signature(optimization.Optimizer.fit).parameters["funckwargs"].default is None
+    assert inspect.signature(optimization.DA_DLS.__init__).parameters["local_search_options"].default is None
+    for cls in optimizer_classes:
+        sig = inspect.signature(cls.calc_relaxation_times)
+        assert sig.parameters["funckwargs"].default is None
+
