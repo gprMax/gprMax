@@ -66,7 +66,7 @@ class Relaxation(object):
         plot=True,
         save=False,
         optimizer=PSO_DLS,
-        optimizer_options={},
+        optimizer_options=None,
     ):
         self.name = "Relaxation function"
         self.params = {}
@@ -78,6 +78,8 @@ class Relaxation(object):
         self.material_name = material_name
         self.plot = plot
         self.save = save
+        if optimizer_options is None:
+            optimizer_options = {}
         self.optimizer = optimizer(**optimizer_options)
 
     def set_freq(self, f_min, f_max, f_n=50):
@@ -423,7 +425,7 @@ class HavriliakNegami(Relaxation):
         plot=False,
         save=False,
         optimizer=PSO_DLS,
-        optimizer_options={},
+        optimizer_options=None,
     ):
         super(HavriliakNegami, self).__init__(
             sigma=sigma,
@@ -525,7 +527,7 @@ class Jonscher(Relaxation):
         plot=False,
         save=False,
         optimizer=PSO_DLS,
-        optimizer_options={},
+        optimizer_options=None,
     ):
         super(Jonscher, self).__init__(
             sigma=sigma,
@@ -612,7 +614,7 @@ class Crim(Relaxation):
         plot=False,
         save=False,
         optimizer=PSO_DLS,
-        optimizer_options={},
+        optimizer_options=None,
     ):
         super(Crim, self).__init__(
             sigma=sigma,
@@ -733,7 +735,7 @@ class Rawdata(Relaxation):
         plot=False,
         save=False,
         optimizer=PSO_DLS,
-        optimizer_options={},
+        optimizer_options=None,
     ):
         super(Rawdata, self).__init__(
             sigma=sigma,
