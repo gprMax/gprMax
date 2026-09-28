@@ -118,7 +118,7 @@ def _mpl_plot_file(file, outputs, fft, show, f):
                     f.close()
                     raise ValueError(
                         f"{output} output requested to plot, but "
-                        + f"the available output for receiver 1 is "
+                        + f"the available output for receiver {rx} is "
                         + f"{', '.join(availableoutputs)}"
                     )
 

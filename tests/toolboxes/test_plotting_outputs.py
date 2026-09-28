@@ -18,7 +18,9 @@
 import h5py
 import numpy as np
 
-from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range
+import pytest
+
+from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range, mpl_plot
 from gprMax.toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
 
 
@@ -41,3 +43,21 @@ def test_fft_plot_range_handles_zero_signal():
     power = np.full(8, -np.inf)
 
     assert fft_plot_range(freqs, power) == np.s_[0:4]
+
+
+def test_plot_ascan_single_output_missing_reports_correct_receiver(tmp_path):
+    filename = tmp_path / "receivers.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 2
+        output.attrs["dt"] = 1e-10
+        output.attrs["Title"] = "Test"
+        rx1 = output.create_group("rxs/rx1")
+        rx1.attrs["Name"] = "rx1"
+        rx1.create_dataset("Ez", data=[1, 2, 3])
+        rx2 = output.create_group("rxs/rx2")
+        rx2.attrs["Name"] = "rx2"
+        rx2.create_dataset("Ey", data=[4, 5, 6])
+
+    with pytest.raises(ValueError, match=r"available output for receiver 2 is Ey"):
+        mpl_plot(filename, ["Ez"], show=False)
+
