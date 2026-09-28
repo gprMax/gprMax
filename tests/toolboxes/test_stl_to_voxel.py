@@ -154,6 +154,43 @@ def test_prepare_assignments_does_not_require_voxel_size(tmp_path, monkeypatch):
     )
 
 
+def test_prepare_assignments_refuses_to_overwrite_without_flag(tmp_path, monkeypatch, capsys):
+    source = tmp_path / "organ.stl"
+    source.touch()
+    assignments = tmp_path / "anatomy.csv"
+    assignments.write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["stltovoxel", str(source), "--prepare", str(assignments)],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        stltovoxel.main()
+
+    assert error.value.code == 2
+    assert "already exists" in capsys.readouterr().err
+    assert assignments.read_text(encoding="utf-8") == "existing"
+
+
+def test_prepare_assignments_overwrites_with_flag(tmp_path, monkeypatch):
+    source = tmp_path / "organ.stl"
+    source.touch()
+    assignments = tmp_path / "anatomy.csv"
+    assignments.write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["stltovoxel", str(source), "--prepare", str(assignments), "--overwrite"],
+    )
+
+    stltovoxel.main()
+
+    assert assignments.read_text(encoding="utf-8").startswith(
+        "file,include,priority,material_name,geometry_tag\n"
+    )
+
+
 @pytest.mark.parametrize("name", ["soil+air", "+soil", "soil+", "Hmag_a+a+b+b"])
 def test_stl_assignments_reject_reserved_material_names(tmp_path, name):
     source = tmp_path / "part.stl"
