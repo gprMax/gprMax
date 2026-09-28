@@ -312,7 +312,6 @@ order1_xminus = {
     "args_cuda": x_args["cuda"],
     "args_opencl": x_args["opencl"],
     "args_metal": x_args["metal"],
-    "args_metal": x_args["metal"],
     "func": Template(
         """
     //  This function updates the Ey and Ez field components for the xminus slab.
