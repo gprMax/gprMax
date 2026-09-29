@@ -1100,6 +1100,21 @@ class MPIGrid(FDTDGrid):
 
         return averageer, averagemr
 
+    def _validate_pml_thickness(self) -> None:
+        if getattr(self, "_pml_thickness_validated", False):
+            return
+        self._pml_thickness_validated = True
+
+        local_invalid = 0
+        if not all(value == 0 for value in self.pmls["thickness"].values()):
+            try:
+                super()._validate_pml_thickness()
+            except ValueError:
+                local_invalid = 1
+
+        if self.comm.allreduce(local_invalid, op=MPI.MAX):
+            raise ValueError("PML has too many cells for the domain size")
+
     def build(self):
         """Set local properties and objects, then build the grid."""
 
@@ -1113,19 +1128,7 @@ class MPIGrid(FDTDGrid):
 
         self.set_halo_map()
 
-        thickness = self.pmls["thickness"]
-        local_invalid = int(
-            thickness["x0"] >= self.nx
-            or thickness["xmax"] >= self.nx
-            or thickness["y0"] >= self.ny
-            or thickness["ymax"] >= self.ny
-            or thickness["z0"] >= self.nz
-            or thickness["zmax"] >= self.nz
-        )
-        if self.comm.allreduce(local_invalid, op=MPI.MAX):
-            raise ValueError(
-                "PML thickness cannot be greater than or equal to the local MPI grid dimension"
-            )
+        self._validate_pml_thickness()
 
         # Get PMLs present in this grid
         pmls = [
