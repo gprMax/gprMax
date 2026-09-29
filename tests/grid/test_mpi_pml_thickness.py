@@ -145,3 +145,46 @@ def test_three_rank_decomposition_with_pmls_only_at_physical_ends():
     for r in ranks_invalid:
         with pytest.raises(ValueError, match="PML has too many cells for the domain size"):
             r.build()
+
+
+def test_real_mpi_deadlock_regression(tmp_path):
+    import os
+    import shutil
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    LAUNCHER = Path(sys.executable).with_name("mpiexec.exe" if os.name == "nt" else "mpiexec")
+    MPIEXEC = str(LAUNCHER) if LAUNCHER.is_file() else shutil.which("mpiexec")
+
+    if not MPIEXEC:
+        pytest.skip("No MPI launcher found")
+
+    script = tmp_path / "run_mpi.py"
+    script.write_text(
+        "import gprMax\n"
+        "import sys\n"
+        "scene = gprMax.Scene()\n"
+        "scene.add(gprMax.Domain(p1=(0.010, 0.010, 0.010)))\n"
+        "scene.add(gprMax.Discretisation(p1=(0.002, 0.002, 0.002)))\n"
+        "scene.add(gprMax.TimeWindow(iterations=5))\n"
+        "scene.add(gprMax.PMLThickness(thickness=6))\n"
+        "try:\n"
+        "    gprMax.run(scenes=[scene], n=1, mpi=(2, 1, 1), outputfile='unused', hide_progress_bars=True)\n"
+        "except ValueError as e:\n"
+        "    assert 'PML has too many cells' in str(e)\n"
+        "    sys.exit(0)\n"
+        "sys.exit(1)\n"
+    )
+
+    try:
+        result = subprocess.run(
+            [MPIEXEC, "-n", "2", sys.executable, str(script)],
+            capture_output=True,
+            timeout=15,
+            text=True,
+            check=False
+        )
+        assert result.returncode == 0, f"Expected successful abort, got rc={result.returncode}. err: {result.stderr}"
+    except subprocess.TimeoutExpired:
+        pytest.fail("MPI ranks deadlocked during PML validation!")
