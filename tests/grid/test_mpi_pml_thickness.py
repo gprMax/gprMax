@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+from mpi4py import MPI
 
 from gprMax.grid.mpi_grid import MPIGrid
 
@@ -42,6 +43,8 @@ def test_mpi_grid_build_rejects_pml_exceeding_local_dimension():
     ):
         grid.build()
 
+    grid.comm.allreduce.assert_called_once_with(1, op=MPI.MAX)
+
 
 def test_mpi_grid_build_accepts_pml_fitting_local_dimension():
     grid = object.__new__(MPIGrid)
@@ -55,3 +58,5 @@ def test_mpi_grid_build_accepts_pml_fitting_local_dimension():
 
     with patch("gprMax.grid.fdtd_grid.FDTDGrid.build"):
         grid.build()
+
+    grid.comm.allreduce.assert_called_once_with(0, op=MPI.MAX)
