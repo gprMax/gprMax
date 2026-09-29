@@ -393,9 +393,7 @@ class TestPMLThickness:
         thickness = tuple(thickness)
         grid = stub_model.G
         # Use the real setter rather than validating stale mock state.
-        grid.set_pml_thickness.side_effect = lambda values: FDTDGrid.set_pml_thickness(
-            grid, values
-        )
+        grid.set_pml_thickness.side_effect = lambda values: FDTDGrid.set_pml_thickness(grid, values)
 
         def validate():
             if validation_path == "command":
@@ -414,6 +412,24 @@ class TestPMLThickness:
     def test_build_rejects_non_integer_thickness(self, stub_model, bad):
         with pytest.raises(ValueError, match="integer"):
             PMLThickness(bad).build(stub_model)
+
+    def test_build_rejects_overlapping_slabs_when_mpi_subgrid_zeros_local_pml(self, stub_model):
+        def mpi_zero_pml_thickness(values):
+            for face in stub_model.G.pmls["thickness"]:
+                stub_model.G.pmls["thickness"][face] = 0
+
+        stub_model.G.set_pml_thickness.side_effect = mpi_zero_pml_thickness
+        with pytest.raises(ValueError, match="too many cells"):
+            PMLThickness((30, 10, 10, 25, 10, 10)).build(stub_model)
+
+    def test_build_accepts_valid_slabs_when_mpi_subgrid_zeros_local_pml(self, stub_model):
+        def mpi_zero_pml_thickness(values):
+            for face in stub_model.G.pmls["thickness"]:
+                stub_model.G.pmls["thickness"][face] = 0
+
+        stub_model.G.set_pml_thickness.side_effect = mpi_zero_pml_thickness
+        PMLThickness((10, 10, 10, 10, 10, 10)).build(stub_model)
+        stub_model.G.set_pml_thickness.assert_called_once_with((10, 10, 10, 10, 10, 10))
 
 
 # ---------------------------------------------------------------------------

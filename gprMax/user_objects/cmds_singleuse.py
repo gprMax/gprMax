@@ -654,8 +654,6 @@ class PMLThickness(ModelUserObject):
         self.thickness = thickness
 
     def build(self, model: Model):
-        grid = model.G
-
         if isinstance(self.thickness, (bool, str, bytes)):
             raise ValueError(f"{self} requires integer PML cell counts")
         if isinstance(self.thickness, Integral):
@@ -685,17 +683,16 @@ class PMLThickness(ModelUserObject):
         canonical_thickness = (
             thickness_values[0] if len(thickness_values) == 1 else thickness_values
         )
-        model.G.set_pml_thickness(canonical_thickness)
 
-        # Check opposing PML slabs do not overlap
-        # TODO: MPI ranks not containing a PML will not throw an error
-        # here.
-        if (
-            grid.pmls["thickness"]["x0"] + grid.pmls["thickness"]["xmax"] >= model.nx
-            or grid.pmls["thickness"]["y0"] + grid.pmls["thickness"]["ymax"] >= model.ny
-            or grid.pmls["thickness"]["z0"] + grid.pmls["thickness"]["zmax"] >= model.nz
-        ):
+        if len(thickness_values) == 1:
+            tx0 = txmax = ty0 = tymax = tz0 = tzmax = thickness_values[0]
+        else:
+            tx0, ty0, tz0, txmax, tymax, tzmax = thickness_values
+
+        if tx0 + txmax >= model.nx or ty0 + tymax >= model.ny or tz0 + tzmax >= model.nz:
             raise ValueError(f"{self} has too many cells for the domain size")
+
+        model.G.set_pml_thickness(canonical_thickness)
 
         thickness = model.G.pmls["thickness"]
 
