@@ -1114,15 +1114,18 @@ class MPIGrid(FDTDGrid):
         self.set_halo_map()
 
         thickness = self.pmls["thickness"]
-        if (
-            thickness["x0"] > self.nx
-            or thickness["xmax"] > self.nx
-            or thickness["y0"] > self.ny
-            or thickness["ymax"] > self.ny
-            or thickness["z0"] > self.nz
-            or thickness["zmax"] > self.nz
-        ):
-            raise ValueError("PML thickness cannot exceed the local MPI grid dimension")
+        local_invalid = int(
+            thickness["x0"] >= self.nx
+            or thickness["xmax"] >= self.nx
+            or thickness["y0"] >= self.ny
+            or thickness["ymax"] >= self.ny
+            or thickness["z0"] >= self.nz
+            or thickness["zmax"] >= self.nz
+        )
+        if self.comm.allreduce(local_invalid, op=MPI.MAX):
+            raise ValueError(
+                "PML thickness cannot be greater than or equal to the local MPI grid dimension"
+            )
 
         # Get PMLs present in this grid
         pmls = [

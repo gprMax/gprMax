@@ -24,6 +24,8 @@ import pytest
 
 from gprMax.grid.mpi_grid import MPIGrid
 
+pytestmark = pytest.mark.unit
+
 
 def test_mpi_grid_build_rejects_pml_exceeding_local_dimension():
     grid = object.__new__(MPIGrid)
@@ -32,8 +34,12 @@ def test_mpi_grid_build_rejects_pml_exceeding_local_dimension():
     grid.mpi_tasks = np.array([10, 1, 1])
     grid.pmls = {"thickness": {"x0": 20, "xmax": 0, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0}}
     grid.set_halo_map = MagicMock()
+    grid.comm = MagicMock()
+    grid.comm.allreduce.return_value = 1
 
-    with pytest.raises(ValueError, match="cannot exceed the local MPI grid dimension"):
+    with pytest.raises(
+        ValueError, match="cannot be greater than or equal to the local MPI grid dimension"
+    ):
         grid.build()
 
 
@@ -45,6 +51,7 @@ def test_mpi_grid_build_accepts_pml_fitting_local_dimension():
     grid.pmls = {"thickness": {"x0": 20, "xmax": 0, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0}}
     grid.set_halo_map = MagicMock()
     grid.comm = MagicMock()
+    grid.comm.allreduce.return_value = 0
 
     with patch("gprMax.grid.fdtd_grid.FDTDGrid.build"):
         grid.build()
