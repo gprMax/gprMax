@@ -173,20 +173,7 @@ def test_real_mpi_deadlock_regression(tmp_path):
         "scene.add(gprMax.Discretisation(p1=(0.002, 0.002, 0.002)))\n"
         "scene.add(gprMax.TimeWindow(iterations=5))\n"
         "scene.add(gprMax.PMLThickness(thickness=6))\n"
-        "try:\n"
-        "    gprMax.run(scenes=[scene], n=1, mpi=(2, 1, 1), outputfile='unused', hide_progress_bars=True)\n"
-        "except ValueError as e:\n"
-        "    if 'PML has too many cells' in str(e):\n"
-        "        print('SUCCESS_VALIDATED')\n"
-        "        sys.exit(0)\n"
-        "    else:\n"
-        "        print('FAILED_OTHER_VALUEERROR')\n"
-        "        sys.exit(1)\n"
-        "except Exception as e:\n"
-        "    print(f'FAILED_OTHER_EXCEPTION: {e}')\n"
-        "    sys.exit(1)\n"
-        "print('FAILED_NO_EXCEPTION')\n"
-        "sys.exit(1)\n"
+        "gprMax.run(scenes=[scene], n=1, mpi=(2, 1, 1), outputfile='unused', hide_progress_bars=True)\n"
     )
 
     try:
@@ -197,6 +184,17 @@ def test_real_mpi_deadlock_regression(tmp_path):
             text=True,
             check=False
         )
-        assert "SUCCESS" in result.stdout or "SUCCESS" in result.stderr, f"Missing SUCCESS marker. rc={result.returncode}, out={result.stdout}, err={result.stderr}"
+        combined_output = result.stdout + result.stderr
+        
+        # We expect a clean skip if gprMax is missing in this env
+        if "SUCCESS_SKIPPED" in combined_output:
+            return
+
+        # MPIContext catches exceptions internally and calls comm.Abort(1).
+        # We verify that it aborted because of the invalid PML, not a deadlock.
+        assert "has too many cells for the domain size" in combined_output, (
+            f"Missing validation error in output.\nrc={result.returncode}\n"
+            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
     except subprocess.TimeoutExpired:
         pytest.fail("MPI ranks deadlocked during PML validation!")
