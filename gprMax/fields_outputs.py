@@ -15,16 +15,22 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import h5py
 import numpy as np
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+
+if TYPE_CHECKING:
+    from gprMax.model import Model
 
 from ._version import __version__
 
@@ -239,8 +245,7 @@ def store_outputs(G: FDTDGrid, iteration: int):
         tl.Itotal[iteration] = tl.current[tl.antpos]
 
 
-# TODO: Add type information for grid (without a circular dependency)
-def write_hdf5_outputfile(outputfile: Path, title: str, model):
+def write_hdf5_outputfile(outputfile: Path, title: str, model: Model):
     """Writes an output file in HDF5 (.h5) format.
 
     Args:
@@ -373,7 +378,7 @@ def _write_surface_impedance_metadata(basegrp, grid) -> None:
             runtime.create_dataset("q", data=discrete.L * discrete.G)
 
 
-def write_hd5_data(basegrp, grid, is_subgrid=False):
+def write_hd5_data(basegrp, grid: FDTDGrid, is_subgrid: bool = False):
     """Writes grid meta data and data to HDF5 group.
 
     Args:
@@ -440,9 +445,7 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
         basegrp.attrs["filter"] = grid.filter
         basegrp.attrs["ratio"] = grid.ratio
         basegrp.attrs["interpolation"] = grid.interpolation
-        basegrp.attrs["coupling_mode"] = getattr(
-            grid, "coupling_mode", "refining_hsg"
-        )
+        basegrp.attrs["coupling_mode"] = getattr(grid, "coupling_mode", "refining_hsg")
 
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = (
@@ -531,11 +534,15 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     # the public /rxs namespace.
     definitions = getattr(grid, "receiver_definitions", None)
     if definitions and len(definitions) != len(public_rxs):
-        raise ValueError("Public receiver count differs from the registered declarations after gathering")
+        raise ValueError(
+            "Public receiver count differs from the registered declarations after gathering"
+        )
     indices = [getattr(rx, "build_index", None) for rx in public_rxs]
     if any(index is not None for index in indices):
         if any(index is None for index in indices) or sorted(indices) != list(range(len(indices))):
-            raise ValueError("Public receiver build indices must be unique and contiguous after gathering")
+            raise ValueError(
+                "Public receiver build indices must be unique and contiguous after gathering"
+            )
         public_rxs.sort(key=lambda rx: rx.build_index)
         receiver_order = "construction"
     else:
