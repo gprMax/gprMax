@@ -528,10 +528,23 @@ class EigenmodeSource(Source):
             return None, None, "insufficient_non_pml_exterior_geometry"
 
         saved_names = (
-            "frequency", "transverse_start", "transverse_stop", "complex_eps_r_uu",
-            "complex_eps_r_vv", "complex_eps_r_ww", "complex_mu_r_uu", "complex_mu_r_vv",
-            "complex_mu_r_ww", "fdfd_surface_boundary", "surface_impedance_fdfd_edges",
-            "mode_solver", "modal_e", "modal_h", "complex_neff", "neff", "modal_e_real",
+            "frequency",
+            "transverse_start",
+            "transverse_stop",
+            "complex_eps_r_uu",
+            "complex_eps_r_vv",
+            "complex_eps_r_ww",
+            "complex_mu_r_uu",
+            "complex_mu_r_vv",
+            "complex_mu_r_ww",
+            "fdfd_surface_boundary",
+            "surface_impedance_fdfd_edges",
+            "mode_solver",
+            "modal_e",
+            "modal_h",
+            "complex_neff",
+            "neff",
+            "modal_e_real",
             "modal_h_real",
         )
         missing = object()
@@ -675,9 +688,7 @@ class EigenmodeSource(Source):
         requested_tracking_frequencies = tracking_state.get(
             "requested_frequencies", np.asarray(self.frequencies or (), dtype=float)
         )
-        adaptive_frequencies = tracking_state.get(
-            "adaptive_frequencies", np.empty(0, dtype=float)
-        )
+        adaptive_frequencies = tracking_state.get("adaptive_frequencies", np.empty(0, dtype=float))
         if self.mpi_coordinator:
             logger.warning(
                 f"{mismatch} Automatic anchors for eigenmode port {self.port_index} "
@@ -1035,7 +1046,8 @@ class EigenmodeSource(Source):
                 "SIBC electric rows on its rim. Extend the window into opaque "
                 "padding to retain the impedance and loss of a wall on that rim. "
                 "A virtual guide uses the same PEC boundary.",
-                self.port_index, clamped_rows,
+                self.port_index,
+                clamped_rows,
             )
             self._reported_surface_pec_rows = clamped_rows
         return FDFDSurfaceBoundary.create(
@@ -1754,7 +1766,9 @@ class EigenmodeSource(Source):
 
     def _solve_eigenmode_3d(self, G):
         """Solve the local 2D eigenmode and map fields onto global components."""
-        pec_u_mask, pec_v_mask, pec_w_mask = self._yee_pec_electric_component_masks(G, include_window=False)
+        pec_u_mask, pec_v_mask, pec_w_mask = self._yee_pec_electric_component_masks(
+            G, include_window=False
+        )
         pmc_u_mask, pmc_v_mask, pmc_w_mask = self._yee_pmc_magnetic_component_masks(G)
         solver = FDFD_2D_mode_solver(
             frequency=self.frequency,
@@ -1823,9 +1837,12 @@ class EigenmodeSource(Source):
         )
         solver.calculate_diagnostics = self.tracking == "auto"
         if self.tracking == "auto":
-            available = np.count_nonzero(
-                ~solver.pec_a_mask if solver.polarization == "TM" else ~solver.pmc_a_mask
-            ) - 1
+            available = (
+                np.count_nonzero(
+                    ~solver.pec_a_mask if solver.polarization == "TM" else ~solver.pmc_a_mask
+                )
+                - 1
+            )
             solver.num_modes = min(
                 available,
                 solver.num_modes + self.tracking_config.extra_candidates,
@@ -3087,9 +3104,7 @@ class EigenmodeReceiver(EigenmodeSource):
                     adaptive.append(midpoint)
             if tracking_failure is not None:
                 raise tracking_failure
-            self.tracking_diagnostics["adaptive_frequencies"] = np.asarray(
-                adaptive, dtype=float
-            )
+            self.tracking_diagnostics["adaptive_frequencies"] = np.asarray(adaptive, dtype=float)
             self.tracking_diagnostics["requested_frequencies"] = np.asarray(
                 requested_tracking_frequencies, dtype=float
             )
@@ -6003,7 +6018,7 @@ class DiscretePlaneWave(Source):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
                     self.H_fields[dimension, r] = (
-                        self.projections[dimension]
+                        self.projections[dimension + 3]
                         * self.waveformvalues_halfdt[iteration, dimension, r]
                     )
                     # self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
@@ -6011,15 +6026,25 @@ class DiscretePlaneWave(Source):
             for dimension in range(3):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
-                    self.H_fields[dimension, r] = self.projections[dimension] * getSource(
-                        (iteration + 0.5) * G.dt
-                        - (r + (self.m[(dimension + 1) % 3] + self.m[(dimension + 2) % 3]) * 0.5)
-                        * self.ds
-                        / self.speed,
-                        self.waveform.freq,
-                        self.waveform.type.encode("UTF-8"),
-                        G.dt,
-                    )
+                    time1 = (iteration + 0.5) * G.dt - (
+                        r
+                        + (
+                            np.abs(self.m[(dimension + 1) % 3])
+                            + np.abs(self.m[(dimension + 2) % 3])
+                        )
+                        * 0.5
+                    ) * self.ds / self.speed
+                    if (iteration + 0.5) * G.dt >= self.start and (
+                        iteration + 0.5
+                    ) * G.dt <= self.stop:
+                        # Set the time of the waveform evaluation to account for any
+                        # delay in the start
+                        self.H_fields[dimension, r] = self.projections[dimension + 3] * getSource(
+                            time1 - self.start,
+                            self.waveform.freq,
+                            self.waveform.type.encode("UTF-8"),
+                            G.dt,
+                        )
 
     def initialize_electric_fields_1D(self, G, iteration, precompute):
         if precompute:
@@ -6035,13 +6060,20 @@ class DiscretePlaneWave(Source):
             for dimension in range(3):
                 for r in range(self.m[3]):
                     # Assign source values of magnetic field to first few gridpoints
-                    self.E_fields[dimension, r] = self.projections[dimension] * getSource(
-                        (iteration + 1) * G.dt
-                        - (r + np.abs(self.m[dimension]) * 0.5) * self.ds / self.speed,
-                        self.waveform.freq,
-                        self.waveform.type.encode("UTF-8"),
-                        G.dt,
-                    )
+                    time1 = (iteration + 1) * G.dt - (
+                        r + np.abs(self.m[dimension]) * 0.5
+                    ) * self.ds / self.speed
+                    if (iteration + 1) * G.dt >= self.start and (iteration + 1) * G.dt <= (
+                        self.stop
+                    ):
+                        # Set the time of the waveform evaluation to account for any
+                        # delay in the start
+                        self.E_fields[dimension, r] = self.projections[dimension] * getSource(
+                            time1 - self.start,
+                            self.waveform.freq,
+                            self.waveform.type.encode("UTF-8"),
+                            G.dt,
+                        )
 
     def update_magnetic_field_1D(self, G, iteration, precompute=True):
         """Updates magnetic fields for the next time step using Equation 8 of

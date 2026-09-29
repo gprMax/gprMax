@@ -29,7 +29,6 @@ Out of scope (deferred — needs cython kernels + full FDTD grid):
     DiscretePlaneWave.initializeDiscretePlaneWave
     DiscretePlaneWave.grid_init
     DiscretePlaneWave.update_plane_wave_{magnetic,electric,electric_dispersive}
-    DiscretePlaneWave.initialize_{electric,magnetic}_fields_1D
     DiscretePlaneWave.update_{electric,magnetic}_field_1D
     DiscretePlaneWave.getField, apply_TFSF_conditions_{electric,magnetic}
     DiscretePlaneWave._get_pml_parameters
@@ -44,6 +43,7 @@ import numpy as np
 import pytest
 from scipy.constants import c
 
+from gprMax.cython.plane_wave import getSource
 from gprMax.materials import Material
 from gprMax.sources import (
     DiscretePlaneWave,
@@ -142,7 +142,9 @@ class TestVoltageSourceInit:
 
 class TestVoltageSourceCalculateWaveformValues:
     @pytest.mark.parametrize("resistance", [0, 50])
-    def test_populates_only_required_lattice_inside_window(self, fake_grid, make_constant_waveform, resistance):
+    def test_populates_only_required_lattice_inside_window(
+        self, fake_grid, make_constant_waveform, resistance
+    ):
         w = make_constant_waveform(ID="wf", value=2.5)
         G = fake_grid(iterations=10, dt=1e-12, waveforms=[w])
         src = _make_voltage_source(polarisation="x", resistance=resistance)
@@ -852,6 +854,85 @@ class TestDpwWaveformPrecomputation:
 
         np.testing.assert_allclose(dpw.waveformvalues_wholedt, expected_whole, rtol=1e-13)
         np.testing.assert_allclose(dpw.waveformvalues_halfdt, expected_half, rtol=1e-13)
+
+
+class TestDpwInitializeFields1D:
+    """The pure-Python 1D field initialisation fallbacks are testable
+    directly and must mirror the Cython ``initializeMagneticFields`` /
+    ``initializeElectricFields`` behaviour (plane_wave.pyx).
+    """
+
+    def _ready_dpw(self, make_waveform):
+        dpw = DiscretePlaneWave(G=None)
+        # A negative m component (any theta > 90 degrees produces one) plus
+        # six distinct projections, so neither a signed transverse offset nor
+        # a wrong projection slice can pass unnoticed.
+        dpw.m = np.array([-1, 2, 3, 3], dtype=np.int32)
+        dpw.ds = 1e-4
+        dpw.speed = c
+        dpw.start = 0.0
+        dpw.stop = 20e-12
+        # amp of 1.0 keeps parity exact: the precomputed histories include
+        # the waveform amplitude while the on-the-fly getSource path does not.
+        dpw.waveform = make_waveform("gaussian", freq=1e9, amp=1.0)
+        dpw.projections = np.arange(1.0, 7.0)
+        return dpw
+
+    def test_magnetic_nonprecompute_matches_precomputed_history(self, fake_grid, make_waveform):
+        dpw = self._ready_dpw(make_waveform)
+        G = fake_grid(iterations=12, dt=1e-12)
+        dpw.calculate_waveform_values(G, cythonize=False)
+
+        dpw.H_fields = np.zeros((3, dpw.m[3]))
+        dpw.initialize_magnetic_fields_1D(G, 5, precompute=False)
+
+        expected = dpw.projections[3:6, None] * dpw.waveformvalues_halfdt[5]
+        np.testing.assert_allclose(dpw.H_fields, expected, rtol=1e-12)
+
+    def test_electric_nonprecompute_matches_precomputed_history(self, fake_grid, make_waveform):
+        dpw = self._ready_dpw(make_waveform)
+        G = fake_grid(iterations=12, dt=1e-12)
+        dpw.calculate_waveform_values(G, cythonize=False)
+
+        dpw.E_fields = np.zeros((3, dpw.m[3]))
+        dpw.initialize_electric_fields_1D(G, 5, precompute=False)
+
+        expected = dpw.projections[0:3, None] * dpw.waveformvalues_wholedt[6]
+        np.testing.assert_allclose(dpw.E_fields, expected, rtol=1e-12)
+
+    def test_magnetic_nonprecompute_respects_start_window(self, fake_grid, make_waveform):
+        dpw = self._ready_dpw(make_waveform)
+        dpw.start = 2.5e-12
+        G = fake_grid(iterations=12, dt=1e-12)
+
+        # Before the window: (0 + 0.5) * dt < start, so nothing is sourced.
+        dpw.H_fields = np.zeros((3, dpw.m[3]))
+        dpw.initialize_magnetic_fields_1D(G, 0, precompute=False)
+        assert np.all(dpw.H_fields == 0)
+
+        # Inside the window the evaluation time is shifted by the start.
+        iteration = 5
+        dpw.H_fields = np.zeros((3, dpw.m[3]))
+        dpw.initialize_magnetic_fields_1D(G, iteration, precompute=False)
+        for dimension in range(3):
+            for r in range(dpw.m[3]):
+                time = (
+                    (iteration + 0.5) * G.dt
+                    - (
+                        r
+                        + (abs(dpw.m[(dimension + 1) % 3]) + abs(dpw.m[(dimension + 2) % 3])) * 0.5
+                    )
+                    * dpw.ds
+                    / dpw.speed
+                    - dpw.start
+                )
+                expected = dpw.projections[dimension + 3] * getSource(
+                    time,
+                    dpw.waveform.freq,
+                    dpw.waveform.type.encode("UTF-8"),
+                    G.dt,
+                )
+                assert dpw.H_fields[dimension, r] == pytest.approx(expected)
 
 
 pytestmark = pytest.mark.unit
