@@ -654,8 +654,6 @@ class PMLThickness(ModelUserObject):
         self.thickness = thickness
 
     def build(self, model: Model):
-        grid = model.G
-
         if isinstance(self.thickness, (bool, str, bytes)):
             raise ValueError(f"{self} requires integer PML cell counts")
         if isinstance(self.thickness, Integral):
