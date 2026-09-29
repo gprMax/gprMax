@@ -393,9 +393,7 @@ class TestPMLThickness:
         thickness = tuple(thickness)
         grid = stub_model.G
         # Use the real setter rather than validating stale mock state.
-        grid.set_pml_thickness.side_effect = lambda values: FDTDGrid.set_pml_thickness(
-            grid, values
-        )
+        grid.set_pml_thickness.side_effect = lambda values: FDTDGrid.set_pml_thickness(grid, values)
 
         def validate():
             if validation_path == "command":

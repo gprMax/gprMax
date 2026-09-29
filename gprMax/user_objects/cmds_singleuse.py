@@ -691,11 +691,7 @@ class PMLThickness(ModelUserObject):
         else:
             tx0, ty0, tz0, txmax, tymax, tzmax = thickness_values
 
-        if (
-            tx0 + txmax >= model.nx
-            or ty0 + tymax >= model.ny
-            or tz0 + tzmax >= model.nz
-        ):
+        if tx0 + txmax >= model.nx or ty0 + tymax >= model.ny or tz0 + tzmax >= model.nz:
             raise ValueError(f"{self} has too many cells for the domain size")
 
         model.G.set_pml_thickness(canonical_thickness)
