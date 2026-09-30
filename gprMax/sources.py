@@ -15,16 +15,22 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import logging
 import math
 from bisect import bisect_left, bisect_right
 from copy import copy, deepcopy
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 
 import gprMax.config as config
+
+if TYPE_CHECKING:
+    from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.eigenmode_plotting import plot_eigenmode_excitation, plot_eigenmode_port_fields
 from gprMax.fdfd_eigenmode_solver.fdfd_1d_mode_solver import FDFD_1D_mode_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
@@ -3949,7 +3955,7 @@ class TransmissionLine(Source):
             * self.waveformvalues_halfdt[iteration]
         )
 
-    def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
+    def update_electric(self, iteration: int, updatecoeffsE, ID, Ex, Ey, Ez, G: FDTDGrid):
         """Updates electric field value in the main grid from voltage value in
             the transmission line.
 
@@ -3979,8 +3985,7 @@ class TransmissionLine(Source):
             elif self.polarisation == "z":
                 Ez[i, j, k] = -self.voltage[self.antpos] / G.dz
 
-    # TODO: Add type information (if can avoid circular dependency)
-    def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
+    def update_magnetic(self, iteration: int, updatecoeffsH, ID, Hx, Hy, Hz, G: FDTDGrid):
         """Updates current value in transmission line from magnetic field values
             in the main grid.
 

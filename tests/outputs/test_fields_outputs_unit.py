@@ -599,7 +599,9 @@ class TestWriteReceivers:
         _, data = read_h5(path)
         assert data["rxs/rx1/Ex"] == pytest.approx([1, 2, 3, 4, 5])
 
-    def test_low_level_receivers_keep_runtime_order(self, make_view_grid, make_rx, tmp_path, read_h5):
+    def test_low_level_receivers_keep_runtime_order(
+        self, make_view_grid, make_rx, tmp_path, read_h5
+    ):
         """Unindexed low-level serial objects retain list order, not name order."""
         import h5py
 
@@ -733,6 +735,22 @@ class TestWriteSubgrids:
         write_hdf5_outputfile(path, "t", model)
         attrs, _ = read_h5(path)
         assert not any(k.startswith("subgrids/") for k in attrs)
+
+
+def test_output_and_source_type_annotations_without_circular_imports():
+    import inspect
+
+    from gprMax.fields_outputs import write_hd5_data, write_hdf5_outputfile
+    from gprMax.sources import TransmissionLine
+
+    sig_file = inspect.signature(write_hdf5_outputfile)
+    assert sig_file.parameters["model"].annotation in ("Model", "gprMax.model.Model")
+
+    sig_data = inspect.signature(write_hd5_data)
+    assert sig_data.parameters["grid"].annotation in ("FDTDGrid", "gprMax.grid.fdtd_grid.FDTDGrid")
+
+    sig_mag = inspect.signature(TransmissionLine.update_magnetic)
+    assert sig_mag.parameters["G"].annotation in ("FDTDGrid", "gprMax.grid.fdtd_grid.FDTDGrid")
 
 
 pytestmark = pytest.mark.unit
