@@ -16,16 +16,19 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import csv
+import sys
 
 import h5py
 import numpy as np
 import pytest
 
+from gprMax.toolboxes.GeometryImport import cli
 from gprMax.toolboxes.GeometryImport.common import (
     build_tag_volume,
     unique_normalised_tags,
     write_geometry_hdf5,
 )
+from gprMax.toolboxes.GeometryImport.mesh import MeshRegion, MeshSource
 from gprMax.toolboxes.GeometryImport.volume import (
     LabelVolume,
     _canonicalise_axis_aligned,
@@ -210,3 +213,139 @@ def test_label_conversion_writes_materials_and_semantic_tags(tmp_path, monkeypat
         np.testing.assert_array_equal(geometry["data"][:].ravel(), [-1, 0, 0, 0])
         np.testing.assert_array_equal(geometry["tag_data"][:].ravel(), [0, 1, 2, 2])
         assert tuple(geometry.attrs["origin_xyz"]) == pytest.approx((0.0995, 0.199, 0.2985))
+
+
+def test_prepare_volume_assignments_refuses_to_overwrite_without_flag(tmp_path, monkeypatch, capsys):
+    volume = LabelVolume(
+        np.asarray([[[0, 1]]]),
+        (1e-3, 1e-3, 1e-3),
+        (0, 0, 0),
+        {1: "organ"},
+        "synthetic",
+    )
+    monkeypatch.setattr(
+        "gprMax.toolboxes.GeometryImport.cli.load_label_volume",
+        lambda source, unit="auto": volume,
+    )
+    source = tmp_path / "source.nii"
+    source.touch()
+    assignments = tmp_path / "labels.csv"
+    assignments.write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["geometry_import", "volume", "prepare", str(source), str(assignments)],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+    assert "already exists" in capsys.readouterr().err
+    assert assignments.read_text(encoding="utf-8") == "existing"
+
+
+def test_prepare_volume_assignments_overwrites_with_flag(tmp_path, monkeypatch):
+    volume = LabelVolume(
+        np.asarray([[[0, 1]]]),
+        (1e-3, 1e-3, 1e-3),
+        (0, 0, 0),
+        {1: "organ"},
+        "synthetic",
+    )
+    monkeypatch.setattr(
+        "gprMax.toolboxes.GeometryImport.cli.load_label_volume",
+        lambda source, unit="auto": volume,
+    )
+    source = tmp_path / "source.nii"
+    source.touch()
+    assignments = tmp_path / "labels.csv"
+    assignments.write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "geometry_import",
+            "volume",
+            "prepare",
+            str(source),
+            str(assignments),
+            "--overwrite",
+        ],
+    )
+
+    cli.main()
+
+    assert assignments.read_text(encoding="utf-8").startswith("label,name,include,material_name,geometry_tag\n")
+
+
+def test_prepare_mesh_assignments_refuses_to_overwrite_without_flag(tmp_path, monkeypatch, capsys):
+    mesh_source = MeshSource(
+        dataset=None,
+        regions=(MeshRegion(source_value="1", name="surface", compact_id=0, cell_count=1),),
+        kind="surface",
+        source_region_array="regions",
+    )
+    monkeypatch.setattr(
+        "gprMax.toolboxes.GeometryImport.cli.load_mesh_source",
+        lambda source, unit, region_array=None: mesh_source,
+    )
+    source = tmp_path / "mesh.vtk"
+    source.touch()
+    assignments = tmp_path / "mesh_assignments.csv"
+    assignments.write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "geometry_import",
+            "mesh",
+            "prepare",
+            str(source),
+            "--unit",
+            "m",
+            str(assignments),
+        ],
+    )
+
+    with pytest.raises(SystemExit) as error:
+        cli.main()
+
+    assert error.value.code == 2
+    assert "already exists" in capsys.readouterr().err
+    assert assignments.read_text(encoding="utf-8") == "existing"
+
+
+def test_prepare_mesh_assignments_overwrites_with_flag(tmp_path, monkeypatch):
+    mesh_source = MeshSource(
+        dataset=None,
+        regions=(MeshRegion(source_value="1", name="surface", compact_id=0, cell_count=1),),
+        kind="surface",
+        source_region_array="regions",
+    )
+    monkeypatch.setattr(
+        "gprMax.toolboxes.GeometryImport.cli.load_mesh_source",
+        lambda source, unit, region_array=None: mesh_source,
+    )
+    source = tmp_path / "mesh.vtk"
+    source.touch()
+    assignments = tmp_path / "mesh_assignments.csv"
+    assignments.write_text("existing", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "geometry_import",
+            "mesh",
+            "prepare",
+            str(source),
+            "--unit",
+            "m",
+            str(assignments),
+            "--overwrite",
+        ],
+    )
+
+    cli.main()
+
+    assert assignments.read_text(encoding="utf-8").startswith("region,include,priority,material_name,geometry_tag\n")
