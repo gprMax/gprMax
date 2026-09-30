@@ -1335,7 +1335,7 @@ cdef void updateElectricFields(
 
     for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index
         E_x[j] = coef_E_xt * E_x[j] + coef_E_xy * ( H_z[j] - H_z[j-m_y] ) - coef_E_xz * ( H_y[j] - H_y[j-m_z] )  #equation 9 of Tan, Potter paper
-        E_y[j] = coef_E_yt * E_y[j] + coef_E_yx * ( H_x[j] - H_x[j-m_z] ) - coef_E_yx * ( H_z[j] - H_z[j-m_x] )  #equation 9 of Tan, Potter paper
+        E_y[j] = coef_E_yt * E_y[j] + coef_E_yz * ( H_x[j] - H_x[j-m_z] ) - coef_E_yx * ( H_z[j] - H_z[j-m_x] )  #equation 9 of Tan, Potter paper
         E_z[j] = coef_E_zt * E_z[j] + coef_E_zx * ( H_y[j] - H_y[j-m_x] ) - coef_E_zy * ( H_x[j] - H_x[j-m_y] )  #equation 9 of Tan, Potter paper
 
 
