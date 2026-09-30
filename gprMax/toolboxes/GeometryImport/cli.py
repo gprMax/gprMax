@@ -39,6 +39,12 @@ def _add_volume_commands(parent):
             help="physical unit; auto uses NIfTI/NRRD metadata",
         )
     prepare.add_argument("assignments", type=Path)
+    prepare.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="overwrite existing assignment template",
+    )
     convert.add_argument("assignments", type=Path)
     convert.add_argument("output", type=Path)
 
@@ -53,6 +59,12 @@ def _add_mesh_commands(parent):
         command.add_argument("--unit", required=True, choices=("m", "mm", "um"))
         command.add_argument("--region-array", help="cell-data array defining mesh regions")
     prepare.add_argument("assignments", type=Path)
+    prepare.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="overwrite existing assignment template",
+    )
     convert.add_argument("assignments", type=Path)
     convert.add_argument("output", type=Path)
     convert.add_argument(
@@ -67,7 +79,7 @@ def _add_mesh_commands(parent):
     convert.add_argument("--supersample", type=int, default=1)
 
 
-def _volume(args):
+def _volume(args, parser=None):
     volume = load_label_volume(args.source, unit=args.unit)
     if args.action == "inspect":
         print(
@@ -84,13 +96,18 @@ def _volume(args):
             )
         )
     elif args.action == "prepare":
-        print(write_label_template(volume, args.assignments))
+        try:
+            print(write_label_template(volume, args.assignments, overwrite=getattr(args, "overwrite", False)))
+        except FileExistsError as exc:
+            if parser is not None:
+                parser.error(f"Assignment template already exists: {exc}. Use --overwrite to replace it.")
+            raise
     else:
         result = convert_label_volume(args.source, args.assignments, args.output, unit=args.unit)
         print(result.geometry_file)
 
 
-def _mesh(args):
+def _mesh(args, parser=None):
     source = load_mesh_source(
         args.source,
         unit=args.unit,
@@ -108,7 +125,12 @@ def _mesh(args):
             )
         )
     elif args.action == "prepare":
-        print(write_mesh_template(source, args.assignments))
+        try:
+            print(write_mesh_template(source, args.assignments, overwrite=getattr(args, "overwrite", False)))
+        except FileExistsError as exc:
+            if parser is not None:
+                parser.error(f"Assignment template already exists: {exc}. Use --overwrite to replace it.")
+            raise
     else:
         result = convert_mesh(
             args.source,
@@ -133,6 +155,6 @@ def main(argv=None):
     _add_mesh_commands(formats.add_parser("mesh", help="Gmsh/VTK/VTP/VTU meshes"))
     args = parser.parse_args(argv)
     if args.source_type == "volume":
-        _volume(args)
+        _volume(args, parser)
     else:
-        _mesh(args)
+        _mesh(args, parser)
