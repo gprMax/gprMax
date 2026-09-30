@@ -6153,14 +6153,16 @@ class DiscretePlaneWave(Source):
             ]
             # Update electric field at each spatial index
             for j in range(self.m[-1], self.length - self.m[-1]):
+                # Each metric coefficient follows the derivative axis, not
+                # the magnetic-field component (matching the Cython curl).
                 self.E_fields[i, j] = (
                     G.updatecoeffsE[materialE, 0] * self.E_fields[i, j]
-                    + G.updatecoeffsE[materialE, (i + 2) % 3 + 1]
+                    + G.updatecoeffsE[materialE, (i + 1) % 3 + 1]
                     * (
                         self.H_fields[(i + 2) % 3, j]
                         - self.H_fields[(i + 2) % 3, j - self.m[(i + 1) % 3]]
                     )
-                    - G.updatecoeffsE[materialE, (i + 1) % 3 + 1]
+                    - G.updatecoeffsE[materialE, (i + 2) % 3 + 1]
                     * (
                         self.H_fields[(i + 1) % 3, j]
                         - self.H_fields[(i + 1) % 3, j - self.m[(i + 2) % 3]]
