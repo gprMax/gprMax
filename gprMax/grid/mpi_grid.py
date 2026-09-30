@@ -1113,7 +1113,15 @@ class MPIGrid(FDTDGrid):
 
         self.set_halo_map()
 
-        # TODO: Check PML is not thicker than the grid size
+        local_invalid = 0
+        if not all(value == 0 for value in self.pmls["thickness"].values()):
+            try:
+                super()._validate_pml_thickness()
+            except ValueError:
+                local_invalid = 1
+
+        if self.comm.allreduce(local_invalid, op=MPI.MAX):
+            raise ValueError("PML has too many cells for the domain size")
 
         # Get PMLs present in this grid
         pmls = [
