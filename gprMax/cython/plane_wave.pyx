@@ -17,9 +17,9 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
-cimport numpy as np
 
 cimport cython
+cimport numpy as np
 from libc.math cimport M_PI, abs, atan2, ceil, cos, exp, floor, log, pow, round, sin, sqrt, tan
 from libc.stdio cimport FILE, fclose, fopen, fwrite
 from libc.string cimport strcmp
@@ -27,7 +27,6 @@ from libc.string cimport strcmp
 from cython.parallel import prange
 
 from gprMax.config cimport float_or_double
-
 
 # The plane-wave electric and magnetic fields remain real, while auxiliary
 # dispersive state is real for Debye-only models and complex when any Lorentz
@@ -83,7 +82,7 @@ cdef void applyTFSFMagnetic(
             angles for assignment of correct element to 3D FDTD grid from 1D
             representation, last element stores max(m_x, m_y, m_z).
         origin: int array of coordinates of origin of the TF/SF box.
-        corners: int array of coordinates of corners of TF/SF field boundaries.        
+        corners: int array of coordinates of corners of TF/SF field boundaries.
     """
 
     cdef Py_ssize_t i, j, k = 0
@@ -96,8 +95,8 @@ cdef void applyTFSFMagnetic(
 
     cdef int Ox = origin[0]
     cdef int Oy = origin[1]
-    cdef int Oz = origin[2] 
-    
+    cdef int Oz = origin[2]
+
     cdef int x_start = corners[0]
     cdef int y_start = corners[1]
     cdef int z_start = corners[2]
@@ -234,7 +233,7 @@ cdef void applyTFSFMagnetic_axial(
             angles for assignment of correct element to 3D FDTD grid from 1D
             representation, last element stores max(m_x, m_y, m_z).
         origin: int array of coordinates of origin of the TF/SF box.
-        corners: int array of coordinates of corners of TF/SF field boundaries.        
+        corners: int array of coordinates of corners of TF/SF field boundaries.
     """
 
     cdef Py_ssize_t i, j, k = 0
@@ -247,7 +246,7 @@ cdef void applyTFSFMagnetic_axial(
 
     cdef int Ox = origin[0]
     cdef int Oy = origin[1]
-    cdef int Oz = origin[2] 
+    cdef int Oz = origin[2]
 
     cdef int O_axial = origin_axial
 
@@ -380,7 +379,7 @@ cdef void applyTFSFElectric(
             angles for assignment of correct element to 3D FDTD grid from 1D
             representation, last element stores max(m_x, m_y, m_z).
         origin: int array of coordinates of origin of the TF/SF box.
-        corners: int array for coordinates of corners of TF/SF field boundaries.      
+        corners: int array for coordinates of corners of TF/SF field boundaries.
     """
 
     cdef Py_ssize_t i, j, k = 0
@@ -393,8 +392,8 @@ cdef void applyTFSFElectric(
 
     cdef int Ox = origin[0]
     cdef int Oy = origin[1]
-    cdef int Oz = origin[2] 
-    
+    cdef int Oz = origin[2]
+
     cdef int x_start = corners[0]
     cdef int y_start = corners[1]
     cdef int z_start = corners[2]
@@ -533,7 +532,7 @@ cdef void applyTFSFElectric_axial(
             angles for assignment of correct element to 3D FDTD grid from 1D
             representation, last element stores max(m_x, m_y, m_z).
         origin: int array of coordinates of origin of the TF/SF box.
-        corners: int array for coordinates of corners of TF/SF field boundaries.      
+        corners: int array for coordinates of corners of TF/SF field boundaries.
     """
 
     cdef Py_ssize_t i, j, k = 0
@@ -546,10 +545,10 @@ cdef void applyTFSFElectric_axial(
 
     cdef int Ox = origin[0]
     cdef int Oy = origin[1]
-    cdef int Oz = origin[2] 
+    cdef int Oz = origin[2]
 
-    cdef int O_axial = origin_axial 
-    
+    cdef int O_axial = origin_axial
+
     cdef int x_start = corners[0]
     cdef int y_start = corners[1]
     cdef int z_start = corners[2]
@@ -799,7 +798,7 @@ cdef void updateMagneticFields(
                     along different coordinate axes.
         rcHx, rcHy, rcHz: double arrays to store precomputed coefficients
                             for PML regions along different coordinate axes.
-        dx, dy, dz: float of spatial step sizes along different coordinate axes.    
+        dx, dy, dz: float of spatial step sizes along different coordinate axes.
         updatecoeffsH: double array of coefficients of fields in update
                         equation for magnetic field.
         m: int array of integer mappings, m_x, m_y, m_z which determine
@@ -836,19 +835,19 @@ cdef void updateMagneticFields(
     cdef float_or_double[:] Iymxz = Iy[2, :]
     cdef float_or_double[:] Iymzx = Iy[3, :]
     cdef float_or_double[:] Izmxy = Iz[2, :]
-    cdef float_or_double[:] Izmyx = Iz[3, :]   
+    cdef float_or_double[:] Izmyx = Iz[3, :]
 
-    cdef float_or_double[:] RAHx = rcHx[0, :]   
+    cdef float_or_double[:] RAHx = rcHx[0, :]
     cdef float_or_double[:] RBHx = rcHx[1, :]
     cdef float_or_double[:] RCHx = rcHx[2, :]
-    cdef float_or_double[:] RDHx = rcHx[3, :]   
+    cdef float_or_double[:] RDHx = rcHx[3, :]
 
-    cdef float_or_double[:] RAHy = rcHy[0, :]   
+    cdef float_or_double[:] RAHy = rcHy[0, :]
     cdef float_or_double[:] RBHy = rcHy[1, :]
     cdef float_or_double[:] RCHy = rcHy[2, :]
-    cdef float_or_double[:] RDHy = rcHy[3, :]   
+    cdef float_or_double[:] RDHy = rcHy[3, :]
 
-    cdef float_or_double[:] RAHz = rcHz[0, :]   
+    cdef float_or_double[:] RAHz = rcHz[0, :]
     cdef float_or_double[:] RBHz = rcHz[1, :]
     cdef float_or_double[:] RCHz = rcHz[2, :]
     cdef float_or_double[:] RDHz = rcHz[3, :]
@@ -860,9 +859,9 @@ cdef void updateMagneticFields(
     cdef float_or_double dEzy, dEyz, dEzx, dExz, dEyx, dExy = 0.0
     cdef float_or_double mxy, mxz, myx, myz, mzx, mzy = 0.0
 
-    cdef int idx = 0    
-   
-    
+    cdef int idx = 0
+
+
     for j in range(m[3], n-m[3]):  #loop to update the magnetic field at each spatial index
         H_x[j] = coef_H_xt * H_x[j] + coef_H_xz * ( E_y[j+m_z] - E_y[j] ) - coef_H_xy * ( E_z[j+m_y] - E_z[j] )     #equation 8 of Tan, Potter paper
         H_y[j] = coef_H_yt * H_y[j] + coef_H_yx * ( E_z[j+m_x] - E_z[j] ) - coef_H_yz * ( E_x[j+m_z] - E_x[j] )     #equation 8 of Tan, Potter paper
@@ -871,9 +870,9 @@ cdef void updateMagneticFields(
 
     # PML regions
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
-    
+
         dEzy = (E_z[idx + m_y] - E_z[idx]) / dy
         dEyz = (E_y[idx + m_z] - E_y[idx]) / dz
 
@@ -887,7 +886,7 @@ cdef void updateMagneticFields(
         Ixmyz[i] = Ixmyz[i] - RCHx[i] * mxz + RDHx[i] * dEyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dEzx = (E_z[idx + m_x] - E_z[idx]) / dx
@@ -904,7 +903,7 @@ cdef void updateMagneticFields(
 
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dEyx = (E_y[idx + m_x] - E_y[idx]) / dx
@@ -968,7 +967,7 @@ cdef void updateMagneticFields_axial(
                     along different coordinate axes.
         rcHx, rcHy, rcHz: double arrays to store precomputed coefficients
                             for PML regions along different coordinate axes.
-        dx, dy, dz: float of spatial step sizes along different coordinate axes.    
+        dx, dy, dz: float of spatial step sizes along different coordinate axes.
         updatecoeffsH: double array of coefficients of fields in update
                         equation for magnetic field.
         m: int array of integer mappings, m_x, m_y, m_z which determine
@@ -998,48 +997,48 @@ cdef void updateMagneticFields_axial(
     cdef float_or_double[:] Iymxz = Iy[2, :]
     cdef float_or_double[:] Iymzx = Iy[3, :]
     cdef float_or_double[:] Izmxy = Iz[2, :]
-    cdef float_or_double[:] Izmyx = Iz[3, :]   
+    cdef float_or_double[:] Izmyx = Iz[3, :]
 
     cdef float_or_double[:] Ixmyz0 = Ix0[2, :]
     cdef float_or_double[:] Ixmzy0 = Ix0[3, :]
     cdef float_or_double[:] Iymxz0 = Iy0[2, :]
     cdef float_or_double[:] Iymzx0 = Iy0[3, :]
     cdef float_or_double[:] Izmxy0 = Iz0[2, :]
-    cdef float_or_double[:] Izmyx0 = Iz0[3, :]   
+    cdef float_or_double[:] Izmyx0 = Iz0[3, :]
 
     cdef float_or_double[:] Ixmyz_s = Ix_s[2, :]
     cdef float_or_double[:] Ixmzy_s = Ix_s[3, :]
     cdef float_or_double[:] Iymxz_s = Iy_s[2, :]
     cdef float_or_double[:] Iymzx_s = Iy_s[3, :]
     cdef float_or_double[:] Izmxy_s = Iz_s[2, :]
-    cdef float_or_double[:] Izmyx_s = Iz_s[3, :]   
+    cdef float_or_double[:] Izmyx_s = Iz_s[3, :]
 
-    cdef float_or_double[:] RAHx = rcHx[0, :]   
+    cdef float_or_double[:] RAHx = rcHx[0, :]
     cdef float_or_double[:] RBHx = rcHx[1, :]
     cdef float_or_double[:] RCHx = rcHx[2, :]
-    cdef float_or_double[:] RDHx = rcHx[3, :]   
+    cdef float_or_double[:] RDHx = rcHx[3, :]
 
-    cdef float_or_double[:] RAHy = rcHy[0, :]   
+    cdef float_or_double[:] RAHy = rcHy[0, :]
     cdef float_or_double[:] RBHy = rcHy[1, :]
     cdef float_or_double[:] RCHy = rcHy[2, :]
-    cdef float_or_double[:] RDHy = rcHy[3, :]   
+    cdef float_or_double[:] RDHy = rcHy[3, :]
 
-    cdef float_or_double[:] RAHz = rcHz[0, :]   
+    cdef float_or_double[:] RAHz = rcHz[0, :]
     cdef float_or_double[:] RBHz = rcHz[1, :]
     cdef float_or_double[:] RCHz = rcHz[2, :]
     cdef float_or_double[:] RDHz = rcHz[3, :]
 
-    cdef float_or_double[:] RAHx0 = rcHx0[0, :]   
+    cdef float_or_double[:] RAHx0 = rcHx0[0, :]
     cdef float_or_double[:] RBHx0 = rcHx0[1, :]
     cdef float_or_double[:] RCHx0 = rcHx0[2, :]
-    cdef float_or_double[:] RDHx0 = rcHx0[3, :]   
+    cdef float_or_double[:] RDHx0 = rcHx0[3, :]
 
-    cdef float_or_double[:] RAHy0 = rcHy0[0, :]   
+    cdef float_or_double[:] RAHy0 = rcHy0[0, :]
     cdef float_or_double[:] RBHy0 = rcHy0[1, :]
     cdef float_or_double[:] RCHy0 = rcHy0[2, :]
-    cdef float_or_double[:] RDHy0 = rcHy0[3, :]   
+    cdef float_or_double[:] RDHy0 = rcHy0[3, :]
 
-    cdef float_or_double[:] RAHz0 = rcHz0[0, :]   
+    cdef float_or_double[:] RAHz0 = rcHz0[0, :]
     cdef float_or_double[:] RBHz0 = rcHz0[1, :]
     cdef float_or_double[:] RCHz0 = rcHz0[2, :]
     cdef float_or_double[:] RDHz0 = rcHz0[3, :]
@@ -1054,7 +1053,7 @@ cdef void updateMagneticFields_axial(
     cdef float_or_double dEzy, dEyz, dEzx, dExz, dEyx, dExy = 0.0
     cdef float_or_double mxy, mxz, myx, myz, mzx, mzy = 0.0
 
-    cdef int idx = 0    
+    cdef int idx = 0
 
 
     # Update for 1D source fields
@@ -1066,7 +1065,7 @@ cdef void updateMagneticFields_axial(
 
      # PML regions for 1D DPW source fields
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dEzy = (E_z_s[idx + m_y] - E_z_s[idx]) / dy
@@ -1082,7 +1081,7 @@ cdef void updateMagneticFields_axial(
         Ixmyz_s[i] = Ixmyz_s[i] - RCHx0[i] * mxz + RDHx0[i] * dEyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dEzx = (E_z_s[idx + m_x] - E_z_s[idx]) / dx
@@ -1099,7 +1098,7 @@ cdef void updateMagneticFields_axial(
 
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
 
@@ -1129,13 +1128,13 @@ cdef void updateMagneticFields_axial(
         H_z[j] = updatecoeffsH[GID[5,j],0] * H_z[j] + updatecoeffsH[GID[5,j],2] * ( E_x[j+m_y] - E_x[j] ) - updatecoeffsH[GID[5,j],1] * ( E_y[j+m_x] - E_y[j] ) #equation 8 of Tan, Potter paper
 
 
-   
+
 
     # PML regions
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
-    
+
         dEzy = (E_z[idx + m_y] - E_z[idx]) / dy
         dEyz = (E_y[idx + m_z] - E_y[idx]) / dz
 
@@ -1149,7 +1148,7 @@ cdef void updateMagneticFields_axial(
         Ixmyz[i] = Ixmyz[i] - RCHx[i] * mxz + RDHx[i] * dEyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dEzx = (E_z[idx + m_x] - E_z[idx]) / dx
@@ -1166,10 +1165,10 @@ cdef void updateMagneticFields_axial(
 
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
-        
+
         dEyx = (E_y[idx + m_x] - E_y[idx]) / dx
         dExy = (E_x[idx + m_y] - E_x[idx]) / dy
 
@@ -1185,9 +1184,9 @@ cdef void updateMagneticFields_axial(
 
     # PML regions start of the DPW field region for scattered fields.
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (p - i) - 1
-    
+
         dEzy = (E_z[idx + m_y] - E_z[idx]) / dy
         dEyz = (E_y[idx + m_z] - E_y[idx]) / dz
 
@@ -1201,7 +1200,7 @@ cdef void updateMagneticFields_axial(
         Ixmyz0[i] = Ixmyz0[i] - RCHx0[i] * mxz + RDHx0[i] * dEyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (p - i) - 1
 
         dEzx = (E_z[idx + m_x] - E_z[idx]) / dx
@@ -1218,7 +1217,7 @@ cdef void updateMagneticFields_axial(
 
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (p - i) - 1
 
         dEyx = (E_y[idx + m_x] - E_y[idx]) / dx
@@ -1309,17 +1308,17 @@ cdef void updateElectricFields(
     cdef float_or_double[:] Izjxy = Iz[0, :]
     cdef float_or_double[:] Izjyx = Iz[1, :]
 
-    cdef float_or_double[:] RAEx = rcEx[0, :]   
+    cdef float_or_double[:] RAEx = rcEx[0, :]
     cdef float_or_double[:] RBEx = rcEx[1, :]
     cdef float_or_double[:] RCEx = rcEx[2, :]
-    cdef float_or_double[:] RDEx = rcEx[3, :]   
+    cdef float_or_double[:] RDEx = rcEx[3, :]
 
-    cdef float_or_double[:] RAEy = rcEy[0, :]   
+    cdef float_or_double[:] RAEy = rcEy[0, :]
     cdef float_or_double[:] RBEy = rcEy[1, :]
     cdef float_or_double[:] RCEy = rcEy[2, :]
-    cdef float_or_double[:] RDEy = rcEy[3, :]   
+    cdef float_or_double[:] RDEy = rcEy[3, :]
 
-    cdef float_or_double[:] RAEz = rcEz[0, :]   
+    cdef float_or_double[:] RAEz = rcEz[0, :]
     cdef float_or_double[:] RBEz = rcEz[1, :]
     cdef float_or_double[:] RCEz = rcEz[2, :]
     cdef float_or_double[:] RDEz = rcEz[3, :]
@@ -1331,8 +1330,8 @@ cdef void updateElectricFields(
     cdef float_or_double dHzy, dHyz, dHzx, dHxz, dHyx, dHxy = 0.0
     cdef float_or_double jxy, jxz, jyx, jyz, jzx, jzy = 0.0
 
-    cdef int idx = 0    
-    
+    cdef int idx = 0
+
 
     for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index
         E_x[j] = coef_E_xt * E_x[j] + coef_E_xy * ( H_z[j] - H_z[j-m_y] ) - coef_E_xz * ( H_y[j] - H_y[j-m_z] )  #equation 9 of Tan, Potter paper
@@ -1341,7 +1340,7 @@ cdef void updateElectricFields(
 
 
     # PML regions
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzy = (H_z[idx] - H_z[idx - m_y]) / dy
@@ -1357,7 +1356,7 @@ cdef void updateElectricFields(
         Ixjyz[i] = Ixjyz[i] - RCEx[i] * jxz + RDEx[i] * dHyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzx = (H_z[idx] - H_z[idx - m_x]) / dx
@@ -1373,7 +1372,7 @@ cdef void updateElectricFields(
         Iyjxz[i] = Iyjxz[i] - RCEy[i] * jyz + RDEy[i] * dHxz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHyx = (H_y[idx] - H_y[idx - m_x]) / dx
@@ -1483,32 +1482,32 @@ cdef void updateElectricFields_axial(
     cdef float_or_double[:] Izjxy_s = Iz_s[0, :]
     cdef float_or_double[:] Izjyx_s = Iz_s[1, :]
 
-    cdef float_or_double[:] RAEx = rcEx[0, :]   
+    cdef float_or_double[:] RAEx = rcEx[0, :]
     cdef float_or_double[:] RBEx = rcEx[1, :]
     cdef float_or_double[:] RCEx = rcEx[2, :]
-    cdef float_or_double[:] RDEx = rcEx[3, :]   
+    cdef float_or_double[:] RDEx = rcEx[3, :]
 
-    cdef float_or_double[:] RAEy = rcEy[0, :]   
+    cdef float_or_double[:] RAEy = rcEy[0, :]
     cdef float_or_double[:] RBEy = rcEy[1, :]
     cdef float_or_double[:] RCEy = rcEy[2, :]
-    cdef float_or_double[:] RDEy = rcEy[3, :]   
+    cdef float_or_double[:] RDEy = rcEy[3, :]
 
-    cdef float_or_double[:] RAEz = rcEz[0, :]   
+    cdef float_or_double[:] RAEz = rcEz[0, :]
     cdef float_or_double[:] RBEz = rcEz[1, :]
     cdef float_or_double[:] RCEz = rcEz[2, :]
     cdef float_or_double[:] RDEz = rcEz[3, :]
 
-    cdef float_or_double[:] RAEx0 = rcEx0[0, :]   
+    cdef float_or_double[:] RAEx0 = rcEx0[0, :]
     cdef float_or_double[:] RBEx0 = rcEx0[1, :]
     cdef float_or_double[:] RCEx0 = rcEx0[2, :]
-    cdef float_or_double[:] RDEx0 = rcEx0[3, :]   
+    cdef float_or_double[:] RDEx0 = rcEx0[3, :]
 
-    cdef float_or_double[:] RAEy0 = rcEy0[0, :]   
+    cdef float_or_double[:] RAEy0 = rcEy0[0, :]
     cdef float_or_double[:] RBEy0 = rcEy0[1, :]
     cdef float_or_double[:] RCEy0 = rcEy0[2, :]
-    cdef float_or_double[:] RDEy0 = rcEy0[3, :]   
+    cdef float_or_double[:] RDEy0 = rcEy0[3, :]
 
-    cdef float_or_double[:] RAEz0 = rcEz0[0, :]   
+    cdef float_or_double[:] RAEz0 = rcEz0[0, :]
     cdef float_or_double[:] RBEz0 = rcEz0[1, :]
     cdef float_or_double[:] RCEz0 = rcEz0[2, :]
     cdef float_or_double[:] RDEz0 = rcEz0[3, :]
@@ -1522,8 +1521,8 @@ cdef void updateElectricFields_axial(
     cdef float_or_double dHzy, dHyz, dHzx, dHxz, dHyx, dHxy = 0.0
     cdef float_or_double jxy, jxz, jyx, jyz, jzx, jzy = 0.0
 
-    cdef int idx = 0    
-   
+    cdef int idx = 0
+
    # Do the source fields first
     for j in range(m[3], n-m[3]):   #loop to update DPW 1D source fields
         E_x_s[j] = updatecoeffsE[GID[0,2],0] * E_x_s[j] + updatecoeffsE[GID[0,2],2] * ( H_z_s[j] - H_z_s[j-m_y] ) - updatecoeffsE[GID[0,2],3] * ( H_y_s[j] - H_y_s[j-m_z] )  #equation 9 of Tan, Potter paper
@@ -1533,7 +1532,7 @@ cdef void updateElectricFields_axial(
 
 
      # PML regions source 1D DPW arrays
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzy = (H_z_s[idx] - H_z_s[idx - m_y]) / dy
@@ -1549,7 +1548,7 @@ cdef void updateElectricFields_axial(
         Ixjyz_s[i] = Ixjyz_s[i] - RCEx0[i] * jxz + RDEx0[i] * dHyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzx = (H_z_s[idx] - H_z_s[idx - m_x]) / dx
@@ -1565,7 +1564,7 @@ cdef void updateElectricFields_axial(
         Iyjxz_s[i] = Iyjxz_s[i] - RCEy0[i] * jyz + RDEy0[i] * dHxz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHyx = (H_y_s[idx] - H_y_s[idx - m_x]) / dx
@@ -1582,7 +1581,7 @@ cdef void updateElectricFields_axial(
 
 
 
-     #source 
+     #source
     E_x[src-1] = E_x[src-1] - updatecoeffsE[GID[0,src-1],2] * H_z_s[src-1-m_y] + updatecoeffsE[GID[0,src-1],3] * H_y_s[src-1-m_z]
     E_y[src-1] = E_y[src-1] - updatecoeffsE[GID[1,src-1],3] * H_x_s[src-1-m_z] + updatecoeffsE[GID[1,src-1],1] * H_z_s[src-1-m_x]
     E_z[src-1] = E_z[src-1] - updatecoeffsE[GID[2,src-1],1] * H_y_s[src-1-m_x] + updatecoeffsE[GID[2,src-1],2] * H_x_s[src-1-m_y]
@@ -1595,10 +1594,10 @@ cdef void updateElectricFields_axial(
         E_z[j] = updatecoeffsE[GID[2,j],0] * E_z[j] + updatecoeffsE[GID[2,j],1] * ( H_y[j] - H_y[j-m_x] ) - updatecoeffsE[GID[2,j],2] * ( H_x[j] - H_x[j-m_y] )  #equation 9 of Tan, Potter paper
 
 
-   
+
 
     # PML regions
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzy = (H_z[idx] - H_z[idx - m_y]) / dy
@@ -1614,7 +1613,7 @@ cdef void updateElectricFields_axial(
         Ixjyz[i] = Ixjyz[i] - RCEx[i] * jxz + RDEx[i] * dHyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzx = (H_z[idx] - H_z[idx - m_x]) / dx
@@ -1630,7 +1629,7 @@ cdef void updateElectricFields_axial(
         Iyjxz[i] = Iyjxz[i] - RCEy[i] * jyz + RDEy[i] * dHxz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHyx = (H_y[idx] - H_y[idx - m_x]) / dx
@@ -1647,8 +1646,8 @@ cdef void updateElectricFields_axial(
 
 
     # PML array start region
- 
-    for i in range(p-1, -1, -1):  
+
+    for i in range(p-1, -1, -1):
         idx = (p - i)
 
         dHzy = (H_z[idx] - H_z[idx - m_y]) / dy
@@ -1664,7 +1663,7 @@ cdef void updateElectricFields_axial(
         Ixjyz0[i] = Ixjyz0[i] - RCEx0[i] * jxz + RDEx0[i] * dHyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (p - i)
 
         dHzx = (H_z[idx] - H_z[idx - m_x]) / dx
@@ -1680,7 +1679,7 @@ cdef void updateElectricFields_axial(
         Iyjxz0[i] = Iyjxz0[i] - RCEy0[i] * jyz + RDEy0[i] * dHxz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (p - i)
 
         dHyx = (H_y[idx] - H_y[idx - m_x]) / dx
@@ -1773,8 +1772,8 @@ cdef void updateElectricFields_dispersive(
     cdef float_or_double coef_E_zx = updatecoeffsE[1]
     cdef float_or_double coef_E_zy = updatecoeffsE[2]
 
-    cdef float_or_double coef_E_D = updatecoeffsE[4]  
-    
+    cdef float_or_double coef_E_D = updatecoeffsE[4]
+
     cdef dispersive_float_or_double[:] coef_D = updatecoeffsdispersive
 
     cdef float_or_double[:] Ixjyz = Ix[0, :]
@@ -1784,17 +1783,17 @@ cdef void updateElectricFields_dispersive(
     cdef float_or_double[:] Izjxy = Iz[0, :]
     cdef float_or_double[:] Izjyx = Iz[1, :]
 
-    cdef float_or_double[:] RAEx = rcEx[0, :]   
+    cdef float_or_double[:] RAEx = rcEx[0, :]
     cdef float_or_double[:] RBEx = rcEx[1, :]
     cdef float_or_double[:] RCEx = rcEx[2, :]
-    cdef float_or_double[:] RDEx = rcEx[3, :]   
+    cdef float_or_double[:] RDEx = rcEx[3, :]
 
-    cdef float_or_double[:] RAEy = rcEy[0, :]   
+    cdef float_or_double[:] RAEy = rcEy[0, :]
     cdef float_or_double[:] RBEy = rcEy[1, :]
     cdef float_or_double[:] RCEy = rcEy[2, :]
-    cdef float_or_double[:] RDEy = rcEy[3, :]   
+    cdef float_or_double[:] RDEy = rcEy[3, :]
 
-    cdef float_or_double[:] RAEz = rcEz[0, :]   
+    cdef float_or_double[:] RAEz = rcEz[0, :]
     cdef float_or_double[:] RBEz = rcEz[1, :]
     cdef float_or_double[:] RCEz = rcEz[2, :]
     cdef float_or_double[:] RDEz = rcEz[3, :]
@@ -1808,8 +1807,8 @@ cdef void updateElectricFields_dispersive(
 
     cdef float_or_double phi = 0.0
 
-    cdef int idx = 0    
-   
+    cdef int idx = 0
+
 
     for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index
 
@@ -1822,12 +1821,12 @@ cdef void updateElectricFields_dispersive(
                 phi = phi + coef_D[pole * 3] * T_x[pole, j]
 
             T_x[pole, j] = coef_D[1 + (pole * 3)] * T_x[pole, j] + coef_D[2 + (pole * 3)] * E_x[j]
-            
-        # equation 9 of Tan, Potter paper modified for dispersive materials
-        E_x[j] = coef_E_xt * E_x[j] + coef_E_xy * ( H_z[j] - H_z[j-m_y] ) - coef_E_xz * ( H_y[j] - H_y[j-m_z] ) - coef_E_D * phi 
 
-        #T_x[pole, j] = T_x[pole, j] - coef_D[2 + (pole * 3)] * E_x[j]        
-        
+        # equation 9 of Tan, Potter paper modified for dispersive materials
+        E_x[j] = coef_E_xt * E_x[j] + coef_E_xy * ( H_z[j] - H_z[j-m_y] ) - coef_E_xz * ( H_y[j] - H_y[j-m_z] ) - coef_E_D * phi
+
+        #T_x[pole, j] = T_x[pole, j] - coef_D[2 + (pole * 3)] * E_x[j]
+
         phi = 0
         for pole in range(num_poles):
             if (dispersive_float_or_double is complex_float or
@@ -1837,13 +1836,13 @@ cdef void updateElectricFields_dispersive(
                 phi = phi + coef_D[pole * 3] * T_y[pole, j]
 
             T_y[pole, j] = coef_D[1 + (pole * 3)] * T_y[pole, j] + coef_D[2 + (pole * 3)]* E_y[j]
-            
+
         # equation 9 of Tan, Potter paper modified for dispersive materials
-        E_y[j] = coef_E_yt * E_y[j] + coef_E_yz * ( H_x[j] - H_x[j-m_z] ) - coef_E_yx * ( H_z[j] - H_z[j-m_x] ) - coef_E_D * phi  
+        E_y[j] = coef_E_yt * E_y[j] + coef_E_yz * ( H_x[j] - H_x[j-m_z] ) - coef_E_yx * ( H_z[j] - H_z[j-m_x] ) - coef_E_D * phi
 
         #T_y[pole, j] = T_y[pole, j] - coef_D[2 + (pole * 3)] * E_y[j]
-        
-        
+
+
         phi = 0
         for pole in range(num_poles):
             if (dispersive_float_or_double is complex_float or
@@ -1853,7 +1852,7 @@ cdef void updateElectricFields_dispersive(
                 phi = phi + coef_D[pole * 3] * T_z[pole, j]
 
             T_z[pole,j] = coef_D[1 + (pole * 3)] * T_z[pole, j] + coef_D[2 + (pole * 3)]* E_z[j]
-            
+
         # equation 9 of Tan, Potter paper modified for dispersive materials
         E_z[j] = coef_E_zt * E_z[j] + coef_E_zx * ( H_y[j] - H_y[j-m_x] ) - coef_E_zy * ( H_x[j] - H_x[j-m_y] ) - coef_E_D * phi
 
@@ -1862,7 +1861,7 @@ cdef void updateElectricFields_dispersive(
 
 
     # PML regions
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzy = (H_z[idx] - H_z[idx - m_y]) / dy
@@ -1878,7 +1877,7 @@ cdef void updateElectricFields_dispersive(
         Ixjyz[i] = Ixjyz[i] - RCEx[i] * jxz + RDEx[i] * dHyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzx = (H_z[idx] - H_z[idx - m_x]) / dx
@@ -1894,7 +1893,7 @@ cdef void updateElectricFields_dispersive(
         Iyjxz[i] = Iyjxz[i] - RCEy[i] * jyz + RDEy[i] * dHxz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHyx = (H_y[idx] - H_y[idx - m_x]) / dx
@@ -1912,8 +1911,8 @@ cdef void updateElectricFields_dispersive(
 
     for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index
         for pole in range(num_poles):
-            T_x[pole, j] = T_x[pole, j] - coef_D[2 + (pole * 3)] * E_x[j]  
-            T_y[pole, j] = T_y[pole, j] - coef_D[2 + (pole * 3)] * E_y[j]  
+            T_x[pole, j] = T_x[pole, j] - coef_D[2 + (pole * 3)] * E_x[j]
+            T_y[pole, j] = T_y[pole, j] - coef_D[2 + (pole * 3)] * E_y[j]
             T_z[pole, j] = T_z[pole, j] - coef_D[2 + (pole * 3)] * E_z[j]
 
 
@@ -2027,34 +2026,34 @@ cdef void updateElectricFields_dispersive_axial(
     cdef float_or_double[:] Iyjxz_s = Iy_s[0, :]
     cdef float_or_double[:] Iyjzx_s = Iy_s[1, :]
     cdef float_or_double[:] Izjxy_s = Iz_s[0, :]
-    cdef float_or_double[:] Izjyx_s = Iz_s[1, :]    
+    cdef float_or_double[:] Izjyx_s = Iz_s[1, :]
 
-    cdef float_or_double[:] RAEx = rcEx[0, :]   
+    cdef float_or_double[:] RAEx = rcEx[0, :]
     cdef float_or_double[:] RBEx = rcEx[1, :]
     cdef float_or_double[:] RCEx = rcEx[2, :]
-    cdef float_or_double[:] RDEx = rcEx[3, :]   
+    cdef float_or_double[:] RDEx = rcEx[3, :]
 
-    cdef float_or_double[:] RAEx0 = rcEx0[0, :]   
+    cdef float_or_double[:] RAEx0 = rcEx0[0, :]
     cdef float_or_double[:] RBEx0 = rcEx0[1, :]
     cdef float_or_double[:] RCEx0 = rcEx0[2, :]
     cdef float_or_double[:] RDEx0 = rcEx0[3, :]
 
-    cdef float_or_double[:] RAEy = rcEy[0, :]   
+    cdef float_or_double[:] RAEy = rcEy[0, :]
     cdef float_or_double[:] RBEy = rcEy[1, :]
     cdef float_or_double[:] RCEy = rcEy[2, :]
-    cdef float_or_double[:] RDEy = rcEy[3, :] 
+    cdef float_or_double[:] RDEy = rcEy[3, :]
 
-    cdef float_or_double[:] RAEy0 = rcEy0[0, :]   
+    cdef float_or_double[:] RAEy0 = rcEy0[0, :]
     cdef float_or_double[:] RBEy0 = rcEy0[1, :]
     cdef float_or_double[:] RCEy0 = rcEy0[2, :]
-    cdef float_or_double[:] RDEy0 = rcEy0[3, :]  
+    cdef float_or_double[:] RDEy0 = rcEy0[3, :]
 
-    cdef float_or_double[:] RAEz = rcEz[0, :]   
+    cdef float_or_double[:] RAEz = rcEz[0, :]
     cdef float_or_double[:] RBEz = rcEz[1, :]
     cdef float_or_double[:] RCEz = rcEz[2, :]
     cdef float_or_double[:] RDEz = rcEz[3, :]
 
-    cdef float_or_double[:] RAEz0 = rcEz0[0, :]   
+    cdef float_or_double[:] RAEz0 = rcEz0[0, :]
     cdef float_or_double[:] RBEz0 = rcEz0[1, :]
     cdef float_or_double[:] RCEz0 = rcEz0[2, :]
     cdef float_or_double[:] RDEz0 = rcEz0[3, :]
@@ -2068,15 +2067,15 @@ cdef void updateElectricFields_dispersive_axial(
 
     cdef float_or_double phi = 0.0
 
-    cdef int idx = 0    
+    cdef int idx = 0
     cdef int mat = 0
 
     cdef int src = origin_axial
-   
+
 
     # Source DPW array
     for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index
-        
+
         mat = GID[0,2]
         phi = 0
         for pole in range(num_poles):
@@ -2087,10 +2086,10 @@ cdef void updateElectricFields_dispersive_axial(
             else:
                 phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_x_s[pole, j]
             T_x_s[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_x_s[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)] * E_x_s[j]
-            
+
         # equation 9 of Tan, Potter paper modified for dispersive materials
         E_x_s[j] = updatecoeffsE[mat,0] * E_x_s[j] + updatecoeffsE[mat,2] * ( H_z_s[j] - H_z_s[j-m_y] ) - updatecoeffsE[mat,3] * ( H_y_s[j] - H_y_s[j-m_z] ) - updatecoeffsE[mat,4] * phi
- 
+
         mat=GID[1,2]
         phi = 0
         for pole in range(num_poles):
@@ -2105,7 +2104,7 @@ cdef void updateElectricFields_dispersive_axial(
         # equation 9 of Tan, Potter paper modified for dispersive materials
         E_y_s[j] = updatecoeffsE[mat,0] * E_y_s[j] + updatecoeffsE[mat,3] * ( H_x_s[j] - H_x_s[j-m_z] ) - updatecoeffsE[mat,1] * ( H_z_s[j] - H_z_s[j-m_x] ) - updatecoeffsE[mat,4] * phi
 
-        mat=GID[2,2]       
+        mat=GID[2,2]
         phi = 0
         for pole in range(num_poles):
             if (dispersive_float_or_double is complex_float or
@@ -2119,9 +2118,9 @@ cdef void updateElectricFields_dispersive_axial(
         # equation 9 of Tan, Potter paper modified for dispersive materials
         E_z_s[j] = updatecoeffsE[mat,0] * E_z_s[j] + updatecoeffsE[mat,1] * ( H_y_s[j] - H_y_s[j-m_x] ) - updatecoeffsE[mat,2] * ( H_x_s[j] - H_x_s[j-m_y] ) - updatecoeffsE[mat,4] * phi
 
-    # Source DPW array PML region updates   
+    # Source DPW array PML region updates
     # PML regions
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzy = (H_z_s[idx] - H_z_s[idx - m_y]) / dy
@@ -2137,7 +2136,7 @@ cdef void updateElectricFields_dispersive_axial(
         Ixjyz_s[i] = Ixjyz_s[i] - RCEx0[i] * jxz + RDEx0[i] * dHyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzx = (H_z_s[idx] - H_z_s[idx - m_x]) / dx
@@ -2153,7 +2152,7 @@ cdef void updateElectricFields_dispersive_axial(
         Iyjxz_s[i] = Iyjxz_s[i] - RCEy0[i] * jyz + RDEy0[i] * dHxz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHyx = (H_y_s[idx] - H_y_s[idx - m_x]) / dx
@@ -2171,12 +2170,12 @@ cdef void updateElectricFields_dispersive_axial(
 
     for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index
         for pole in range(num_poles):
-            T_x_s[pole, j] = T_x_s[pole, j] - updatecoeffsdispersive[GID[0,2],2 + (pole * 3)] * E_x_s[j]  
-            T_y_s[pole, j] = T_y_s[pole, j] - updatecoeffsdispersive[GID[1,2],2 + (pole * 3)] * E_y_s[j]  
+            T_x_s[pole, j] = T_x_s[pole, j] - updatecoeffsdispersive[GID[0,2],2 + (pole * 3)] * E_x_s[j]
+            T_y_s[pole, j] = T_y_s[pole, j] - updatecoeffsdispersive[GID[1,2],2 + (pole * 3)] * E_y_s[j]
             T_z_s[pole, j] = T_z_s[pole, j] - updatecoeffsdispersive[GID[2,2],2 + (pole * 3)] * E_z_s[j]
 
 
-    #source 
+    #source
     E_x[src-1] = E_x[src-1] - updatecoeffsE[GID[0,src-1],2] * H_z_s[src-1-m_y] + updatecoeffsE[GID[0,src-1],3] * H_y_s[src-1-m_z]
     E_y[src-1] = E_y[src-1] - updatecoeffsE[GID[1,src-1],3] * H_x_s[src-1-m_z] + updatecoeffsE[GID[1,src-1],1] * H_z_s[src-1-m_x]
     E_z[src-1] = E_z[src-1] - updatecoeffsE[GID[2,src-1],1] * H_y_s[src-1-m_x] + updatecoeffsE[GID[2,src-1],2] * H_x_s[src-1-m_y]
@@ -2184,7 +2183,7 @@ cdef void updateElectricFields_dispersive_axial(
 
 
     for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index
-        
+
         mat = GID[0,j]
         phi = 0
         for pole in range(num_poles):
@@ -2195,10 +2194,10 @@ cdef void updateElectricFields_dispersive_axial(
             else:
                 phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_x[pole, j]
             T_x[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_x[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)] * E_x[j]
-            
+
         # equation 9 of Tan, Potter paper modified for dispersive materials
-        E_x[j] = updatecoeffsE[mat,0] * E_x[j] + updatecoeffsE[mat,2] * ( H_z[j] - H_z[j-m_y] ) - updatecoeffsE[mat,3] * ( H_y[j] - H_y[j-m_z] ) - updatecoeffsE[mat,4] * phi 
- 
+        E_x[j] = updatecoeffsE[mat,0] * E_x[j] + updatecoeffsE[mat,2] * ( H_z[j] - H_z[j-m_y] ) - updatecoeffsE[mat,3] * ( H_y[j] - H_y[j-m_z] ) - updatecoeffsE[mat,4] * phi
+
         mat=GID[1,j]
         phi = 0
         for pole in range(num_poles):
@@ -2209,11 +2208,11 @@ cdef void updateElectricFields_dispersive_axial(
             else:
                 phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_y[pole, j]
             T_y[pole, j] = updatecoeffsdispersive[mat,1 + (pole * 3)] * T_y[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_y[j]
-            
-        # equation 9 of Tan, Potter paper modified for dispersive materials
-        E_y[j] = updatecoeffsE[mat,0] * E_y[j] + updatecoeffsE[mat,3] * ( H_x[j] - H_x[j-m_z] ) - updatecoeffsE[mat,1] * ( H_z[j] - H_z[j-m_x] ) - updatecoeffsE[mat,4] * phi  
 
-        mat=GID[2,j]       
+        # equation 9 of Tan, Potter paper modified for dispersive materials
+        E_y[j] = updatecoeffsE[mat,0] * E_y[j] + updatecoeffsE[mat,3] * ( H_x[j] - H_x[j-m_z] ) - updatecoeffsE[mat,1] * ( H_z[j] - H_z[j-m_x] ) - updatecoeffsE[mat,4] * phi
+
+        mat=GID[2,j]
         phi = 0
         for pole in range(num_poles):
             if (dispersive_float_or_double is complex_float or
@@ -2223,13 +2222,13 @@ cdef void updateElectricFields_dispersive_axial(
             else:
                 phi = phi + updatecoeffsdispersive[mat, pole * 3] * T_z[pole, j]
             T_z[pole,j] = updatecoeffsdispersive[mat, 1 + (pole * 3)] * T_z[pole, j] + updatecoeffsdispersive[mat,2 + (pole * 3)]* E_z[j]
-            
+
         # equation 9 of Tan, Potter paper modified for dispersive materials
         E_z[j] = updatecoeffsE[mat,0] * E_z[j] + updatecoeffsE[mat,1] * ( H_y[j] - H_y[j-m_x] ) - updatecoeffsE[mat,2] * ( H_x[j] - H_x[j-m_y] ) - updatecoeffsE[mat,4] * phi
 
-     
+
     # PML regions
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzy = (H_z[idx] - H_z[idx - m_y]) / dy
@@ -2245,7 +2244,7 @@ cdef void updateElectricFields_dispersive_axial(
         Ixjyz[i] = Ixjyz[i] - RCEx[i] * jxz + RDEx[i] * dHyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHzx = (H_z[idx] - H_z[idx - m_x]) / dx
@@ -2261,7 +2260,7 @@ cdef void updateElectricFields_dispersive_axial(
         Iyjxz[i] = Iyjxz[i] - RCEy[i] * jyz + RDEy[i] * dHxz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (n-m[3]) - (p - i)
 
         dHyx = (H_y[idx] - H_y[idx - m_x]) / dx
@@ -2277,7 +2276,7 @@ cdef void updateElectricFields_dispersive_axial(
         Izjxy[i] = Izjxy[i] - RCEz[i] * jzy + RDEz[i] * dHxy
 
     # PML regions on the start of the grid
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (p - i)
 
         dHzy = (H_z[idx] - H_z[idx - m_y]) / dy
@@ -2293,7 +2292,7 @@ cdef void updateElectricFields_dispersive_axial(
         Ixjyz0[i] = Ixjyz0[i] - RCEx0[i] * jxz + RDEx0[i] * dHyz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (p - i)
 
         dHzx = (H_z[idx] - H_z[idx - m_x]) / dx
@@ -2309,7 +2308,7 @@ cdef void updateElectricFields_dispersive_axial(
         Iyjxz0[i] = Iyjxz0[i] - RCEy0[i] * jyz + RDEy0[i] * dHxz
 
 
-    for i in range(p-1, -1, -1):  
+    for i in range(p-1, -1, -1):
         idx = (p - i)
 
         dHyx = (H_y[idx] - H_y[idx - m_x]) / dx
@@ -2327,8 +2326,8 @@ cdef void updateElectricFields_dispersive_axial(
 
     for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index
         for pole in range(num_poles):
-            T_x[pole, j] = T_x[pole, j] - updatecoeffsdispersive[GID[0,j],2 + (pole * 3)] * E_x[j]  
-            T_y[pole, j] = T_y[pole, j] - updatecoeffsdispersive[GID[1,j],2 + (pole * 3)] * E_y[j]  
+            T_x[pole, j] = T_x[pole, j] - updatecoeffsdispersive[GID[0,j],2 + (pole * 3)] * E_x[j]
+            T_y[pole, j] = T_y[pole, j] - updatecoeffsdispersive[GID[1,j],2 + (pole * 3)] * E_y[j]
             T_z[pole, j] = T_z[pole, j] - updatecoeffsdispersive[GID[2,j],2 + (pole * 3)] * E_z[j]
 
 
@@ -2339,7 +2338,7 @@ cpdef double getSource(
     double time,
     double freq,
     char* wavetype,
-    double dt    
+    double dt
 ):
     """Gets magnitude of source field in direction perpendicular to propagation
         of plane wave.
@@ -2358,8 +2357,8 @@ cpdef double getSource(
 
     cdef double chi = 0.0
     cdef double zeta = 0.0
-    cdef double delay = 0.0 
-    cdef double normalise = 1.0    
+    cdef double delay = 0.0
+    cdef double normalise = 1.0
 
     # Waveforms
     if (strcmp(wavetype, "gaussian") == 0):
@@ -2378,11 +2377,11 @@ cpdef double getSource(
 
     elif (strcmp(wavetype, "gaussiandot") == 0 or strcmp(wavetype, "gaussianprime") == 0):
         #return -4.0 * M_PI * M_PI * freq * (time * freq - 1.0
-        #        ) * exp(-2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0)))   
+        #        ) * exp(-2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0)))
         chi = 1 / freq
         zeta = 2 * pow(M_PI,2) * pow(freq,2)
         delay = time - chi
-        return -2.0 * zeta * delay * exp(-zeta * pow(delay,2))      
+        return -2.0 * zeta * delay * exp(-zeta * pow(delay,2))
 
     elif (strcmp(wavetype, "gaussiandotnorm") == 0):
         #return -2.0 * M_PI * (time * freq - 1.0
@@ -2554,7 +2553,7 @@ cpdef void updatePlaneWave_magnetic(
     initializeMagneticFields(m, H_fields, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateMagneticFields(n, p, H_fields, E_fields, Ix, Iy, Iz, rcHx, rcHy, rcHz, dx, dy, dz, updatecoeffsH, m)
     applyTFSFMagnetic(nthreads, skip_axis, Hx, Hy, Hz, E_fields, updatecoeffsH, m, origin, corners, owned_lower, owned_upper)
-    
+
 
 cpdef void updatePlaneWave_magnetic_axial(
     int n,
@@ -2623,8 +2622,8 @@ cpdef void updatePlaneWave_magnetic_axial(
         initializeMagneticFields(m, H_fields_s, projections, waveformvalues_halfdt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
         updateMagneticFields_axial(n, p, origin_axial, H_fields, E_fields, H_fields_s, E_fields_s, Ix, Iy, Iz, Ix0, Iy0, Iz0, Ix_s, Iy_s, Iz_s, rcHx, rcHy, rcHz, rcHx0, rcHy0, rcHz0, dx, dy, dz, dpw_updatecoeffsH, ID, m)
         applyTFSFMagnetic_axial(nthreads, skip_axis, origin_axial, Hx, Hy, Hz, E_fields, updatecoeffsH, GID, m, origin, corners, owned_lower, owned_upper)
-    
-  
+
+
 
 cpdef void updatePlaneWave_electric(
     int n,
@@ -2796,7 +2795,7 @@ cpdef void updatePlaneWave_electric_dispersive(
     double stop,
     double freq,
     char* wavetype
-):  
+):
     initializeElectricFields(m, E_fields, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateElectricFields_dispersive(n, p, H_fields, E_fields, Px, Py, Pz, Ix, Iy, Iz, rcEx, rcEy, rcEz, dx, dy, dz, updatecoeffsE, updatecoeffsdispersive, num_poles, m)
     applyTFSFElectric(nthreads, skip_axis, Ex, Ey, Ez, H_fields, updatecoeffsE, m, origin, corners, owned_lower, owned_upper)
@@ -2873,7 +2872,7 @@ cpdef void updatePlaneWave_electric_dispersive_axial(
     double stop,
     double freq,
     char* wavetype
-):  
+):
     initializeElectricFields(m, E_fields_s, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateElectricFields_dispersive_axial(n, p, origin_axial, H_fields, E_fields, H_fields_s, E_fields_s, Px, Py, Pz, Px_s, Py_s, Pz_s, Ix, Iy, Iz, Ix0, Iy0, Iz0, Ix_s, Iy_s, Iz_s, rcEx, rcEy, rcEz, rcEx0, rcEy0, rcEz0, dx, dy, dz, dpw_updatecoeffsE, dpw_updatecoeffsdispersive, ID, num_poles, m)
     applyTFSFElectric_axial(nthreads, skip_axis, origin_axial, Ex, Ey, Ez, H_fields, updatecoeffsE, GID, m, origin, corners, owned_lower, owned_upper)
