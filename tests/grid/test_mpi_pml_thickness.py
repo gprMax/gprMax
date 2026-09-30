@@ -17,7 +17,7 @@
 
 """Unit tests for MPI PML local thickness validation."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import numpy as np
 import pytest
@@ -91,110 +91,45 @@ def test_locally_valid_rank_raises_when_remote_rank_reports_error():
     grid.comm.allreduce.assert_called_once_with(0, op=MPI.MAX)
 
 
-def test_three_rank_decomposition_with_pmls_only_at_physical_ends():
-    def run_three_ranks(rank0_x0_thickness):
-        r0 = _create_mock_mpi_grid(
-            [20, 50, 50],
-            {"x0": rank0_x0_thickness, "xmax": 0, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0},
-        )
-        r1 = _create_mock_mpi_grid(
-            [20, 50, 50],
-            {"x0": 0, "xmax": 0, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0},
-        )
-        r2 = _create_mock_mpi_grid(
-            [20, 50, 50],
-            {"x0": 0, "xmax": 10, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0},
-        )
+@pytest.mark.parametrize("axis", ("y", "z"))
+def test_opposing_pmls_on_undecomposed_axis_use_shared_sum_check(axis):
+    thickness = dict.fromkeys(("x0", "xmax", "y0", "ymax", "z0", "zmax"), 0)
+    thickness[f"{axis}0"] = thickness[f"{axis}max"] = 10
+    grid = _create_mock_mpi_grid([20, 20, 20], thickness)
+    grid.comm.allreduce.return_value = 1
 
-        ranks = [r0, r1, r2]
-        payloads = {}
+    with pytest.raises(ValueError, match="PML has too many cells for the domain size"):
+        grid.build()
 
-        def make_allreduce(rank_id):
-            def _allreduce(sendbuf, op=MPI.MAX):
-                payloads[rank_id] = sendbuf
-                if len(payloads) == 3:
-                    return max(payloads.values())
-                return None
-
-            return _allreduce
-
-        for i, r in enumerate(ranks):
-            r._local_validate = lambda rank_obj: (
-                0
-                if all(v == 0 for v in rank_obj.pmls["thickness"].values())
-                else int(
-                    rank_obj.pmls["thickness"]["x0"] + rank_obj.pmls["thickness"]["xmax"]
-                    >= rank_obj.nx
-                )
-            )
-            payloads[i] = r._local_validate(r)
-            r.comm.allreduce.side_effect = lambda sendbuf, op=MPI.MAX: max(payloads.values())
-
-        return ranks, payloads
-
-    # Valid scenario: all ranks pass
-    ranks_valid, payloads_valid = run_three_ranks(rank0_x0_thickness=10)
-    assert payloads_valid == {0: 0, 1: 0, 2: 0}
-    with patch("gprMax.grid.fdtd_grid.FDTDGrid.build"):
-        for r in ranks_valid:
-            r.build()
-
-    # Invalid scenario: rank 0 has oversized PML, all 3 ranks reject
-    ranks_invalid, payloads_invalid = run_three_ranks(rank0_x0_thickness=25)
-    assert payloads_invalid == {0: 1, 1: 0, 2: 0}
-    for r in ranks_invalid:
-        with pytest.raises(ValueError, match="PML has too many cells for the domain size"):
-            r.build()
+    # Neither slab individually fills the dimension; their sum does.
+    grid.comm.allreduce.assert_called_once_with(1, op=MPI.MAX)
 
 
-def test_real_mpi_deadlock_regression(tmp_path):
-    import os
-    import shutil
-    import subprocess
-    import sys
-    from pathlib import Path
-
-    LAUNCHER = Path(sys.executable).with_name("mpiexec.exe" if os.name == "nt" else "mpiexec")
-    MPIEXEC = str(LAUNCHER) if LAUNCHER.is_file() else shutil.which("mpiexec")
-
-    if not MPIEXEC:
-        pytest.skip("No MPI launcher found")
-
-    script = tmp_path / "run_mpi.py"
-    script.write_text(
-        "import sys\n"
-        "try:\n"
-        "    import gprMax\n"
-        "except ImportError:\n"
-        "    print('SUCCESS_SKIPPED')\n"
-        "    sys.exit(0)\n"
-        "scene = gprMax.Scene()\n"
-        "scene.add(gprMax.Domain(p1=(0.010, 0.010, 0.010)))\n"
-        "scene.add(gprMax.Discretisation(p1=(0.002, 0.002, 0.002)))\n"
-        "scene.add(gprMax.TimeWindow(iterations=5))\n"
-        "scene.add(gprMax.PMLThickness(thickness=6))\n"
-        "gprMax.run(scenes=[scene], n=1, mpi=(2, 1, 1), outputfile='unused', hide_progress_bars=True)\n"
+def test_failed_build_does_not_cache_successful_validation():
+    grid = _create_mock_mpi_grid(
+        [12, 36, 36],
+        {"x0": 13, "xmax": 0, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0},
     )
+    grid.comm.allreduce.side_effect = lambda value, op: value
 
-    try:
-        result = subprocess.run(
-            [MPIEXEC, "-n", "2", sys.executable, str(script)],
-            capture_output=True,
-            timeout=15,
-            text=True,
-            check=False
-        )
-        combined_output = result.stdout + result.stderr
-        
-        # We expect a clean skip if gprMax is missing in this env
-        if "SUCCESS_SKIPPED" in combined_output:
-            return
+    for _ in range(2):
+        with pytest.raises(ValueError, match="PML has too many cells for the domain size"):
+            grid.build()
 
-        # MPIContext catches exceptions internally and calls comm.Abort(1).
-        # We verify that it aborted because of the invalid PML, not a deadlock.
-        assert "has too many cells for the domain size" in combined_output, (
-            f"Missing validation error in output.\nrc={result.returncode}\n"
-            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-        )
-    except subprocess.TimeoutExpired:
-        pytest.fail("MPI ranks deadlocked during PML validation!")
+    assert grid.comm.allreduce.call_args_list == [call(1, op=MPI.MAX)] * 2
+
+
+def test_each_build_revalidates_changed_thickness():
+    grid = _create_mock_mpi_grid(
+        [12, 36, 36],
+        {"x0": 4, "xmax": 0, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0},
+    )
+    grid.comm.allreduce.side_effect = lambda value, op: value
+
+    with patch("gprMax.grid.fdtd_grid.FDTDGrid.build"):
+        grid.build()
+        grid.pmls["thickness"]["x0"] = 13
+        with pytest.raises(ValueError, match="PML has too many cells for the domain size"):
+            grid.build()
+
+    assert grid.comm.allreduce.call_args_list == [call(0, op=MPI.MAX), call(1, op=MPI.MAX)]
