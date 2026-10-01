@@ -106,6 +106,14 @@ def test_branch_dry_run_is_allowed(tmp_path, ref):
     assert checks.release_version(path, ref, "dry-run") == "4.0.0"
 
 
+def test_current_version_has_discoverable_release_notes():
+    version = checks.release_version(ROOT / "gprMax/_version.py", "refs/heads/master", "dry-run")
+    notes = (ROOT / "docs/source/release_notes.rst").read_text(encoding="utf-8")
+    assert any(line.startswith(f"{version} (") for line in notes.splitlines())
+    index = (ROOT / "docs/source/index.rst").read_text(encoding="utf-8")
+    assert "release_notes" in [line.strip() for line in index.splitlines()]
+
+
 @pytest.mark.parametrize("version", ["v4.0.0", "v.4.0.0", "4.0.0+local", "1!4.0.0", "invalid"])
 def test_rejects_non_public_or_noncanonical_version(tmp_path, version):
     path = tmp_path / "version.py"
