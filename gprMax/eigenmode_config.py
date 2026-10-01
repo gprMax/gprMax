@@ -45,6 +45,7 @@ class EigenmodeTrackingConfig:
     max_depth: int = 8
     min_relative_step: float = 1e-5
     max_solves: int = 200
+    subspace_margin: float = 0.02
 
     def __post_init__(self):
         unit_interval = (
@@ -54,6 +55,7 @@ class EigenmodeTrackingConfig:
             "edge_fraction_max",
             "tracking_overlap",
             "assignment_margin",
+            "subspace_margin",
             "unmatched_cost",
             "cluster_gap",
             "min_relative_step",

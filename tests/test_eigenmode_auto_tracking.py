@@ -264,6 +264,7 @@ def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path):
         tracking = output["mode_tracking"]
         assert tracking.attrs["SchemaVersion"] == 1
         assert tracking.attrs["Tracking"] == "auto"
+        assert tracking.attrs["GroupAssignmentPolicy"] == "persistent_subgroups_v1"
         np.testing.assert_allclose(tracking["adaptive_frequencies"], (1.5,))
         assert "combined_residuals" in tracking
         assert "field_residuals" in tracking
