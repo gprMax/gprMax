@@ -7,6 +7,7 @@ gprMax User Guide
     :caption: Introduction
 
     inc_README
+    release_notes
     migration_v3_v4
     features
     gprmodelling

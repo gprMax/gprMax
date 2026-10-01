@@ -171,7 +171,9 @@ Prepare the release revision
    tests exercise CPU execution; they do not replace those validations.
 3. Set ``gprMax/_version.py`` to the intended public version, for example
    ``4.0.0rc1`` for a rehearsal or ``4.0.0`` for the final release. Review the
-   migration guide and release notes for that revision.
+   migration guide and :doc:`release_notes` for that revision. For later
+   maintenance releases, use a new version and matching tag; never reuse
+   the already published ``4.0.0`` version in the examples below.
 4. Ensure both ``release.yml`` and the reusable ``wheels.yml`` exist in the
    release revision. For manual dispatch, ``release.yml`` must also exist on
    the repository's default branch. Do not assume that a workflow present
