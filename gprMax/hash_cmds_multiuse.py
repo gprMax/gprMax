@@ -535,7 +535,7 @@ def process_multicmds(multicmds):
 
         tracking_config_keys = {
             "residual_tolerance", "beta_drift_tolerance", "verification_overlap",
-            "edge_fraction_max", "tracking_overlap", "assignment_margin", "unmatched_cost",
+            "edge_fraction_max", "tracking_overlap", "assignment_margin", "subspace_margin", "unmatched_cost",
             "cluster_gap", "extra_candidates", "max_depth", "min_relative_step", "max_solves",
         }
         tracking_values = {

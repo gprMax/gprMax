@@ -1,0 +1,115 @@
+{
+  "validation_type": "controlled algebraic eigenproblem; no FDTD scattering data",
+  "seed": 41,
+  "frequency_parameter": [
+    -1.0,
+    -0.5,
+    0.0,
+    0.5,
+    1.0
+  ],
+  "cases": {
+    "pair_and_single": {
+      "persistent_groups": [
+        [
+          1,
+          2
+        ]
+      ],
+      "maximum_pair_projector_error": 4.660953740672398e-16,
+      "minimum_assignment_overlap": 0.9999999999999993,
+      "maximum_eigen_residual": 0.0,
+      "candidate_indices": [
+        [
+          1,
+          2,
+          0
+        ],
+        [
+          1,
+          2,
+          0
+        ],
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          1,
+          2
+        ]
+      ]
+    },
+    "two_pairs": {
+      "persistent_groups": [
+        [
+          1,
+          2
+        ],
+        [
+          3,
+          4
+        ]
+      ],
+      "maximum_pair_projector_error": 7.576433329242828e-16,
+      "minimum_assignment_overlap": 0.9999999999999996,
+      "maximum_eigen_residual": 0.0,
+      "candidate_indices": [
+        [
+          2,
+          3,
+          0,
+          1
+        ],
+        [
+          2,
+          3,
+          0,
+          1
+        ],
+        [
+          0,
+          1,
+          2,
+          3
+        ],
+        [
+          0,
+          1,
+          2,
+          3
+        ],
+        [
+          0,
+          1,
+          2,
+          3
+        ]
+      ]
+    },
+    "resolved_crossing_inside_candidate_gap": {
+      "persistent_groups": []
+    },
+    "fourfold_degeneracy": {
+      "persistent_groups": [
+        [
+          1,
+          2,
+          3,
+          4
+        ]
+      ]
+    },
+    "fully_mixed_exact_crossing": {
+      "status": "unresolved",
+      "reason": "Automatic mode tracking for eigenmode port 1 is unresolved between -0.5 and 0 Hz for public mode(s) (1, 2, 3). This may indicate a degenerate mode or mode crossing. Use a single explicit frequency anchor for this port if a constant modal basis across the band is acceptable."
+    }
+  }
+}

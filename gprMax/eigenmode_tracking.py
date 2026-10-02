@@ -95,51 +95,110 @@ def _clusters(values, gap):
     return tuple(groups)
 
 
+def _persistent_groups(values, gap):
+    """Partition modes whose whole-group spread stays small in every record.
+
+    Complete-link admission avoids joining two resolved branches through a chain
+    of small pairwise gaps. The records may be solved anchors or a prediction.
+    Singleton groups are retained for callers that need the complete partition.
+    """
+    values = np.atleast_2d(values)
+    groups = []
+    for mode in range(values.shape[1]):
+        for group in groups:
+            trial = values[:, [*group, mode]]
+            spread = np.max(abs(trial[:, :, None] - trial[:, None, :]), axis=(1, 2))
+            scale = np.maximum(1.0, np.max(abs(trial), axis=1))
+            if np.all(np.isfinite(trial)) and np.all(spread <= gap * scale):
+                group.append(mode)
+                break
+        else:
+            groups.append([mode])
+    return tuple(tuple(group) for group in groups)
+
+
+def _span_members(reference, candidates, indices, margin):
+    """Find an unambiguous raw-column subset representing a reference span.
+
+    A fully rotated larger eigenspace need not contain such a subset. Do not
+    invent member identities or mix resolved eigenvectors in that case.
+    """
+    rank = reference.shape[1]
+    if len(indices) < rank:
+        return None
+    span = _orthonormal(reference)
+    columns = candidates[:, indices]
+    weights = np.sum(abs(span.conj().T @ columns) ** 2, axis=0)
+    weights /= np.sum(abs(columns) ** 2, axis=0)
+    if not np.all(np.isfinite(weights)):
+        return None
+    order = np.argsort(-weights, kind="stable")
+    if len(indices) > rank and weights[order[rank - 1]] - weights[order[rank]] < margin:
+        return None
+    selected = tuple(sorted(indices[i] for i in order[:rank]))
+    candidate_span = _orthonormal(candidates[:, selected])
+    singular = np.linalg.svd(span.conj().T @ candidate_span, compute_uv=False)
+    return selected, float(np.clip(np.min(singular) ** 2, 0.0, 1.0))
+
+
 def _assign_step(old_vectors, new_vectors, old_values, new_values, config, prediction):
-    """Assign single modes and equal-rank degenerate spans with abstention."""
+    """Assign persistent subgroups and individual modes, with abstention."""
     count = old_vectors.shape[1]
     result = np.full(count, -1, dtype=int)
     scores = np.zeros(count, dtype=float)
     occupied = set()
 
-    old_groups = [group for group in _clusters(old_values, config.cluster_gap) if len(group) > 1]
-    new_groups = [group for group in _clusters(new_values, config.cluster_gap) if len(group) > 1]
+    # A loose eigenvalue cluster is only a search region. Resolved crossing
+    # branches must not acquire the individual-overlap exemption of a repeated
+    # eigenvalue. Prediction additionally separates a group when its established
+    # trajectories depart at the next anchor.
+    gap = min(config.cluster_gap, _DEGENERACY_TOLERANCE)
+    old_groups = [
+        group for group in _persistent_groups(np.vstack((old_values, prediction)), gap)
+        if len(group) > 1
+    ]
+    new_groups = [group for group in _persistent_groups(new_values, gap) if len(group) > 1]
     for old_group in old_groups:
-        # Eigensolvers need not return orthogonal vectors within a repeated
-        # eigenvalue. Principal angles compare spans, so normalize the whole
-        # basis before scoring; column normalization alone depends on the
-        # solver's arbitrary choice of basis and can create false identity gaps.
-        try:
-            old_span = _orthonormal(old_vectors[:, old_group])
-        except (ValueError, np.linalg.LinAlgError):
-            continue
-        best = None
-        for new_group in new_groups:
-            if len(new_group) != len(old_group) or occupied.intersection(new_group):
-                continue
-            try:
-                new_span = _orthonormal(new_vectors[:, new_group])
-            except (ValueError, np.linalg.LinAlgError):
-                continue
-            singular = np.linalg.svd(
-                old_span.conj().T @ new_span, compute_uv=False
-            )
-            score = float(np.clip(np.min(singular) ** 2, 0.0, 1.0))
-            drift = abs(np.mean(new_values[list(new_group)]) - np.mean(prediction[list(old_group)]))
-            drift /= max(1.0, abs(np.mean(old_values[list(old_group)])))
-            cost = 1.0 - score + 0.1 * min(float(drift) ** 2, 4.0)
-            candidate = (cost, -score, new_group)
-            if score >= config.tracking_overlap and (best is None or candidate < best):
-                best = candidate
-        if best is None:
-            continue
-        new_group = best[2]
-        # Member labels inside an exactly degenerate space are a gauge choice;
-        # align_groups performs the physical transport after this reservation.
-        for old, new in zip(old_group, new_group):
-            result[old] = new
-            scores[old] = -best[1]
-            occupied.add(new)
+        while True:
+            remaining = tuple(i for i in old_group if result[i] < 0)
+            if len(remaining) < 2:
+                break
+            best = None
+            for new_group in new_groups:
+                available = tuple(i for i in new_group if i not in occupied)
+                if len(available) < 2:
+                    continue
+                try:
+                    if len(remaining) <= len(available):
+                        selected = _span_members(
+                            old_vectors[:, remaining], new_vectors, available, config.subspace_margin
+                        )
+                        if selected is None:
+                            continue
+                        matched_old, matched_new, score = remaining, selected[0], selected[1]
+                    else:
+                        selected = _span_members(
+                            new_vectors[:, available], old_vectors, remaining, config.subspace_margin
+                        )
+                        if selected is None:
+                            continue
+                        matched_old, matched_new, score = selected[0], available, selected[1]
+                except (ValueError, np.linalg.LinAlgError):
+                    continue
+                drift = abs(np.mean(new_values[list(matched_new)]) - np.mean(prediction[list(matched_old)]))
+                drift /= max(1.0, abs(np.mean(old_values[list(matched_old)])))
+                cost = 1.0 - score + 0.1 * min(float(drift) ** 2, 4.0)
+                candidate = (-len(matched_old), cost, -score, matched_old, matched_new)
+                if score >= config.tracking_overlap and (best is None or candidate < best):
+                    best = candidate
+            if best is None:
+                break
+            # Pair members provisionally; later source-basis alignment fixes the
+            # gauge within a persistent degenerate subgroup.
+            for old, new in zip(best[3], best[4]):
+                result[old] = new
+                scores[old] = -best[2]
+                occupied.add(new)
 
     old_remaining = np.flatnonzero(result < 0)
     new_remaining = np.asarray([i for i in range(len(new_values)) if i not in occupied], dtype=int)
@@ -289,18 +348,12 @@ def track_solver_bank(owner, frequencies, solvers, mode_count):
         _reorder_solver_modes(solver, mapping[index])
 
     automatic_groups = []
-    centre_values = np.asarray(solvers[centre].eigenvalues)[:tracking_count]
-    for group in _clusters(centre_values, _DEGENERACY_TOLERANCE):
+    trajectories = np.asarray([solver.eigenvalues[:tracking_count] for solver in solvers])
+    for group in _persistent_groups(trajectories, _DEGENERACY_TOLERANCE):
         if len(group) < 2:
             continue
         labels = tuple(item + 1 for item in group)
-        if all(
-            np.max(abs(np.asarray(solver.eigenvalues)[list(group), None] - np.asarray(solver.eigenvalues)[list(group)]))
-            <= _DEGENERACY_TOLERANCE
-            * max(1.0, float(np.max(abs(np.asarray(solver.eigenvalues)[list(group)]))))
-            for solver in solvers
-        ):
-            automatic_groups.append(labels)
+        automatic_groups.append(labels)
     if not owner.degenerate:
         owner.degenerate = tuple(automatic_groups)
     if owner.mode_polarizations:
@@ -313,6 +366,7 @@ def track_solver_bank(owner, frequencies, solvers, mode_count):
     owner.tracking_diagnostics = {
         "schema_version": 1,
         "source_revision": "8c617a2",
+        "group_assignment_policy": "persistent_subgroups_v1",
         "reference_anchor": int(centre),
         "candidate_indices": original_mapping,
         "overlaps": overlaps,
@@ -845,6 +899,7 @@ def parse_port_options(tokens):
             "edge_fraction_max": float,
             "tracking_overlap": float,
             "assignment_margin": float,
+            "subspace_margin": float,
             "unmatched_cost": float,
             "cluster_gap": float,
             "extra_candidates": int,
@@ -1306,6 +1361,7 @@ def write_diagnostics(group, owner):
         root.attrs["Tracking"] = owner.tracking
         root.attrs["Verification"] = owner.verification
         root.attrs["ReferenceAnchorIndex"] = int(diagnostics["reference_anchor"])
+        root.attrs["GroupAssignmentPolicy"] = diagnostics.get("group_assignment_policy", "legacy_equal_size")
         root.attrs["VerificationSolveCount"] = int(
             diagnostics.get("verification_solve_count", 0)
         )

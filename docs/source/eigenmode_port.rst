@@ -1449,6 +1449,9 @@ Thresholds must be finite and in ``(0, 1]``; ``extra_candidates`` and
    * - ``assignment_margin``
      - ``0.02``
      - Minimum total-cost advantage over an alternative one-to-one assignment for an individual-mode match.
+   * - ``subspace_margin``
+     - ``0.02``
+     - Minimum separation of the squared projection scores of the last selected and first excluded members when extracting a subgroup from a larger cluster.
    * - ``unmatched_cost``
      - ``0.65``
      - Cost of leaving an individual mode unmatched rather than forcing a poor match.

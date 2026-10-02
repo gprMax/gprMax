@@ -1802,16 +1802,61 @@ uses the unsquared :math:`\sigma_{\min}` with its separate 0.9 warning and
 Candidate clusters and adaptive frequency solves
 ------------------------------------------------
 
-Candidate clusters use connected relative eigenvalue gaps no larger than
-``cluster_gap`` (``1e-5``). Equal-rank spans are reserved using this score and
-the predicted cluster-centre eigenvalue before assigning the remaining
-individual candidates. This broad matching cluster is not a permission to
-mix fields. Automatic mixing groups must satisfy the tighter ``1e-8``
-eigenvalue-spread condition at the reference anchor and throughout the solved
-bank; branches with resolved splitting remain separate. Field mixing requires
-the stricter degeneracy, propagation-branch, positive-power, rank, and
-mixed-residual checks in :ref:`eigenmode-degenerate-theory`. A crossing does
-not by itself justify mixing two branches with resolved splitting.
+The candidate gap ``cluster_gap`` (``1e-5``) is an upper limit on grouping,
+not evidence that every nearby mode belongs to one degenerate eigenspace.
+Span reservation uses whole-group eigenvalue spreads no larger than the
+smaller of this gap and the ``1e-8`` degeneracy tolerance. Previously tracked
+members must meet that bound in both their last solved and predicted
+eigenvalues; new groups are checked at the new anchor. Complete-link admission
+prevents a chain of close eigenvalues from joining resolved endpoints.
+
+A persistent pair may temporarily share an eigenvalue cluster with a crossing
+branch. When group sizes differ, project each column of the larger group onto
+the smaller span, and select as many columns as the smaller span's dimension.
+The squared projection scores of the last selected and first excluded columns
+must differ by at least ``subspace_margin`` (0.02). The selected equal-size
+spans must then pass the usual smallest-principal-angle overlap test. The
+operation is symmetric for merging and splitting clusters. Group selection
+remains sequential, prioritizing the largest admissible match, then assignment
+cost and overlap; there is no global group-assignment margin. Matched members
+are reserved, and remaining modes enter individual assignment. No fields are
+mixed during this association step.
+
+If an exact crossing rotates the entire enlarged eigenspace so that no raw
+column subset identifies the smaller span, the tracker abstains and uses the
+normal refinement/failure policy. A span match alone cannot identify its
+individual members. It does not justify arbitrary labels or rotating resolved
+eigenvectors. There is no two-mode dimension limit.
+
+After association, automatic mixing groups are partitioned using their
+eigenvalue trajectories throughout the solved bank, with the tighter ``1e-8``
+whole-group spread bound at every anchor. This retains persistent subgroups
+even if the reference anchor coincides with a crossing. Field mixing still
+requires the propagation-branch, positive-power, rank, and mixed-residual
+checks in :ref:`eigenmode-degenerate-theory`.
+
+The controlled algebraic checks in
+``python -m testing.validation.persistent_mode_groups --output results.json``
+cover a pair crossed by one mode, two crossing pairs, a resolved crossing
+inside the broad candidate gap, a four-dimensional degeneracy, and safe
+abstention at a fully mixed exact crossing. These are association tests, not
+Maxwell or scattering-accuracy evidence.
+
+For broader checks and tracked-branch plots, run
+``python -m testing.validation.expanded_mode_tracking --output results/tracking``.
+This adds multiple simultaneous and repeated crossings, higher-dimensional
+groups, resolved splitting, complex eigenvalues with nonorthogonal fields,
+and avoided crossings under randomized bases and different reference anchors.
+It also solves full-vector Yee-grid FDFD square-guide material sweeps, with and
+without dielectric loss, in which a degenerate TE pair crosses a TM mode,
+a square-guide crossing between the TE20/TE02 and TM12/TM21 degenerate pairs,
+and an anisotropic rectangular-guide frequency sweep. Independent discrete
+dispersion formulas check the square-guide modes and the rectangular-guide
+fundamentals. The material sweeps are independent constitutive models at
+20 GHz, not time-domain simulations of a causal dispersive material. Exact
+coincidences are checked separately because the returned basis can make
+subgroup association unresolved; acceptance at the configured overlap
+threshold does not uniquely determine the basis at the coincidence.
 
 Ambiguous intervals trigger additional candidates and midpoint solves. The
 default limits are eight refinement levels, a minimum relative frequency
