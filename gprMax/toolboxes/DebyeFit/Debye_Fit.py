@@ -673,7 +673,7 @@ class Crim(Relaxation):
             if len(f) != 0:
                 sys.exit("Error: The inputs should be positive")
         # Check if the summation of the volumetric fractions equal to one
-        if np.sum(self.volumetric_fractions) != 1:
+        if not np.isclose(np.sum(self.volumetric_fractions), 1.0, rtol=0.0, atol=1e-9):
             sys.exit("Error: The summation of volumetric volumes should be equal to 1")
 
     def print_info(self):

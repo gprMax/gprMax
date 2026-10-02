@@ -60,6 +60,34 @@ def test_crim_calculation_broadcasts_volumetric_fractions_per_frequency_row():
     assert result[0] == pytest.approx(expected, rel=1e-9)
 
 
+def _crim_with_fractions(fractions):
+    materials = np.array([[5.0, 0.0, 1.0], [4.9, 73.34, 8.0994e-12], [1.0, 0.0, 1.0]])
+    return Crim(
+        f_min=1e6,
+        f_max=3e9,
+        a=0.5,
+        volumetric_fractions=fractions,
+        materials=materials[: len(fractions)],
+        sigma=0,
+        mu=1,
+        mu_sigma=0,
+        material_name="crim_fraction_sum",
+        number_of_debye_poles=1,
+        f_n=10,
+    )
+
+
+@pytest.mark.parametrize("fractions", [[0.7, 0.2, 0.1], [0.6, 0.3, 0.1]])
+def test_crim_accepts_fractions_summing_to_one_with_rounding_error(fractions):
+    _crim_with_fractions(fractions).check_inputs()
+
+
+@pytest.mark.parametrize("fractions", [[0.7, 0.2, 0.2], [0.5, 0.3, 0.1]])
+def test_crim_rejects_fractions_not_summing_to_one(fractions):
+    with pytest.raises(SystemExit, match="summation of volumetric volumes"):
+        _crim_with_fractions(fractions).check_inputs()
+
+
 def test_dls_constrains_infinite_frequency_permittivity_to_unity_or_greater():
     """The fitted infinite-frequency relative permittivity must not be less
     than that of vacuum."""
