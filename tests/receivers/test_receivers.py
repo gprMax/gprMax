@@ -182,24 +182,17 @@ class TestRxCoordProperties:
 # ---------------------------------------------------------------------------
 
 
-class TestHtodRxArraysCpuBug:
-    """Pin the missing CPU branch in ``htod_rx_arrays``.
+class TestHtodRxArraysCpu:
+    """Verify the CPU branch in ``htod_rx_arrays`` returns numpy arrays."""
 
-    Source: ``receivers.py:90-140``. The function only assigns
-    ``rxcoords_dev`` / ``rxs_dev`` inside ``cuda``/``opencl``/``metal``
-    branches, so on CPU the final ``return`` accesses unbound locals.
-
-    Mirrors the analogous bug in ``sources.htod_src_arrays``. When fixed
-    (CPU branch added that returns the host numpy arrays), update this
-    test to call ``htod_rx_arrays`` and assert the returned arrays have
-    the expected shape.
-    """
-
-    def test_cpu_solver_raises_unbound_local(self, fake_grid):
+    def test_cpu_solver_returns_numpy_arrays(self, fake_grid):
         # solver defaults to "cpu" via the autouse receiver_config fixture.
         G = fake_grid(iterations=5, rxs=[])
-        with pytest.raises(UnboundLocalError):
-            htod_rx_arrays(G)
+        rxcoords, rxs, rxcurrentinfo, rxcurrents = htod_rx_arrays(G)
+        assert rxcoords.shape == (0, 3)
+        assert rxs.shape == (6, 5, 0)
+        assert rxcurrentinfo is None
+        assert rxcurrents is None
 
 
 class TestHtodRxArraysCuda:

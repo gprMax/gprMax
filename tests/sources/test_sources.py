@@ -461,23 +461,16 @@ class _FakeGpuArrayModule:
         return arr
 
 
-class TestHtodSrcArraysCpuBug:
-    """Pin the missing CPU branch in ``htod_src_arrays``.
+class TestHtodSrcArraysCpu:
+    """Verify the CPU branch in ``htod_src_arrays`` returns numpy arrays."""
 
-    Source: ``sources.py:404-473``. The function only assigns the ``*_dev``
-    locals inside ``cuda``/``opencl``/``metal`` branches, so on CPU the
-    final ``return`` accesses unbound locals.
-
-    When fixed (e.g. ``cpu`` branch added that returns the host numpy
-    arrays), update this test to call ``htod_src_arrays`` and assert the
-    returned arrays have the expected shape.
-    """
-
-    def test_cpu_solver_raises_unbound_local(self, fake_grid):
+    def test_cpu_solver_returns_numpy_arrays(self, fake_grid):
         # solver defaults to "cpu" via the autouse source_config fixture.
         G = fake_grid(iterations=5)
-        with pytest.raises(UnboundLocalError):
-            htod_src_arrays([], G)
+        srcinfo1, srcinfo2, srcwaves = htod_src_arrays([], G)
+        assert srcinfo1.shape == (0, 4)
+        assert srcinfo2.shape == (0,)
+        assert srcwaves.shape == (0, 6)
 
 
 class TestHtodSrcArraysVoltageSourceDeadCodeBug:

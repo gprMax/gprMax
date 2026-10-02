@@ -186,6 +186,12 @@ def htod_rx_arrays(G, queue=None, dev=None):
             rxcurrentinfo_dev = None
             rxcurrents_dev = None
 
+    elif config.sim_config.general["solver"] == "cpu":
+        rxcoords_dev = rxcoords
+        rxs_dev = rxs
+        rxcurrentinfo_dev = rxcurrentinfo if current_outputs else None
+        rxcurrents_dev = rxcurrents if current_outputs else None
+
     return rxcoords_dev, rxs_dev, rxcurrentinfo_dev, rxcurrents_dev
 
 

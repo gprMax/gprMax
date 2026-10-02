@@ -3585,6 +3585,11 @@ def htod_src_arrays(sources, G, queue=None):
             srcwaves.tobytes(), srcwaves.nbytes, 0
         )
 
+    elif config.sim_config.general["solver"] == "cpu":
+        srcinfo1_dev = srcinfo1
+        srcinfo2_dev = srcinfo2
+        srcwaves_dev = srcwaves
+
     return srcinfo1_dev, srcinfo2_dev, srcwaves_dev
 
 
