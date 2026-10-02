@@ -461,16 +461,21 @@ class _FakeGpuArrayModule:
         return arr
 
 
-class TestHtodSrcArraysCpu:
-    """Verify the CPU branch in ``htod_src_arrays`` returns numpy arrays."""
+class TestHtodSrcArraysBackendValidation:
+    """Verify backend validation in ``htod_src_arrays`` rejects non-accelerators before allocation."""
 
-    def test_cpu_solver_returns_numpy_arrays(self, fake_grid):
-        # solver defaults to "cpu" via the autouse source_config fixture.
-        G = fake_grid(iterations=5)
-        srcinfo1, srcinfo2, srcwaves = htod_src_arrays([], G)
-        assert srcinfo1.shape == (0, 4)
-        assert srcinfo2.shape == (0,)
-        assert srcwaves.shape == (0, 6)
+    @pytest.mark.parametrize("solver", ["cpu", "unknown_solver", None])
+    def test_rejects_unsupported_solver_before_allocation(self, monkeypatch, solver):
+        from gprMax import config
+
+        config.sim_config.general["solver"] = solver
+
+        def _fail_zeros(*args, **kwargs):
+            pytest.fail("np.zeros was called; validation must occur before array allocation")
+
+        monkeypatch.setattr(np, "zeros", _fail_zeros)
+        with pytest.raises(ValueError, match=f"Unknown device solver {solver!r} for source arrays"):
+            htod_src_arrays([], None)
 
 
 class TestHtodSrcArraysVoltageSourceDeadCodeBug:

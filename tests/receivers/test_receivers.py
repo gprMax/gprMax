@@ -182,17 +182,23 @@ class TestRxCoordProperties:
 # ---------------------------------------------------------------------------
 
 
-class TestHtodRxArraysCpu:
-    """Verify the CPU branch in ``htod_rx_arrays`` returns numpy arrays."""
+class TestHtodRxArraysBackendValidation:
+    """Verify backend validation in ``htod_rx_arrays`` rejects non-accelerators before allocation."""
 
-    def test_cpu_solver_returns_numpy_arrays(self, fake_grid):
-        # solver defaults to "cpu" via the autouse receiver_config fixture.
-        G = fake_grid(iterations=5, rxs=[])
-        rxcoords, rxs, rxcurrentinfo, rxcurrents = htod_rx_arrays(G)
-        assert rxcoords.shape == (0, 3)
-        assert rxs.shape == (6, 5, 0)
-        assert rxcurrentinfo is None
-        assert rxcurrents is None
+    @pytest.mark.parametrize("solver", ["cpu", "unknown_solver", None])
+    def test_rejects_unsupported_solver_before_allocation(self, monkeypatch, solver):
+        from gprMax import config
+
+        config.sim_config.general["solver"] = solver
+
+        def _fail_zeros(*args, **kwargs):
+            pytest.fail("np.zeros was called; validation must occur before array allocation")
+
+        monkeypatch.setattr(np, "zeros", _fail_zeros)
+        with pytest.raises(
+            ValueError, match=f"Unknown device solver {solver!r} for receiver arrays"
+        ):
+            htod_rx_arrays(None)
 
 
 class TestHtodRxArraysCuda:

@@ -115,6 +115,10 @@ def htod_rx_arrays(G, queue=None, dev=None):
         rxcurrents_dev: MTLBuffer for packed current data, or ``None``.
     """
 
+    solver = config.sim_config.general.get("solver")
+    if solver not in ("cuda", "opencl", "metal"):
+        raise ValueError(f"Unknown device solver {solver!r} for receiver arrays.")
+
     # Array to store receiver coordinates on compute device
     rxcoords = np.zeros((len(G.rxs), 3), dtype=np.int32)
     for i, rx in enumerate(G.rxs):
@@ -183,12 +187,6 @@ def htod_rx_arrays(G, queue=None, dev=None):
         else:
             rxcurrentinfo_dev = None
             rxcurrents_dev = None
-
-    elif config.sim_config.general["solver"] == "cpu":
-        rxcoords_dev = rxcoords
-        rxs_dev = rxs
-        rxcurrentinfo_dev = rxcurrentinfo if current_outputs else None
-        rxcurrents_dev = rxcurrents if current_outputs else None
 
     return rxcoords_dev, rxs_dev, rxcurrentinfo_dev, rxcurrents_dev
 
