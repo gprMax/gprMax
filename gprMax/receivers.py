@@ -115,6 +115,10 @@ def htod_rx_arrays(G, queue=None, dev=None):
         rxcurrents_dev: MTLBuffer for packed current data, or ``None``.
     """
 
+    solver = config.sim_config.general.get("solver")
+    if solver not in ("cuda", "opencl", "metal"):
+        raise ValueError(f"Unknown device solver {solver!r} for receiver arrays.")
+
     # Array to store receiver coordinates on compute device
     rxcoords = np.zeros((len(G.rxs), 3), dtype=np.int32)
     for i, rx in enumerate(G.rxs):
@@ -162,9 +166,7 @@ def htod_rx_arrays(G, queue=None, dev=None):
 
         rxcoords_dev = clarray.to_device(queue, rxcoords)
         rxs_dev = clarray.to_device(queue, rxs)
-        rxcurrentinfo_dev = (
-            clarray.to_device(queue, rxcurrentinfo) if current_outputs else None
-        )
+        rxcurrentinfo_dev = clarray.to_device(queue, rxcurrentinfo) if current_outputs else None
         rxcurrents_dev = clarray.to_device(queue, rxcurrents) if current_outputs else None
 
     elif config.sim_config.general["solver"] == "metal":
@@ -226,9 +228,7 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G, rxcurrents_dev=None):
                 buffer_size = rxs_dev.length()
                 rxs_buffer = rxs_dev.contents().as_buffer(buffer_size)
                 rxs_np = (
-                    np.frombuffer(
-                        rxs_buffer, dtype=config.sim_config.dtypes["float_or_double"]
-                    )
+                    np.frombuffer(rxs_buffer, dtype=config.sim_config.dtypes["float_or_double"])
                     .reshape(rxs_shape)
                     .copy()
                 )
@@ -252,17 +252,13 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G, rxcurrents_dev=None):
         current_outputs = requested_current_outputs(G)
         if current_outputs:
             current_shape = (G.iterations, len(current_outputs))
-            current_np = np.zeros(
-                current_shape, dtype=config.sim_config.dtypes["float_or_double"]
-            )
+            current_np = np.zeros(current_shape, dtype=config.sim_config.dtypes["float_or_double"])
             try:
                 expected_bytes = current_np.nbytes
                 if rxcurrents_dev is not None and rxcurrents_dev.length() == expected_bytes:
                     buffer = rxcurrents_dev.contents().as_buffer(expected_bytes)
                     current_np = (
-                        np.frombuffer(
-                            buffer, dtype=config.sim_config.dtypes["float_or_double"]
-                        )
+                        np.frombuffer(buffer, dtype=config.sim_config.dtypes["float_or_double"])
                         .reshape(current_shape)
                         .copy()
                     )

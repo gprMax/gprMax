@@ -182,24 +182,23 @@ class TestRxCoordProperties:
 # ---------------------------------------------------------------------------
 
 
-class TestHtodRxArraysCpuBug:
-    """Pin the missing CPU branch in ``htod_rx_arrays``.
+class TestHtodRxArraysBackendValidation:
+    """Verify backend validation in ``htod_rx_arrays`` rejects non-accelerators before allocation."""
 
-    Source: ``receivers.py:90-140``. The function only assigns
-    ``rxcoords_dev`` / ``rxs_dev`` inside ``cuda``/``opencl``/``metal``
-    branches, so on CPU the final ``return`` accesses unbound locals.
+    @pytest.mark.parametrize("solver", ["cpu", "unknown_solver", None])
+    def test_rejects_unsupported_solver_before_allocation(self, monkeypatch, solver):
+        from gprMax import config
 
-    Mirrors the analogous bug in ``sources.htod_src_arrays``. When fixed
-    (CPU branch added that returns the host numpy arrays), update this
-    test to call ``htod_rx_arrays`` and assert the returned arrays have
-    the expected shape.
-    """
+        config.sim_config.general["solver"] = solver
 
-    def test_cpu_solver_raises_unbound_local(self, fake_grid):
-        # solver defaults to "cpu" via the autouse receiver_config fixture.
-        G = fake_grid(iterations=5, rxs=[])
-        with pytest.raises(UnboundLocalError):
-            htod_rx_arrays(G)
+        def _fail_zeros(*args, **kwargs):
+            pytest.fail("np.zeros was called; validation must occur before array allocation")
+
+        monkeypatch.setattr(np, "zeros", _fail_zeros)
+        with pytest.raises(
+            ValueError, match=f"Unknown device solver {solver!r} for receiver arrays"
+        ):
+            htod_rx_arrays(None)
 
 
 class TestHtodRxArraysCuda:

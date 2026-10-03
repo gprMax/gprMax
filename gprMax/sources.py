@@ -3508,6 +3508,10 @@ def htod_src_arrays(sources, G, queue=None):
         srcwaves_dev: float array of source waveform values.
     """
 
+    solver = config.sim_config.general.get("solver")
+    if solver not in ("cuda", "opencl", "metal"):
+        raise ValueError(f"Unknown device solver {solver!r} for source arrays.")
+
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
     srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
     srcwaves = np.zeros(

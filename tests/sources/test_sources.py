@@ -461,23 +461,21 @@ class _FakeGpuArrayModule:
         return arr
 
 
-class TestHtodSrcArraysCpuBug:
-    """Pin the missing CPU branch in ``htod_src_arrays``.
+class TestHtodSrcArraysBackendValidation:
+    """Verify backend validation in ``htod_src_arrays`` rejects non-accelerators before allocation."""
 
-    Source: ``sources.py:404-473``. The function only assigns the ``*_dev``
-    locals inside ``cuda``/``opencl``/``metal`` branches, so on CPU the
-    final ``return`` accesses unbound locals.
+    @pytest.mark.parametrize("solver", ["cpu", "unknown_solver", None])
+    def test_rejects_unsupported_solver_before_allocation(self, monkeypatch, solver):
+        from gprMax import config
 
-    When fixed (e.g. ``cpu`` branch added that returns the host numpy
-    arrays), update this test to call ``htod_src_arrays`` and assert the
-    returned arrays have the expected shape.
-    """
+        config.sim_config.general["solver"] = solver
 
-    def test_cpu_solver_raises_unbound_local(self, fake_grid):
-        # solver defaults to "cpu" via the autouse source_config fixture.
-        G = fake_grid(iterations=5)
-        with pytest.raises(UnboundLocalError):
-            htod_src_arrays([], G)
+        def _fail_zeros(*args, **kwargs):
+            pytest.fail("np.zeros was called; validation must occur before array allocation")
+
+        monkeypatch.setattr(np, "zeros", _fail_zeros)
+        with pytest.raises(ValueError, match=f"Unknown device solver {solver!r} for source arrays"):
+            htod_src_arrays([], None)
 
 
 class TestHtodSrcArraysVoltageSourceDeadCodeBug:
