@@ -88,6 +88,31 @@ def test_crim_rejects_fractions_not_summing_to_one(fractions):
         _crim_with_fractions(fractions).check_inputs()
 
 
+def test_imaginary_part_error_is_normalised_by_loss_magnitude():
+    model = HavriliakNegami(
+        f_min=1e6,
+        f_max=1e9,
+        alpha=1,
+        beta=1,
+        e_inf=3,
+        de=5,
+        tau_0=1e-9,
+        sigma=0,
+        mu=1,
+        mu_sigma=0,
+        material_name="imag_error",
+        number_of_debye_poles=1,
+        f_n=3,
+    )
+    model.rl = np.full(3, 4.0)
+    model.im = np.array([-0.5, -1.0, -2.0])
+
+    err_real, err_imag = model.error(model.rl, model.im + 0.01)
+
+    assert err_real == 0
+    assert err_imag == pytest.approx(np.mean(0.01 / np.array([1.5, 2.0, 3.0])) * 100)
+
+
 def test_dls_constrains_infinite_frequency_permittivity_to_unity_or_greater():
     """The fitted infinite-frequency relative permittivity must not be less
     than that of vacuum."""
