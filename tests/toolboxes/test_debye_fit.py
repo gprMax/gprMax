@@ -21,6 +21,8 @@ import pytest
 from gprMax.toolboxes.DebyeFit.Debye_Fit import Crim, HavriliakNegami
 from gprMax.toolboxes.DebyeFit.optimization import DLS, PSO_DLS
 
+pytestmark = pytest.mark.unit
+
 
 def test_crim_calculation_broadcasts_volumetric_fractions_per_frequency_row():
     """Regression test for a bug where Crim.calculation() built the
@@ -84,7 +86,7 @@ def test_crim_accepts_fractions_summing_to_one_with_rounding_error(fractions):
 
 @pytest.mark.parametrize("fractions", [[0.7, 0.2, 0.2], [0.5, 0.3, 0.1]])
 def test_crim_rejects_fractions_not_summing_to_one(fractions):
-    with pytest.raises(SystemExit, match="summation of volumetric volumes"):
+    with pytest.raises(ValueError, match="summation of volumetric volumes"):
         _crim_with_fractions(fractions).check_inputs()
 
 
@@ -213,6 +215,7 @@ def test_short_havriliak_negami_fit_produces_gprmax_material_commands():
 
 def test_debye_fit_and_optimizer_defaults_not_mutable():
     import inspect
+
     from gprMax.toolboxes.DebyeFit import Debye_Fit, optimization
 
     classes = [
@@ -232,8 +235,10 @@ def test_debye_fit_and_optimizer_defaults_not_mutable():
         optimization.DE_DLS,
     ]
     assert inspect.signature(optimization.Optimizer.fit).parameters["funckwargs"].default is None
-    assert inspect.signature(optimization.DA_DLS.__init__).parameters["local_search_options"].default is None
+    assert (
+        inspect.signature(optimization.DA_DLS.__init__).parameters["local_search_options"].default
+        is None
+    )
     for cls in optimizer_classes:
         sig = inspect.signature(cls.calc_relaxation_times)
         assert sig.parameters["funckwargs"].default is None
-

@@ -94,6 +94,11 @@ strong source for BioEM work, but its website copyright terms do not permit
 redistribution in gprMax without written consent. Users can export the
 frequency-dependent data for their scientific work and fit it to a gprMax
 multi-pole Debye material using the :doc:`DebyeFit toolbox <inc_DebyeFit>`.
+Check the exported units: DebyeFit's Rawdata input requires dimensionless
+positive dielectric loss, not conductivity in S/m or loss tangent. The
+toolbox documentation explains these conversions and how to avoid counting
+conductivity twice. The fit must be validated over the intended frequency
+band before its coefficients are added to a database.
 The :doc:`AustinMan/AustinWoman toolbox <inc_AustinMan>` retains its historic
 900 MHz and three-pole material mappings for reproducibility and explains how
 to convert a downloaded voxel model to the modern HDF5/JSON format.
