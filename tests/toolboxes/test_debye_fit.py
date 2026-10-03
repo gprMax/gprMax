@@ -188,6 +188,7 @@ def test_short_havriliak_negami_fit_produces_gprmax_material_commands():
 
 def test_debye_fit_and_optimizer_defaults_not_mutable():
     import inspect
+
     from gprMax.toolboxes.DebyeFit import Debye_Fit, optimization
 
     classes = [
@@ -207,8 +208,42 @@ def test_debye_fit_and_optimizer_defaults_not_mutable():
         optimization.DE_DLS,
     ]
     assert inspect.signature(optimization.Optimizer.fit).parameters["funckwargs"].default is None
-    assert inspect.signature(optimization.DA_DLS.__init__).parameters["local_search_options"].default is None
+    assert (
+        inspect.signature(optimization.DA_DLS.__init__).parameters["local_search_options"].default
+        is None
+    )
     for cls in optimizer_classes:
         sig = inspect.signature(cls.calc_relaxation_times)
         assert sig.parameters["funckwargs"].default is None
 
+
+def test_debye_fit_imaginary_error_normalization():
+    """Regression test for a bug where imaginary error normalisation blew up near e'' = 1."""
+    import numpy as np
+
+    from gprMax.toolboxes.DebyeFit.Debye_Fit import HavriliakNegami
+
+    m = HavriliakNegami(
+        f_min=1e6,
+        f_max=1e9,
+        alpha=1,
+        beta=1,
+        e_inf=3,
+        de=5,
+        tau_0=1e-9,
+        sigma=0,
+        mu=1,
+        mu_sigma=0,
+        material_name="m",
+        number_of_debye_poles=1,
+        f_n=3,
+    )
+    m.rl = np.full(3, 4.0)
+    m.im = np.array([-0.5, -1.0, -2.0])
+
+    err_real, err_imag = m.error(m.rl, m.im + 0.01)
+
+    expected_err = np.mean(0.01 / (1 + np.abs(m.im))) * 100
+
+    assert np.isfinite(err_imag)
+    assert np.isclose(err_imag, expected_err)

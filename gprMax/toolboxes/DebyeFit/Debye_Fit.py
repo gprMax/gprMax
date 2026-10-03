@@ -322,7 +322,7 @@ class Relaxation(object):
         )
         ax.semilogx(
             self.freq * 1e-6,
-            (-im_exp + self.im) / (self.im + 1),
+            (-im_exp + self.im) / (np.abs(self.im) + 1),
             "k-",
             linewidth=2.0,
             label="Imaginary part",
@@ -348,7 +348,9 @@ class Relaxation(object):
                                   for conductivity (imaginary part)
         """
         avg_err_real = np.sum(np.abs((rl_exp - self.rl) / (self.rl + 1)) * 100) / len(rl_exp)
-        avg_err_imag = np.sum(np.abs((-im_exp + self.im) / (self.im + 1)) * 100) / len(im_exp)
+        avg_err_imag = np.sum(np.abs((-im_exp + self.im) / (np.abs(self.im) + 1)) * 100) / len(
+            im_exp
+        )
         return avg_err_real, avg_err_imag
 
     @staticmethod
