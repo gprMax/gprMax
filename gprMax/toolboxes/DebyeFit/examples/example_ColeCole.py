@@ -46,7 +46,7 @@ if __name__ == "__main__":
     setup.beta = 1
     setup.e_inf = 5.6
     setup.de = 3.3
-    setup.tau_0 = (1.1e-10,)
+    setup.tau_0 = 1.1e-10
     setup.sigma = 2e-3
     # calculate for different number of Debye poles
     for number_of_debye_poles in [3, 5, -1]:

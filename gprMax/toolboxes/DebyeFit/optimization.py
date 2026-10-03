@@ -6,11 +6,32 @@
 # Please use the attribution at http://dx.doi.org/10.1109/TAP.2014.2308549
 
 import warnings
+from functools import partial
+from numbers import Integral
 
 import numpy as np
 import scipy.optimize
 from matplotlib import pylab as plt
 from tqdm import tqdm
+
+
+def _bounds(func, lb, ub):
+    """Common validation for all three public optimizer adapters."""
+    if np.iscomplexobj(lb) or np.iscomplexobj(ub):
+        raise ValueError("Bounds must be real")
+    lb, ub = np.asarray(lb, dtype=float), np.asarray(ub, dtype=float)
+    if not callable(func):
+        raise ValueError("func must be callable")
+    if (
+        lb.ndim != 1
+        or not lb.size
+        or ub.shape != lb.shape
+        or not np.all(np.isfinite(lb))
+        or not np.all(np.isfinite(ub))
+        or np.any(ub <= lb)
+    ):
+        raise ValueError("Bounds must be non-empty, matching finite vectors with ub > lb")
+    return lb, ub
 
 
 class Optimizer(object):
@@ -26,6 +47,8 @@ class Optimizer(object):
     """
 
     def __init__(self, maxiter=1000, seed=None):
+        if isinstance(maxiter, bool) or not isinstance(maxiter, Integral) or maxiter < 0:
+            raise ValueError("maxiter must be a non-negative integer")
         self.maxiter = maxiter
         self.seed = seed
         self.calc_weights = None
@@ -57,7 +80,6 @@ class Optimizer(object):
         """
         if funckwargs is None:
             funckwargs = {}
-        np.random.seed(self.seed)
         # find the relaxation frequencies using choosen optimization alghoritm
         tau, _ = self.calc_relaxation_times(func, lb, ub, funckwargs)
         # find the weights using a calc_weights method
@@ -141,6 +163,8 @@ class PSO_DLS(Optimizer):
     ):
         super(PSO_DLS, self).__init__(maxiter, seed)
         self.swarmsize = swarmsize
+        if isinstance(swarmsize, bool) or not isinstance(swarmsize, Integral) or swarmsize < 1:
+            raise ValueError("swarmsize must be a positive integer")
         self.omega = omega
         self.phip = phip
         self.phig = phig
@@ -171,13 +195,9 @@ class PSO_DLS(Optimizer):
         """
         if funckwargs is None:
             funckwargs = {}
-        np.random.seed(self.seed)
-        # check input parameters
-        assert len(lb) == len(ub), "Lower- and upper-bounds must be the same length"
-        assert hasattr(func, "__call__"), "Invalid function handle"
-        lb = np.array(lb)
-        ub = np.array(ub)
-        assert np.all(ub > lb), "All upper-bound values must be greater than lower-bound values"
+        # Keep reproducibility without resetting the caller's global RNG.
+        rng = np.random.RandomState(self.seed)
+        lb, ub = _bounds(func, lb, ub)
 
         vhigh = np.abs(ub - lb)
         vlow = -vhigh
@@ -187,7 +207,7 @@ class PSO_DLS(Optimizer):
 
         # Initialize the particle swarm
         d = len(lb)  # the number of dimensions each particle has
-        x = np.random.rand(self.swarmsize, d)  # particle positions
+        x = rng.rand(self.swarmsize, d)  # particle positions
         v = np.zeros_like(x)  # particle velocities
         p = np.zeros_like(x)  # best particle positions
         fp = np.zeros(self.swarmsize)  # best particle function values
@@ -212,12 +232,12 @@ class PSO_DLS(Optimizer):
                 fg = fp[i]
                 g = p[i, :].copy()
             # Initialize the particle's velocity
-            v[i, :] = vlow + np.random.rand(d) * (vhigh - vlow)
+            v[i, :] = vlow + rng.rand(d) * (vhigh - vlow)
 
         # Iterate until termination criterion met
         for it in tqdm(range(self.maxiter), desc="Debye fitting"):
-            rp = np.random.uniform(size=(self.swarmsize, d))
-            rg = np.random.uniform(size=(self.swarmsize, d))
+            rp = rng.uniform(size=(self.swarmsize, d))
+            rg = rng.uniform(size=(self.swarmsize, d))
             for i in range(self.swarmsize):
                 # Update the particle's velocity
                 v[i, :] = (
@@ -314,6 +334,8 @@ class DA_DLS(Optimizer):
         seed=None,
     ):
         super(DA_DLS, self).__init__(maxiter, seed)
+        if maxiter == 0:
+            raise ValueError("Dual annealing requires maxiter >= 1")
         if local_search_options is None:
             local_search_options = {}
         self.local_search_options = local_search_options
@@ -349,12 +371,12 @@ class DA_DLS(Optimizer):
         """
         if funckwargs is None:
             funckwargs = {}
-        np.random.seed(self.seed)
+        lb, ub = _bounds(func, lb, ub)
         result = scipy.optimize.dual_annealing(
-            func,
+            partial(func, **funckwargs),
             bounds=list(zip(lb, ub)),
-            args=funckwargs.values(),
             maxiter=self.maxiter,
+            seed=self.seed,
             minimizer_kwargs=self.local_search_options,
             initial_temp=self.initial_temp,
             restart_temp_ratio=self.restart_temp_ratio,
@@ -435,11 +457,13 @@ class DE_DLS(Optimizer):
         """
         if funckwargs is None:
             funckwargs = {}
-        np.random.seed(self.seed)
+        lb, ub = _bounds(func, lb, ub)
         result = scipy.optimize.differential_evolution(
-            func,
+            # partial preserves keyword meaning and is picklable when func is.
+            partial(func, **funckwargs),
             bounds=list(zip(lb, ub)),
-            args=funckwargs.values(),
+            maxiter=self.maxiter,
+            seed=self.seed,
             strategy=self.strategy,
             popsize=self.popsize,
             tol=self.tol,
@@ -460,9 +484,10 @@ class DE_DLS(Optimizer):
 
 def DLS(logt, rl, im, freq, *, warn_on_bound=True):
     """
-    Find the weights using a non-linear least squares (LS) method,
-    the Levenberg–Marquardt algorithm (LMA or just LM),
-    also known as the damped least-squares (DLS) method.
+    Fit the imaginary-part weights using the legacy linear least-squares
+    heuristic and estimate the real offset. Negative unconstrained weights
+    are replaced by their magnitudes; this is not non-negative least squares
+    or a Levenberg--Marquardt solve. Inspect the returned residuals.
 
     Args:
         logt (ndarray): The best known position form optimization module
@@ -495,14 +520,34 @@ def DLS(logt, rl, im, freq, *, warn_on_bound=True):
                       relaxation times and weights for the frequnecies included
                       in freq.
     """
+    if any(np.iscomplexobj(a) for a in (logt, rl, im, freq)):
+        raise ValueError(
+            "DLS expects separate real-valued real/imaginary vectors and real poles/frequencies"
+        )
+    logt, rl, im, freq = (np.asarray(a, dtype=float) for a in (logt, rl, im, freq))
+    if (
+        logt.ndim != 1
+        or not logt.size
+        or freq.ndim != 1
+        or freq.size < 2
+        or rl.shape != freq.shape
+        or im.shape != freq.shape
+        or not all(np.all(np.isfinite(a)) for a in (logt, rl, im, freq))
+        or np.any(freq <= 0)
+    ):
+        raise ValueError(
+            "DLS needs finite 1-D poles and matching real, imaginary and positive frequency vectors"
+        )
     # The relaxation time of the Debyes are given at as logarithms
     # logt=log10(t0) for efficiency during the optimisation
     # Here they are transformed back t0=10**logt
-    tt = 10**logt
+    with np.errstate(over="ignore", under="ignore"):
+        tt = 10.0**logt
+    if not np.all(np.isfinite(tt)) or np.any(tt <= 0):
+        raise ValueError("DLS relaxation times must be finite and positive")
     # y = Ax, here the A matrix for the real and the imaginary part is builded
     d = 1 / (1 + 1j * 2 * np.pi * np.repeat(freq, len(tt)).reshape((-1, len(tt))) * tt)
-    # Adding dumping (Levenberg–Marquardt algorithm)
-    # Solving the overdetermined system y=Ax
+    # Legacy heuristic: solve the loss system, then enforce positive magnitudes.
     x = np.abs(np.linalg.lstsq(d.imag, im, rcond=None)[0])
     # x - absolute damped least-squares solution
     rp, ip = (

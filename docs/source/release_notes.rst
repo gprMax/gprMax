@@ -79,6 +79,16 @@ Eigenmode tracking and surface-impedance refinements
 Reliability, installation and toolboxes
 ---------------------------------------
 
+* DebyeFit uses loss magnitude when normalising imaginary-part error, avoiding
+  a singularity at unit loss. Optimizer adapters honour the iteration budget,
+  preserve keyword arguments and support parallel differential evolution.
+  Inputs are validated before fitting; invalid parameters raise ``ValueError``
+  instead of exiting Python. Zero-strength poles are omitted from exported
+  materials, including lossless fits. The Rawdata conductivity/sign convention
+  and the legacy weight solver's limitations are clarified in
+  :doc:`inc_DebyeFit`. Re-run affected fits rather than reusing their old error
+  estimates or automatic pole counts.
+
 * Accept valid asymmetric PML thicknesses while rejecting overlapping
   opposing slabs. MPI validates global thicknesses before partitioning and
   coordinates checks that a boundary slab fits its owning partition.

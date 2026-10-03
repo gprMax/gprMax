@@ -4,6 +4,12 @@ Optimization methods of multi-Debye fitting
 The ``Optimizer`` class supports global optimization algorithms (particle swarm, dual annealing, evolutionary algorithms) for finding an optimal set of relaxation times that minimise the error between the actual and the approximated electric permittivity, and calculates optimised weights for the given relaxation times.
 Code written here is mainly based on external libraries, like ```scipy``` and ```pyswarm```.
 
+The historical ``DLS`` suffix does not denote a Levenberg--Marquardt solver
+in this implementation. It uses a linear least-squares loss fit followed by
+absolute-valued weights and a bounded real offset. This heuristic is not
+non-negative least squares. See the main DebyeFit guide for the error metric,
+conductivity convention and validation requirements.
+
 Supported methods:
 - [x] hybrid Particle Swarm-Damped Least Squares
 - [x] hybrid Dual Annealing-Damped Least Squares
@@ -21,7 +27,7 @@ Methods
     In constructor the attributes:
     - `maxiter`,
     - `seed`,
-    - `calc_weights` (used to fit weight, non-linear least squares (LS) method is used as a default)
+    - `calc_weights` (the legacy linear least-squares weight heuristic by default)
     are set.
 
 2. __fit__ - is inherited by all children classes. It calls the optimization function that tries to find an optimal set of relaxation times that minimise the error between the actual and the approximated electric permittivity and calculate optimised weights for the given relaxation times.

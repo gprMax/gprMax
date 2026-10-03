@@ -47,8 +47,8 @@ Package contents
 
 There are two main scripts:
 
-* ``Debye_fit.py`` contains definitions of all Relaxation functions classes
-* ``optimization.py`` contains definitions of three choosen global optimization methods
+* ``Debye_Fit.py`` contains definitions of the relaxation function classes
+* ``optimization.py`` contains definitions of the three global optimization methods
 
 
 Relaxation Class
@@ -77,15 +77,15 @@ The ``HavriliakNegami`` class has the following structure:
                     alpha, beta, e_inf, de, tau_0,
                     sigma, mu, mu_sigma, material_name,
                     number_of_debye_poles=-1, f_n=50,
-                    plot=False, save=True,
+                    plot=False, save=False,
                     optimizer=PSO_DLS,
-                    optimizer_options={})
+                    optimizer_options=None)
 
 
 * ``f_min`` is first bound of the frequency range used to approximate the given function (Hz),
 * ``f_max`` is second bound of the frequency range used to approximate the given function (Hz),
-* ``alpha`` is real positive float number which varies :math:`0 < \alpha < 1`,
-* ``beta`` is real positive float number which varies :math:`0 < \beta < 1`,
+* ``alpha`` satisfies :math:`0 < \alpha \leq 1`,
+* ``beta`` satisfies :math:`0 < \beta \leq 1`,
 * ``e_inf`` is a real part of relative permittivity at infinite frequency,
 * ``de`` is a difference between the real permittivity at zero and infinite frequency,
 * ``tau_0`` is a relaxation time (seconds),
@@ -107,7 +107,9 @@ Jonscher function is mainly used to describe the dielectric properties of concre
 
 .. math::
 
-    \epsilon(\omega) = \epsilon_{\infty} + a_{p}*\left( -j*\frac{\omega}{\omega_{p}} \right)^{n}
+    \epsilon(\omega) = \epsilon_{\infty}
+      + a_p\left(\frac{\omega}{\omega_p}\right)^{n_p-1}
+        \left[1-j\cot\left(\frac{n_p\pi}{2}\right)\right]
 
 
 The ``Jonscher`` class has the following structure:
@@ -118,9 +120,9 @@ The ``Jonscher`` class has the following structure:
             e_inf, a_p, omega_p, n_p,
             sigma, mu, mu_sigma,
             material_name, number_of_debye_poles=-1,
-            f_n=50, plot=False, save=True,
+            f_n=50, plot=False, save=False,
             optimizer=PSO_DLS,
-            optimizer_options={})
+            optimizer_options=None)
 
 
 * ``f_min`` is first bound of the frequency range used to approximate the given function (Hz),
@@ -144,12 +146,12 @@ The ``CRIM`` class has the following structure:
 
 .. code-block:: none
 
-    CRIM(f_min, f_max, a, volumetric_fractions,
+    Crim(f_min, f_max, a, volumetric_fractions,
         materials, sigma, mu, mu_sigma, material_name,
         number_of_debye_poles=-1, f_n=50,
-        plot=False, save=True,
+        plot=False, save=False,
         optimizer=PSO_DLS,
-        optimizer_options={})
+        optimizer_options=None)
 
 
 * ``f_min`` is first bound of the frequency range used to approximate the given function (Hz),
@@ -162,23 +164,102 @@ Rawdata Class
 ^^^^^^^^^^^^^
 
 This package also has the ability to model dielectric properties obtained experimentally by fitting multi-Debye functions to data given from a file.
-The format of the file should be three columns: the first column contains the frequencies (Hz) associated with the electric permittivity; the second column contains the real part of the relative permittivity; the third column contains the imaginary part of the relative permittivity. The columns should separated by a coma by default, but it is also possible to define a different separator.
+The file must have at least two rows and exactly three numeric columns:
+frequency in Hz, real relative permittivity :math:`\epsilon'`, and the
+**non-negative loss** :math:`\epsilon''` in the convention
+:math:`\epsilon = \epsilon' - j\epsilon''`. Do not supply the signed,
+negative imaginary component in column three. Values must be finite,
+frequencies positive and distinct, and :math:`\epsilon' \geq 1`.
+Rows are sorted by frequency before linear interpolation onto the logarithmic
+fitting grid. Duplicate frequencies must be combined by the user first.
+The default separator is a comma; ``delimiter`` selects another separator.
 
 The ``Rawdata`` class has the following structure:
 
 .. code-block:: none
 
-    Rawdata(self, filename,
+    Rawdata(filename,
             sigma, mu, mu_sigma,
             material_name, number_of_debye_poles=-1,
             f_n=50, delimiter =',',
-            plot=False, save=True,
+            plot=False, save=False,
             optimizer=PSO_DLS,
-            optimizer_options={})
+            optimizer_options=None)
 
 
 * ``filename`` is a path to text file which contains three columns,
 * ``delimiter`` is a separator for three data columns.
+
+.. important::
+
+   ``sigma`` is an **additional constant conductivity**, written to the
+   ``#material`` hash command. DebyeFit does not subtract it from the supplied
+   loss data and does not include it in the fitted relaxation curve or its
+   reported error. The exported material therefore has
+
+   .. math::
+
+      \epsilon_{\mathrm{total}}(\omega)
+      = \epsilon_{\mathrm{fit}}(\omega) - j\frac{\sigma}{\omega\epsilon_0}.
+
+   For measured data that already include all conduction loss, use
+   ``sigma=0``. Alternatively, subtract the known
+   :math:`\sigma/(\omega\epsilon_0)` from the positive loss column first,
+   then pass that conductivity as ``sigma``. The residual loss must remain
+   non-negative. Rawdata warns when ``sigma`` is nonzero to prevent accidental
+   double-counting. The analytical relaxation models use the same additive
+   conductivity convention.
+
+   If a measurement table reports effective conductivity in S/m instead of
+   dimensionless dielectric loss, first convert it using
+   :math:`\epsilon''(f)=\sigma_{\mathrm{eff}}(f)/(2\pi f\epsilon_0)`.
+   A loss-tangent column instead requires
+   :math:`\epsilon''(f)=\epsilon'(f)\tan\delta(f)`.
+   Neither column can be passed unchanged as Rawdata's third column. When
+   fitting the total converted loss, use ``sigma=0`` as above.
+
+Validation and interpreting a fit
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Invalid model parameters raise ``ValueError`` rather than terminating Python.
+Frequency bounds must be finite, positive and distinct (reversed bounds are
+accepted). ``f_n`` must be an integer of at least two. Pole count is a positive
+integer or ``-1`` for automatic selection. Relative permeability must be at
+least one; conductivity and magnetic loss must be finite and non-negative.
+Material names must also be valid, non-reserved gprMax identifiers without
+whitespace. Each run revalidates current parameter values, including edits
+made after construction.
+
+``run()`` returns ``(error_percent, hash_commands)``. The reported error is
+the **sum** of the two mean absolute normalised errors:
+
+.. math::
+
+   100\,\mathrm{mean}\!\left(\frac{|\epsilon'_{\mathrm{fit}}-\epsilon'|}{1+\epsilon'}\right)
+   +100\,\mathrm{mean}\!\left(\frac{|\epsilon''_{\mathrm{fit}}-\epsilon''|}{1+|\epsilon''|}\right).
+
+This is not a maximum-error bound or a pure relative percentage error. The
+plot shows signed normalised residuals, without the factor of 100. Automatic
+selection tries one through twenty poles and stops at a combined mean error
+of at most 5%; reaching twenty poles without meeting this target emits a
+warning. Check the curves and an independent, denser frequency grid before
+using a fit outside the sampled frequencies. Extrapolation beyond the fitted
+band is not validated.
+
+The returned list contains a ``#material`` hash command and, when needed, a
+``#add_dispersion_debye`` hash command. Exactly zero-strength poles are omitted;
+a lossless constant fit needs only ``#material``. ``fitted_pole_count`` records
+the exported count, which can be smaller than the requested/trial
+``number_of_debye_poles``. Positive strengths are not thresholded away.
+Relaxation times in the exported command are in seconds, not their logarithms.
+
+Saving is off by default. To choose the destination explicitly, use
+``setup.save_result(hash_commands, fdir="existing_directory")``. This appends
+to ``my_materials.txt``; use unique material names when combining results.
+An explicit missing directory raises ``FileNotFoundError`` and does not fall
+back to another location. Omitting ``fdir`` retains the legacy search through
+``../materials``, ``materials`` and ``user_libs/materials`` relative to the
+current working directory.
 
 Class Optimizer
 ---------------
@@ -210,7 +291,23 @@ https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential
 DLS function
 ^^^^^^^^^^^^
 
-Finding the weights using a non-linear least squares (LS) method, the Levenberg-Marquardt algorithm (LMA or just LM), also known as the damped least-squares (DLS) method.
+``DLS`` is a legacy name. The implementation uses linear least squares for
+the imaginary-part weights, takes the magnitudes of those weights, and
+estimates a real offset constrained to :math:`\epsilon_\infty \geq 1`.
+It is neither a Levenberg--Marquardt solver nor non-negative least squares.
+Taking magnitudes is a heuristic, not an optimal positivity-constrained fit;
+closely spaced trial poles can give poor residuals. The global optimizers
+search over relaxation times using the unnormalised real-plus-imaginary mean
+absolute residual, while automatic pole selection uses the normalised metric
+above. Always inspect the accepted fit's residuals.
+
+All optimizer adapters honour named objective arguments independently of
+dictionary insertion order. ``maxiter`` controls the requested iteration
+budget. A fixed ``seed`` is reproducible without resetting NumPy's global
+random state. For ``DE_DLS(workers=2)``, use a picklable objective and protect
+the calling script with ``if __name__ == "__main__":`` for multiprocessing.
+Use ``updating="deferred"`` in both serial and parallel runs when comparing
+their results with the same seed.
 
 How to use the package
 ======================
@@ -218,12 +315,22 @@ How to use the package
 Examples
 --------
 
-In the examples directory you will find Jupyter notebooks, scripts, and data that demonstrate different cases of how to use the main script ``DebyeFit.py``:
+In the examples directory you will find Jupyter notebooks, scripts, and data that demonstrate different cases of how to use the main script ``Debye_Fit.py``:
 
 * ``example_DebyeFitting.ipynb`` presents simple cases of using all available implemented relaxation functions.
 * ``example_BiologicalTissues.ipynb`` presents simple cases of using Cole-Cole function for biological tissues.
 * ``example_ColeCole.py`` presents simple cases of using Cole-Cole function in case of 3, 5 and automatically chosen number of Debye poles.
-* ``Test.txt`` contains raw data for testing ``Rawdata`` class, file contains 3 columns: the first column contains the frequencies (Hz) associated with the value of the permittivity; the second column contains the real part of the relative permittivity; and the third column contains the imaginary part of the relative permittivity.
+* ``Test.txt`` contains raw data for testing the ``Rawdata`` class: frequency (Hz), real relative permittivity, and positive dielectric loss :math:`\epsilon''`.
+
+From a source checkout, the independent validation cases can be reproduced with:
+
+.. code-block:: bash
+
+    python -m testing.validation.validate_debye_fit --output-dir debyefit-validation
+
+This writes plots and a JSON report, checks the exported spectra on a denser
+frequency grid, and exits with a nonzero status if any accuracy or passivity
+check fails. The report records the seed and iteration budget for each case.
 
 The following code shows a basic example of how to use the Havriliak-Negami function:
 

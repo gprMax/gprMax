@@ -10,6 +10,12 @@ Supported relaxation classes:
 - [x] Complex Refractive Index Mixing,
 - [x] Experimental data,
 
+Invalid inputs raise ``ValueError``. Rawdata column three is non-negative
+loss, not the negative imaginary component; ``sigma`` is an additional
+conductivity excluded from the relaxation fit. Use ``sigma=0`` if measured
+data already include all conduction loss. See the main DebyeFit guide for
+the complete input and export contracts.
+
 Methods
 ^^^^^^^
 
