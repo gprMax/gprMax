@@ -22,7 +22,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from gprMax.utilities.utilities import fft_power, handle_plot_output, round_value
+from gprMax.utilities.utilities import fft_power, handle_plot_output
 from gprMax.waveforms import Waveform
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def check_timewindow(timewindow, dt):
     except ValueError:
         timewindow = float(timewindow)
         if timewindow > 0:
-            iterations = round_value((timewindow / dt)) + 1
+            iterations = int(np.ceil(timewindow / dt)) + 1
         else:
             raise ValueError("Time window must have a value greater than zero")
 

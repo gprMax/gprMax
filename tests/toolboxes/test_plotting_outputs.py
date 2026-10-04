@@ -19,6 +19,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import h5py
 import numpy as np
@@ -26,6 +27,8 @@ import pytest
 
 from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range, mpl_plot
 from gprMax.toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
+from gprMax.toolboxes.Plotting.plot_source_wave import check_timewindow
+from gprMax.user_objects.cmds_singleuse import TimeWindow
 
 
 def test_bscan_gather_does_not_duplicate_first_receiver(tmp_path):
@@ -40,6 +43,17 @@ def test_bscan_gather_does_not_duplicate_first_receiver(tmp_path):
 
     np.testing.assert_array_equal(gathered, [[1, 4], [2, 5], [3, 6]])
     assert dt == 1e-10
+
+
+@pytest.mark.parametrize("timewindow, dt", [("6e-9", 1.926e-12), ("3e-9", 1.1e-12)])
+def test_plot_source_wave_time_window_matches_solver(timewindow, dt):
+    model = SimpleNamespace(dt=dt)
+    TimeWindow(time=float(timewindow)).build(model)
+
+    _, iterations = check_timewindow(timewindow, dt)
+
+    assert iterations == model.iterations
+    assert (iterations - 1) * dt >= float(timewindow)
 
 
 def test_fft_plot_range_handles_zero_signal():
