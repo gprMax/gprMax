@@ -17,7 +17,6 @@
 
 import h5py
 import numpy as np
-
 import pytest
 
 from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range, mpl_plot
@@ -61,3 +60,27 @@ def test_plot_ascan_single_output_missing_reports_correct_receiver(tmp_path):
     with pytest.raises(ValueError, match=r"available output for receiver 2 is Ey"):
         mpl_plot(filename, ["Ez"], show=False)
 
+
+def test_plot_bscan_gather_filename(tmp_path):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from gprMax.toolboxes.Plotting.plot_Bscan import mpl_plot
+
+    filename = tmp_path / "receivers.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 2
+        output.attrs["dt"] = 1e-10
+        output.create_dataset("rxs/rx1/Ez", data=[[1, 2], [3, 4]])
+        output.create_dataset("rxs/rx2/Ez", data=[[5, 6], [7, 8]])
+
+    outputdata = np.array([[1, 2], [3, 4]])
+
+    plt.close("all")
+    mpl_plot(
+        filename, outputdata, 1e-10, 1, "Ez", show=False, trace_group="gathered", time_offset=0.0
+    )
+
+    assert (tmp_path / "receivers_gathered.png").exists()
