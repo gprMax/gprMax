@@ -100,7 +100,9 @@ def mpl_plot(
         raise ValueError("A B-scan must be a nonempty finite real time-by-trace matrix")
     if not np.isfinite(dt) or dt <= 0:
         raise ValueError("B-scan sample interval must be finite and positive")
-    time_offset = receiver_time_offset(rxcomponent, dt) if time_offset is None else float(time_offset)
+    time_offset = (
+        receiver_time_offset(rxcomponent, dt) if time_offset is None else float(time_offset)
+    )
     if not np.isfinite(time_offset):
         raise ValueError("B-scan time offset must be finite")
 
@@ -118,7 +120,12 @@ def mpl_plot(
 
     plt.imshow(
         outputdata,
-        extent=[0, outputdata.shape[1], time_offset + (outputdata.shape[0] - 0.5) * dt, time_offset - 0.5 * dt],
+        extent=[
+            0,
+            outputdata.shape[1],
+            time_offset + (outputdata.shape[0] - 0.5) * dt,
+            time_offset - 0.5 * dt,
+        ],
         interpolation="nearest",
         aspect="auto",
         cmap="seismic",
@@ -182,7 +189,9 @@ if __name__ == "__main__":
     if args.trace_group is not None:
         if args.gather:
             parser.error("--trace-group and -gather cannot be used together")
-        if args.rx_component != "Vtotal" and not args.trace_group.startswith(("name:", "study:", "build:", "rxs/")):
+        if args.rx_component != "Vtotal" and not args.trace_group.startswith(
+            ("name:", "study:", "build:", "rxs/")
+        ):
             parser.error("--trace-group requires the Vtotal component")
         outputdata, dt, offset = get_output_data(
             args.outputfile,
@@ -204,10 +213,19 @@ if __name__ == "__main__":
     elif args.rx_component == "Vtotal":
         parser.error("Vtotal requires --trace-group")
     elif args.gather:
-        rxsgather, dt, offset = gather_receiver_outputs(args.outputfile, args.rx_component, return_time_offset=True)
-        with h5py.File(args.outputfile, "r") as f:
-            nrx = int(f.attrs["nrx"])
-        mpl_plot(args.outputfile, rxsgather, dt, nrx, args.rx_component, show=not args.save, time_offset=offset)
+        rxsgather, dt, offset = gather_receiver_outputs(
+            args.outputfile, args.rx_component, return_time_offset=True
+        )
+        mpl_plot(
+            args.outputfile,
+            rxsgather,
+            dt,
+            1,
+            args.rx_component,
+            show=not args.save,
+            trace_group="gathered",
+            time_offset=offset,
+        )
     else:
         with h5py.File(args.outputfile, "r") as f:
             nrx = int(f.attrs["nrx"])
@@ -216,5 +234,15 @@ if __name__ == "__main__":
             raise ValueError(f"No receivers found in {args.outputfile}")
         for key in receivers:
             rx = int(key.removeprefix("rx"))
-            outputdata, dt, offset = get_output_data(args.outputfile, rx, args.rx_component, return_time_offset=True)
-            mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component, show=not args.save, time_offset=offset)
+            outputdata, dt, offset = get_output_data(
+                args.outputfile, rx, args.rx_component, return_time_offset=True
+            )
+            mpl_plot(
+                args.outputfile,
+                outputdata,
+                dt,
+                rx,
+                args.rx_component,
+                show=not args.save,
+                time_offset=offset,
+            )
