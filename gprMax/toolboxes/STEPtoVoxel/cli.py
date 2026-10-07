@@ -67,7 +67,12 @@ def build_parser() -> argparse.ArgumentParser:
     prepare = commands.add_parser("prepare", help="create an editable material-assignment CSV")
     prepare.add_argument("step_file", type=Path)
     prepare.add_argument("materials_csv", type=Path)
-    prepare.add_argument("--overwrite", action="store_true")
+    prepare.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="overwrite existing material assignment template",
+    )
     prepare.add_argument(
         "--group-mode",
         choices=("none", "exact", "similar"),
@@ -92,11 +97,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    config = _config(args)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        config = _config(args)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     if args.command == "inspect":
-        parts = inspect_step(args.step_file, config)
+        try:
+            parts = inspect_step(args.step_file, config)
+        except (FileNotFoundError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
         for part in parts:
             cad = part.cad
             kind = "solid" if float(cad.get("vol_m3") or 0.0) > 0 else "surface"
@@ -108,22 +120,30 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "prepare":
-        path = write_material_template(
-            args.step_file,
-            args.materials_csv,
-            config,
-            overwrite=args.overwrite,
-        )
+        try:
+            path = write_material_template(
+                args.step_file,
+                args.materials_csv,
+                config,
+                overwrite=args.overwrite,
+            )
+        except FileExistsError as exc:
+            parser.error(f"Material template already exists: {exc}. Use --overwrite to replace it.")
+        except (FileNotFoundError, ValueError, RuntimeError) as exc:
+            parser.error(str(exc))
         print(f"Wrote material template: {path}")
         return 0
 
-    result = convert_step(
-        args.step_file,
-        args.materials_csv,
-        args.output_dir,
-        config,
-        write_vtk=not args.no_vtk,
-    )
+    try:
+        result = convert_step(
+            args.step_file,
+            args.materials_csv,
+            args.output_dir,
+            config,
+            write_vtk=not args.no_vtk,
+        )
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        parser.error(str(exc))
     print(f"Wrote gprMax geometry: {result.geometry_file}")
     print(f"Wrote gprMax materials: {result.materials_file}")
     print(f"Wrote CAD markers: {result.markers_file}")
