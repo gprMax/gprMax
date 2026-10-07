@@ -93,11 +93,33 @@ def test_plot_source_wave_fft_fallback_plots_all_nonnegative_bins(tmp_path, monk
     np.testing.assert_array_equal(freqs, allfreqs[allfreqs >= 0])
 
 
-def test_fft_plot_range_handles_zero_signal():
-    freqs = np.fft.fftfreq(8, 1e-10)
-    power = np.full(8, -np.inf)
+@pytest.mark.parametrize("samples, stop", [(8, 4), (9, 5), (1, 1)])
+def test_fft_plot_range_handles_zero_signal(samples, stop):
+    freqs = np.fft.fftfreq(samples, 1e-10)
+    power = np.full(samples, -np.inf)
 
-    assert fft_plot_range(freqs, power) == np.s_[0:4]
+    assert fft_plot_range(freqs, power) == np.s_[0:stop]
+
+
+@pytest.mark.parametrize("samples", [9, 10])
+def test_plot_ascan_fft_of_zero_trace_plots_all_nonnegative_bins(tmp_path, samples):
+    dt = 1e-10
+    filename = tmp_path / "zero.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 1
+        output.attrs["dt"] = dt
+        output.attrs["Title"] = "Test"
+        rx = output.create_group("rxs/rx1")
+        rx.attrs["Name"] = "rx1"
+        rx.create_dataset("Ex", data=np.zeros(samples))
+
+    plt.close("all")
+    pyplot = mpl_plot(filename, ["Ex"], fft=True, show=False)
+    freqs = pyplot.gcf().axes[1].lines[-1].get_xdata()
+    pyplot.close("all")
+
+    allfreqs = np.fft.fftfreq(samples, dt)
+    np.testing.assert_array_equal(freqs, allfreqs[allfreqs >= 0])
 
 
 def test_plot_ascan_single_output_missing_reports_correct_receiver(tmp_path):

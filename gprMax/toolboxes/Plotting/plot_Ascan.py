@@ -37,7 +37,7 @@ def fft_plot_range(freqs, power, floor_db=-60):
 
     finite = positive[np.isfinite(power[positive])]
     if finite.size == 0:
-        return np.s_[0 : max(1, len(freqs) // 2)]
+        return np.s_[0 : positive[-1] + 1]
 
     peak = finite[np.argmax(power[finite])]
     below = np.flatnonzero(power[peak:] < floor_db)
