@@ -149,7 +149,12 @@ plot_source_wave.py
 --------------------
 
 This module uses Matplotlib to plot built-in waveforms in the time domain
-and, optionally, their power spectra. Run it from the repository root:
+and, optionally, their power spectra. It is a preview of the waveform formula
+evaluated on whole timesteps (``n * dt`` for each iteration ``n``); it does not
+read simulation outputs or reproduce every source's sampling and gating. Output
+files keep their own conventions, e.g. finite-resistance voltage ports store
+N-1 aligned samples, whereas receiver histories store N. Run it from the
+repository root:
 
 .. code-block:: none
 

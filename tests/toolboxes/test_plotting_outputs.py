@@ -19,13 +19,33 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
 from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range, mpl_plot
 from gprMax.toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
+from gprMax.toolboxes.Plotting.plot_source_wave import check_timewindow
+from gprMax.toolboxes.Plotting.plot_source_wave import mpl_plot as plot_source_wave
+from gprMax.user_objects.cmds_singleuse import TimeWindow
+from gprMax.waveforms import Waveform
+
+
+def _plotted_source_wave(tmp_path, monkeypatch, wave_type, freq, dt, iterations, fft=False):
+    monkeypatch.chdir(tmp_path)
+    w = Waveform()
+    w.type = wave_type
+    w.amp = 1
+    w.freq = freq
+    plt.close("all")
+    pyplot = plot_source_wave(w, (iterations - 1) * dt, dt, iterations, fft=fft, show=False)
+    fig = pyplot.gcf()
+    lines = [(ax.lines[-1].get_xdata(), ax.lines[-1].get_ydata()) for ax in fig.axes]
+    pyplot.close(fig)
+    return lines
 
 
 def test_bscan_gather_does_not_duplicate_first_receiver(tmp_path):
@@ -40,6 +60,37 @@ def test_bscan_gather_does_not_duplicate_first_receiver(tmp_path):
 
     np.testing.assert_array_equal(gathered, [[1, 4], [2, 5], [3, 6]])
     assert dt == 1e-10
+
+
+@pytest.mark.parametrize("timewindow, dt", [("6e-9", 1.926e-12), ("3e-9", 1.1e-12)])
+def test_plot_source_wave_time_window_matches_solver(timewindow, dt):
+    model = SimpleNamespace(dt=dt)
+    TimeWindow(time=float(timewindow)).build(model)
+
+    _, iterations = check_timewindow(timewindow, dt)
+
+    assert iterations == model.iterations
+    assert (iterations - 1) * dt >= float(timewindow)
+
+
+def test_plot_source_wave_impulse_has_single_nonzero_sample(tmp_path, monkeypatch):
+    dt = 1e-12
+    [(time, waveform)] = _plotted_source_wave(tmp_path, monkeypatch, "impulse", 1e9, dt, 234)
+
+    assert np.count_nonzero(waveform) == 1
+    assert waveform[0] == 1
+    np.testing.assert_array_equal(time, np.arange(234, dtype=float) * dt)
+
+
+@pytest.mark.parametrize("samples", [9, 10])
+def test_plot_source_wave_fft_fallback_plots_all_nonnegative_bins(tmp_path, monkeypatch, samples):
+    dt = 1e-12
+    _, (freqs, _) = _plotted_source_wave(
+        tmp_path, monkeypatch, "impulse", 1e12, dt, samples, fft=True
+    )
+
+    allfreqs = np.fft.fftfreq(samples, dt)
+    np.testing.assert_array_equal(freqs, allfreqs[allfreqs >= 0])
 
 
 def test_fft_plot_range_handles_zero_signal():

@@ -22,7 +22,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from gprMax.utilities.utilities import fft_power, handle_plot_output, round_value
+from gprMax.utilities.utilities import fft_power, handle_plot_output
 from gprMax.waveforms import Waveform
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def check_timewindow(timewindow, dt):
     except ValueError:
         timewindow = float(timewindow)
         if timewindow > 0:
-            iterations = round_value((timewindow / dt)) + 1
+            iterations = int(np.ceil(timewindow / dt)) + 1
         else:
             raise ValueError("Time window must have a value greater than zero")
 
@@ -62,6 +62,13 @@ def check_timewindow(timewindow, dt):
 
 def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
     """Plots waveform and prints useful information about its properties.
+
+        This previews the waveform formula evaluated at whole timesteps,
+        time = n * dt for n = 0, 1, ..., iterations - 1. It does not read
+        simulation outputs or reproduce the sampling and gating applied by
+        individual source types, so it may not match a recorded output
+        sample-for-sample (e.g. finite-resistance voltage ports store N - 1
+        aligned samples, whereas receiver histories store N).
 
     Args:
         w: Waveform class instance.
@@ -77,7 +84,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
         plt: matplotlib plot object.
     """
 
-    time = np.linspace(0, (iterations - 1) * dt, num=iterations)
+    time = np.arange(iterations, dtype=float) * dt
     waveform = np.zeros(len(time))
     timeiter = np.nditer(time, flags=["c_index"])
 
@@ -123,7 +130,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
         freqmaxpower = finite[np.argmax(power[finite])] if finite.size else 0
         upper_frequency = 4 * max(freqs[freqmaxpower], w.freq or 0)
         above = np.flatnonzero(freqs > upper_frequency)
-        pltrange = above[0] if above.size else max(1, len(freqs) // 2)
+        pltrange = above[0] if above.size else positive[-1] + 1
         pltrange = np.s_[0:pltrange]
 
         fig, (ax1, ax2) = plt.subplots(
