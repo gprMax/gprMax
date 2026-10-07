@@ -23,6 +23,7 @@ import h5py
 import numpy as np
 import pytest
 
+from gprMax.toolboxes.STEPtoVoxel import cli
 from gprMax.toolboxes.STEPtoVoxel.converter import _Material, _read_assignments, _write_material_database
 from gprMax.toolboxes.STEPtoVoxel.grouping import suggest_material_groups
 from gprMax.toolboxes.STEPtoVoxel.markers import classify_marker_name, load_markers, marker_record
@@ -108,17 +109,13 @@ def test_translated_fine_mesh_keeps_voxel_grid_and_occupancy(sweep_axis):
         spacing * np.array((4.25, 6.25, 3.25)),
     )
     options = dict(dx=spacing, pad=2, sweep_axis=sweep_axis, preserve_thin_features=False)
-    reference, reference_grid = voxelise_material_grid(
-        [TriangleMesh(vertices, triangles, 7)], **options
-    )
+    reference, reference_grid = voxelise_material_grid([TriangleMesh(vertices, triangles, 7)], **options)
     translated, translated_grid = voxelise_material_grid(
         [TriangleMesh(vertices + translation, triangles, 7)], **options
     )
 
     np.testing.assert_array_equal(translated_grid.nxyz, reference_grid.nxyz)
-    np.testing.assert_array_equal(
-        translated_grid.origin_world - translation, reference_grid.origin_world
-    )
+    np.testing.assert_array_equal(translated_grid.origin_world - translation, reference_grid.origin_world)
     np.testing.assert_array_equal(translated_grid.dxyz_world, reference_grid.dxyz_world)
     np.testing.assert_array_equal(translated, reference)
     np.testing.assert_array_equal(reference_grid.nxyz, (8, 10, 7))
@@ -128,16 +125,12 @@ def test_translated_fine_mesh_keeps_voxel_grid_and_occupancy(sweep_axis):
 @pytest.mark.parametrize("sweep_axis", ("x", "y", "z"))
 @pytest.mark.parametrize("supersample", (1, 2))
 @pytest.mark.parametrize("outside_side", ("lower", "upper"))
-def test_cropped_mesh_component_does_not_hide_in_grid_component(
-    sweep_axis, supersample, outside_side
-):
+def test_cropped_mesh_component_does_not_hide_in_grid_component(sweep_axis, supersample, outside_side):
     vertices, triangles = _box_mesh()
     outside_lower = np.full(3, 1.2)
     outside_upper = np.full(3, 4.2)
     axis = "xyz".index(sweep_axis)
-    outside_lower[axis], outside_upper[axis] = (
-        (-4.2, -1.2) if outside_side == "lower" else (7.2, 10.2)
-    )
+    outside_lower[axis], outside_upper[axis] = (-4.2, -1.2) if outside_side == "lower" else (7.2, 10.2)
     outside_vertices, outside_triangles = _box_mesh(outside_lower, outside_upper)
     # A single mesh can contain disjoint closed components. Cropping one
     # component away must not prevent the sweep from visiting the other.
@@ -154,9 +147,7 @@ def test_cropped_mesh_component_does_not_hide_in_grid_component(
         supersample=supersample,
         preserve_thin_features=False,
     )
-    reference, reference_grid = voxelise_material_grid(
-        [TriangleMesh(vertices, triangles, 7)], **options
-    )
+    reference, reference_grid = voxelise_material_grid([TriangleMesh(vertices, triangles, 7)], **options)
     actual, actual_grid = voxelise_material_grid([combined], **options)
 
     np.testing.assert_array_equal(actual_grid.nxyz, reference_grid.nxyz)
@@ -202,9 +193,7 @@ def test_thin_closed_solid_preservation_is_axis_independent(thin_axis):
     )
 
     assert preserved.any()
-    occupied_layers = np.flatnonzero(
-        np.any(preserved, axis=tuple(axis for axis in range(3) if axis != thin_axis))
-    )
+    occupied_layers = np.flatnonzero(np.any(preserved, axis=tuple(axis for axis in range(3) if axis != thin_axis)))
     np.testing.assert_array_equal(occupied_layers, (2,))
 
 
@@ -372,11 +361,7 @@ def test_step_material_database_rejects_stale_keys(tmp_path):
 @pytest.mark.parametrize("name", ["soil+air", "+soil", "soil+", "Hmag_a+a+b+b"])
 def test_step_assignments_reject_reserved_material_names(tmp_path, grouped, name):
     path = tmp_path / "materials.csv"
-    prefix = (
-        "group_id,group_confidence,similar_group,part_count,part_names,"
-        if grouped
-        else "part_name,"
-    )
+    prefix = "group_id,group_confidence,similar_group,part_count,part_names," if grouped else "part_name,"
     row = "G001,exact_instance,,1,part," if grouped else "part,"
     path.write_text(
         prefix + "include,priority,material_name,relative_permittivity,conductivity,"
@@ -440,10 +425,7 @@ def test_exact_grouping_combines_repeated_step_instances_only():
     repeated = next(group for group in groups if group.confidence == "exact_instance")
     assert repeated.part_names == ("screw_1", "screw_2")
     assert repeated.similar_group
-    assert (
-        next(group for group in groups if group.part_names == ("plastic_copy",)).confidence
-        == "unique"
-    )
+    assert next(group for group in groups if group.part_names == ("plastic_copy",)).confidence == "unique"
 
 
 def test_similar_grouping_is_explicit_and_uses_rotation_invariant_metrics():
@@ -578,3 +560,75 @@ def test_cad_edge_marker_preserves_endpoints_length_and_axis():
     assert record["direction"] == [0.0, 0.0, 1.0]
     assert record["cad_endpoints_m"] == [[1e-3, 2e-3, 3e-3], [1e-3, 2e-3, 4e-3]]
     assert record["length_m"] == pytest.approx(1e-3)
+
+
+def test_cli_prepare_refuses_to_overwrite_without_flag(tmp_path, monkeypatch, capsys):
+    mock_part = SimpleNamespace(
+        name="part1",
+        uid=1,
+        cad={"vol_m3": 1.0, "area_m2": 1.0, "bbox_xyzxyz": (0, 0, 0, 1, 1, 1), "bbox_dims_xyz": (1, 1, 1)},
+        step_entity_id=1,
+        name_source="BREP",
+        name_confidence="exact",
+    )
+    monkeypatch.setattr(
+        "gprMax.toolboxes.STEPtoVoxel.converter.inspect_step", lambda step_file, config=None: [mock_part]
+    )
+
+    step_file = tmp_path / "model.stp"
+    step_file.touch()
+    materials_csv = tmp_path / "materials.csv"
+    materials_csv.write_text("existing", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as error:
+        cli.main(["prepare", str(step_file), str(materials_csv)])
+
+    assert error.value.code == 2
+    assert "already exists" in capsys.readouterr().err
+    assert materials_csv.read_text(encoding="utf-8") == "existing"
+
+
+def test_cli_prepare_overwrites_with_flag(tmp_path, monkeypatch):
+    mock_part = SimpleNamespace(
+        name="part1",
+        uid=1,
+        cad={"vol_m3": 1.0, "area_m2": 1.0, "bbox_xyzxyz": (0, 0, 0, 1, 1, 1), "bbox_dims_xyz": (1, 1, 1)},
+        step_entity_id=1,
+        name_source="BREP",
+        name_confidence="exact",
+    )
+    monkeypatch.setattr(
+        "gprMax.toolboxes.STEPtoVoxel.converter.inspect_step", lambda step_file, config=None: [mock_part]
+    )
+
+    step_file = tmp_path / "model.stp"
+    step_file.touch()
+    materials_csv = tmp_path / "materials.csv"
+    materials_csv.write_text("existing", encoding="utf-8")
+
+    code = cli.main(["prepare", str(step_file), str(materials_csv), "--overwrite"])
+
+    assert code == 0
+    content = materials_csv.read_text(encoding="utf-8")
+    assert content.startswith("group_id,group_confidence,similar_group,part_count,part_names,include")
+    assert "part1" in content
+
+
+def test_cli_inspect_missing_file_reports_clean_parser_error(tmp_path, capsys):
+    nonexistent = tmp_path / "nonexistent.stp"
+    with pytest.raises(SystemExit) as error:
+        cli.main(["inspect", str(nonexistent)])
+
+    assert error.value.code == 2
+    assert "nonexistent.stp" in capsys.readouterr().err
+
+
+def test_cli_convert_missing_file_reports_clean_parser_error(tmp_path, capsys):
+    nonexistent = tmp_path / "nonexistent.stp"
+    csv_file = tmp_path / "materials.csv"
+    out_dir = tmp_path / "out"
+    with pytest.raises(SystemExit) as error:
+        cli.main(["convert", str(nonexistent), str(csv_file), str(out_dir)])
+
+    assert error.value.code == 2
+    assert "nonexistent.stp" in capsys.readouterr().err
