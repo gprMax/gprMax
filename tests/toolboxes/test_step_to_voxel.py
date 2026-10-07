@@ -632,3 +632,54 @@ def test_cli_convert_missing_file_reports_clean_parser_error(tmp_path, capsys):
 
     assert error.value.code == 2
     assert "nonexistent.stp" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "subcommand,extra_positionals",
+    [
+        ("inspect", []),
+        ("prepare", ["materials.csv"]),
+        ("convert", ["materials.csv", "out_dir"]),
+    ],
+)
+@pytest.mark.parametrize(
+    "invalid_flags,expected_msg",
+    [
+        (["--pad-cells", "-1"], "pad_cells must be non-negative"),
+        (["--supersample", "0"], "supersample must be at least one"),
+        (["--voxel-size", "-1", "1", "1"], "voxel_size must contain three positive values"),
+        (["--voxel-size", "0", "1", "1"], "voxel_size must contain three positive values"),
+    ],
+)
+def test_cli_config_validation_common_options(
+    tmp_path, capsys, subcommand, extra_positionals, invalid_flags, expected_msg
+):
+    step_file = tmp_path / "model.stp"
+    positional_args = [str(step_file)] + [str(tmp_path / name) for name in extra_positionals]
+    argv = [subcommand] + positional_args + invalid_flags
+
+    with pytest.raises(SystemExit) as error:
+        cli.main(argv)
+
+    assert error.value.code == 2
+    captured = capsys.readouterr()
+    assert expected_msg in captured.err
+    assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize(
+    "tolerance_val",
+    ["0", "1.0", "-0.01", "1.5"],
+)
+def test_cli_config_validation_prepare_group_tolerance(tmp_path, capsys, tolerance_val):
+    step_file = tmp_path / "model.stp"
+    materials_csv = tmp_path / "materials.csv"
+    argv = ["prepare", str(step_file), str(materials_csv), "--group-tolerance", tolerance_val]
+
+    with pytest.raises(SystemExit) as error:
+        cli.main(argv)
+
+    assert error.value.code == 2
+    captured = capsys.readouterr()
+    assert "grouping_relative_tolerance must be between zero and one" in captured.err
+    assert "Traceback" not in captured.err

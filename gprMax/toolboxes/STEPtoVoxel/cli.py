@@ -99,7 +99,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    config = _config(args)
+    try:
+        config = _config(args)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     if args.command == "inspect":
         try:
