@@ -105,9 +105,10 @@ def test_gssi_2000_rejects_unsupported_resolution():
         antenna_like_GSSI_2000(0.5, 0.5, 0.1, resolution=0.002)
 
 
-def test_gssi_400_rejects_unsupported_resolution():
+@pytest.mark.parametrize("resolution", [0.001, 0.004])
+def test_gssi_400_rejects_unsupported_resolution(resolution):
     with pytest.raises(ValueError, match="2 mm"):
-        antenna_like_GSSI_400(0.5, 0.5, 0.1, resolution=0.004)
+        antenna_like_GSSI_400(0.5, 0.5, 0.1, resolution=resolution)
 
 
 def test_gssi_400_custom_pulse_uses_module_relative_existing_file():
