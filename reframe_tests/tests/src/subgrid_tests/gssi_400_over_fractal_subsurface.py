@@ -21,14 +21,14 @@
 This example model demonstrates how to use subgrids at a more advanced level -
     combining use of an imported antenna model and rough subsurface interface.
 
-The geometry is 3D (required for any use of subgrids) and is of a 2 layered
-subsurface. The top layer in a sandy soil and the bottom layer a soil with
+The geometry is 3D (required for any use of subgrids) and has a two-layered
+subsurface. The top layer is a sandy soil and the bottom layer a soil with
 higher permittivity (both have some simple conductive loss). There is a rough
 interface between the soil layers. A GPR antenna model (like a GSSI 400MHz
 antenna) is imported and placed on the surface of the layered media. The antenna
-is meshed using a subgrid with a fine spatial discretisation (1mm), and a
-courser spatial discretisation (9mm) is used in the rest of the model (main
-grid).
+is meshed using its supported 2 mm spatial discretisation, preserving the
+contributor's antenna design. A coarser 10 mm spatial discretisation is used
+in the rest of the model (main grid), giving a subgrid ratio of 5.
 """
 
 from pathlib import Path
@@ -42,11 +42,11 @@ from gprMax.toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_400
 fn = Path(__file__)
 parts = fn.parts
 
-# Subgrid spatial discretisation in x, y, z directions
-dl_sg = 1e-3
+# Preserve the antenna model's supported 2 mm spatial discretisation.
+dl_sg = 2e-3
 
 # Subgrid ratio - must always be an odd integer multiple
-ratio = 9
+ratio = 5
 dl = dl_sg * ratio
 
 # Domain extent
@@ -74,8 +74,9 @@ scene.add(time_window)
 # Dimensions of antenna case
 antenna_case = (0.3, 0.3, 0.178)
 
-# Position of antenna
-antenna_p = (x / 2, y / 2, 170 * dl)
+# Keep the original physical soil-surface height, independent of mesh spacing.
+# The antenna position is aligned with both the main grid and the subgrid.
+antenna_p = (x / 2, y / 2, 1.53)
 
 # Extra distance surrounding antenna for subgrid
 bounding_box = 2 * dl
@@ -86,7 +87,9 @@ sg_y0 = antenna_p[1] - antenna_case[1] / 2 - bounding_box
 sg_z0 = antenna_p[2] - bounding_box
 sg_x1 = antenna_p[0] + antenna_case[0] / 2 + bounding_box
 sg_y1 = antenna_p[1] + antenna_case[1] / 2 + bounding_box
-sg_z1 = antenna_p[2] + antenna_case[2] + bounding_box
+# Round the antenna height up to whole main-grid cells so all inner-surface
+# bounds are main-grid aligned before calculating local subgrid coordinates.
+sg_z1 = antenna_p[2] + np.ceil(antenna_case[2] / dl) * dl + bounding_box
 
 # Create subgrid
 sg = gprMax.SubGridHSG(p1=[sg_x0, sg_y0, sg_z0], p2=[sg_x1, sg_y1, sg_z1], ratio=ratio, id="sg")
@@ -104,19 +107,22 @@ scene.add(b1)
 #   Setting autotranslate to false allows you to place objects beyond the outer
 #   surface.
 
-# PML separation from the outer surface
-ps = ratio // 2 + 2
-# Number of PML cells in the subgrid
-pc = 6
-# Inner surface/outer surface separation
-isos = 3 * ratio
+# Use the actual subgrid settings, including the PML and coupling padding.
+ps = sg.kwargs["pml_separation"]
+pc = sg.kwargs["subgrid_pml_thickness"]
+isos = sg.kwargs["is_os_sep"] * ratio
+padding = (ps + pc + isos) * dl_sg
+
+# Cover the complete local grid, not just the region inside the inner surface.
+soil_x = sg_x1 - sg_x0 + 2 * padding
+soil_y = sg_y1 - sg_y0 + 2 * padding
 
 # Calculate maximum z-coordinate (height) for box of sandy_soil in subgrid
-h = antenna_p[2] - sg_z0 + (ps + pc + isos) * dl_sg
+h = antenna_p[2] - sg_z0 + padding
 
 # Create and add a box of homogeneous material to subgrid - sandy_soil
 sg.add(sandy_soil)
-b2 = gprMax.Box(p1=(0, 0, 0), p2=(411 * dl_sg, 411 * dl_sg, h), material_id="sandy_soil")
+b2 = gprMax.Box(p1=(0, 0, 0), p2=(soil_x, soil_y, h), material_id="sandy_soil")
 # Set autotranslate for the box object to false
 b2.autotranslate = False
 sg.add(b2)
@@ -174,7 +180,7 @@ gvsg = gprMax.GeometryView(
 sg.add(gvsg)
 
 gv1 = gprMax.GeometryView(
-    p1=(0, 0, 0), p2=domain.props.p1, dl=dl, filename=fn.with_suffix("").parts[-1], output_type="n"
+    p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl), filename=fn.with_suffix("").parts[-1], output_type="n"
 )
 scene.add(gv1)
 

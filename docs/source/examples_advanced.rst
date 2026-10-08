@@ -209,18 +209,33 @@ Antenna modelling example
 
 :download:`gssi_400_over_fractal_subsurface.py <../../examples/gpr/subgrids/gssi_400_over_fractal_subsurface.py>`
 
-This example demonstrates how to use subgrids at a more advanced level combining use of an imported GPR antenna model (like a GSSI 400MHz antenna) and rough subsurface interface. The geometry is 3D (required for any use of subgrids) and is of a 2 layered subsurface. The top layer in a sandy soil and the bottom layer a soil with
-higher permittivity (both have some simple conductive loss). There is a rough interface between the soil layers. A GPR antenna model (like a GSSI 400MHz antenna) is imported and placed on the surface of the layered media. The antenna is meshed using a subgrid with a fine spatial discretisation (1mm), and a courser spatial discretisation (9mm) is used in the rest of the model (main grid).
+This example combines an imported GPR antenna model (like a GSSI 400 MHz
+antenna) with a rough subsurface interface. The three-dimensional model has
+two soil layers: sandy soil above a higher-permittivity soil, both with
+conductive loss. The antenna sits on the flat ground surface at a height of
+1.53 m above the model origin; the rough interface is below it.
+
+The antenna uses its supported **2 mm spatial discretisation**, preserving
+the contributor's geometry and feed design. The main grid uses a **10 mm
+spatial discretisation**, giving an odd subgrid ratio of **5**. Do not remove
+the antenna model's resolution check to run it on a different mesh.
+
+The time window is chosen for the time-domain GPR response. If the automatic
+transmitter-port output warns about a significant late-time tail, extend the
+time window before using its impedance or S11 spectra; the fields need more
+time to decay for reliable frequency-domain processing.
 
 .. figure:: ../../images_shared/antenna_like_GSSI_400_subgrids.png
     :width: 600px
 
-    The geometry of a 3D model of a GPR antenna (like a GSSI 400MHz) - meshed using a subgrid - over a 2 layered media with a rough interface.
+    Illustration of the antenna and two-layered subsurface from an earlier
+    configuration. The downloadable example now uses a 2 mm / 10 mm mesh.
 
 .. figure:: ../../images_shared/antenna_like_GSSI_400_subgrids_detail.png
     :width: 600px
 
-    Zoomed in geometry showing a subgrid ratio of 1mm (subgrid) - antenna model - to 9mm (main grid).
+    Detail from the earlier 1 mm / 9 mm configuration, illustrating the
+    subgrid placement. The current antenna example uses 2 mm / 10 mm.
 
 .. literalinclude:: ../../examples/gpr/subgrids/gssi_400_over_fractal_subsurface.py
     :language: python
@@ -228,7 +243,13 @@ higher permittivity (both have some simple conductive loss). There is a rough in
 
 Much of the functionality demonstrated in this example is standard use of our :ref:`Python API <input-api>`, or covered in the introductory subgrid example earlier in this section.
 
-Lines 86-108 are important because they position an object (a box of sandy soil in this case) within the subgrid. This object has to be positioned manually (using local subgrid coordinates) as it crosses the interface between the subgrid and the main grid. The ``autotranslate`` property of the box object is set to ``False`` to allow this to happen.
+The sandy-soil box inside the subgrid uses local coordinates because it
+crosses the interface with the main grid. Its ``autotranslate`` property is
+set to ``False``. Its extent includes the coupling and PML padding, calculated
+from the subgrid settings rather than a fixed number of cells. The soil
+surface is at the same physical height in both grids. The subgrid bounds
+are aligned with the main grid, with the upper bound rounded upwards to
+contain the complete antenna.
 
 
 Customising the PMLs
