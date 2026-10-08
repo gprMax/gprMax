@@ -430,7 +430,7 @@ def test_subgrid_transient_modal_response_matches_uniform_fine_grid(monkeypatch,
         cpu_precision="double",
         hide_progress_bars=True,
     )
-    scene, subgrid_object = _subgrid_scene(iterations=fine_iterations // 3)
+    scene, _ = _subgrid_scene(iterations=fine_iterations // 3)
     gprMax.run(
         scenes=[scene],
         outputfile=subgrid_output,
@@ -440,9 +440,9 @@ def test_subgrid_transient_modal_response_matches_uniform_fine_grid(monkeypatch,
         hide_progress_bars=True,
     )
 
-    assert subgrid_object.subgrid.iterations == fine_iterations
     uniform_grid = captured[0][0]
     fine_grid = captured[1][1]
+    assert fine_grid.iterations == fine_iterations
     inner = np.asarray(
         (
             fine_grid.n_boundary_cells_x,
@@ -496,8 +496,11 @@ def test_subgrid_transient_modal_response_matches_uniform_fine_grid(monkeypatch,
 
 @pytest.mark.integration
 @pytest.mark.parametrize("virtual_waveguide", (False, True), ids=("direct", "virtual"))
-def test_subgrid_eigenmode_source_runs_and_writes_fine_grid_port(tmp_path, virtual_waveguide):
-    scene, subgrid_object = _subgrid_scene(
+def test_subgrid_eigenmode_source_runs_and_writes_fine_grid_port(
+    tmp_path, monkeypatch, virtual_waveguide
+):
+    captured = _capture_built_grids(monkeypatch)
+    scene, _ = _subgrid_scene(
         timewindow=5e-10,
         virtual_waveguide=virtual_waveguide,
     )
@@ -522,7 +525,7 @@ def test_subgrid_eigenmode_source_runs_and_writes_fine_grid_port(tmp_path, virtu
             assert np.all(np.isfinite(port["outgoing"][...]))
         assert np.max(np.abs(group["port1/incident"][...])) > 0
 
-    fine_grid = subgrid_object.subgrid
+    fine_grid = captured[0][1]
     assert all(port._next_iteration == fine_grid.iterations for port in fine_grid.eigenmodeports)
     assert (
         max(
@@ -560,9 +563,10 @@ def test_subgrid_eigenmode_source_runs_and_writes_fine_grid_port(tmp_path, virtu
 
 @pytest.mark.integration
 @pytest.mark.parametrize("virtual_waveguide", (False, True), ids=("direct", "virtual"))
-def test_subgrid_eigenmode_study_switches_modal_source(tmp_path, virtual_waveguide):
+def test_subgrid_eigenmode_study_switches_modal_source(tmp_path, monkeypatch, virtual_waveguide):
     """A reusable modal study may be owned wholly by one fine grid."""
 
+    captured = _capture_built_grids(monkeypatch)
     scene, subgrid_object = _subgrid_scene(
         timewindow=5e-10,
         virtual_waveguide=virtual_waveguide,
@@ -630,5 +634,5 @@ def test_subgrid_eigenmode_study_switches_modal_source(tmp_path, virtual_wavegui
         with h5py.File(tmp_path / f"{outputfile.name}{case_index}.h5") as output:
             assert "subgrids/fine_grid/eigenmode_ports/port1" in output
             assert "study/eigenmode_response" in output
-    fine_grid = subgrid_object.subgrid
+    fine_grid = captured[-1][1]
     assert len(fine_grid.virtual_waveguides) == (2 if virtual_waveguide else 0)

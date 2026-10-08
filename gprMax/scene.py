@@ -346,32 +346,41 @@ class Scene:
         # mutate a Scene after SimulationConfig has been created.
         from gprMax import config
 
-        self.validate_subgrids(enabled=config.sim_config.general.get("subgrid", False))
+        try:
+            self.validate_subgrids(enabled=config.sim_config.general.get("subgrid", False))
 
-        # Create pre-defined (built-in) materials
-        create_built_in_materials(model.G)
+            # Create pre-defined (built-in) materials
+            create_built_in_materials(model.G)
 
-        # Process commands that can only have a single instance
-        self.process_single_use_objects(model)
+            # Process commands that can only have a single instance
+            self.process_single_use_objects(model)
 
-        # Process multiple commands
-        self.process_multi_use_objects(model)
+            # Process multiple commands
+            self.process_multi_use_objects(model)
 
-        # Discover semantic tags, including catalogues stored in imported
-        # geometry, before selecting the compact map dtype.
-        self.initialise_geometry_tags(model)
+            # Discover semantic tags, including catalogues stored in imported
+            # geometry, before selecting the compact map dtype.
+            self.initialise_geometry_tags(model)
 
-        # Initialise geometry arrays for main and subgrids
-        for grid in [model.G] + model.subgrids:
-            grid.initialise_geometry_arrays()
-            if getattr(grid, "is_distributed", False) is True:
-                grid.geometry_rasterisation_records = []
+            # Initialise geometry arrays for main and subgrids
+            for grid in [model.G] + model.subgrids:
+                grid.initialise_geometry_arrays()
+                if getattr(grid, "is_distributed", False) is True:
+                    grid.geometry_rasterisation_records = []
 
-        # Process the main grid geometry commands
-        self.process_geometry_objects(self.geometry_objects, model.G)
-        self._build_internal_pml_enclosures(model.G)
+            # Process the main grid geometry commands
+            self.process_geometry_objects(self.geometry_objects, model.G)
+            self._build_internal_pml_enclosures(model.G)
 
-        # Process all the commands for subgrids
-        self.process_subgrid_objects(model)
+            # Process all the commands for subgrids
+            self.process_subgrid_objects(model)
 
-        validate_distributed_geometry_rasterisation(model.G)
+            validate_distributed_geometry_rasterisation(model.G)
+        finally:
+            # Scene definitions can outlive run(), including via sim_config.
+            # These references are needed only to build children/tags, and
+            # otherwise retain every completed subgrid AND its parent grid.
+            # Model.subgrids keeps active grids alive for solving/reuse.
+            # Cover failures before or during child construction as well.
+            for subgrid_object in self.subgrid_objects:
+                subgrid_object.subgrid = None

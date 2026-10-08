@@ -65,6 +65,9 @@ class SubGridBase(ModelUserObject):
         self.children_grid: List[GridUserObject] = []
         self.children_geometry: List[GeometryUserObject] = []
         self.children_output: List[OutputUserObject] = []
+        # A temporary construction reference, released by Scene once children
+        # and geometry tags are built. The Model owns the runtime grid.
+        self.subgrid: SubGridBaseGrid | None = None
 
     def add(self, node: UserObject):
         """Adds other user objects. Geometry and multi only."""
@@ -162,7 +165,8 @@ class SubGridBase(ModelUserObject):
         sg.timewindow = model.G.timewindow
 
         # Copy a subgrid reference to self so that children.build(grid, uip)
-        # can access the correct grid.
+        # can access the correct grid. Scene releases this reference even if
+        # construction fails; retaining it would also retain sg.parent_grid.
         self.subgrid = sg
 
         # Copy over built in materials
