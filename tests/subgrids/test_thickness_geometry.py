@@ -18,10 +18,23 @@
 import numpy as np
 
 import gprMax
+from gprMax.model import Model
 
 
-def test_thickness_geometry_builds_in_off_origin_subgrid(tmp_path):
+def test_thickness_geometry_builds_in_off_origin_subgrid(tmp_path, monkeypatch):
     """Triangles and sectors must not validate placeholder transverse zeros."""
+    # Inspect the live model explicitly; Scene definitions do not retain its
+    # runtime grids after construction.
+    pec_cells = []
+    build = Model.build
+
+    def inspect_geometry(model):
+        build(model)
+        fine_grid = model.subgrids[0]
+        pec = next(material for material in fine_grid.materials if material.ID == "pec")
+        pec_cells.append(np.count_nonzero(fine_grid.solid == pec.numID))
+
+    monkeypatch.setattr(Model, "build", inspect_geometry)
     scene = gprMax.Scene()
     scene.add(gprMax.Domain(p1=(0.09, 0.09, 0.09)))
     scene.add(gprMax.Discretisation(p1=(0.003, 0.003, 0.003)))
@@ -68,5 +81,5 @@ def test_thickness_geometry_builds_in_off_origin_subgrid(tmp_path):
         hide_progress_bars=True,
     )
 
-    pec = next(material for material in subgrid.subgrid.materials if material.ID == "pec")
-    assert np.count_nonzero(subgrid.subgrid.solid == pec.numID) > 0
+    assert len(pec_cells) == 1
+    assert pec_cells[0] > 0
