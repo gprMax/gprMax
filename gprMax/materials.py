@@ -89,6 +89,26 @@ def validate_user_material_id(material_id: str) -> None:
         )
 
 
+def _validate_evaluation_frequency(freq, material_id) -> None:
+    """Check that evaluation frequencies are finite and positive."""
+
+    message = (
+        f"Material {material_id!r} requires a finite evaluation "
+        "frequency greater than zero."
+    )
+
+    if np.iscomplexobj(freq):
+        raise ValueError(message)
+
+    try:
+        values = np.asarray(freq, dtype=np.float64)
+    except (TypeError, ValueError) as err:
+        raise ValueError(message) from err
+
+    if values.size == 0 or not np.all(np.isfinite(values)) or np.any(values <= 0):
+        raise ValueError(message)
+
+
 def create_directional_material(grid, materials):
     """Return a cell record retaining an ordered diagonal constitutive tensor.
 
@@ -317,12 +337,13 @@ class Material:
 
         Args:
             freq: float for frequency used to calculate complex relative
-                    permittivity.
+                    permittivity. Must be finite and greater than zero.
 
         Returns:
             er: float for complex relative permittivity.
         """
 
+        _validate_evaluation_frequency(freq, self.ID)
         return self.er
 
 
@@ -477,11 +498,13 @@ class DispersiveMaterial(Material):
 
         Args:
             freq: float for frequency used to calculate complex relative
-                    permittivity.
+                    permittivity. Must be finite and greater than zero.
 
         Returns:
             er: float for complex relative permittivity.
         """
+
+        _validate_evaluation_frequency(freq, self.ID)
 
         # Permittivity at infinite frequency if the material is dispersive
         er = self.er
