@@ -91,6 +91,9 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
         plt: matplotlib plot object.
     """
 
+    # Validate once before bulk sampling.
+    w.validate()
+
     time = np.arange(iterations, dtype=float) * dt
     waveform = np.zeros(len(time))
     timeiter = np.nditer(time, flags=["c_index"])
@@ -175,7 +178,29 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
     return plt
 
 
-if __name__ == "__main__":
+def _require_finite(value, name):
+    """Reject missing or non-finite CLI numeric arguments."""
+    try:
+        finite = bool(np.isfinite(value))
+    except TypeError:
+        finite = False
+    if not finite:
+        raise ValueError(f"The waveform requires a finite {name}")
+    return value
+
+
+def main(argv=None):
+    """Plot a built-in waveform from command-line arguments.
+
+    Args:
+        argv: argument list excluding the program name. Defaults to
+            ``sys.argv[1:]`` when None, matching ``argparse`` behaviour.
+            Accepting it explicitly keeps the CLI testable without
+            subprocesses.
+
+    Returns:
+        plt: matplotlib plot object from :func:`mpl_plot`.
+    """
     logging.basicConfig(format="%(message)s", level=logging.INFO)
     plottable_waveforms = [wave_type for wave_type in Waveform.types if wave_type != "user"]
     # Parse command line arguments
@@ -185,7 +210,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("type", help="type of waveform", choices=plottable_waveforms)
     parser.add_argument("amp", type=float, help="amplitude of waveform")
-    parser.add_argument("freq", type=float, help="centre frequency of waveform")
+    parser.add_argument(
+        "freq",
+        type=float,
+        help="centre frequency of waveform (Hertz); a positive placeholder, "
+        "e.g. 1, for impulse, whose frequency is otherwise unused",
+    )
     parser.add_argument("timewindow", help="time window to view waveform")
     parser.add_argument("dt", type=float, help="time step to view waveform")
     parser.add_argument("-fft", action="store_true", default=False, help="plot FFT of waveform")
@@ -195,28 +225,17 @@ if __name__ == "__main__":
         default=False,
         help="save plot directly to file, i.e. do not display",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    # Validate waveform parameters before creating the waveform.
     if args.type.lower() not in plottable_waveforms:
         raise ValueError(f"The waveform must have one of: {', '.join(plottable_waveforms)}")
-    try:
-        finite_amp = bool(np.isfinite(args.amp))
-    except TypeError:
-        finite_amp = False
-    if not finite_amp:
-        raise ValueError("The waveform requires a finite amplitude")
-    try:
-        finite_freq = bool(np.isfinite(args.freq))
-    except TypeError:
-        finite_freq = False
-    if not finite_freq or not args.freq > 0:
+    _require_finite(args.amp, "amplitude")
+    # Impulse needs a positive placeholder too, though its value is unused.
+    _require_finite(args.freq, "excitation frequency greater than zero")
+    if not args.freq > 0:
         raise ValueError("The waveform requires a finite excitation frequency greater than zero")
-    try:
-        finite_dt = bool(np.isfinite(args.dt))
-    except TypeError:
-        finite_dt = False
-    if not finite_dt or not args.dt > 0:
+    _require_finite(args.dt, "time step greater than zero")
+    if not args.dt > 0:
         raise ValueError("Time step must be finite and greater than zero")
 
     # Create waveform instance
@@ -226,4 +245,8 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, show=not args.save)
+    return mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, show=not args.save)
+
+
+if __name__ == "__main__":
+    main()

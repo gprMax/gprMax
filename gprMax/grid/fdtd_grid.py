@@ -2249,7 +2249,8 @@ class FDTDGrid:
                     # Limit each FFT separately to four pulse widths. Mutating
                     # 'iterations' here would truncate later, longer waveforms
                     # purely because a shorter pulse was declared first.
-                    waveform.calculate_coefficients()
+                    # Validate once; the sampling loop below uses the fast path.
+                    waveform.validate()
                     max_iterations = round_value(4 * waveform.chi / self.dt)
                     sample_count = min(iterations, max_iterations)
                     if sample_count < 2:
