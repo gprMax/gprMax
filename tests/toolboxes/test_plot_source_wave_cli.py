@@ -36,8 +36,10 @@ class TestMainValidation:
             main(["impulse", "1", "inf", "6e-9", "1.926e-12", "-save"])
 
     def test_builtin_rejects_a_non_positive_frequency(self):
+        # "-100" parses as a positional; "-1e9" would be swallowed by
+        # argparse as an option flag before validation is reached.
         with pytest.raises(ValueError, match="finite excitation frequency greater than zero"):
-            main(["gaussian", "1", "-1e9", "6e-9", "1.926e-12", "-save"])
+            main(["gaussian", "1", "-100", "6e-9", "1.926e-12", "-save"])
 
     def test_rejects_a_non_finite_amplitude(self):
         with pytest.raises(ValueError, match="finite amplitude"):

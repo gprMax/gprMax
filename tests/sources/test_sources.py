@@ -810,6 +810,10 @@ class TestDpwWaveformPrecomputation:
             freq = 1.0
 
             @staticmethod
+            def validate():
+                """Mirror Waveform.validate(); fixed parameters are pre-validated."""
+
+            @staticmethod
             def calculate_value(time, dt):
                 return time
 

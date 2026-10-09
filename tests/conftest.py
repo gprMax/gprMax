@@ -306,6 +306,9 @@ class _ConstantWaveform:
     def calculate_value(self, time, dt):
         return self._value if time >= 0 else 0.0
 
+    def validate(self):
+        """Mirror Waveform.validate(); fixed parameters are pre-validated."""
+
 
 @pytest.fixture
 def make_constant_waveform():
