@@ -61,10 +61,60 @@ class Waveform:
         self.zeta = 0
         self.delay = 0
 
+    def _require_finite_amplitude(self):
+        """Reject non-finite amplitude scalings before they enter the solve."""
+        try:
+            finite = bool(np.isfinite(self.amp))
+        except TypeError:
+            finite = False
+        if not finite:
+            raise ValueError(f"Waveform {self.ID!r} requires a finite amplitude scaling.")
+
+    def _require_positive_frequency(self):
+        """Reject missing or non-physical excitation frequencies.
+
+        Every built-in waveform — including ``impulse``, whose frequency is
+        otherwise unused — requires a finite positive frequency. This matches
+        the ``#waveform`` command, the Python API documentation, and the
+        impulse-response toolbox, so a direct :class:`Waveform` use fails
+        with the same clear error instead of a late ``ZeroDivisionError`` or
+        silently unphysical samples.
+        """
+        try:
+            finite = bool(np.isfinite(self.freq))
+        except TypeError:
+            finite = False
+        if not finite or not self.freq > 0:
+            raise ValueError(
+                f"Waveform {self.ID!r} of type {self.type!r} requires "
+                "a finite excitation frequency greater than zero."
+            )
+
+    def _require_valid_sample_time(self, time, dt):
+        """Reject non-finite sample times and non-positive timesteps."""
+        try:
+            finite_time = bool(np.isfinite(time))
+        except TypeError:
+            finite_time = False
+        if not finite_time:
+            raise ValueError(f"Waveform {self.ID!r} requires a finite sample time.")
+        try:
+            finite_dt = bool(np.isfinite(dt))
+        except TypeError:
+            finite_dt = False
+        if not finite_dt or not dt > 0:
+            raise ValueError(f"Waveform {self.ID!r} requires a finite timestep greater than zero.")
+
     def calculate_coefficients(self):
         """Calculates coefficients (used to calculate values) for specific
         waveforms.
         """
+
+        if self.type == "user":
+            return
+        if self.type not in self.types:
+            raise ValueError(f"Unknown waveform type {self.type!r}")
+        self._require_positive_frequency()
 
         if self.type in [
             "gaussian",
@@ -97,6 +147,12 @@ class Waveform:
             ampvalue: float for calculated value for waveform.
         """
 
+        if self.type not in self.types:
+            raise ValueError(f"Unknown waveform type {self.type!r}")
+        self._require_finite_amplitude()
+        self._require_valid_sample_time(time, dt)
+        if self.type == "user" and not callable(self.userfunc):
+            raise ValueError(f"User waveform {self.ID!r} requires a callable 'userfunc'.")
         self.calculate_coefficients()
 
         # Waveforms
@@ -162,11 +218,15 @@ class Waveform:
                 ampvalue = 0
 
         elif self.type == "user":
-            ampvalue = float(self.userfunc(time))
-            if not np.isfinite(ampvalue):
+            try:
+                ampvalue = float(self.userfunc(time))
+            except (TypeError, ValueError) as err:
                 raise ValueError(
-                    f"User waveform {self.ID!r} returned a non-finite value at time {time:g} s"
-                )
+                    f"User waveform {self.ID!r} 'userfunc' must accept a single float "
+                    f"(time in seconds) and return a numeric value (failed at time {time:g} s)."
+                ) from err
+            if not np.isfinite(ampvalue):
+                raise ValueError(f"User waveform {self.ID!r} returned a non-finite value at time {time:g} s")
 
         else:
             raise ValueError(f"Unknown waveform type {self.type!r}")

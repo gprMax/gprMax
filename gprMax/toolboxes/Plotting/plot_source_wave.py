@@ -40,6 +40,13 @@ def check_timewindow(timewindow, dt):
         iterations: int of number of interations.
     """
 
+    try:
+        finite_dt = bool(np.isfinite(dt))
+    except TypeError:
+        finite_dt = False
+    if not finite_dt or not dt > 0:
+        raise ValueError("Time step must be finite and greater than zero")
+
     # Time window could be a string, float or int, so convert to string then check
     timewindow = str(timewindow)
 
@@ -190,11 +197,27 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Check waveform parameters
+    # Validate waveform parameters before creating the waveform.
     if args.type.lower() not in plottable_waveforms:
         raise ValueError(f"The waveform must have one of: {', '.join(plottable_waveforms)}")
-    if args.freq <= 0 and args.type != "impulse":
-        raise ValueError("The waveform requires an excitation frequency greater than zero")
+    try:
+        finite_amp = bool(np.isfinite(args.amp))
+    except TypeError:
+        finite_amp = False
+    if not finite_amp:
+        raise ValueError("The waveform requires a finite amplitude")
+    try:
+        finite_freq = bool(np.isfinite(args.freq))
+    except TypeError:
+        finite_freq = False
+    if not finite_freq or not args.freq > 0:
+        raise ValueError("The waveform requires a finite excitation frequency greater than zero")
+    try:
+        finite_dt = bool(np.isfinite(args.dt))
+    except TypeError:
+        finite_dt = False
+    if not finite_dt or not args.dt > 0:
+        raise ValueError("Time step must be finite and greater than zero")
 
     # Create waveform instance
     w = Waveform()
