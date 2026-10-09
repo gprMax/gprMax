@@ -35,9 +35,26 @@ def load_pattern_data(filename):
         return {key: np.asarray(data[key]) for key in data.files}
 
 
+def ring_ticks(minimum_db, ring_step_db):
+    """Return radial dB rings at multiples of the step below the 0 dB peak."""
+
+    minimum_db = float(minimum_db)
+    ring_step_db = float(ring_step_db)
+    if not np.isfinite(minimum_db) or minimum_db >= 0:
+        raise ValueError("minimum_db must be a finite negative value.")
+    if not np.isfinite(ring_step_db) or ring_step_db <= 0:
+        raise ValueError("ring_step_db must be finite and positive.")
+    count = int(np.floor(-minimum_db / ring_step_db + 1e-9))
+    ticks = -ring_step_db * np.arange(count, -1, -1, dtype=np.float64)
+    labels = [f"{tick:g}" for tick in ticks]
+    labels[-1] = "0 dB"
+    return ticks, labels
+
+
 def plot_pattern(data, destination, minimum_db=-72, ring_step_db=12, show=False):
     """Create the polar GPR antenna field-intensity plot."""
 
+    ticks, labels = ring_ticks(minimum_db, ring_step_db)
     patterns = np.asarray(data["patterns"], dtype=np.float64)
     radii = np.asarray(data["radii"], dtype=np.float64)
     theta_degrees = np.asarray(data["theta_degrees"], dtype=np.float64)
@@ -80,13 +97,10 @@ def plot_pattern(data, destination, minimum_db=-72, ring_step_db=12, show=False)
     axes.set_theta_zero_location("N")
     axes.set_theta_direction(-1)
     axes.set_thetagrids(np.arange(0, 360, 30))
-    axes.set_ylim(minimum_db, 0)
     axes.set_rlabel_position(45)
-    ticks = np.arange(minimum_db, ring_step_db, ring_step_db)
-    labels = [f"{tick:g}" for tick in ticks]
-    labels[-1] = "0 dB"
     axes.set_yticks(ticks)
     axes.set_yticklabels(labels)
+    axes.set_ylim(minimum_db, 0)
     axes.grid(True)
     axes.set_title(f"GPR antenna {pattern}-plane field-intensity pattern", pad=28)
 
