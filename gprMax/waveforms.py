@@ -60,11 +60,85 @@ class Waveform:
         self.chi = 0
         self.zeta = 0
         self.delay = 0
+        # Last validated (type, amp, freq, userfunc); None means unvalidated.
+        self._validated_signature = None
+
+    def _require_finite_amplitude(self):
+        """Reject non-finite amplitude scalings before they enter the solve."""
+        try:
+            finite = bool(np.isfinite(self.amp))
+        except TypeError:
+            finite = False
+        if not finite:
+            raise ValueError(f"Waveform {self.ID!r} requires a finite amplitude scaling.")
+
+    def _require_positive_frequency(self):
+        """Reject missing or non-physical excitation frequencies.
+
+        Impulse needs one too, although its value is unused.
+        """
+        try:
+            finite = bool(np.isfinite(self.freq))
+        except TypeError:
+            finite = False
+        if not finite or not self.freq > 0:
+            raise ValueError(
+                f"Waveform {self.ID!r} of type {self.type!r} requires "
+                "a finite excitation frequency greater than zero."
+            )
+
+    def _current_signature(self):
+        """Snapshot the fixed parameters that validation covers."""
+        if self.type == "user":
+            return ("user", self.amp, self.userfunc)
+        return (self.type, self.amp, self.freq)
+
+    def _validation_is_current(self):
+        """Whether the cached validation still covers the fixed parameters."""
+        cached = self._validated_signature
+        if cached is None:
+            return False
+        current = self._current_signature()
+        if len(current) != len(cached):
+            return False
+        for new, old in zip(current, cached):
+            if new is old:
+                continue
+            try:
+                if new != old:
+                    return False
+            except Exception:
+                # Uncomparable parameters never match; full validation raises.
+                return False
+        return True
+
+    def validate(self):
+        """Check fixed parameters and refresh coefficients.
+
+        Call once before bulk sampling; calculate_value() validates
+        automatically on first use.
+        """
+
+        if self.type not in self.types:
+            raise ValueError(f"Unknown waveform type {self.type!r}")
+        self._require_finite_amplitude()
+        if self.type == "user":
+            if not callable(self.userfunc):
+                raise ValueError(f"User waveform {self.ID!r} requires a callable 'userfunc'.")
+        else:
+            self.calculate_coefficients()
+        self._validated_signature = self._current_signature()
 
     def calculate_coefficients(self):
         """Calculates coefficients (used to calculate values) for specific
         waveforms.
         """
+
+        if self.type == "user":
+            return
+        if self.type not in self.types:
+            raise ValueError(f"Unknown waveform type {self.type!r}")
+        self._require_positive_frequency()
 
         if self.type in [
             "gaussian",
@@ -89,6 +163,8 @@ class Waveform:
     def calculate_value(self, time, dt):
         """Calculates the value of the waveform at a specific time.
 
+        Fixed parameters validate once; user outputs validate every sample.
+
         Args:
             time: float for absolute time.
             dt: float for absolute time discretisation.
@@ -97,7 +173,8 @@ class Waveform:
             ampvalue: float for calculated value for waveform.
         """
 
-        self.calculate_coefficients()
+        if not self._validation_is_current():
+            self.validate()
 
         # Waveforms
         if self.type == "gaussian":
@@ -162,7 +239,13 @@ class Waveform:
                 ampvalue = 0
 
         elif self.type == "user":
-            ampvalue = float(self.userfunc(time))
+            try:
+                ampvalue = float(self.userfunc(time))
+            except (TypeError, ValueError) as err:
+                raise ValueError(
+                    f"User waveform {self.ID!r} 'userfunc' must accept a single float "
+                    f"(time in seconds) and return a numeric value (failed at time {time:g} s)."
+                ) from err
             if not np.isfinite(ampvalue):
                 raise ValueError(
                     f"User waveform {self.ID!r} returned a non-finite value at time {time:g} s"
