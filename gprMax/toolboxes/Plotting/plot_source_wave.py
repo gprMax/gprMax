@@ -136,11 +136,14 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
         # Set plotting range to 4 times frequency at max power of waveform or
         # 4 times the centre frequency
         positive = np.flatnonzero(freqs >= 0)
-        finite = positive[np.isfinite(power[positive])]
-        freqmaxpower = finite[np.argmax(power[finite])] if finite.size else 0
-        upper_frequency = 4 * max(freqs[freqmaxpower], w.freq or 0)
-        above = np.flatnonzero(freqs > upper_frequency)
-        pltrange = above[0] if above.size else positive[-1] + 1
+        if w.type == "impulse":
+            pltrange = positive[-1] + 1
+        else:
+            finite = positive[np.isfinite(power[positive])]
+            freqmaxpower = finite[np.argmax(power[finite])] if finite.size else 0
+            upper_frequency = 4 * max(freqs[freqmaxpower], w.freq or 0)
+            above = np.flatnonzero(freqs > upper_frequency)
+            pltrange = above[0] if (above.size and upper_frequency > 0) else positive[-1] + 1
         pltrange = np.s_[0:pltrange]
 
         fig, (ax1, ax2) = plt.subplots(
