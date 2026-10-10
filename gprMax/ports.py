@@ -203,23 +203,20 @@ def _finite_source_gap_admittance(output, frequency, dt, complex_dtype):
         admittance[nyquist] = np.nan + 1j * np.nan
         return admittance
 
-    admittance = np.empty(frequency.shape, dtype=np.complex128)
+    # The bilinear transform is singular at Nyquist; rounding can also flip
+    # its sign, so evaluate the material only at usable bins.
+    admittance = np.full(frequency.shape, np.nan + 1j * np.nan, dtype=np.complex128)
     zero = frequency == 0
     admittance[zero] = output.background_conductance
-    positive = ~zero
-    if np.any(positive):
-        effective_frequency = omega_discrete[positive] / (2 * np.pi)
+    evaluable = ~zero & ~nyquist & np.isfinite(omega_discrete) & (omega_discrete > 0)
+    if np.any(evaluable):
+        effective_frequency = omega_discrete[evaluable] / (2 * np.pi)
         epsilon_r = np.asarray(
             output.background_material.calculate_er(effective_frequency),
             dtype=np.complex128,
         )
-        admittance[positive] = (
-            1j
-            * omega_discrete[positive]
-            * config.sim_config.em_consts["e0"]
-            * epsilon_r
-            * output.area
-            / output.dl
+        admittance[evaluable] = (
+            1j * omega_discrete[evaluable] * config.sim_config.em_consts["e0"] * epsilon_r * output.area / output.dl
         )
     admittance[nyquist] = np.nan + 1j * np.nan
     return np.asarray(admittance, dtype=complex_dtype)
