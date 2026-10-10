@@ -3209,8 +3209,9 @@ class VoltageSource(Source):
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            # Validate once before bulk sampling.
-            waveform.validate()
+            # validate() exists only on Waveform.
+            if isinstance(waveform, Waveform):
+                waveform.validate()
             values = np.zeros((G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"])
             setattr(self, name, values)
             offset = 0.0 if self.resistance == 0 else 0.5 * G.dt
@@ -3348,8 +3349,9 @@ class HertzianDipole(Source):
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            # Validate once before bulk sampling.
-            waveform.validate()
+            # validate() exists only on Waveform.
+            if isinstance(waveform, Waveform):
+                waveform.validate()
             self.waveformvalues_halfdt = np.zeros(
                 (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
@@ -3424,8 +3426,9 @@ class MagneticDipole(Source):
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            # Validate once before bulk sampling.
-            waveform.validate()
+            # validate() exists only on Waveform.
+            if isinstance(waveform, Waveform):
+                waveform.validate()
             self.waveformvalues_wholedt = np.zeros(
                 (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
@@ -3819,8 +3822,9 @@ class TransmissionLine(Source):
 
         if not src_match:
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            # Validate once before bulk sampling.
-            waveform.validate()
+            # validate() exists only on Waveform.
+            if isinstance(waveform, Waveform):
+                waveform.validate()
             self.waveformvalues_wholedt = np.zeros(
                 (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
             )
@@ -4258,8 +4262,9 @@ class MagneticFrillSource(Source):
             G: FDTDGrid class describing a grid in a model.
         """
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        # Validate once before bulk sampling.
-        waveform.validate()
+        # validate() exists only on Waveform.
+        if isinstance(waveform, Waveform):
+            waveform.validate()
         self.waveformvalues_wholedt = np.zeros(
             (G.iterations + 1), dtype=config.sim_config.dtypes["float_or_double"]
         )
@@ -5564,8 +5569,9 @@ class DiscretePlaneWave(Source):
             dtype=config.sim_config.dtypes["float_or_double"],
         )
 
-        # Validate once before bulk sampling.
-        self.waveform.validate()
+        # validate() exists only on Waveform.
+        if isinstance(self.waveform, Waveform):
+            self.waveform.validate()
 
         # waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         if cythonize and self.waveform.type != "user":
