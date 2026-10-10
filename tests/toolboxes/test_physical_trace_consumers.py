@@ -65,6 +65,20 @@ def test_background_missing_or_ambiguous_identity_is_rejected(tmp_path, names):
         subtract_receiver_reference(get_trace(target, "Ez"), target, reference, receiver="rx1", component="Ez")
 
 
+@pytest.mark.parametrize("component", ["Ez", "Hx", "Ix"])
+def test_legacy_background_without_sampling_metadata_matches_current_target(tmp_path, component):
+    target = load_file(receiver_file(tmp_path / "target.h5"))
+    path = receiver_file(tmp_path / "reference.h5", ("B", "A"))
+    with h5py.File(path, "r+") as handle:
+        for dataset in handle["rxs/rx2"].values():
+            del dataset.attrs["SampleInterval"]
+            del dataset.attrs["TimeSampleOffset"]
+    result = subtract_receiver_reference(
+        get_trace(target, component), target, load_file(path), receiver="rx1", component=component
+    )
+    np.testing.assert_array_equal(result, 0)
+
+
 def test_background_physical_times_checked_after_matching(tmp_path):
     target = load_file(receiver_file(tmp_path / "target.h5", dt=1e-15))
     path = receiver_file(tmp_path / "reference.h5", ("B", "A"), dt=1e-15)
