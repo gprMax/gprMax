@@ -45,6 +45,7 @@ from gprMax.toolboxes.Marimo.h5_reader import (
     load_file,
     load_files,
 )
+from gprMax.toolboxes.Utilities.trace_time import read_time_history
 
 # Fixtures
 
@@ -104,6 +105,20 @@ def h5_file(tmp_path: Path) -> Path:
     """Single synthetic HDF5 file."""
     p = tmp_path / "test_ascan.h5"
     _write_synthetic_h5(p)
+    return p
+
+
+@pytest.fixture
+def legacy_h5_file(tmp_path: Path) -> Path:
+    """Synthetic file written without per-dataset sampling metadata."""
+    p = tmp_path / "test_ascan_legacy.h5"
+    _write_synthetic_h5(p)
+    with h5py.File(p, "r+") as f:
+        for comp in COMPONENTS:
+            dataset = f["rxs/rx1"][comp]
+            del dataset.attrs["SampleInterval"]
+            del dataset.attrs["TimeSampleOffset"]
+            del dataset.attrs["Quantity"]
     return p
 
 
@@ -280,6 +295,30 @@ class TestGetTimeAxis:
     def test_receiver_and_component_must_be_paired(self, loaded):
         with pytest.raises(ValueError, match="supplied together"):
             get_time_axis(loaded, receiver="rx1")
+
+    @pytest.mark.parametrize(
+        ("component", "expected"), [("Ex", 0.0), ("Ez", 0.0), ("Hx", -0.5 * DT), ("Hz", -0.5 * DT)]
+    )
+    def test_legacy_file_component_time_offset(self, legacy_h5_file, component, expected):
+        legacy = load_file(legacy_h5_file)
+        meta = legacy["receivers"]["rx1"]["component_meta"][component]
+        assert meta["sample_interval"] == pytest.approx(DT)
+        assert meta["time_sample_offset"] == pytest.approx(expected)
+        t = get_time_axis(legacy, receiver="rx1", component=component, unit="s")
+        assert t[0] == pytest.approx(expected)
+        assert t[-1] == pytest.approx(expected + (ITERATIONS - 1) * DT)
+
+    @pytest.mark.parametrize("component", ["Ez", "Hx"])
+    def test_legacy_file_matches_current_file_and_plotting_toolbox(
+        self, loaded, legacy_h5_file, component
+    ):
+        legacy = load_file(legacy_h5_file)
+        t_current = get_time_axis(loaded, receiver="rx1", component=component, unit="s")
+        t_legacy = get_time_axis(legacy, receiver="rx1", component=component, unit="s")
+        np.testing.assert_allclose(t_legacy, t_current, rtol=0, atol=1e-6 * DT)
+        with h5py.File(legacy_h5_file, "r") as f:
+            history = read_time_history(f["rxs/rx1"][component])
+        np.testing.assert_allclose(t_legacy, history.time, rtol=0, atol=1e-6 * DT)
 
     def test_invalid_unit(self, loaded):
         with pytest.raises(ValueError, match="Unknown unit"):
