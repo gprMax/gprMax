@@ -19,14 +19,14 @@ import argparse
 from pathlib import Path
 
 import h5py
-from gprMax.toolboxes.Utilities.receiver_identity import natural_key
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 
 from gprMax.receivers import Rx
-from gprMax.utilities.utilities import fft_power, handle_plot_output
+from gprMax.toolboxes.Utilities.receiver_identity import natural_key
 from gprMax.toolboxes.Utilities.trace_time import read_time_history
+from gprMax.utilities.utilities import fft_power, handle_plot_output
 
 
 def fft_plot_range(freqs, power, floor_db=-60):
@@ -43,6 +43,8 @@ def fft_plot_range(freqs, power, floor_db=-60):
     below = np.flatnonzero(power[peak:] < floor_db)
     if below.size:
         stop = peak + below[0] + 1
+    elif peak == 0:
+        stop = positive[-1] + 1
     else:
         stop = max(peak * 4, peak + 1)
     stop = min(max(stop, 1), positive[-1] + 1)
@@ -267,8 +269,12 @@ def _mpl_plot_file(file, outputs, fft, show, f):
                         axs[2, 2].set_ylabel(outputtext + ", current [A]")
                 for ax in fig.axes:
                     if ax.lines:
-                        ax.set_xlim([min(line.get_xdata()[0] for line in ax.lines),
-                                     max(line.get_xdata()[-1] for line in ax.lines)])
+                        ax.set_xlim(
+                            [
+                                min(line.get_xdata()[0] for line in ax.lines),
+                                max(line.get_xdata()[-1] for line in ax.lines),
+                            ]
+                        )
                     ax.grid(which="both", axis="both", linestyle="-.")
 
             # Show or save this receiver's figure now, rather than after the

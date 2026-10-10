@@ -85,9 +85,7 @@ def test_plot_source_wave_impulse_has_single_nonzero_sample(tmp_path, monkeypatc
 @pytest.mark.parametrize("samples", [9, 10])
 def test_plot_source_wave_fft_fallback_plots_all_nonnegative_bins(tmp_path, monkeypatch, samples):
     dt = 1e-12
-    _, (freqs, _) = _plotted_source_wave(
-        tmp_path, monkeypatch, "impulse", 1e12, dt, samples, fft=True
-    )
+    _, (freqs, _) = _plotted_source_wave(tmp_path, monkeypatch, "impulse", 0, dt, samples, fft=True)
 
     allfreqs = np.fft.fftfreq(samples, dt)
     np.testing.assert_array_equal(freqs, allfreqs[allfreqs >= 0])
@@ -112,6 +110,29 @@ def test_plot_ascan_fft_of_zero_trace_plots_all_nonnegative_bins(tmp_path, sampl
         rx = output.create_group("rxs/rx1")
         rx.attrs["Name"] = "rx1"
         rx.create_dataset("Ex", data=np.zeros(samples))
+
+    plt.close("all")
+    pyplot = mpl_plot(filename, ["Ex"], fft=True, show=False)
+    freqs = pyplot.gcf().axes[1].lines[-1].get_xdata()
+    pyplot.close("all")
+
+    allfreqs = np.fft.fftfreq(samples, dt)
+    np.testing.assert_array_equal(freqs, allfreqs[allfreqs >= 0])
+
+
+@pytest.mark.parametrize("samples", [9, 10])
+def test_plot_ascan_fft_of_impulse_plots_all_nonnegative_bins(tmp_path, samples):
+    dt = 1e-10
+    filename = tmp_path / "impulse.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 1
+        output.attrs["dt"] = dt
+        output.attrs["Title"] = "Test"
+        rx = output.create_group("rxs/rx1")
+        rx.attrs["Name"] = "rx1"
+        data = np.zeros(samples)
+        data[0] = 1.0
+        rx.create_dataset("Ex", data=data)
 
     plt.close("all")
     pyplot = mpl_plot(filename, ["Ex"], fft=True, show=False)
