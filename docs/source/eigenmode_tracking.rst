@@ -605,8 +605,11 @@ Two transverse electric moments cannot fully orient a group larger than two.
 Trials check span closure, continuity, mixed eigen-residuals,
 reconstructed Maxwell residuals when available, positive full-group power,
 and unit power within each retained block before
-publishing any fields. Impedance-wall rows and unsupported transverse solvers
-currently use the fallback. HDF5 ``symmetry_detection`` records detected
+publishing any fields. SIBC ports additionally certify retained electric and
+magnetic samples, complex boundary permittivities, and signed circulation
+coefficients per retained dual area. Symmetric copper walls can therefore
+use the same decomposition and axis selection; uncertified boundaries and
+unsupported transverse solvers use the fallback. HDF5 ``symmetry_detection`` records detected
 symmetries at each anchor, the applied choice per group, and rejected-trial
 reasons; ``symmetry_subspaces`` stores successful decompositions.
 

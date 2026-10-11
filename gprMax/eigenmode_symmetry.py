@@ -60,6 +60,57 @@ def validate_c4v_materials(solver):
     validate_material_symmetry(solver, "c4v")
 
 
+def validate_surface_symmetry(solver, symmetry):
+    """Certify retained Yee samples and signed, clipped Ampere rows.
+
+    Compare the installed frequency-dependent rows, including their complex
+    permittivity and circulation per dual area. E is polar and H axial, so
+    their reflection signs must both enter the row transformation.
+    """
+    shapes = ((solver.shape_eu, solver.shape_ev, solver.shape_ew),
+              (solver.shape_hu, solver.shape_hv, solver.shape_hw))
+    tags, keys = [], []
+    for family in shapes:
+        arrays, addresses = [], []
+        for axis, shape in enumerate(family):
+            start = len(addresses)
+            addresses.extend((axis, index) for index in np.ndindex(shape))
+            arrays.append(np.arange(start + 1, len(addresses) + 1).reshape(shape))
+        tags.append(tuple(arrays))
+        keys.append(addresses)
+    retained = (solver.surface_electric_retained, solver.surface_magnetic_retained)
+    rows = {(r.electric_axis, r.electric_index): r for r in solver.surface_boundary_rows}
+    for action in field_actions(symmetry).values():
+        transformed = action(solver, *tags)
+        maps = []
+        for family, values in enumerate(transformed):
+            mapping = {}
+            for axis, array in enumerate(values):
+                for index in np.ndindex(array.shape):
+                    tag = int(array[index]); source = keys[family][abs(tag)-1]
+                    mapping[source] = ((axis, index), 1 if tag > 0 else -1)
+                    if retained[family][source[0]][source[1]] != retained[family][axis][index]:
+                        raise ValueError('SIBC retained samples do not preserve the requested symmetry.')
+            maps.append(mapping)
+        for key, row in rows.items():
+            target, electric_sign = maps[0][key]
+            other = rows.get(target)
+            if other is None:
+                raise ValueError('SIBC Ampere-row topology does not preserve the requested symmetry.')
+            if not np.isclose(row.relative_permittivity, other.relative_permittivity, rtol=1e-10, atol=1e-12):
+                raise ValueError('SIBC admittance does not preserve the requested symmetry.')
+            expected = {}
+            for term in row.magnetic_terms:
+                address, magnetic_sign = maps[1][(term.axis, term.index)]
+                expected[address] = expected.get(address, 0.) + electric_sign * magnetic_sign * term.line_weight / row.retained_dual_area
+            actual = {(t.axis, t.index): t.line_weight / other.retained_dual_area for t in other.magnetic_terms}
+            if expected.keys() != actual.keys() or any(
+                not np.isclose(value, actual[address], rtol=1e-10, atol=1e-12)
+                for address, value in expected.items()
+            ):
+                raise ValueError('SIBC signed circulation rows do not preserve the requested symmetry.')
+
+
 def validate_material_symmetry(solver, symmetry):
     """Check native Yee samples, including complex materials and wall masks.
 
@@ -70,8 +121,6 @@ def validate_material_symmetry(solver, symmetry):
         raise ValueError("Material symmetry must be C4v or C2v.")
     if symmetry == "c4v" and (solver.Nu != solver.Nv or not np.isclose(solver.du, solver.dv, rtol=1e-12, atol=0)):
         raise ValueError('C4v symmetry requires a square transverse grid with equal spacing.')
-    if getattr(solver, 'surface_boundary', None) is not None:
-        raise ValueError('Native symmetry detection does not certify impedance-wall boundary rows.')
     for names in (('eps_r_uu', 'eps_r_vv', 'eps_r_ww'), ('mu_r_uu', 'mu_r_vv', 'mu_r_ww'),
                   ('pec_u_mask', 'pec_v_mask', 'pec_w_mask'), ('pmc_u_mask', 'pmc_v_mask', 'pmc_w_mask')):
         values = [np.asarray(getattr(solver, name)) for name in names]
@@ -83,6 +132,8 @@ def validate_material_symmetry(solver, symmetry):
             preserves &= all(same(a, b) for a, b in zip(values, (np.rot90(values[1]), np.rot90(values[0]), np.rot90(values[2]))))
         if not preserves:
             raise ValueError(f'The sampled materials or boundary masks do not preserve {symmetry.upper()} symmetry.')
+    if getattr(solver, 'surface_boundary', None) is not None:
+        validate_surface_symmetry(solver, symmetry)
 
 
 def detect_symmetry(solvers):
@@ -339,7 +390,8 @@ def longitudinal_blocks(generators, electric, magnetic, field_scale, *, probe=No
     return tuple(blocks), leakage, record
 
 
-def axis_sensitive_blocks(blocks, electric, magnetic, mirrors, spacing, field_scale, *, tolerance=1e-8):
+def axis_sensitive_blocks(blocks, electric, magnetic, mirrors, spacing, field_scale, *, tolerance=1e-8,
+                          family_tolerance=None):
     """Orient equal-parity singlets in a common longitudinal family.
 
     The generalized directional-gradient eigenproblem uses native Ez and
@@ -348,6 +400,7 @@ def axis_sensitive_blocks(blocks, electric, magnetic, mirrors, spacing, field_sc
     """
     from scipy.linalg import eigh
 
+    family_tolerance = tolerance if family_tolerance is None else max(tolerance, family_tolerance)
     n = blocks[0].shape[0]
     fields = (np.asarray(electric), np.asarray(magnetic))
     gram = lambda a: a.reshape(-1, n).conj().T @ a.reshape(-1, n)
@@ -371,20 +424,21 @@ def axis_sensitive_blocks(blocks, electric, magnetic, mirrors, spacing, field_sc
         if j in used:
             continue
         indices = [i for i, parity, score in candidates if i not in used and parity == signs
-                   and abs(score-rho) <= tolerance]
+                   and abs(score-rho) <= family_tolerance]
         used.update(indices)
         if len(indices) < 2:
             continue
         basis = np.column_stack([blocks[i] for i in indices])
         m = basis.conj().T @ metric @ basis
         m = (m+m.conj().T)/2
-        record = dict(block_indices=indices, applied=False, reason='', scores=np.empty(0))
+        record = dict(block_indices=indices, applied=False, reason='', scores=np.empty(0),
+                      family_tolerance=family_tolerance)
         records.append(record)
         values = np.linalg.eigvalsh(m)
         if values[0] <= values[-1]/1e8:
             record['reason'] = 'ill_conditioned_longitudinal_metric'
             continue
-        if np.linalg.norm(basis.conj().T @ le @ basis-rho*m, 2) > tolerance*values[-1]:
+        if np.linalg.norm(basis.conj().T @ le @ basis-rho*m, 2) > family_tolerance*values[-1]:
             record['reason'] = 'distinct_longitudinal_families'
             continue
         difference = basis.conj().T @ (ku-kv) @ basis
@@ -532,9 +586,19 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                     naming = c4v_irrep_names if owner.mode_symmetry == 'c4v' else c2v_irrep_names
                     names = naming([np.linalg.solve(ib,d @ ib) for d in generators], ic)
                     irreducible_basis = dict(transform=ib, columns=ic, irreps=names)
+                    family_tolerance = tolerance
+                    if getattr(solvers[k], 'surface_boundary', None) is not None:
+                        # Finite-conductivity partners have weakly different
+                        # longitudinal content. Use relative eigenvalue loss
+                        # as a bounded family-selection scale, not as a field
+                        # acceptance tolerance. All residual checks still apply.
+                        eigenvalues = np.asarray(solvers[k].eigenvalues)[np.asarray(labels)-1]
+                        relative_loss = np.max(abs(eigenvalues.imag) / np.maximum(abs(eigenvalues), 1e-300))
+                        family_tolerance = max(tolerance, min(1e-3, float(relative_loss)))
                     blocks, axis_records = axis_sensitive_blocks(
                         blocks, local_e[2], impedance*local_h[2], mirrors,
-                        (solvers[k].du,solvers[k].dv), np.linalg.norm(frame,'fro')**2, tolerance=tolerance)
+                        (solvers[k].du,solvers[k].dv), np.linalg.norm(frame,'fro')**2,
+                        tolerance=tolerance, family_tolerance=family_tolerance)
                     source_irreps = list(names)
                     for record in axis_records:
                         if record['applied']:

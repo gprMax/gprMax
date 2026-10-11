@@ -46,17 +46,18 @@ def copper_solver(frequency,cells,count=14):
     path=ROOT/'tests/fdfd_eigenmode_solver/test_surface_impedance_fdfd_operator.py'
     spec=importlib.util.spec_from_file_location('impedance_boundary_fixture',path)
     fixture=importlib.util.module_from_spec(spec); spec.loader.exec_module(fixture)
-    d=.02/cells
+    nu, nv = (cells, cells) if np.isscalar(cells) else cells
+    d=.02/nu
     dt=.99*d/(config.sim_config.em_consts['c']*np.sqrt(3))
     fit=fit_conductivity_surface_impedance(5.96e7,1e9,50e9,16)
     model=SurfaceImpedanceModel('copper',A=fit.A,B=fit.B,C=fit.C,D=fit.D)
     discrete=model.discretise(dt)
     response=evaluate_surface_ade(frequency_hz=frequency,dt=dt,F=discrete.F,
         G=discrete.G,L=discrete.L,Z0=discrete.Z0)
-    boundary=fixture._rectangular_impedance_boundary(cells,cells,d,d,response)
-    u=np.ones((cells,cells+1)); v=np.ones((cells+1,cells)); w=np.ones((cells+1,cells+1))
+    boundary=fixture._rectangular_impedance_boundary(nu,nv,d,d,response)
+    u=np.ones((nu,nv+1)); v=np.ones((nu+1,nv)); w=np.ones((nu+1,nv+1))
     s=FDFD_2D_mode_solver(frequency,d,d,count-1,u,v,w,np.ones_like(v),np.ones_like(u),
-        np.ones((cells,cells)),surface_boundary=boundary)
+        np.ones((nu,nv)),surface_boundary=boundary)
     s.retain_tracking_operator=True; s.calculate_diagnostics=True; s.solve()
     s.edge_validation_metadata=dict(sigma_S_per_m=5.96e7,ade_dt=dt,
         admittance=response.admittance,fit_max_relative_error=fit.max_relative_error)

@@ -648,6 +648,13 @@ The determinant accounts for H being an axial vector. For the u-mirror,
 :math:`(+,-,-)`. Thus the parity of a complete vector mode need not equal
 the scalar parity of its longitudinal H plot.
 
+For SIBC ports, each installed Ampere row must map to another installed row
+under these signed field actions. The check compares retained E/H samples,
+complex relative permittivity, and every magnetic circulation coefficient
+divided by retained dual area (relative tolerance :math:`10^{-10}`, absolute
+:math:`10^{-12}`). This includes the frequency-dependent ADE response and
+clipped corner rows, so equal material names alone do not certify symmetry.
+
 Let :math:`F` contain the flattened E/H columns of an eligible group after
 power whitening. Compute each modal representation by least squares,
 
@@ -755,7 +762,12 @@ differences :math:`D_u,D_v`, divided by their respective grid spacings:
 Restrict these matrices and M to singlets with matching mirror parities and
 longitudinal scores agreeing within :math:`10^{-8}`. The restricted electric
 matrix must also satisfy :math:`\|L_E-\rho M\|_2\le10^{-8}\lambda_{\max}(M)`;
-this prevents combining distinct longitudinal families. Solve
+this prevents combining distinct longitudinal families. For SIBC groups,
+finite conductivity can slightly change this content between partners.
+Both family-comparison bounds use
+:math:`\tau_\rho=\max(10^{-8},\min(10^{-3},\max_j|\operatorname{Im}\lambda_j|/|\lambda_j|))`.
+This bounded loss scale selects candidate partners; the mixed-field and
+Maxwell residual limits remain :math:`10^{-7}`. Solve
 
 .. math::
 
