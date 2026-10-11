@@ -109,12 +109,17 @@ def validate(seed=41):
     records["fourfold_degeneracy"] = {"persistent_groups": owner.degenerate}
     solvers = pair_crossing_bank(frequencies, seed=seed, mixed_crossing=True)
     owner = make_owner(reference=-1.0)
-    try:
-        track_solver_bank(owner, frequencies, solvers, 3)
-    except EigenmodeAnchorMismatchError as error:
-        records["fully_mixed_exact_crossing"] = {"status": "unresolved", "reason": str(error)}
-    else:
-        raise AssertionError("A fully mixed crossing must not acquire arbitrary individual labels.")
+    track_solver_bank(owner, frequencies, solvers, 3)
+    members = np.asarray(owner.degenerate[0]) - 1
+    errors = []
+    for solver in solvers:
+        q = np.linalg.qr(solver.Ea[:, members])[0]
+        errors.append(np.linalg.norm(q @ q.conj().T - np.diag([1, 1, 0])))
+    assert max(errors) < 1e-12
+    records["fully_mixed_exact_crossing"] = {
+        "status": "recovered", "maximum_projector_error": float(max(errors)),
+        "recovery_count": len(owner.tracking_diagnostics["subspace_recovery"]),
+    }
     return {
         "validation_type": "controlled algebraic eigenproblem; no FDTD scattering data",
         "seed": seed, "frequency_parameter": frequencies.tolist(), "cases": records,

@@ -58,8 +58,14 @@ def bank(
     propagating=None,
     automatic=False,
     groups=((1, 2),),
+    tracking_config=None,
 ):
     owner = EigenmodeSource(None)
+    if tracking_config is not None:
+        owner.tracking_config = tracking_config
+    # Exercise the original power/moment alignment independently of the new
+    # default symmetry stage, which has its own physical regression tests.
+    owner.mode_symmetry = None
     owner.normal_axis = axis
     owner.normal = "xyz"[axis]
     owner.direction = direction
@@ -365,6 +371,25 @@ def test_invalid_solved_group(circular_solvers, kind):
         bank(solvers, references={1: "x", 2: "y"})
 
 
+def test_near_degenerate_mixing_retains_a_finite_residual_budget(circular_solvers):
+    from gprMax.eigenmode_config import EigenmodeTrackingConfig
+
+    solvers = deepcopy(circular_solvers)
+    # Perturb one eigenvalue within the grouping gap. The unchanged field
+    # remains inside the input validity tolerance but exceeds the old 1e-9 limit.
+    for solver in solvers:
+        solver.eigenvalues[0] *= 1 + 6e-9
+    owner, _, _, _ = bank(solvers, references={1: "x", 2: "y"})
+    residuals = [a["residual"] for a in owner.degenerate_diagnostics[0]["anchors"]]
+    assert 1e-9 < np.max(residuals) < owner.tracking_config.residual_tolerance == 1e-7
+    with pytest.raises(ValueError, match="mixing limit"):
+        bank(solvers, references={1: "x", 2: "y"},
+             tracking_config=EigenmodeTrackingConfig(residual_tolerance=1e-9))
+    solvers[0].mode_tracking_operator *= 1.0001
+    with pytest.raises(ValueError, match="mixing limit"):
+        bank(solvers, references={1: "x", 2: "y"})
+
+
 @pytest.mark.parametrize("tracking", ("legacy", "auto"))
 @pytest.mark.parametrize("hash_value, python_value", [
     ("y", "y"),
@@ -462,6 +487,30 @@ def test_canonical_subspace_basis_ignores_numerical_pivot_ties():
     reference = frame @ _canonical_subspace_transform(frame)
     actual = perturbed @ _canonical_subspace_transform(perturbed)
     np.testing.assert_allclose(actual, reference, atol=1e-10, rtol=1e-10)
+
+
+@pytest.mark.parametrize("rank", [2, 4, 6])
+def test_reduced_pivot_search_matches_full_field_projector(rank):
+    rng = np.random.default_rng(801 + rank)
+    frame = rng.normal(size=(48, rank)) + 1j*rng.normal(size=(48, rank))
+    q = np.linalg.qr(frame)[0]
+    projector = q @ q.conj().T
+    basis = []
+    available = set(range(len(frame)))
+    for _ in range(rank):
+        candidates = projector.copy()
+        if basis:
+            b = np.column_stack(basis)
+            candidates -= b @ (b.conj().T @ candidates)
+        strengths = np.linalg.norm(candidates, axis=0)
+        peak = max(strengths[j] for j in available)
+        j = min(j for j in available if peak-strengths[j] <= 1e-12)
+        vector = candidates[:, j]/strengths[j]
+        vector *= np.exp(-1j*np.angle(vector[j]))
+        basis.append(vector)
+        available.remove(j)
+    actual = frame @ _canonical_subspace_transform(frame)
+    np.testing.assert_allclose(actual, np.column_stack(basis), atol=2e-13, rtol=2e-13)
 
 
 def test_higher_order_zero_moment_and_multiple_groups():

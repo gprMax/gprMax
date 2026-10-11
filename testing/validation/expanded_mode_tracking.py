@@ -113,20 +113,17 @@ def controlled_trial(case, seed=41, reference=0.0, anchors=41):
     }
 
 
-def abstention_trials(seeds=12):
+def recovery_and_refinement_trials(seeds=12):
     records = []
     for seed in range(seeds):
         for reference in (-1., 0., 1.):
             solvers = pair_crossing_bank([-1, 0, 1], seed=seed, mixed_crossing=True)
-            before = [s.Ea.copy() for s in solvers]
-            try:
-                track_solver_bank(make_owner(reference), [-1, 0, 1], solvers, 3)
-            except EigenmodeAnchorMismatchError:
-                for solver, fields in zip(solvers, before):
-                    np.testing.assert_array_equal(solver.Ea, fields)
-                records.append({"seed": seed, "reference": reference, "status": "unresolved"})
-            else:
-                raise AssertionError("A fully mixed crossing acquired unsupported member labels")
+            owner = make_owner(reference)
+            track_solver_bank(owner, [-1, 0, 1], solvers, 3)
+            members = np.asarray(owner.degenerate[0]) - 1
+            for solver in solvers:
+                np.testing.assert_allclose(projector(solver.Ea[:, members]), np.diag([1,1,0]), atol=1e-12)
+            records.append({"seed": seed, "reference": reference, "status": "recovered"})
     # This checks the tracking routine's rejection and subsequent dense-bank
     # success; it does not invoke the source builder's automatic refinement.
     try:
@@ -429,7 +426,7 @@ def main():
                     "axis", "raw_real_neff", "tracked_real_neff", "candidate_indices", "group_labels")})
         report["representative"][case] = controlled_trial(case)
         print(f"Completed {case}: {args.seeds * 3} reference/seed combinations", flush=True)
-    report["abstention"] = abstention_trials(args.seeds)
+    report["recovery_and_refinement"] = recovery_and_refinement_trials(args.seeds)
     print("Completed ambiguous-crossing rejection and anchor-density checks", flush=True)
     report["physical"] = physical_sweeps()
     (args.output / "results.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

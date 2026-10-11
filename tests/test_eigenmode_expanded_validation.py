@@ -3,7 +3,7 @@
 import pytest
 
 from testing.validation.expanded_mode_tracking import (
-    CASES, abstention_trials, controlled_trial, physical_sweeps,
+    CASES, recovery_and_refinement_trials, controlled_trial, physical_sweeps,
 )
 
 
@@ -13,8 +13,8 @@ def test_expanded_known_subspace_continuation(case, reference):
     controlled_trial(case, seed=129, reference=reference)
 
 
-def test_ambiguous_crossings_and_insufficient_anchor_density_are_rejected():
-    abstention_trials(seeds=3)
+def test_rotated_crossings_recover_and_coarse_avoided_crossings_require_refinement():
+    recovery_and_refinement_trials(seeds=3)
 
 
 @pytest.mark.integration

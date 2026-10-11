@@ -26,16 +26,19 @@
      - ``True`` forces modal-field PNGs, ``False`` suppresses them. ``None`` enables them only in geometry-only runs.
    * - ``tracking``
      - ``"legacy"``
-     - Experimental ``"auto"`` enables branch assignment, automatic degeneracy detection, and mode-quality diagnostics at the user's discretion. The default ``"legacy"`` preserves existing ordering, solve counts, and manual degeneracy behaviour.
+     - Experimental ``"auto"`` enables branch assignment, automatic degeneracy detection, and mode-quality diagnostics. ``"legacy"`` preserves ordering, solve counts, and manual grouping. See :doc:`eigenmode_tracking` for tracking setup and examples.
    * - ``verification``
      - ``"full"``
      - Applies only with automatic tracking. ``"full"`` requests mesh and open-window checks; ``"fast"`` uses residual and artificial-edge diagnostics without verification solves.
    * - ``tracking_config``
      - ``None``
-     - Optional :class:`gprMax.EigenmodeTrackingConfig` or mapping of advanced thresholds and solve limits. Defaults are conservative and should normally be retained.
+     - Optional :class:`gprMax.EigenmodeTrackingConfig` or mapping of thresholds and solve limits. The complete parameter table is in :doc:`eigenmode_tracking`.
+   * - ``mode_symmetry``
+     - ``"auto"``
+     - With automatic tracking, detect native C4v/C2v symmetry and select irreducible source subspaces. ``None`` disables symmetry selection; ``"c4v"``, ``"c2v"``, or a Python callback mapping requests explicit validation. See :ref:`tracking-symmetry-options` for requirements and fallback behavior.
    * - ``degenerate``
      - ``None``
      - Legacy tracking only: a group such as ``(1, 2)``, or disjoint groups such as ``((1, 2), (3, 4))``. All members must be in ``modes``. With ``tracking="auto"``, this argument is ignored and groups are detected from the solved spectrum.
    * - ``mode_polarizations``
      - ``None``
-     - Default ``None`` preserves the current automatic assignment. A single direction sets the first member of every degenerate pair; the second follows the positive port-normal axis crossed with that direction, independently of propagation sign. Two directions, e.g. ``("y", "x")``, explicitly set both members of every pair. Exact-mode mappings require ``tracking="legacy"``, declared ``degenerate`` pairs, and both members of each selected pair. Accepts ``"x"``, ``"y"``, ``"z"``, or finite nonzero real three-vectors; vectors are normalized. Automatic tracking defaults to the port's two global transverse axes when electric-field moments support them, then falls back to a deterministic subspace basis. An override is validated against the detected group after solving. Physical selection requires a 3D cross-section.
+     - Optional transverse axis/vector directions for degenerate pairs. Accepts ``"x"``, ``"y"``, ``"z"``, finite nonzero real three-vectors, or two directions. Exact-mode mappings require legacy tracking and declared pairs. Explicit directions override automatic symmetry selection. See :doc:`eigenmode_tracking` for conventions, examples, and compatibility rules.

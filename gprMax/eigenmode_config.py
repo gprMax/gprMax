@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class EigenmodeTrackingConfig:
     """Numerical controls for optional automatic eigenmode tracking."""
 
-    residual_tolerance: float = 1e-8
+    residual_tolerance: float = 1e-7
     beta_drift_tolerance: float = 1e-3
     verification_overlap: float = 0.999
     edge_fraction_max: float = 1e-3
@@ -419,6 +419,7 @@ class EigenmodePortSpec:
     tracking_config: EigenmodeTrackingConfig = field(default_factory=EigenmodeTrackingConfig)
     resolved_anchors: tuple[float, ...] = field(default_factory=tuple)
     degenerate: tuple[tuple[int, ...], ...] = ()
+    mode_symmetry: object = "auto"
     mode_polarizations: (
         dict | tuple[float, float, float]
         | tuple[tuple[float, float, float], tuple[float, float, float]]

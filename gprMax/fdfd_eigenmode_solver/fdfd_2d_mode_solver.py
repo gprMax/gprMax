@@ -718,6 +718,7 @@ class FDFD_2D_mode_solver:
         P_reduced, Q_reduced, omega_matrix = self._reduce_transverse_operators(P, Q)
         if getattr(self, "retain_tracking_operator", False):
             self.mode_tracking_operator = omega_matrix
+            self.mode_tracking_field_operators = (P_reduced, Q_reduced, eps_ww_inv, mu_ww_inv)
         eigenvalues, reduced_eigenvectors = self._solve_reduced(omega_matrix)
         eigenvectors = np.zeros((self.n_e_transverse, self.num_modes), dtype=np.complex128)
         eigenvectors[self.free_euv_mask, :] = reduced_eigenvectors
@@ -813,6 +814,40 @@ class FDFD_2D_mode_solver:
         self.Hu[self.hu_constraint_mask | ~self.surface_magnetic_retained[0], :] = 0.0
         self.Hv[self.hv_constraint_mask | ~self.surface_magnetic_retained[1], :] = 0.0
         self.Hw[self.pmc_w_mask | ~self.surface_magnetic_retained[2], :] = 0.0
+
+    def tracking_field_residuals(self, indices):
+        """Check all reconstructed E/H components after a tracking rotation."""
+        p, q, eps_inv, mu_inv = self.mode_tracking_field_operators
+        indices = np.asarray(indices, dtype=int)
+        def columns(names):
+            return np.column_stack([np.concatenate([
+                getattr(self, name)[..., i].ravel(order="F") for name in names
+            ]) for i in indices])
+        electric = columns(("Eu", "Ev"))
+        magnetic = -1j * self.eta0 * columns(("Hu", "Hv"))
+        roots = 1j * self.operator_neff[indices]
+        e_rows = np.concatenate((
+            (self.surface_electric_retained[0] & ~self.pmc_v_mask).ravel(order="F"),
+            (self.surface_electric_retained[1] & ~self.pmc_u_mask).ravel(order="F"),
+        ))
+        ez = eps_inv @ (self.DHU_HV_TO_EW @ magnetic[self.n_hu:]
+                        - self.DHV_HU_TO_EW @ magnetic[:self.n_hu])
+        hz = mu_inv @ (self.DEU_EV_TO_HW @ electric[self.n_eu:]
+                       - self.DEV_EU_TO_HW @ electric[:self.n_eu])
+        ez_rows = (~self.pec_w_mask & self.surface_electric_retained[2]).ravel(order="F")
+        hz_rows = (~self.pmc_w_mask & self.surface_magnetic_retained[2]).ravel(order="F")
+        pairs = (
+            ((p @ magnetic[self.free_huv_mask])[e_rows], (electric * roots)[e_rows]),
+            (q @ electric, (magnetic * roots)[self.free_huv_mask]),
+            (ez[ez_rows], columns(("Ew",))[ez_rows]),
+            (hz[hz_rows], (-1j * self.eta0 * columns(("Hw",)))[hz_rows]),
+        )
+        # Use the full E/H scale for longitudinal equations: pure TE/TM
+        # fields have a zero longitudinal component, not a singular residual.
+        scale = np.linalg.norm(electric, axis=0) + np.linalg.norm(magnetic, axis=0)
+        return np.max([np.linalg.norm(a-b, axis=0) / np.maximum(
+            np.maximum(np.linalg.norm(a, axis=0) + np.linalg.norm(b, axis=0), scale), 1e-300
+        ) for a, b in pairs], axis=0)
 
     def _set_modal_fields(self):
         self.modal_Eu = self.Eu[:, :, self.mode_index]

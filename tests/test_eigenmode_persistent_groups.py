@@ -94,18 +94,21 @@ def test_persistent_groups_can_be_larger_than_two():
 
 
 @pytest.mark.parametrize("reference", (-1.0, 0.0, 1.0))
-def test_fully_rotated_crossing_abstains_without_modifying_solved_fields(reference):
+def test_fully_rotated_crossing_recovers_established_pair(reference):
     solvers = pair_crossing_bank([-1, 0, 1], mixed_crossing=True)
-    before = [solver.Ea.copy() for solver in solvers]
-    with pytest.raises(EigenmodeAnchorMismatchError, match="unresolved"):
-        track_solver_bank(make_owner(reference), [-1, 0, 1], solvers, 3)
-    for solver, original in zip(solvers, before):
-        np.testing.assert_array_equal(solver.Ea, original)
+    owner = make_owner(reference)
+    track_solver_bank(owner, [-1, 0, 1], solvers, 3)
+    assert any(r['anchor'] == 1 for r in owner.tracking_diagnostics["subspace_recovery"])
+    assert len(owner.degenerate) == 1
+    members = np.asarray(owner.degenerate[0]) - 1
+    for solver in solvers:
+        q = np.linalg.qr(solver.Ea[:, members])[0]
+        np.testing.assert_allclose(q @ q.conj().T, np.diag([1, 1, 0]), atol=2e-14)
 
 
 def test_reproducible_validation_report():
     report = validate()
-    assert report["cases"]["fully_mixed_exact_crossing"]["status"] == "unresolved"
+    assert report["cases"]["fully_mixed_exact_crossing"]["status"] == "recovered"
 
 
 def test_subspace_margin_is_available_through_hash_input():
