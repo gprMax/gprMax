@@ -69,6 +69,7 @@ class TestBinCount:
         grid = fake_grid(materials=[make_material(ID="a", numID=0)])
         with pytest.raises(ValueError, match="contains 1 material"):
             ListMaterial("li", ["a"]).calculate_properties(5, grid)
+
     @pytest.mark.parametrize("nbins", [0, -1, 2.5, "3", None, True])
     def test_list_rejects_bad_bin_counts(self, make_material, fake_grid, nbins):
         grid = fake_grid(materials=[make_material(ID="a", numID=0)])
