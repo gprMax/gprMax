@@ -170,7 +170,8 @@ def round_float(value: float, decimalplaces: int) -> float:
         rounded: Rounded value.
     """
     precision = f"1.{'0' * decimalplaces}"
-    return float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
+    # str() first: Decimal(0.99) is 0.98999... and would floor to 0.98.
+    return float(d.Decimal(str(value)).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
 
 
 def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:

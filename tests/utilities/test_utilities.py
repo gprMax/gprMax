@@ -291,6 +291,16 @@ class TestRoundFloat:
     def test_many_places_leave_the_value_alone(self):
         assert round_float(0.1, 15) == pytest.approx(0.1)
 
+    @pytest.mark.parametrize(
+        "value, places, expected",
+        [(0.99, 2, 0.99), (1.23, 2, 1.23), (2.99, 2, 2.99)],
+    )
+    def test_decimal_boundaries_are_not_dropped_a_unit(self, value, places, expected):
+        assert round_float(value, places) == expected
+
+    def test_a_numpy_float32_is_accepted(self):
+        assert round_float(np.float32(1.23), 2) == 1.23
+
     def test_a_negative_place_count_is_silently_treated_as_zero(self):
         """``'0' * -1`` is the empty string, so the target becomes ``"1."``.
 
@@ -313,6 +323,9 @@ class TestRoundValue:
 
     def test_a_nonzero_place_count_uses_the_float_rounding(self):
         assert round_value(1.2345, 2) == round_float(1.2345, 2)
+
+    def test_nonzero_places_keep_decimal_boundaries(self):
+        assert round_value(0.99, 2) == 0.99
 
     def test_zero_places_returns_an_integer(self):
         assert isinstance(round_value(2.5), int)
