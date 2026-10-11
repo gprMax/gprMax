@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+import numbers
 
 import numpy as np
 
@@ -87,6 +88,12 @@ def validate_user_material_id(material_id: str) -> None:
             f"Material ID {material_id!r}: '+' is reserved for automatically averaged material "
             "IDs and other generated materials. Use '_' instead in user-defined material IDs."
         )
+
+
+def _validate_bin_count(nbins, owner_id) -> None:
+    """Check that the number of bins is a positive integer."""
+    if isinstance(nbins, bool) or not isinstance(nbins, numbers.Integral) or nbins < 1:
+        raise ValueError(f"Mixture {owner_id!r} needs a positive integer bin count, got {nbins!r}.")
 
 
 def create_directional_material(grid, materials):
@@ -665,6 +672,8 @@ class PeplinskiSoil:
             G: FDTDGrid class describing a grid in a model.
         """
 
+        _validate_bin_count(nbins, self.ID)
+
         # Build a fresh map; other fractal volumes may still use the previous one.
         material_ids = []
 
@@ -768,6 +777,8 @@ class RangeMaterial:
             nbins: int for number of bins to use to create the different materials.
             G: FDTDGrid class describing a grid in a model.
         """
+
+        _validate_bin_count(nbins, self.ID)
 
         material_ids = []
 
@@ -882,6 +893,13 @@ class ListMaterial:
             G: FDTDGrid class describing a grid in a model.
         """
 
+        _validate_bin_count(nbins, self.ID)
+        if nbins > len(self.mat):
+            raise ValueError(
+                f"Material list {self.ID!r} contains {len(self.mat)} materials, "
+                f"but {nbins} bins were requested."
+            )
+
         material_ids = []
 
         # Iterate over the bins
@@ -962,6 +980,8 @@ class CrimMixture:
             nbins: int for number of bins to use to create the different materials.
             G: FDTDGrid class describing a grid in a model.
         """
+
+        _validate_bin_count(nbins, self.ID)
 
         material_ids = []
         matrix = next((m for m in G.materials if m.ID == self.matrix_id), None)
