@@ -1003,11 +1003,8 @@ See :doc:`eigenmode_tracking` for the argument tables, workflow, symmetry
 selection, diagnostics, and worked examples; :doc:`eigenmode_tracking_theory`
 derives the overlap, subspace, and alignment methods.
 
-Applications and troubleshooting
-================================
-
-Tutorial examples
------------------
+Simulation examples
+===================
 
 Run these commands from the repository root with gprMax installed in the
 active environment. Every model defines ``build_scene()`` without running on
@@ -1263,10 +1260,49 @@ x/y; E and H magnitudes are normalised independently.
 
    Degenerate TE11 mode 2: global x electric polarization.
 
+Example 8: automatic circular TE11 tracking
+-------------------------------------------
+
+The circular-guide simulation detects the TE11 pair automatically at both
+ports, using ``tracking="auto"`` without a manually declared degenerate
+group. First inspect its geometry-only fields; then excite mode 1 or 2 and
+plot the co- and cross-polarized reflection and transmission. The source
+has a virtual-waveguide feed and the receiving end continues into a PML.
+See :ref:`eigenmode-example-8` for the complete workflow.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --geometry-only
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --mode 1
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py --mode 1
+
+:download:`Complete Python model <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`.
+
+Example 9: automatic crossing in a square anisotropic bore
+----------------------------------------------------------
+
+A square PEC guide filled with ``diag(2.25, 1, 1)`` has TE10 and TE02
+branches whose raw eigenvalue ranks exchange. Both ports automatically
+track channels 3 and 4 through that crossing. Inspect the modal fields,
+launch either channel, then check modal S11/S21 and the off-centre probe's
+polarization. See :ref:`eigenmode-example-9` for both launched-mode runs
+and the tracking diagnostics.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --geometry-only
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --mode 3
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py --mode 3
+
+:download:`Complete Python model <../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py>`.
+
+Miscellaneous
+=============
+
 .. _eigenmode-pec-wall-sampling:
 
 PEC wall construction and averaging
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------------
 
 At an air/PEC boundary, the practical question is **which material wins at a
 shared electric-field sample?** Electric fields are stored on the edges of
@@ -1315,42 +1351,6 @@ anchor spacing, PML thickness, and recording duration.
 
 The automatic circular-pair and anisotropic-crossing demonstrations are
 :ref:`eigenmode-example-8` and :ref:`eigenmode-example-9` in the tracking guide.
-
-Example 8: automatic circular TE11 tracking
--------------------------------------------
-
-The circular-guide simulation detects the TE11 pair automatically at both
-ports, using ``tracking="auto"`` without a manually declared degenerate
-group. First inspect its geometry-only fields; then excite mode 1 or 2 and
-plot the co- and cross-polarized reflection and transmission. The source
-has a virtual-waveguide feed and the receiving end continues into a PML.
-See :ref:`eigenmode-example-8` for the complete workflow.
-
-.. code-block:: console
-
-   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --geometry-only
-   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --mode 1
-   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py --mode 1
-
-:download:`Complete Python model <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`.
-
-Example 9: automatic crossing in a square anisotropic bore
-----------------------------------------------------------
-
-A square PEC guide filled with ``diag(2.25, 1, 1)`` has TE10 and TE02
-branches whose raw eigenvalue ranks exchange. Both ports automatically
-track channels 3 and 4 through that crossing. Inspect the modal fields,
-launch either channel, then check modal S11/S21 and the off-centre probe's
-polarization. See :ref:`eigenmode-example-9` for both launched-mode runs
-and the tracking diagnostics.
-
-.. code-block:: console
-
-   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --geometry-only
-   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --mode 3
-   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py --mode 3
-
-:download:`Complete Python model <../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py>`.
 
 Direct eigenmode ports inside an HSG subgrid
 --------------------------------------------
@@ -1403,6 +1403,9 @@ transported real power. Check masks and conditioning, move bins away from
 the exact singularity, and refine anchors. Neither more frequency bins nor
 a finite output number certifies accuracy.
 
+Troubleshooting
+===============
+
 Accuracy checklist
 ------------------
 
@@ -1422,6 +1425,83 @@ Accuracy checklist
   With legacy tracking, declare genuinely degenerate groups when appropriate;
   with automatic tracking, inspect the detected groups and their polarizations.
   Do not use a fixed single anchor to conceal an incorrect physical channel label.
+
+Common warning and error messages
+---------------------------------
+
+The excerpts below omit port IDs, frequencies, and other run-specific values.
+Inspect the geometry-only field plots and the affected frequency range before
+changing the model.
+
+.. list-table:: Messages and suggested fixes
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Warning or error excerpt
+     - Suggested fix
+   * - ``anchor mode overlap ... below the warning threshold`` or
+       ``The broadband anchor modes cannot be tracked reliably``
+     - Inspect neighbouring anchor profiles, mode ordering, and cutoff.
+       Add closer frequency anchors. For crossings or degenerate modes,
+       use ``tracking="auto"``; with legacy tracking, declare the actual
+       degenerate groups. Use a single frequency only when a fixed modal
+       basis is appropriate for the intended simulation.
+   * - ``Automatic mode tracking ... is unresolved between ...``
+     - Inspect the tracked fields and numerical validity near that interval.
+       Refine anchor spacing and mesh resolution, and check that the aperture
+       contains the whole mode. Check the candidate coverage using the
+       diagnostics described in :doc:`eigenmode_tracking`. A single anchor
+       selects a fixed basis; it does not resolve an unidentified branch.
+   * - ``unbound_suspect confinement diagnostics``
+     - Inspect the field near the aperture edge and the reported reason.
+       For an open dielectric guide, enlarge the transverse window and check
+       convergence with window size and mesh spacing. Check whether the mode
+       remains guided near cutoff. Numerically valid anchors can still
+       represent a poorly confined field.
+   * - ``Eigenmode anchors do not cover the significant excitation spectrum``
+       or ``anchor frequencies do not cover the significant waveform spectrum``
+     - Use per-port ``anchors="auto"``, widen explicit anchors to cover the
+       pulse spectrum, or narrow the pulse bandwidth. For a finite band,
+       ``EigenmodeExcitation(..., waveform="auto")`` supplies a validated
+       bandpass waveform. Measurement frequencies alone do not define the
+       full excitation spectrum.
+   * - ``waveform has significant DC or Nyquist content``
+     - Use ``waveform="auto"`` or a band-limited custom pulse whose spectrum
+       lies above zero and below the temporal Nyquist frequency. Check the
+       sampled waveform and spectrum; the reported endpoint bins are discarded.
+   * - ``waveform has zero or non-finite spectral energy`` or
+       ``no usable positive-frequency spectral energy``
+     - Check waveform amplitude, finite sample values, source timing, and
+       recording duration. Ensure the pulse occurs within the run and contains
+       positive-frequency energy away from DC and Nyquist.
+   * - ``Eigenmode receiver ... is not next to a PML`` or
+       ``not next to the ... PML interface``
+     - Provide a uniform guide continuation into a nonzero PML and place the
+       port at the indicated interface, or use the appropriate virtual-guide
+       termination. Check PML thickness and reflection convergence. During a
+       geometry-only inspection this warning concerns the subsequent driven run.
+   * - ``A positive-direction eigenmode source must be at least one cell inside
+       the lower domain boundary``
+     - Move the source plane inward by at least one cell so its staggered
+       magnetic-field plane fits inside the grid. Also check the aperture bounds
+       and any PML or subgrid clearance requirements.
+   * - ``Yee stencil must lie strictly inside the subgrid working region``
+     - Move the entire aperture inward, including its adjacent magnetic plane,
+       or enlarge the subgrid working region. Keep the stencil away from the
+       coupling surface and auxiliary/PML region. See the HSG notes above.
+   * - ``Eigenmode port ... is already defined`` or ``references unknown waveform``
+     - Give each port a unique number and define the referenced waveform before
+       its excitation. Keep the band, ports, waveform, and excitations in the
+       same owning grid.
+   * - ``Degenerate modal group has rank loss or ill-conditioned fields``
+     - With legacy tracking, verify that the declared group contains distinct
+       modes from the same physical degenerate subspace. Inspect cutoff and
+       field profiles, then refine the mesh and anchors. Automatic tracking
+       can detect groups without a manual declaration.
+   * - ``Mode polarization must be transverse to the port normal``
+     - Supply one nonzero direction in the port's transverse plane, such as
+       ``mode_polarizations="y"`` for a z-normal port. See
+       :doc:`eigenmode_tracking` for the polarization convention.
 
 The numerical limitations, convergence considerations, and validation
 evidence are collected in :doc:`eigenmode_port_theory`.
