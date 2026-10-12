@@ -89,13 +89,6 @@ def validate_user_material_id(material_id: str) -> None:
             "IDs and other generated materials. Use '_' instead in user-defined material IDs."
         )
 
-
-def _validate_bin_count(nbins, owner_id) -> None:
-    """Check that the number of bins is a positive integer."""
-    if isinstance(nbins, bool) or not isinstance(nbins, numbers.Integral) or nbins < 1:
-        raise ValueError(f"Mixture {owner_id!r} needs a positive integer bin count, got {nbins!r}.")
-
-
 def _validate_evaluation_frequency(freq, material_id) -> None:
     """Reject non-finite, complex, and empty frequencies; any finite real sign is allowed."""
 
@@ -112,6 +105,14 @@ def _validate_evaluation_frequency(freq, material_id) -> None:
     if values.size == 0 or not np.all(np.isfinite(values)):
         raise ValueError(message)
 
+
+def _validate_bin_count(nbins, owner_id) -> None:
+    """Check that the number of bins is a positive integer."""
+
+    if isinstance(nbins, bool) or not isinstance(nbins, numbers.Integral) or nbins < 1:
+        raise ValueError(
+            f"Mixture {owner_id!r} needs a positive integer bin count, got {nbins!r}."
+        )
 
 def create_directional_material(grid, materials):
     """Return a cell record retaining an ordered diagonal constitutive tensor.
