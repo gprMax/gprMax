@@ -93,7 +93,7 @@ table lists every ``EigenmodeTrackingConfig`` control.
      - An ``EigenmodeTrackingConfig`` instance or mapping overriding the numerical controls in the next table. Omitted fields keep their defaults.
    * - ``mode_polarizations``
      - ``None``
-     - Optional single transverse axis or real three-vector. Its orthogonal partner is inferred using the positive port normal. Applied after subgroup resolution with automatic tracking, or to declared pairs with legacy tracking. Direction pairs and mode/group mappings are rejected.
+     - Optional single transverse axis or real three-vector. Its orthogonal partner is inferred using the positive port normal. Applied after subgroup resolution with automatic tracking, or to declared pairs with legacy tracking.
    * - ``degenerate``
      - ``None``
      - Legacy groups such as ``(1, 2)`` or ``((1, 2), (3, 4))``. Members must be requested in ``modes``. Automatic tracking detects groups and ignores this argument.
@@ -640,7 +640,7 @@ computed orientation.
 Analytical validation
 ---------------------
 
-The :doc:`validation gallery <eigenmode_tracking_validation_catalog>` compares
+The :ref:`validation gallery <eigenmode_tracking_validation_catalog>` compares
 modal profiles and propagation constants for PEC rectangular, square, and
 cylindrical guides, an open dielectric cylinder, and persistent pairs crossing
 in an anisotropic square bore. Analytical fields check the computed channels
@@ -706,7 +706,7 @@ The equations and exact decision rules are in
 Validation examples
 ===================
 
-See :doc:`eigenmode_tracking_validation_catalog` for the two validation groups:
+See :ref:`eigenmode_tracking_validation_catalog` for the two validation groups:
 ``degenerate_subspace`` and ``branch_crossing``. The executable source tutorials
 below illustrate port excitation separately.
 
@@ -816,9 +816,9 @@ with an artificial PEC rim, so aperture convergence remains relevant.
 Cylindrical geometry is staircased on the Cartesian grid: detected C4v
 labels describe the sampled problem rather than smooth rotational symmetry.
 
-The :doc:`example galleries <eigenmode_tracking_examples>` link every
+The :ref:`example galleries <eigenmode_tracking_examples>` link every
 case script and its recorded E/H plots. These examples inspect
-computed modes. The separate :doc:`analytical validation
+computed modes. The separate :ref:`analytical validation
 <eigenmode_tracking_validation_catalog>` has only the requested
 ``degenerate_subspace`` and ``branch_crossing`` groups.
 
@@ -849,9 +849,440 @@ numerical crossing.
 
 These focused crossing examples use two and eight channels, respectively;
 the preceding nine shape/material galleries use sixteen. Source scripts and
-recorded plots are in the :doc:`example galleries <eigenmode_tracking_examples>`.
+recorded plots are in the :ref:`example galleries <eigenmode_tracking_examples>`.
 
-.. toctree::
-   :maxdepth: 1
 
-   eigenmode_tracking_examples
+
+.. _eigenmode_tracking_examples:
+
+Recorded example galleries
+==========================
+
+.. _eigenmode_tracking_example_1_C2v_rectangular_PEC:
+
+Example 1: PEC rectangular tracked modes
+----------------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C2v. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The bore is vacuum-filled and bounded by PEC walls.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_2_C4v_square_PEC:
+
+Example 2: PEC square tracked modes
+-----------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_2_C4v_square_PEC/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C4v on the square Yee mesh. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The bore is vacuum-filled and bounded by PEC walls.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_2_C4v_square_PEC/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_3_C4v_cylindrical_PEC:
+
+Example 3: PEC cylindrical tracked modes
+----------------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C4v on the square Yee mesh. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The bore is vacuum-filled and bounded by PEC walls.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_4_C2v_rectangular_copper:
+
+Example 4: COPPER rectangular tracked modes
+-------------------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C2v. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The bore is vacuum-filled. Copper uses the conductivity-based surface-
+impedance preset with a 16-pole ADE fit over 1–120 GHz.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_5_C4v_square_copper:
+
+Example 5: COPPER square tracked modes
+--------------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_5_C4v_square_copper/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C4v on the square Yee mesh. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The bore is vacuum-filled. Copper uses the conductivity-based surface-
+impedance preset with a 16-pole ADE fit over 1–120 GHz.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_5_C4v_square_copper/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_6_C4v_cylindrical_copper:
+
+Example 6: COPPER cylindrical tracked modes
+-------------------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C4v on the square Yee mesh. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The bore is vacuum-filled. Copper uses the conductivity-based surface-
+impedance preset with a 16-pole ADE fit over 1–120 GHz.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_7_C2v_rectangular_dielectric:
+
+Example 7: DIELECTRIC rectangular tracked modes
+-----------------------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C2v. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The dielectric core has εr = 4 and is surrounded by air. Its finite port
+aperture has an artificial PEC rim; inspect convergence when enlarging it.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_8_C4v_square_dielectric:
+
+Example 8: DIELECTRIC square tracked modes
+------------------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C4v on the square Yee mesh. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The dielectric core has εr = 4 and is surrounded by air. Its finite port
+aperture has an artificial PEC rim; inspect convergence when enlarging it.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_9_C4v_cylindrical_dielectric:
+
+Example 9: DIELECTRIC cylindrical tracked modes
+-----------------------------------------------
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/tracked_modes.py
+
+The script performs a geometry-only run, tracks at least sixteen modes, and
+writes native E/H fields, electric and magnetic galleries, and real/imaginary
+propagation curves. It automatically detects C4v on the square Yee mesh. No excitation
+or time stepping is used. The default spacing is 0.25 mm. Use ``--spacing-mm``
+for mesh refinement, ``--modes`` for the requested channel count, or
+``--output`` for a fresh result directory. Internal partners can complete a
+persistent degenerate group.
+
+The dielectric core has εr = 4 and is surrounded by air. Its finite port
+aperture has an artificial PEC rim; inspect convergence when enlarging it.
+
+Recorded geometry-only gallery
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_dispersion.png
+   :width: 100%
+   :alt: Tracked modal dispersion.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_E_modes.png
+   :width: 100%
+   :alt: Electric fields for every tracked channel.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields for every tracked channel.
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_10_anisotropic_frequency_crossing:
+
+Example 10: Two polarized branches crossing in frequency
+--------------------------------------------------------
+
+A 16 × 8 mm PEC bore filled with diag(2.25, 1, 1) has two orthogonally
+polarized fundamental branches. Their raw eigenvalue ranks exchange over
+12.8–16.1 GHz. The geometry-only run exports both branches and their E/H
+profiles, with no excitation or time stepping.
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/tracked_modes.py
+
+Use ``--spacing-mm`` for the native geometry mesh and ``--output`` for a
+fresh directory. Recorded plots are separate from fresh outputs.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_dispersion.png
+   :width: 100%
+   :alt: frequency crossing dispersion.png
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_E_modes.png
+   :width: 100%
+   :alt: frequency crossing E modes.png
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_H_modes.png
+   :width: 100%
+   :alt: frequency crossing H modes.png
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/manifest.json>`
+
+.. _eigenmode_tracking_example_11_C4v_square_persistent_pair_crossing:
+
+Example 11: Persistent doublets crossing in a square guide
+----------------------------------------------------------
+
+A square PEC bore contains diag(2, 2, epsilon_z). Geometry-only snapshots
+show eight native port modes before and after a material-parameter crossing.
+An undriven FDFD sweep at 20 GHz then follows TE20/02 and TM12/21 doublets
+through the exact numerical coincidence, where all four input modes are
+deliberately mixed. The plots compare tracked profiles and propagation
+constants with analytical solutions. This is an axial-permittivity sweep,
+not a dispersive frequency sweep.
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/tracked_modes.py
+
+Use ``--spacing-mm`` for the native geometry mesh and ``--output`` for a
+fresh directory. Recorded plots are separate from fresh outputs.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/propagation_constants.png
+   :width: 100%
+   :alt: propagation constants.png
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/modal_profiles.png
+   :width: 100%
+   :alt: modal profiles.png
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_E_modes.png
+   :width: 100%
+   :alt: before crossing E modes.png
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_E_modes.png
+   :width: 100%
+   :alt: after crossing E modes.png
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/manifest.json>`
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields before the crossing.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_H_modes.png
+   :width: 100%
+   :alt: Magnetic fields after the crossing.
