@@ -10,7 +10,8 @@ Provenance
 ----------
 
 ``retained_runs.json`` records the SHA-256 hashes and original directories of
-historical runs retained during the reorganization. Their original metadata,
+historical runs retained during the reorganization. These hashes describe the
+original file bytes before Git normalizes text line endings. Their original metadata,
 source hashes, and recorded paths are preserved; they are not new simulations.
 ``relocations.json`` maps moved source and figure paths. The persistent,
 expanded, and classification studies were rerun with the reorganized modules.
