@@ -256,3 +256,21 @@ Each runs PEC and copper counterparts on two fine meshes without excitation.
 Run its ``tracked_modes.py``; choose ``--wall PEC`` or ``--wall copper``
 for one material. The documentation's modal-tracking validation section
 contains the field galleries, matching matrices, and copper attenuation.
+
+
+Example 13: C4v cylindrical staircase with PEC and copper walls
+---------------------------------------------------------------
+
+``example_13_C4v_cylindrical/tracked_modes.py`` compares 21 automatically
+tracked modes with smooth-cylinder Bessel profiles, without excitation.
+Both PEC and copper use 96 × 96 and 192 × 192 meshes over a 24-mm window
+around a 10-mm-radius bore. The finer mesh has a 0.125-mm step and 160 cells
+across the diameter. Field galleries, full-vector matching, propagation
+constant errors, and copper attenuation accompany the refinement study.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_13_C4v_cylindrical/tracked_modes.py
+
+Use ``--wall PEC`` or ``--wall copper`` for one material and ``--cells``
+to change the mesh sequence. Select a fresh ``--output`` directory.

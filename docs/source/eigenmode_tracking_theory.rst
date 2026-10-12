@@ -1107,12 +1107,15 @@ Fine-mesh **C4v square** and **C2v 2:1 rectangular** waveguides are compared
 with analytical PEC modal profiles below. Each geometry includes PEC and
 copper walls, automatic tracking, high-order field galleries, full-vector
 matching matrices, and a two-mesh comparison. The copper cases also report
-attenuation and matching to complete PEC-degenerate subspaces.
+attenuation and matching to complete PEC-degenerate subspaces. Cylindrical
+PEC/copper examples additionally measure the Cartesian staircase error
+against smooth-cylinder Bessel profiles on refined meshes.
 
 .. toctree::
    :maxdepth: 1
 
    waveguide_modal_validation
+   cylindrical_modal_validation
 
 
 The degenerate-mode validation report is
