@@ -180,9 +180,10 @@ opaque voxel beyond it. An SIBC wall exactly on the rim becomes PEC in the
 modal solve and virtual guide.
 
 Set ``tracking="auto"`` to enable experimental branch assignment, automatic
-degeneracy detection, and mode-quality diagnostics. See
+degeneracy detection, symmetry-based basis selection, and mode-quality diagnostics.
+Explicit ``mode_polarizations`` takes precedence for pair orientation. See
 :ref:`eigenmode-mode-tracking` for setup, parameters, and interpretation.
-The default remains ``"legacy"``.
+The default ``"legacy"`` uses manual groups and skips symmetry selection.
 
 An excited port launches the selected modal field and measures returning
 waves, but it does not absorb those waves. Continue the guide behind the

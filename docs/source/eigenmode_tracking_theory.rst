@@ -246,6 +246,11 @@ inside the broad candidate gap, a four-dimensional degeneracy, and safe
 recovery at a fully mixed exact crossing. These are association tests, not
 Maxwell or scattering-accuracy evidence.
 
+The regression suite also checks subgroup projectors at inter-group rotations
+of 10, 15, and 20 degrees, where assignment can succeed despite mixed fields.
+For evolving subspaces, halving the anchor spacing halves the historical
+projection error in the controlled crossing cases.
+
 For broader checks and tracked-branch plots, run
 ``python -m testing.validation.expanded_mode_tracking --output results/tracking``.
 This adds multiple simultaneous and repeated crossings, higher-dimensional
@@ -788,6 +793,26 @@ established basis. Normalize each accepted column to unit power and verify
 both vector mirror parities. Frequency continuation matches these oriented
 fields by overlap and transports their phases. The existing propagation,
 residual, and full-power checks remain active.
+
+The generalized eigenvectors are orthogonal in M. Their power and measurement
+matrices can still be poorly conditioned after individual column normalization.
+Before publishing a symmetry trial, form the complete electric Gram matrix
+:math:`G_E` and magnetic Gram matrix :math:`G_H=G_E^{\mathrm H}` from the
+power-wave fields, normalized to unit real power as in the receiving monitor.
+Include all propagating channels, including those outside the selected group.
+For each Gram matrix and their Hermitian average, require
+
+.. math::
+
+   \sigma_{\min} > \max\left(\epsilon/10^{-3},
+       \sigma_{\max}/\kappa_{\max}\right),\qquad
+   \kappa_{\max}=\min\left(10^{10},10^{-3}/\epsilon\right),
+
+where :math:`\epsilon` is the machine epsilon of the configured field precision.
+The condition limit is approximately :math:`8.4\times10^3` in single precision
+and :math:`10^{10}` in double precision. This uses the same singular-value
+cutoff as the coefficient solver. A failed check rejects the complete trial
+before any of its anchor fields or transforms are published.
 
 Axis orientation can combine distinct irreps of a degenerate span. In HDF5,
 ``irreducible_basis/transform`` reconstructs the original symmetry basis;

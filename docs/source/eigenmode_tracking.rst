@@ -8,7 +8,7 @@ Eigenmode tracking guide
 Mode tracking connects independently solved port fields into a consistent
 broadband field bank. It follows branches through crossings, aligns phase,
 and selects reproducible bases for degenerate groups. This guide covers the
-inputs, workflow, symmetry choices, and inspection of the resulting fields.
+inputs, workflow, automatic symmetry selection, and inspection of the resulting fields.
 For aperture setup and S-parameter measurement, see :doc:`eigenmode_port`;
 for equations and implementation details, see :doc:`eigenmode_tracking_theory`.
 
@@ -20,6 +20,9 @@ Enabling tracking and choosing what to inspect
 ==============================================
 
 Add ``tracking="auto"`` to each participating source and receiver port.
+This also enables symmetry detection and basis selection for eligible
+degenerate groups on supported 3D port cross sections. Explicit
+``mode_polarizations`` takes precedence when selecting a pair's directions.
 Start with the default ``verification="full"`` when evaluating a model.
 ``verification="fast"`` skips the extra mesh and window solves, so it provides
 less evidence about box modes. Examples 8 and 9 use ``fast`` to keep their
@@ -81,7 +84,7 @@ table lists every ``EigenmodeTrackingConfig`` control.
      - Frequencies in Hz at which to solve the port. Accepts a positive frequency, an increasing sequence, or automatic selection. Tracking may add midpoint solves to resolve ambiguous associations.
    * - ``tracking``
      - ``"legacy"``
-     - ``"auto"`` enables field assignment, group detection, and adaptive refinement. ``"legacy"`` retains ordering and manual grouping. Automatic tracking is experimental.
+     - ``"auto"`` enables field assignment, group detection, automatic symmetry selection, and adaptive refinement. ``"legacy"`` retains ordering and manual grouping and skips symmetry selection. Automatic tracking is experimental.
    * - ``verification``
      - ``"full"``
      - With automatic tracking, ``"full"`` adds finer-grid and open-window comparisons; ``"fast"`` checks residuals and edge fields without those extra solves.
@@ -100,7 +103,7 @@ table lists every ``EigenmodeTrackingConfig`` control.
 
 Symmetry detection and basis selection run automatically with ``tracking="auto"``
 on supported 3D port cross sections. Legacy tracking skips symmetry selection.
-There is no separate symmetry input argument. Polarization vectors use the Python API. Keep the same basis convention
+Polarization vectors use the Python API. Keep the same basis convention
 at both ports when comparing their channel coefficients.
 
 Advanced thresholds and limits
@@ -612,8 +615,12 @@ reasons; ``symmetry_subspaces`` stores successful decompositions.
 
 Before accepting a selected basis, the complete power-wave measurement bank
 must pass the modal coefficient solver's precision budget for both electric
-and magnetic Gram matrices. An unsafe automatic trial retains the fallback
-basis.
+and magnetic Gram matrices, including coupling to modes outside the selected
+group. Single precision allows a condition number of about ``8.4e3``;
+double precision allows ``1e10``. The separate positive-power and symmetry
+checks also apply. A rejected trial tries the next certified symmetry and
+then retains the fallback basis if needed. Inspect the rejected-trial reasons
+in ``symmetry_detection`` when the selected basis differs between precisions.
 
 Neighboring fields continue the selected families and orientations across
 frequency. The original tracking group remains available in
