@@ -974,3 +974,31 @@ S11 of about -81.1 dB for mode 1 and -62.4 dB for mode 2, with co-polarized S21
 near 0 dB. These values describe the supplied voxel model and sampled band;
 tracking confidence alone does not guarantee that reflection accuracy for
 other anchor spacings, meshes, or terminations.
+
+.. _tracked-mode-gallery:
+
+Example 10: sixteen-mode inspection gallery
+-------------------------------------------
+
+The :download:`mode gallery <../../examples/features/eigenmode_ports/example_10_tracked_mode_gallery/tracked_modes.py>`
+tracks 16 channels in rectangular, square, and circular PEC waveguides and
+in dielectric rods with the same cross-sections. It uses automatic tracking
+and symmetry selection with five anchors from 40 to 42 GHz. Degenerate groups
+can retain additional internal partners beyond the 16 displayed channels.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_10_tracked_mode_gallery/tracked_modes.py
+
+The run uses ``geometry_only=True`` with no excitation or virtual guide.
+The :download:`plotter <../../examples/features/eigenmode_ports/example_10_tracked_mode_gallery/plot_results.py>`
+shows all 16 electric and magnetic profiles at 41 GHz and both real and
+imaginary effective-index curves. ``--profiles`` adds per-channel plots at
+every anchor; ``--verification full`` enables additional verification solves.
+Use a fresh ``--output`` directory when changing settings.
+
+The lossless dielectric cores have relative permittivity 4 and sit in air
+inside a finite modal aperture with a PEC rim. Check aperture and mesh
+convergence when comparing with isolated-rod modes. Full dimensions and
+output descriptions are in the :download:`example README
+<../../examples/features/eigenmode_ports/example_10_tracked_mode_gallery/README.rst>`.

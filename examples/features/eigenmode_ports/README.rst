@@ -2,7 +2,7 @@
 Eigenmode port examples
 =======================
 
-These nine numbered Python examples form the tutorial in
+These ten numbered Python examples form the tutorial in
 ``docs/source/eigenmode_port.rst``:
 
 ``example_1_straight_waveguide``
@@ -186,6 +186,24 @@ rapidly. Both terminations use 16-cell PMLs; port separation remains 52 mm.
     python examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py --mode 1
     python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --mode 2
     python examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py --mode 2
+
+Example 10: sixteen tracked modes without excitation
+====================================================
+
+``example_10_tracked_mode_gallery`` inspects rectangular, square, and circular
+PEC waveguides and dielectric rods with the same cross-sections. Each case
+tracks 16 channels automatically over five anchors from 40 to 42 GHz, exports
+the native Yee fields, and plots all 16 electric and magnetic profiles at
+41 GHz plus real and imaginary effective-index curves. Extra internal
+partners complete degenerate groups. No excitation or time stepping is used.
+
+.. code-block:: console
+
+    python examples/features/eigenmode_ports/example_10_tracked_mode_gallery/tracked_modes.py
+    python examples/features/eigenmode_ports/example_10_tracked_mode_gallery/tracked_modes.py --case dielectric_circular --verification full --profiles --output results/dielectric_check
+
+See the example's ``README.rst`` for dimensions, output files, mesh refinement,
+and interpretation of the finite dielectric aperture.
 
 Reflection accuracy
 ===================

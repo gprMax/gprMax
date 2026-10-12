@@ -560,9 +560,12 @@ the geometry, NTFF setup, and commands to run and plot the results.
 
 For a passive receiving port in a multiport model, add its own
 ``EigenmodePort`` and ``VirtualWaveguide`` but no ``EigenmodeExcitation`` for
-that port. A model with no eigenmode excitations is allowed only when every
-eigenmode port has a virtual guide; it records raw modal spectra without
-normalized S-parameters.
+that port. During time stepping, a model with no eigenmode excitations is
+allowed only when every eigenmode port has a virtual guide; it records raw
+modal spectra without normalized S-parameters. With ``geometry_only=True``,
+ports can be inspected without an excitation or virtual guide. Combine an
+``EigenmodeBand``, ``EigenmodePort``, and ``EigenmodeFieldOutput`` to export
+tracked fields, as in :ref:`tracked-mode-gallery`.
 
 VirtualWaveguide arguments
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

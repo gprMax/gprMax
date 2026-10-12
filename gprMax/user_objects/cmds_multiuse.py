@@ -3166,8 +3166,8 @@ def _validate_eigenmode_dft_frequencies(label, frequencies):
         raise ValueError(f"{label} DFT frequencies must be unique and strictly increasing.")
 
 
-def build_passive_virtual_eigenmode_ports(grid):
-    """Build monitor runtimes when every modal port is passive and virtual."""
+def build_passive_eigenmode_ports(grid):
+    """Build undriven ports for geometry inspection or passive virtual guides."""
 
     band = grid.eigenmodeband
     band.significant_range = (band.fmin, band.fmax)

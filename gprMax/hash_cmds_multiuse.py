@@ -493,10 +493,10 @@ def process_multicmds(multicmds):
     if eigenmode_port_cmds and not eigenmode_excitation_cmds:
         port_numbers = {int(command.split()[0]) for command in eigenmode_port_cmds}
         virtual_numbers = {int(command.split()[0]) for command in virtual_waveguide_cmds}
-        if port_numbers != virtual_numbers:
+        if port_numbers != virtual_numbers and not getattr(config.sim_config, 'geometry_only', False):
             raise ValueError(
                 "Eigenmode ports require at least one #eigenmode_excitation, unless "
-                "every port has a passive #virtual_waveguide."
+                "every port has a passive #virtual_waveguide or the run is geometry-only."
             )
 
     for cmdinstance in eigenmode_band_cmds:
