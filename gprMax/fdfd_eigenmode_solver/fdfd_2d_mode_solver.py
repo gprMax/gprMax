@@ -622,6 +622,10 @@ class FDFD_2D_mode_solver:
             # state.  This is important when a geometry-fixed eigenmode
             # study is restarted in a process that has already performed
             # other randomised work.
+            # Repeated eigenvalues need enough Arnoldi vectors to retain
+            # the complete eigenspace across restarts. The default ~2*k
+            # can converge with a missing partner and return a farther mode.
+            ncv = min(size, max(4 * self.num_modes + 1, 40))
             v0 = np.random.default_rng(0).standard_normal(size)
             try:
                 options = {"OPinv": operator.shift_inverse(self.guess)} if isinstance(
@@ -632,6 +636,7 @@ class FDFD_2D_mode_solver:
                     k=self.num_modes,
                     sigma=self.guess,
                     v0=v0,
+                    ncv=ncv,
                     **options,
                 )
             except RuntimeError:
@@ -644,6 +649,7 @@ class FDFD_2D_mode_solver:
                     k=self.num_modes,
                     sigma=shifted_guess,
                     v0=v0,
+                    ncv=ncv,
                     **options,
                 )
 
