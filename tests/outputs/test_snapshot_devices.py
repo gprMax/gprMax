@@ -257,6 +257,23 @@ class TestSolverDispatch:
         assert Snapshot.bpg is None
 
 
+class TestHtodSnapshotArraysBackendValidation:
+    """Backend validation in ``htod_snapshot_array`` rejects non-accelerators before allocation."""
+
+    @pytest.mark.parametrize("solver", ["cpu", "unknown_solver", None])
+    def test_rejects_unsupported_solver_before_allocation(self, monkeypatch, outputs_config, solver):
+        outputs_config.sim_config.general["solver"] = solver
+
+        def _fail_zeros(*args, **kwargs):
+            pytest.fail("np.zeros was called; validation must occur before array allocation")
+
+        monkeypatch.setattr(np, "zeros", _fail_zeros)
+        with pytest.raises(
+            ValueError, match=f"Unknown device solver {solver!r} for snapshot arrays"
+        ):
+            htod_snapshot_array([])
+
+
 class TestDtohSnapshotArray:
     """Pure slicing: pull one snapshot's window out of the shared device array."""
 
