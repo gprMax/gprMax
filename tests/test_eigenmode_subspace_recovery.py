@@ -4,7 +4,9 @@ import h5py
 import numpy as np
 import pytest
 
-from gprMax.eigenmode_tracking import track_solver_bank, write_diagnostics
+from gprMax.eigenmode_tracking import (
+    _recover_crossing_subspaces, solver_mode_residual, track_solver_bank, write_diagnostics,
+)
 from gprMax.sources import EigenmodeAnchorMismatchError
 from testing.eigenmode_support.subspaces.persistent_mode_groups import make_owner, make_solver, pair_crossing_bank, unitary
 
@@ -12,6 +14,38 @@ from testing.eigenmode_support.subspaces.persistent_mode_groups import make_owne
 def projector(a):
     q = np.linalg.qr(a)[0]
     return q @ q.conj().T
+
+
+@pytest.mark.parametrize('reverse', [False, True])
+@pytest.mark.parametrize('reference_resolution', [None, [True, True], [False, True], [True, False]])
+def test_crossing_recovery_requires_spatially_resolved_reference(reference_resolution, reverse):
+    reference = make_solver([-4., -3.96])
+    rotation = np.array([[1., -1.], [1., 1.]]) / np.sqrt(2)
+    crossing = make_solver([-4., -4.], rotation)
+    crossing.spatially_resolved = np.ones(2, dtype=bool)
+    if reference_resolution is not None:
+        reference.spatially_resolved = np.asarray(reference_resolution)
+    # Even the unresolved reference has exact eigenpairs and full span overlap.
+    assert max(solver_mode_residual(reference, i) for i in range(2)) == 0.
+    np.testing.assert_allclose(projector(reference.Ea), projector(crossing.Ea), atol=1e-14)
+    original = deepcopy(crossing.__dict__)
+    solvers = [crossing, reference] if reverse else [reference, crossing]
+    reference_anchor = int(reverse)
+    records = _recover_crossing_subspaces(
+        solvers, np.array([1., 2.]), reference_anchor, 1., make_owner().tracking_config,
+    )
+    eligible = reference_resolution is None or all(reference_resolution)
+    if eligible:
+        assert len(records) == 1
+        assert records[0]['reference_anchor'] == reference_anchor
+        assert records[0]['anchor'] == 1 - reference_anchor
+        np.testing.assert_array_equal(records[0]['reference_indices'], [0, 1])
+        directions = crossing.Ea / np.linalg.norm(crossing.Ea, axis=0)
+        np.testing.assert_allclose(abs(directions), np.eye(2), atol=1e-14)
+    else:
+        assert records == ()
+        for name in ('Et', 'Ea', 'Ew', 'Ht', 'Ha', 'Hw', 'eigenvectors', 'field_residuals'):
+            np.testing.assert_array_equal(getattr(crossing, name), original[name])
 
 
 @pytest.mark.parametrize('angle', [0, 10, 15, 20])

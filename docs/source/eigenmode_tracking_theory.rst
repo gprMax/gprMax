@@ -207,6 +207,9 @@ preserves reference subgroups without forcing distinct subgroups to be mutually
 orthogonal. Recovery requires full rank, sufficient complete-span overlap,
 compatible propagation roots, and a mixed eigen-residual within
 ``residual_tolerance`` (default ``1e-7``).
+Both the reference candidates and the new cluster must pass the solver's
+spatial-resolution check when that diagnostic is available; a small
+eigenproblem residual alone does not establish spatial resolution.
 The 2D solver also reevaluates
 the reconstructed transverse and longitudinal Maxwell equations. The accepted
 fields then enter the usual association procedure. Failed checks follow the

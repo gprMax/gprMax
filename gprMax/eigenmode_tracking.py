@@ -288,8 +288,14 @@ def _recover_crossing_subspaces(solvers, frequencies, centre, impedance, config)
             reference = solvers[previous]
             solver = solvers[current]
             old = _tracking_vectors(reference, impedance)
+            reference_resolved = getattr(reference, "spatially_resolved", None)
+            if reference_resolved is not None:
+                reference_resolved = np.asarray(reference_resolved)
+            # An exact eigenpair can still be spatially unresolved on the Yee
+            # grid; it must not define the directions of a recovered cluster.
             old_valid = tuple(i for i in range(reference.num_modes)
                               if np.all(np.isfinite(old[:, i]))
+                              and (reference_resolved is None or reference_resolved[i])
                               and solver_mode_residual(reference, i) <= config.residual_tolerance)
             for group in groups[current]:
                 if len(group) < 2 or any(
