@@ -24,8 +24,10 @@ from pathlib import Path
 from typing import Any
 
 import h5py
-from gprMax.toolboxes.Utilities.receiver_identity import natural_key, receiver_catalogue
 import numpy as np
+
+from gprMax.toolboxes.Utilities.receiver_identity import natural_key, receiver_catalogue
+from gprMax.toolboxes.Utilities.trace_time import receiver_time_offset
 
 # ComponentMap: {"Ez": np.ndarray, "Hx": np.ndarray, ...}
 ComponentMap = dict[str, np.ndarray]
@@ -161,7 +163,8 @@ def get_time_axis(
             the per-dataset sampling metadata written by current gprMax files.
         component: Optional receiver component, e.g. ``"Hx"``. Magnetic fields
             and currents are sampled half a time step earlier than electric
-            fields; legacy files without dataset metadata fall back to root dt.
+            fields; legacy files without dataset metadata fall back to root dt
+            and the same component-dependent offset as the Plotting toolbox.
 
     Returns:
         1D numpy array.
@@ -180,7 +183,9 @@ def get_time_axis(
         except KeyError as exc:
             raise KeyError(f"Unknown receiver component {receiver}/{component}") from exc
         dt = float(component_meta.get("sample_interval", dt))
-        offset = float(component_meta.get("time_sample_offset", 0.0))
+        offset = float(
+            component_meta.get("time_sample_offset", receiver_time_offset(component, dt))
+        )
 
     if unit == "ns":
         return (np.arange(iterations) * dt + offset) * 1e9
@@ -364,9 +369,14 @@ def _read_receivers(f: h5py.File) -> dict[str, ReceiverInfo]:
             dataset = rx_group[comp_name]
             if isinstance(dataset, h5py.Dataset):
                 components[comp_name] = dataset[:]
+                sample_interval = float(dataset.attrs.get("SampleInterval", f.attrs["dt"]))
                 component_meta[comp_name] = {
-                    "sample_interval": float(dataset.attrs.get("SampleInterval", f.attrs["dt"])),
-                    "time_sample_offset": float(dataset.attrs.get("TimeSampleOffset", 0.0)),
+                    "sample_interval": sample_interval,
+                    "time_sample_offset": float(
+                        dataset.attrs.get(
+                            "TimeSampleOffset", receiver_time_offset(comp_name, sample_interval)
+                        )
+                    ),
                     "quantity": str(dataset.attrs.get("Quantity", comp_name)),
                 }
 

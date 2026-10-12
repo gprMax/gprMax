@@ -125,8 +125,9 @@ described as a physical free-space subtraction.
 
 Current gprMax HDF5 receiver datasets carry `SampleInterval` and
 `TimeSampleOffset`. Electric fields are stored on the whole time step, while
-magnetic fields and derived currents are offset by half a step. Request a
-component-aware axis when processing a trace:
+magnetic fields and derived currents are offset by half a step. Legacy files
+without this metadata use the root `dt` and the same half-step convention as the
+Plotting toolbox. Request a component-aware axis when processing a trace:
 
 ```python
 from gprMax.toolboxes.Marimo.h5_reader import get_time_axis
