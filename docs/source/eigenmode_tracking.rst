@@ -983,3 +983,20 @@ inside a finite modal aperture with a PEC rim. Check aperture and mesh
 convergence when comparing with isolated-rod modes. Full dimensions and
 output descriptions are in the :download:`example README
 <../../examples/features/eigenmode_ports/example_10_tracked_mode_gallery/README.rst>`.
+
+
+Examples 11–12: C4v and C2v analytical modal-profile validation
+------------------------------------------------------------------------------------------
+
+The :doc:`validation gallery <waveguide_modal_validation>` compares 18 modes
+of a C4v square and 35 modes of a C2v 2:1 rectangle with analytical profiles.
+Both examples run PEC and copper counterparts, without excitation, on two
+fine meshes. They include the rectangular TE61/TE23 degeneracy, full-vector
+matching matrices, field comparisons, and copper attenuation.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_11_C4v_square/tracked_modes.py
+   python examples/features/eigenmode_ports/example_12_C2v_rectangle_2to1/tracked_modes.py
+
+Use ``--wall PEC`` or ``--wall copper`` to select one material.

@@ -245,3 +245,14 @@ the represented voxel guide, not convergence to an ideal smooth circular wall.
 Generated CSV, HDF5, VTK-HDF, modal-field, snapshot, and result-plot files are
 ignored by Git and can be recreated by rerunning the examples. The larger
 validation matrix remains under ``testing/regression/eigenmode_sources``.
+
+
+Examples 11–12: C4v square and C2v 2:1 rectangle
+----------------------------------------------
+
+``example_11_C4v_square`` and ``example_12_C2v_rectangle_2to1`` compare
+18 and 35 automatically tracked modes with analytical PEC profiles.
+Each runs PEC and copper counterparts on two fine meshes without excitation.
+Run its ``tracked_modes.py``; choose ``--wall PEC`` or ``--wall copper``
+for one material. The documentation's modal-tracking validation section
+contains the field galleries, matching matrices, and copper attenuation.
