@@ -417,9 +417,11 @@ certified subdivision can use independent electric moments; larger unresolved
 parents cannot be polarized. Legacy tracking applies the direction to its
 declared pairs without automatic symmetry selection.
 
-Only one axis or real transverse vector is accepted. Its partner is the
+Automatic tracking accepts one axis or real transverse vector. Its partner is the
 positive port-normal axis crossed with it, independently of propagation sign.
-Two supplied directions and per-mode/per-group mappings are rejected. Requested
+Legacy tracking also accepts explicit direction pairs and mode/group mappings
+with a deprecation warning; these forms will be removed in gprMax 5.0. See
+:doc:`eigenmode_tracking` for migration examples. Requested
 diagonal directions need not diagonalize the mirror actions; native parity is
 certified before this final rotation. Maxwell residuals and complete-bank
 measurement conditioning are checked again afterward. The default ``None``

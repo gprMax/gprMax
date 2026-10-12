@@ -1,5 +1,6 @@
 """Physical labels must survive arbitrary raw eigensolver gauges."""
 from collections import defaultdict
+from contextlib import nullcontext
 from copy import deepcopy
 from types import SimpleNamespace
 
@@ -81,7 +82,7 @@ def bank(
         owner.anchor_policy = "auto"
         owner.dft_start = solvers[1].frequency
         owner.dft_stop = solvers[-1].frequency
-    # Internal basis tests retain arbitrary reference frames; public mappings are rejected.
+    # Internal basis tests retain arbitrary reference frames.
     owner.mode_polarizations = (
         {m: normalize_polarizations(v, (), axis, unresolved=True) for m, v in references.items()}
         if isinstance(references, dict) else normalize_polarizations(references, owner.degenerate, axis, unresolved=tracking == "auto"))
@@ -300,8 +301,8 @@ def test_single_direction_hash_and_auto_group_resolution(value, primary):
     assert resolved[1] == resolved[3]
     assert resolved[2] == resolved[4]
     np.testing.assert_allclose(resolved[2], np.cross((0, 0, 1), primary))
-    with pytest.raises(ValueError, match="one transverse direction only"):
-        normalize_polarizations(resolved, ((1, 2), (3, 4)), 2)
+    with pytest.warns(FutureWarning, match="removed in gprMax 5.0"):
+        assert normalize_polarizations(resolved, ((1, 2), (3, 4)), 2) == resolved
 
 
 @pytest.mark.parametrize("direction", ("+", "-"))
@@ -397,10 +398,14 @@ def test_near_degenerate_mixing_retains_a_finite_residual_budget(circular_solver
         bank(solvers, references={1: "x", 2: "y"})
 
 
-@pytest.mark.parametrize("tracking", ("legacy", "auto"))
-@pytest.mark.parametrize("hash_value, python_value", [
-    ("y", "y"),
-    ("1,1,0", (1, 1, 0)),
+@pytest.mark.parametrize("tracking, hash_value, python_value", [
+    (tracking, hash_value, python_value)
+    for tracking in ("legacy", "auto")
+    for hash_value, python_value in (("y", "y"), ("1,1,0", (1, 1, 0)))
+] + [
+    ("legacy", "y;x", ("y", "x")),
+    ("legacy", "1:y;2:x", {1: "y", 2: "x"}),
+    ("legacy", "1,2:y", {(1, 2): "y"}),
 ])
 def test_python_hash_build_equivalence(monkeypatch, tracking, hash_value, python_value):
     from gprMax.grid.fdtd_grid import FDTDGrid
@@ -431,7 +436,9 @@ def test_python_hash_build_equivalence(monkeypatch, tracking, hash_value, python
     grids = [FDTDGrid(), FDTDGrid()]
     for obj, grid in zip((parsed, explicit), grids):
         grid.eigenmodeband = SimpleNamespace()
-        obj.build(grid)
+        deprecated = ";" in hash_value or ":" in hash_value
+        with pytest.warns(FutureWarning, match="removed in gprMax 5.0") if deprecated else nullcontext():
+            obj.build(grid)
     assert grids[0].eigenmodeportdefs[1] == grids[1].eigenmodeportdefs[1]
 
 
@@ -619,13 +626,45 @@ def test_plots_exclude_unaligned_cutoff_anchors(circular_solvers, monkeypatch, t
 @pytest.mark.parametrize("value", [("y", "x"), ((1, 1, 0), (-1, 1, 0)),
                                        ("x", (1, 1, 0)), {1: "y", 2: "x"},
                                        {(1, 2): "y"}, {}])
-@pytest.mark.parametrize("unresolved", (False, True))
-def test_removed_direction_forms_raise_clear_errors(value, unresolved):
+def test_automatic_tracking_rejects_legacy_direction_forms(value):
     with pytest.raises(ValueError, match="one transverse direction only"):
-        normalize_polarizations(value, ((1, 2),), 2, unresolved=unresolved)
+        normalize_polarizations(value, ((1, 2),), 2, unresolved=True)
 
 
 @pytest.mark.parametrize("value", ["y;x", "1,1,0;-1,1,0", "1:y;2:x", "1,2:y"])
-def test_removed_hash_direction_forms_raise_clear_errors(value):
+def test_automatic_tracking_rejects_parsed_legacy_direction_forms(value):
+    _, options = parse_port_options([f"mode_polarizations={value}"])
     with pytest.raises(ValueError, match="one transverse direction only"):
-        parse_port_options([f"mode_polarizations={value}"])
+        normalize_polarizations(options["mode_polarizations"], (), 2, unresolved=True)
+
+
+@pytest.mark.parametrize("value, second", [("y;x", (1., 0., 0.)), ("0,1,0;1,0,0", (1., 0., 0.)),
+                                         ("1:y;2:x", (1., 0., 0.)), ("1,2:y", (-1., 0., 0.))])
+def test_legacy_hash_directions_preserve_requested_pair_and_warn(value, second):
+    _, options = parse_port_options([f"mode_polarizations={value}"])
+    with pytest.warns(FutureWarning, match="removed in gprMax 5.0"):
+        result = normalize_polarizations(options["mode_polarizations"], ((1, 2),), 2)
+    assert result == {1: (0., 1., 0.), 2: second}
+
+
+def test_legacy_group_mapping_applies_only_to_named_pair():
+    with pytest.warns(FutureWarning, match="one global transverse direction"):
+        result = normalize_polarizations({(3, 4): "y"}, ((1, 2), (3, 4)), 2)
+    assert result == {3: (0., 1., 0.), 4: (-1., 0., 0.)}
+
+
+@pytest.mark.parametrize("value", [("x", "x"), ("x", (1., 1e-3, 0.)),
+                                   {1: "x", 2: "x"}, {(1, 2): ("x", "x")},
+                                   {(3, 4): "y"}, {(1, 2): "y", 1: "x"}])
+def test_legacy_direction_forms_still_validate_independence_and_groups(value):
+    with pytest.raises(ValueError):
+        normalize_polarizations(value, ((1, 2),), 2)
+
+
+@pytest.mark.parametrize("value", [None, "y", (1, 1, 0)])
+def test_global_direction_does_not_emit_deprecation_warning(value):
+    import warnings
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        normalize_polarizations(value, ((1, 2),), 2)
+    assert recorded == []

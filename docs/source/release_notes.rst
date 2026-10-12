@@ -63,12 +63,14 @@ Eigenmode tracking and surface-impedance refinements
   automatic tracking. See :ref:`eigenmode-mode-tracking` and the new TE11 and
   mode-crossing examples in :doc:`examples_advanced`.
 
-* **Breaking change:** ``mode_polarizations`` accepts one transverse axis or
-  real three-vector. The orthogonal partner is inferred from the positive port
-  normal. Two-direction sequences and per-mode/per-group mappings now raise
-  errors in both automatic and legacy tracking. Automatic tracking resolves
-  subgroups before applying polarization within each eligible doublet. See
-  :doc:`eigenmode_tracking` for conventions and examples.
+* ``mode_polarizations`` now favors one global transverse axis or real
+  three-vector, with the orthogonal partner inferred from the positive port
+  normal. Legacy tracking retains two-direction sequences and per-mode/per-group
+  mappings with a visible deprecation warning; they will be removed in the next
+  major release, **gprMax 5.0**. Automatic tracking accepts only the global
+  direction and resolves subgroups before applying polarization within each
+  eligible doublet. See :doc:`eigenmode_tracking` for migration examples and the
+  inferred partner's phase convention.
 
 * CPU SIBC/PML and virtual-guide coupling support uniformly extruded
   heterogeneous, lossy and electrically dispersive retained hosts, subject

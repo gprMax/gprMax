@@ -2165,8 +2165,12 @@ port/mode channels.
   normalized. Omitting this option preserves the current automatic assignment
   (Python default ``None``). Physical selection requires a 3-D cross-section.
   Automatic tracking resolves subgroups before applying this single direction
-  within each doublet; legacy tracking uses declared pairs. Two-direction
-  sequences and per-mode/per-group mappings are rejected in both trackers.
+  within each doublet; legacy tracking uses declared pairs. With legacy tracking,
+  ``y;x``, ``1:y;2:x``, and ``1,2:y`` remain supported as deprecated pair,
+  per-mode, and per-group forms. They emit a warning and will be removed in
+  gprMax 5.0. Use one global direction instead; see :doc:`eigenmode_tracking`
+  for migration and phase conventions. Automatic tracking accepts only that
+  global direction.
   Zero, nonfinite, complex, or non-transverse directions are rejected. Values
   are parsed literally without expression evaluation, after the anchor and
   plotting arguments.

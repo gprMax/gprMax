@@ -93,7 +93,7 @@ table lists every ``EigenmodeTrackingConfig`` control.
      - An ``EigenmodeTrackingConfig`` instance or mapping overriding the numerical controls in the next table. Omitted fields keep their defaults.
    * - ``mode_polarizations``
      - ``None``
-     - Optional single transverse axis or real three-vector. Its orthogonal partner is inferred using the positive port normal. Applied after subgroup resolution with automatic tracking, or to declared pairs with legacy tracking.
+     - Optional single transverse axis or real three-vector. Its orthogonal partner is inferred using the positive port normal. Applied after subgroup resolution with automatic tracking, or to declared pairs with legacy tracking. Legacy direction pairs and mode/group mappings are deprecated and will be removed in gprMax 5.0.
    * - ``degenerate``
      - ``None``
      - Legacy groups such as ``(1, 2)`` or ``((1, 2), (3, 4))``. Members must be requested in ``modes``. Automatic tracking detects groups and ignores this argument.
@@ -455,9 +455,41 @@ resolved pair, including any internally retained partner. The direction must
 be finite, nonzero, real, and transverse. It is normalized; a normalized normal
 component above ``1e-12`` is rejected. The inferred partner is orthogonal.
 
-This is a breaking API change: two-direction sequences and per-mode or
-per-group direction mappings are rejected in both tracking modes. Supply only
-the first direction; the second is always inferred.
+.. deprecated:: 4.0.1
+
+   With ``tracking="legacy"``, two-direction sequences and per-mode/per-group
+   mappings remain supported for compatibility, but emit a visible
+   ``FutureWarning``. These forms will be removed in the next major release,
+   **gprMax 5.0**. Automatic tracking accepts one global direction only.
+
+Prefer one global direction for every pair: it keeps channel orientation
+consistent and avoids separate mode/group settings. The second direction is
+inferred as the positive port normal crossed with the first direction.
+For example, migrate ``mode_polarizations=("y", "x")`` or
+``mode_polarizations={1: "y", 2: "x"}`` to ``mode_polarizations="y"`` for a
+z-normal port. The inferred partner is **-x**, so this migration changes the
+second channel's phase by 180 degrees relative to an explicit +x reference.
+Use the same convention at both ports when comparing complex S-parameters.
+
+The compatibility forms require declared two-mode ``degenerate`` pairs:
+
+.. code-block:: python
+
+   # Deprecated legacy forms: each emits a warning.
+   mode_polarizations=("y", "x")       # Shared explicit pair.
+   mode_polarizations={1: "y", 2: "x"} # Directions for both members.
+   mode_polarizations={(1, 2): "y"}    # One direction for this declared pair.
+
+   # Preferred form for legacy and automatic tracking.
+   mode_polarizations="y"             # Shared y/-x pair for a z-normal port.
+
+In hash input, the corresponding deprecated values are
+``mode_polarizations=y;x``, ``mode_polarizations=1:y;2:x``, and
+``mode_polarizations=1,2:y``. Replace them with ``mode_polarizations=y``.
+Explicit legacy direction pairs must be transverse and independent, with a
+condition number no greater than 10; incomplete or overlapping mappings raise
+an error. A mapping may orient selected declared pairs while leaving the
+others to generic subspace alignment.
 
 For circular TE11 propagating along z, assign the channels once:
 

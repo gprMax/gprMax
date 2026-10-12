@@ -8,12 +8,14 @@ implemented here under gprMax's GPL license.
 
 import logging
 import numbers
+import warnings
 from copy import copy, deepcopy
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 _CONDITION_LIMIT = 1e8
+_POLARIZATION_CONDITION_LIMIT = 10.0
 _DEGENERACY_TOLERANCE = 1e-8
 _SUBSPACE_PIVOT_TOLERANCE = 1e-12
 logger = logging.getLogger(__name__)
@@ -978,17 +980,22 @@ def normalize_groups(value, modes):
 
 
 def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False):
-    """Normalize one transverse direction and infer its orthogonal partner."""
+    """Normalize global polarization or deprecated legacy pair/mapping forms.
+
+    Unresolved automatic groups accept only one global transverse direction.
+    """
     if value is None:
         return {}
-    if hasattr(value, "items"):
+    mapping = hasattr(value, "items")
+    sequence = isinstance(value, (tuple, list)) or (isinstance(value, np.ndarray) and value.ndim > 0)
+    shared_pair = not mapping and sequence and len(value) == 2
+    if unresolved and mapping:
         raise ValueError("mode_polarizations accepts one transverse direction only; "
-                         "per-mode or per-group direction mappings are no longer supported.")
-    sequence = isinstance(value, (tuple, list, np.ndarray))
-    if sequence and not (isinstance(value, np.ndarray) and value.ndim == 0) and len(value) == 2:
+                         "per-mode or per-group direction mappings require tracking='legacy'.")
+    if unresolved and shared_pair:
         raise ValueError("mode_polarizations accepts one transverse direction only; "
-                         "two-direction pairs are no longer supported. The orthogonal partner is automatic.")
-    if invariant_axis is not None:
+                         "two-direction pairs require tracking='legacy'. The orthogonal partner is automatic.")
+    if (not mapping or value) and invariant_axis is not None:
         raise ValueError("Physical mode_polarizations require a 3D port cross-section.")
 
     def normalize_direction(direction):
@@ -1009,13 +1016,57 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
         vector[normal_axis] = 0
         return tuple(float(value) for value in vector / np.linalg.norm(vector))
 
-    primary = normalize_direction(value)
+    def pair_directions(directions):
+        is_sequence = isinstance(directions, (tuple, list)) or (
+            isinstance(directions, np.ndarray) and directions.ndim > 0)
+        is_pair = is_sequence and len(directions) == 2
+        if is_pair:
+            return tuple(normalize_direction(direction) for direction in directions)
+        primary = normalize_direction(directions)
+        partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
+        return primary, partner
+
+    if mapping:
+        result = {}
+        for label, direction in value.items():
+            if isinstance(label, tuple):
+                group = tuple(_index(mode) for mode in label)
+                if len(group) != 2 or group not in groups:
+                    raise ValueError("Polarization group mappings must name a declared two-mode pair.")
+                entries = zip(group, pair_directions(direction))
+            else:
+                entries = ((_index(label), normalize_direction(direction)),)
+            for mode, direction in entries:
+                if mode in result:
+                    raise ValueError("Repeated polarization label.")
+                result[mode] = direction
+    else:
+        primary, partner = pair_directions(value)
+        if not unresolved and (not groups or any(len(group) != 2 for group in groups)):
+            raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
+        result = {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
     if unresolved:
         return primary
-    if not groups or any(len(group) != 2 for group in groups):
-        raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
-    partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
-    return {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
+    if not set(result).issubset({mode for group in groups for mode in group}):
+        raise ValueError("mode_polarizations must belong to a declared degenerate group.")
+    for group in groups:
+        if set(group).intersection(result):
+            if len(group) != 2 or not set(group).issubset(result):
+                raise ValueError("Physical polarization mappings require both members of a two-mode pair.")
+            if np.linalg.cond(np.asarray([result[mode] for mode in group]).T) > _POLARIZATION_CONDITION_LIMIT:
+                raise ValueError(
+                    "Requested polarization directions are linearly dependent or ill-conditioned. "
+                    "Choose clearly distinct transverse directions: condition number must be at most 10."
+                )
+    if mapping or shared_pair:
+        warnings.warn(
+            "Two-direction sequences and per-mode/per-group mode_polarizations mappings "
+            "are deprecated and will be removed in gprMax 5.0. Use one global transverse "
+            "direction, e.g. mode_polarizations='y'; the orthogonal partner is automatically "
+            "the positive port normal crossed with that direction.",
+            FutureWarning, stacklevel=2,
+        )
+    return result
 
 
 def parse_port_options(tokens):
@@ -1052,11 +1103,21 @@ def parse_port_options(tokens):
                 options[key] = tuple(
                     tuple(int(v) for v in group.split(",")) for group in value.split(";")
                 )
+            elif ":" not in value:
+                directions = [tuple(float(v) for v in entry.split(",")) if "," in entry else entry
+                              for entry in value.split(";")]
+                if len(directions) > 2:
+                    raise ValueError("Supply one or two shared polarization directions.")
+                options[key] = directions[0] if len(directions) == 1 else tuple(directions)
             else:
-                if ":" in value or ";" in value:
-                    raise ValueError("Supply one transverse direction only; direction pairs and "
-                                     "per-mode/per-group mappings are no longer supported.")
-                options[key] = tuple(float(v) for v in value.split(",")) if "," in value else value
+                directions = {}
+                for entry in value.split(";"):
+                    label, vector = entry.split(":", 1)
+                    label = tuple(int(v) for v in label.split(",")) if "," in label else int(label)
+                    if label in directions:
+                        raise ValueError("Repeated polarization label.")
+                    directions[label] = tuple(float(v) for v in vector.split(",")) if "," in vector else vector
+                options[key] = directions
         except (ValueError, TypeError) as exc:
             raise ValueError(f"Invalid eigenmode port {key}: {value!r}. {exc}") from exc
     return positional, options

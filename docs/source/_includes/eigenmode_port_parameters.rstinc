@@ -38,4 +38,4 @@
      - Legacy tracking only: a group such as ``(1, 2)``, or disjoint groups such as ``((1, 2), (3, 4))``. All members must be in ``modes``. With ``tracking="auto"``, this argument is ignored and groups are detected from the solved spectrum.
    * - ``mode_polarizations``
      - ``None``
-     - Optional single transverse axis (``"x"``, ``"y"``, ``"z"``) or finite nonzero real three-vector. The orthogonal partner is inferred from the positive port normal. Automatic tracking resolves subgroups before applying the direction. See :doc:`eigenmode_tracking`.
+     - Optional single transverse axis (``"x"``, ``"y"``, ``"z"``) or finite nonzero real three-vector. The orthogonal partner is inferred from the positive port normal. Automatic tracking resolves subgroups before applying the direction. Legacy two-direction sequences and mode/group mappings remain available with a deprecation warning until their removal in gprMax 5.0. See :doc:`eigenmode_tracking` for migration examples.

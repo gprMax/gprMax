@@ -89,7 +89,7 @@ def test_export_distinguishes_native_and_final_polarized_bases(circular_solvers,
 @pytest.mark.parametrize('tracking', ('auto', 'legacy'))
 @pytest.mark.parametrize('value', [('x', 'y'), ((1, 1, 0), (-1, 1, 0)),
                                   {1: 'x', 2: 'y'}, {(1, 2): 'x'}])
-def test_public_port_rejects_removed_forms(monkeypatch, tracking, value):
+def test_public_port_legacy_forms_warn_and_auto_forms_are_rejected(monkeypatch, tracking, value):
     import gprMax.config as config
     from gprMax.grid.fdtd_grid import FDTDGrid
     from gprMax.user_objects.cmds_multiuse import EigenmodePort
@@ -100,5 +100,14 @@ def test_public_port_rejects_removed_forms(monkeypatch, tracking, value):
     port = EigenmodePort(port=1, p1=(0, 0, .02), p2=(.05, .05, .02), direction='+',
                          modes=(1, 2), anchors='auto', degenerate=(1, 2),
                          tracking=tracking, mode_polarizations=value)
-    with pytest.raises(ValueError, match='one transverse direction only'):
-        port.build(grid)
+    if tracking == 'auto':
+        with pytest.raises(ValueError, match='one transverse direction only'):
+            port.build(grid)
+    else:
+        with pytest.warns(FutureWarning, match='removed in gprMax 5.0'):
+            port.build(grid)
+        result = grid.eigenmodeportdefs[1].mode_polarizations
+        primary = np.array((1., 1., 0.)) / np.sqrt(2) if isinstance(value, tuple) and not isinstance(value[0], str) else (1., 0., 0.)
+        partner = (-1 / np.sqrt(2), 1 / np.sqrt(2), 0.) if isinstance(value, tuple) and not isinstance(value[0], str) else (0., 1., 0.)
+        np.testing.assert_allclose(result[1], primary)
+        np.testing.assert_allclose(result[2], partner)
