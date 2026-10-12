@@ -189,7 +189,7 @@ of fields associated across anchors. A **degenerate group** contains independent
 fields with the same propagation constant; its individual eigenvectors can
 rotate while their combined span stays unchanged.
 
-.. figure:: ../../testing/validation/eigenmode_tracking/overview/figures/mode_tracking_workflow.png
+.. figure:: ../../images_shared/mode_tracking_workflow.png
    :width: 100%
    :alt: Tracking workflow from independent solves through association and basis selection to a checked field bank.
 
@@ -258,7 +258,7 @@ When mode numbers swap: a crossing in an anisotropic guide
 
 An anisotropic dielectric can affect x- and y-polarized fields differently.
 Their propagation constants can therefore cross as frequency changes, as in
-:ref:`eigenmode-example-9`. The fields remain distinguishable, but their order
+:ref:`tracking-crossing-examples`. The fields remain distinguishable, but their order
 in the solver's list changes. For example:
 
 .. list-table:: Why the raw solution number is not a reliable mode identity
@@ -637,62 +637,14 @@ identify computed channels through frequency sweeps. Field plots may add a
 verified conventional name, while parity and symmetry labels describe the
 computed orientation.
 
-Validated axis and hybrid-field examples
-----------------------------------------
+Analytical validation
+---------------------
 
-The square PEC validation uses 48 x 48 and 64 x 64 meshes, 40--44 GHz, and
-34 tracked modes (32 requested plus two internal partners). All 34 modes
-match individual analytical longitudinal patterns after axis selection,
-including TE20/TE02, TE13/TE31, TM13/TM31, and TM24/TM42. Analytical templates
-are used only to check the output fields.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/longitudinal/axis_resolved_partners.png
-   :width: 100%
-   :alt: Individually oriented TE and TM mn/nm partners in a square metallic guide.
-
-   Axis-sensitive selection recovers the remaining square-guide partners.
-   Panels show normalized longitudinal fields at 42 GHz on the 64 x 64 mesh.
-
-The dielectric tests use relative permittivity 4 cores in air: a 20 x 14 mm
-rectangle, a 20 x 20 mm square, and a 10 mm radius cylinder. Twelve channels
-are tracked over nine anchors from 18 to 22 GHz on 64 x 64 and 96 x 96
-meshes. A 40 mm square PEC truncation window is compared with a 60 mm window
-at unchanged spacing. The rectangular guide has twelve distinct branches;
-the square and circular cases have four doublets and four singlets.
-All nine banks pass residual, power, parity, and continuity checks.
-The largest effective-index change from enlarging the window is
-:math:`2.26\times10^{-5}`. These ordinary single-core examples already have
-resolved symmetry orientations, so the additional axis step is inactive.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/dielectric/results/separation/higher_order_fields.png
-   :width: 100%
-   :alt: Longitudinal electric and magnetic components of higher-order dielectric hybrid modes.
-
-   HE/EH hybrid-field examples at 20 GHz on 96 x 96 meshes. Both longitudinal
-   components are shown; branch labels avoid assigning unverified HE/EH
-   indices. Display phases and amplitude scales are chosen independently
-   for each component. Dashed outlines show the dielectric cores.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/dielectric/results/separation/tracked_modes.png
-   :width: 100%
-   :alt: Tracked branches and doublets in rectangular, square, and circular dielectric cores.
-
-   Frequency continuity of the twelve dielectric channels. A doublet is
-   represented by its mean effective index and its two branch labels.
-
-A separate Maxwell control uses four PEC-separated chambers containing
-rotated dielectric cores. It creates three exact four-dimensional hybrid
-groups and exercises axis selection in 27 group/anchor cases. Changing the
-raw solver bases reproduces the oriented fields with overlap above
-0.9999999999999; the maximum reconstructed-field residual is
-:math:`1.08\times10^{-13}`. This control tests repeated hybrid copies, while
-the single-core studies above test the familiar dielectric geometries.
-
-Reproducible numerical sources are
-``testing/validation/eigenmode_tracking/identification/longitudinal_mode_identification.py``,
-``testing/validation/eigenmode_tracking/dielectric/dielectric_mode_separation.py``, and
-``testing/validation/eigenmode_tracking/dielectric/axis_hybrid_control.py``. Figure provenance is recorded
-in ``testing/validation/eigenmode_tracking/overview/figure_provenance.json``.
+The :doc:`validation gallery <eigenmode_tracking_validation_catalog>` compares
+modal profiles and propagation constants for PEC rectangular, square, and
+cylindrical guides, an open dielectric cylinder, and persistent pairs crossing
+in an anisotropic square bore. Analytical fields check the computed channels
+and do not determine their runtime labels.
 
 Warnings and inspection
 -----------------------
@@ -751,104 +703,12 @@ The equations and exact decision rules are in
 
 .. _tracking-symmetry-examples:
 
-Illustrated symmetry and crossing tests
-=======================================
-
-The following plots use saved FDFD validation banks. They illustrate the
-sampled eigenmodes and their tracking; the time-domain input examples follow
-in the next section. Figure provenance, including source-data hashes, is
-recorded in ``testing/validation/eigenmode_tracking/overview/figure_provenance.json``.
-
-Square, hexagonal, and octagonal guides
----------------------------------------
-
-On a square transverse Yee grid, the strongest native planar rotation/mirror
-group is C4v: quarter turns and mirrors map staggered samples onto samples.
-The 60-degree rotations of C6v and 45-degree rotations of C8v need off-grid
-samples. The sampled material can therefore retain a smaller group than its
-smooth boundary. See :ref:`tracking-symmetry-theory` for the lattice argument.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/overview/figures/mode_tracking_mode_gallery.png
-   :width: 100%
-   :alt: Longitudinal magnetic fields and transverse electric arrows for paired modes of square, hexagonal, and octagonal metallic guides.
-
-   Paired fields at 20 GHz. Rows show a C4v square guide, a C6v hexagonal
-   boundary whose grid retains C2v, and a C8v octagonal boundary whose grid
-   retains C4v. Color is the signed longitudinal magnetic field, normalized
-   separately in each panel; arrows show transverse E with the same display
-   phase. The hexagonal pair is split; the displayed square and octagonal
-   pairs remain degenerate. Color shows :math:`\operatorname{Im}(H_w)` and
-   arrows :math:`\operatorname{Re}(\mathbf E_t)`, which are
-   in quadrature for these lossless TE-like fields. B labels denote tracked
-   channels, not irreps.
-
-The square example uses a 20-mm aperture, 16 cells per side, and relative
-permittivity 2. The polygon examples use a 9-mm apothem, a 24-mm window,
-relative permittivity 2, and PEC material outside the polygon. Their finest
-grid has 64 cells per side (0.375 mm). At 20 GHz, the leading hexagonal pair
-has :math:`|\Delta n_{\rm eff}|=0.006693`; the leading octagonal pair differs
-by less than :math:`10^{-12}`. A higher octagonal pair splits by 0.008126.
-Thus the same sampled octagon supports both a protected doublet and resolved
-singlets.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/symmetry/results/polygons/symmetry_breaking.png
-   :width: 100%
-   :alt: Pair splitting versus grid spacing and tracked effective indices versus frequency for hexagonal and octagonal guides.
-
-   Mesh study at 20 GHz (top) and tracked branches on the finest grid
-   (bottom). Refinement changes the staircase and its splitting; the gaps
-   need not decrease monotonically. Overlapping B1/B2 curves in the octagon
-   are a retained doublet. Resolved B4/B5 branches remain separate.
-
-Higher-order and crossing doublets
-----------------------------------
-
-Higher-order square-guide fields can have zero integrated electric moment.
-Mirror parity still gives a reproducible orientation of each native doublet,
-as illustrated in :ref:`tracking-symmetry-theory`. This selection requires
-neither a TE/TM declaration nor a requested polarization direction.
-
-For a separate crossing test, a 20-mm-square, 64-by-64-cell PEC guide is
-loaded with a symmetric, spatially varying diagonal dielectric at 20 GHz.
-In normalized coordinates :math:`u,v\in[-1,1]`, set
-
-.. math::
-
-   p=\cos(\pi u)+\cos(\pi v)+0.35\cos(\pi u)\cos(\pi v),
-   \qquad \epsilon_u=\epsilon_v=2+tp,\qquad
-   \epsilon_w=2+t(1.1+0.7p).
-
-Sweeping :math:`t` from -0.12 to 0.12 makes two hybrid-mode doublets meet at
-:math:`t=0`. The test applies a complex rotation to the coincident four-mode
-solver basis. Tracking retains two continuous subspaces through that crossing;
-the smallest squared adjacent subspace overlap is 0.999812. The basis orientation
-uses electric moments away from the crossing and mirror parity where those
-moments vanish.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/longitudinal/hybrid_crossing_64_tracking.png
-   :width: 100%
-   :alt: Effective indices and continuity diagnostics for crossing hybrid-mode doublets.
-
-   Two tracked hybrid doublets through a four-mode coincidence. The parameter
-   changes the dielectric while frequency stays fixed at 20 GHz. The curves
-   and diagnostics are from the saved crossing validation, not a new FDTD run.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/longitudinal/hybrid_crossing_64_individual_fields.png
-   :width: 100%
-   :alt: Longitudinal electric amplitudes and transverse electric vectors before, at, and after a doublet crossing.
-
-   Fields at :math:`t=-0.12,0,+0.12`. Full-vector mirror parities preserve
-   the partner ordering as the orientation changes from electric moments to
-   mirror parity and back. Color shows longitudinal electric amplitude;
-   arrows show the transverse electric field on the 64 x 64 mesh.
-
-The validation sources are ``testing/validation/eigenmode_tracking/symmetry/polygon_symmetry_breaking.py``
-and ``testing/validation/eigenmode_tracking/identification/longitudinal_mode_identification.py``. Geometry and run
-manifests remain with those data.
-
-
-Worked input models
+Validation examples
 ===================
+
+See :doc:`eigenmode_tracking_validation_catalog` for the two validation groups:
+``degenerate_subspace`` and ``branch_crossing``. The executable source tutorials
+below illustrate port excitation separately.
 
 .. _eigenmode-example-8:
 
@@ -888,14 +748,6 @@ consistent orthogonal polarizations. After each full run, the plotter writes
 ``auto_degenerate_te11_modeN_results.png`` showing co- and cross-polarized
 S11/S21 and the center receiver's Ex/Ey traces.
 
-.. figure:: ../../testing/validation/eigenmode_tracking/ports/figures/auto_degenerate_te11_mode1_results.png
-   :alt: Automatically tracked circular TE11 mode 1 with co-polarized transmission and a guide-center Ex pulse, while the orthogonal channel remains small.
-   :width: 100%
-
-   Example 8, launched mode 1: the detected pair retains its global x/y
-   polarization labels across the band; the plotted output is dominated by
-   the driven x-polarized channel.
-
 This example uses
 ``verification="fast"`` for quick inspection; omitting that argument selects
 the automatic tracker's default full verification. Fast diagnostics do not
@@ -903,120 +755,103 @@ include mesh or larger-window comparison solves. In the tested
 double-precision CPU configuration, the worst co-polarized S11 is about
 -62.9 dB for either excitation and co-polarized S21 is near 0 dB.
 
-.. _eigenmode-example-9:
-
-Example 9: a mode crossing in an anisotropic guide
---------------------------------------------------
-
-This 3D example uses one straight rectangular PEC guide with a 16 by 8 mm
-bore filled by the diagonal relative-permittivity tensor
-``diag(2.25, 1, 1)``. Its two polarized fundamental branches have different
-cutoff terms and slopes. Their effective-index curves cross near 14.4 GHz
-on this voxel grid. Both ports use ``tracking="auto"``: each public label
-should retain its polarization while its raw eigensolver order changes.
-The distinct propagation constants are preserved on either side of the
-crossing; the two branches are not treated as a permanently degenerate pair.
-
-The ports are separated by 52 mm and measure 13.1--15.8 GHz. The anisotropic
-fill is built before the surrounding PEC walls to preserve their electric
-boundary samples. Explicit anchors are closer near the lower band's cutoff,
-where the modal impedance changes rapidly. Both guide ends continue through
-16-cell domain PMLs.
-
-:download:`Complete Python model <../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py>`
-and :download:`result plotter <../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py>`
-
-.. code-block:: console
-
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --geometry-only
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --mode 1
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py --mode 1
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --mode 2
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py --mode 2
-
-Both ports set ``plot_fields=True``. Inspect
-``auto_mode_crossing_modeN_PortP_ModeM.png`` for the crossing dispersion curves
-and the tracked E/H polarization at each anchor. The geometry-only command
-produces these figures without time stepping. After a full run,
-``auto_mode_crossing_modeN_results.png`` shows both modes' S11/S21, marks the
-crossing frequency, and plots the guide-center polarization.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/ports/figures/auto_mode_crossing_mode1_results.png
-   :alt: Mode-1 transmission remains near zero decibels across the tracked crossing near 14.42 gigahertz, while the center receiver remains polarized along y.
-   :width: 100%
-
-   Example 9, launched tracked mode 1: the response remains on one
-   polarization branch through the crossing near 14.42 GHz.
-
-This example selects
-``verification="fast"``. Use ``verification="full"`` to request the extra
-verification solves. Tested double-precision CPU runs give worst co-polarized
-S11 of about -81.1 dB for mode 1 and -62.4 dB for mode 2, with co-polarized S21
-near 0 dB. These values describe the supplied voxel model and sampled band;
-tracking confidence alone does not guarantee that reflection accuracy for
-other anchor spacings, meshes, or terminations.
-
 .. _tracked-mode-gallery:
 
-Example 10: sixteen-mode inspection gallery
--------------------------------------------
+Geometry-only tracking galleries
+================================
 
-The :download:`mode gallery <../../examples/features/eigenmode_ports/example_10_tracked_mode_gallery/tracked_modes.py>`
-tracks 16 channels in rectangular, square, and circular PEC waveguides and
-in dielectric rods with the same cross-sections. It uses automatic tracking
-and symmetry selection with five anchors from 40 to 42 GHz. Degenerate groups
-can retain additional internal partners beyond the 16 displayed channels.
+The numbered galleries now live in ``examples/features/eigenmode_tracking``.
+Each example constructs one undriven guide and calls ``gprMax.run`` with
+``geometry_only=True``. Automatic tracking exports native E/H fields and
+plots at least sixteen modes at the middle anchor, together with real and
+imaginary propagation curves. The scripts use no excitation or time stepping.
+
+.. list-table:: Geometry/material combinations
+   :header-rows: 1
+
+   * - Example
+     - Guide
+     - Material
+   * - 1
+     - C2v rectangular, 20 × 10 mm
+     - PEC
+   * - 2
+     - C4v square, 20 × 20 mm
+     - PEC
+   * - 3
+     - Cylindrical, radius 10 mm
+     - PEC
+   * - 4
+     - C2v rectangular, 20 × 10 mm
+     - Copper
+   * - 5
+     - C4v square, 20 × 20 mm
+     - Copper
+   * - 6
+     - Cylindrical, radius 10 mm
+     - Copper
+   * - 7
+     - Rectangular dielectric core, 20 × 10 mm
+     - εr = 4 core in air
+   * - 8
+     - Square dielectric core, 20 × 20 mm
+     - εr = 4 core in air
+   * - 9
+     - Cylindrical dielectric core, radius 10 mm
+     - εr = 4 core in air
+
+Run a case from the repository root::
+
+   python examples/features/eigenmode_tracking/example_1/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_6/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_9/tracked_modes.py
+
+Each case has its own README and recorded E/H galleries. The default mesh
+spacing is 0.25 mm. ``--spacing-mm`` changes it; ``--modes`` changes the
+requested count; ``--output`` selects a fresh directory. Use
+``--verification full`` for the additional convergence checks. The nine geometry/material cases use 39–41 GHz with sixteen propagating
+channels. Copper uses the conductivity surface-impedance preset with
+an ADE fit over 1–120 GHz. Dielectric rods use finite square port apertures
+with an artificial PEC rim, so aperture convergence remains relevant.
+Cylindrical geometry is staircased on the Cartesian grid: detected C4v
+labels describe the sampled problem rather than smooth rotational symmetry.
+
+The :doc:`example galleries <eigenmode_tracking_examples>` link every
+case script and its recorded E/H plots. These examples inspect
+computed modes. The separate :doc:`analytical validation
+<eigenmode_tracking_validation_catalog>` has only the requested
+``degenerate_subspace`` and ``branch_crossing`` groups.
+
+.. _tracking-crossing-examples:
+
+Crossing examples 10 and 11
+----------------------------
+
+``example_10`` is a geometry-only 16 × 8 mm rectangular PEC guide filled
+with ``diag(2.25, 1, 1)``. It tracks two orthogonally polarized fundamental
+branches over 12.8–16.1 GHz. The branches exchange raw eigenvalue ranks
+while their polarization labels remain stable. Dispersion and E/H galleries
+show the crossing without excitation or scattering calculations.
+
+``example_11`` uses a square PEC bore filled with ``diag(2, 2, epsilon_z)``.
+Geometry-only native port snapshots show eight modes before and after the
+crossing. An undriven FDFD material-parameter sweep then follows the two
+persistent TE20/02 and TM12/21 pairs through their coincidence, with
+analytical profile and propagation-constant comparisons. The frequency is
+fixed at 20 GHz; the changing parameter is axial permittivity. Both pairs
+survive separately even when all four input modes are mixed at the exact
+numerical crossing.
 
 .. code-block:: console
 
-   python examples/features/eigenmode_ports/example_10_tracked_mode_gallery/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_10/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_11/tracked_modes.py
 
-The run uses ``geometry_only=True`` with no excitation or virtual guide.
-The :download:`plotter <../../examples/features/eigenmode_ports/example_10_tracked_mode_gallery/plot_results.py>`
-shows all 16 electric and magnetic profiles at 41 GHz and both real and
-imaginary effective-index curves. ``--profiles`` adds per-channel plots at
-every anchor; ``--verification full`` enables additional verification solves.
-Use a fresh ``--output`` directory when changing settings.
+These focused crossing examples use two and eight channels, respectively;
+the preceding nine shape/material galleries use sixteen. Source scripts and
+recorded plots are in the :doc:`example galleries <eigenmode_tracking_examples>`.
 
-The lossless dielectric cores have relative permittivity 4 and sit in air
-inside a finite modal aperture with a PEC rim. Check aperture and mesh
-convergence when comparing with isolated-rod modes. Full dimensions and
-output descriptions are in the :download:`example README
-<../../examples/features/eigenmode_ports/example_10_tracked_mode_gallery/README.rst>`.
+.. toctree::
+   :maxdepth: 1
 
-
-Examples 11–12: C4v and C2v analytical modal-profile validation
-------------------------------------------------------------------------------------------
-
-The :doc:`validation gallery <waveguide_modal_validation>` compares 18 modes
-of a C4v square and 35 modes of a C2v 2:1 rectangle with analytical profiles.
-Both examples run PEC and copper counterparts, without excitation, on two
-fine meshes. They include the rectangular TE61/TE23 degeneracy, full-vector
-matching matrices, field comparisons, and copper attenuation.
-
-.. code-block:: console
-
-   python examples/features/eigenmode_ports/example_11_C4v_square/tracked_modes.py
-   python examples/features/eigenmode_ports/example_12_C2v_rectangle_2to1/tracked_modes.py
-
-Use ``--wall PEC`` or ``--wall copper`` to select one material.
-
-
-Example 13: C4v cylindrical staircase with PEC and copper walls
----------------------------------------------------------------
-
-``example_13_C4v_cylindrical/tracked_modes.py`` compares 21 automatically
-tracked modes with smooth-cylinder Bessel profiles, without excitation.
-Both PEC and copper use 96 × 96 and 192 × 192 meshes over a 24-mm window
-around a 10-mm-radius bore. The finer mesh has a 0.125-mm step and 160 cells
-across the diameter. Field galleries, full-vector matching, propagation
-constant errors, and copper attenuation accompany the refinement study.
-
-.. code-block:: console
-
-   python examples/features/eigenmode_ports/example_13_C4v_cylindrical/tracked_modes.py
-
-Use ``--wall PEC`` or ``--wall copper`` for one material and ``--cells``
-to change the mesh sequence. Select a fresh ``--output`` directory.
-
-See :doc:`cylindrical_modal_validation` for the analytical comparison.
+   eigenmode_tracking_examples

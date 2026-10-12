@@ -9,10 +9,10 @@ from scipy.special import jv, jvp
 import gprMax.config as config
 from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     AlgorithmicSurfaceResponse, boundary_edge_relative_permittivity)
-from testing.validation.eigenmode_tracking.profiles.cylindrical_modal_profiles import (
+from testing.eigenmode_support.profiles.cylindrical_modal_profiles import (
     analytical_fields, bessel_profile, reference_modes, voxel_surface_boundary)
-from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
-from testing.validation.eigenmode_tracking.profiles.waveguide_modal_profiles import vector, matching
+from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
+from testing.eigenmode_support.profiles.waveguide_modal_profiles import vector, matching
 
 
 def response():

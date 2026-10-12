@@ -46,8 +46,8 @@ def test_nonunitary_action_is_rejected():
 
 
 def test_physical_quartet_splits_only_with_supplied_symmetry(tmp_path, monkeypatch):
-    from testing.validation.eigenmode_tracking.subspaces import general_subspace_tracking as validation
-    from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+    from testing.eigenmode_support.subspaces import general_subspace_tracking as validation
+    from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
     monkeypatch.setattr(validation, 'plot_case', lambda *a: None)
     with _configured_solver_constants():
         for symmetry, sizes in ((None,(4,)), ('c4v',(2,2))):
@@ -61,8 +61,8 @@ def test_physical_quartet_splits_only_with_supplied_symmetry(tmp_path, monkeypat
 
 
 def test_supplied_action_must_preserve_the_actual_fields(tmp_path, monkeypatch):
-    from testing.validation.eigenmode_tracking.subspaces import general_subspace_tracking as validation
-    from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+    from testing.eigenmode_support.subspaces import general_subspace_tracking as validation
+    from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
     monkeypatch.setattr(validation, 'plot_case', lambda *a: None)
     def invalid(solver, e, h):
         return (e[0]*2,e[1],e[2]),h
@@ -97,7 +97,7 @@ def test_python_port_rejects_removed_symmetry_argument(value):
 def test_automatic_symmetry_reaches_source_receiver_and_hdf5(tmp_path, axis):
     import h5py
     import gprMax
-    from testing.validation.eigenmode_tracking.ports.degenerate_eigenmode_ports import circular_scene
+    from testing.eigenmode_support.ports.degenerate_eigenmode_ports import circular_scene
     scene = circular_scene(normal_axis=axis, steps=12, virtual=False, monitor=True, averaging='n')
     for obj in scene.grid_objects:
         if isinstance(obj, gprMax.EigenmodePort):

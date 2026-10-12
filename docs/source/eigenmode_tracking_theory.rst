@@ -240,7 +240,7 @@ group is whitened separately; the complete bank retains cross-group power
 terms for receiving decomposition.
 
 The controlled algebraic checks in
-``python -m testing.validation.eigenmode_tracking.subspaces.persistent_mode_groups --output results.json``
+``python -m testing.eigenmode_support.subspaces.persistent_mode_groups --output results.json``
 cover a pair crossed by one mode, two crossing pairs, a resolved crossing
 inside the broad candidate gap, a four-dimensional degeneracy, and safe
 recovery at a fully mixed exact crossing. These are association tests, not
@@ -252,7 +252,7 @@ For evolving subspaces, halving the anchor spacing halves the historical
 projection error in the controlled crossing cases.
 
 For broader checks and tracked-branch plots, run
-``python -m testing.validation.eigenmode_tracking.subspaces.expanded_mode_tracking --output results/tracking``.
+``python -m testing.eigenmode_support.subspaces.expanded_mode_tracking --output results/tracking``.
 This adds multiple simultaneous and repeated crossings, higher-dimensional
 groups, resolved splitting, complex eigenvalues with nonorthogonal fields,
 and avoided crossings under randomized bases and different reference anchors.
@@ -266,7 +266,7 @@ fundamentals. The material sweeps are independent constitutive models at
 coincidences include deliberately rotated eigensolver bases to exercise
 whole-cluster recovery.
 
-``python -m testing.validation.eigenmode_tracking.subspaces.general_subspace_tracking --output results/subspaces``
+``python -m testing.eigenmode_support.subspaces.general_subspace_tracking --output results/subspaces``
 adds a square metallic-guide pair crossing, an inhomogeneous anisotropic
 dielectric-loaded square PEC guide with crossing hybrid doublets, a square
 dielectric core in air inside a finite port window, and a persistent metallic
@@ -600,7 +600,7 @@ these operations form **C4v**. C4v has eight operations: four rotations and
 four reflections. It is different from C8v, whose fundamental rotation is
 :math:`45^\circ` and which has sixteen operations.
 
-.. figure:: ../../testing/validation/eigenmode_tracking/overview/figures/mode_tracking_lattice_rotations.png
+.. figure:: ../../images_shared/mode_tracking_lattice_rotations.png
    :width: 100%
    :alt: A shortest square-lattice vector rotates onto a sample at 90 degrees but falls between samples at 60 and 45 degrees.
 
@@ -622,7 +622,7 @@ additional operations that exchange the normal with other axes. Other lattice
 types have different planar symmetries: a hexagonal lattice admits 60-degree
 rotations, whereas a square lattice does not [tracking-IUCr]_.
 
-.. figure:: ../../testing/validation/eigenmode_tracking/overview/figures/mode_tracking_sampled_geometries.png
+.. figure:: ../../images_shared/mode_tracking_sampled_geometries.png
    :width: 100%
    :alt: Square, hexagonal, and octagonal ideal boundaries overlaid on sampled transverse material masks.
 
@@ -838,15 +838,6 @@ partners. Check them with the v-mirror: their :math:`(u,v)` parities are
 a quarter turn relates the two zero-moment partners. Continue each channel
 with a scalar phase at subsequent anchors, preserving these parities even
 when the electric moments vanish or reappear.
-
-.. figure:: ../../testing/validation/eigenmode_tracking/symmetry/results/moment_parity/higher_order_parity_partners_parity_fields.png
-   :width: 100%
-   :alt: Two higher-order square-guide doublets with distinct vector mirror parities at three frequencies.
-
-   Higher-order square-guide fields from the validated bank. Color shows
-   the indicated signed longitudinal component, scaled per channel; headings
-   give full-vector mirror parity. Each doublet retains its partner ordering
-   across frequency. Scalar H signs include the axial-vector transformation.
 
 If no symmetry decomposition is accepted, a two-mode group uses independent
 electric moments when they define axes throughout the active bank. Otherwise
@@ -1103,27 +1094,14 @@ never used by TF/SF source synthesis or treated as power waves.
 Validation and reproducibility
 ------------------------------
 
-Fine-mesh **C4v square** and **C2v 2:1 rectangular** waveguides are compared
-with analytical PEC modal profiles below. Each geometry includes PEC and
-copper walls, automatic tracking, high-order field galleries, full-vector
-matching matrices, and a two-mesh comparison. The copper cases also report
-attenuation and matching to complete PEC-degenerate subspaces. Cylindrical
-PEC/copper examples additionally measure the Cartesian staircase error
-against smooth-cylinder Bessel profiles on refined meshes.
-
-.. toctree::
-   :maxdepth: 1
-
-   waveguide_modal_validation
-   cylindrical_modal_validation
-
-
-The classified validation catalog is
-``testing/validation/eigenmode_tracking/README.rst``. It groups subspace and
-crossing tests, symmetry studies, mode identification, dielectric and copper
-guides, analytical profiles, and port integration. Each retained study links
-its numerical reports and plots. Original run provenance is preserved;
-superseded pilot and failed-result directories are removed.
+Validation has two groups under ``testing/validation/eigenmode_tracking/``.
+``degenerate_subspace`` compares PEC rectangular, square, and cylindrical guides
+and an open dielectric cylinder with independent analytical fields and
+propagation constants. ``branch_crossing`` compares two persistent doublets
+in a uniformly anisotropic square PEC bore through an exact continuum crossing.
+Copper, polygon, separate parity galleries, and the old FDFD dispersion gallery
+are omitted from this validation section. Numerical regression fixtures remain
+under ``testing/eigenmode_support`` and ``tests``.
 
 .. toctree::
    :maxdepth: 1
@@ -1142,7 +1120,7 @@ The optional tracking and two-port tutorial checks are:
 
    python -m pytest tests/test_eigenmode_auto_tracking.py tests/test_eigenmode_tracking_examples.py
 
-Use ``testing/validation/eigenmode_tracking/ports/degenerate_eigenmode_ports.py`` for its executable
+Use ``testing/eigenmode_support/ports/degenerate_eigenmode_ports.py`` for its executable
 circular-guide validation model. Ordinary source, dispersion, and
 virtual-guide regressions are under ``tests/fdfd_eigenmode_solver`` and
 ``testing/regression/eigenmode_sources``. The recorded broad CPU run excluded

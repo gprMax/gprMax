@@ -1,268 +1,133 @@
 .. _eigenmode_tracking_validation_catalog:
 
-Eigenmode tracking validation gallery
-=====================================
+Eigenmode tracking: analytical validation
+=========================================
 
-The validation studies live under ``testing/validation/eigenmode_tracking/``.
-The categories below cover the earlier tracking studies and the analytical
-modal-profile comparisons. Each linked study index includes its full plot
-gallery and reports. Historical run metadata and hashes remain unchanged;
-only persistent, expanded, and classification results were rerun during this
-reorganization. The other plots show retained runs, not a new execution of
-the current solver. NPZ field archives are local run products.
+Validation has two folders: ``degenerate_subspace`` and ``branch_crossing``.
+Every case compares tracked FDFD modal profiles and propagation constants
+with an independent continuum solution. These are undriven eigenproblems.
 
-See :doc:`waveguide_modal_validation` and :doc:`cylindrical_modal_validation`
-for analytical field matching, mesh convergence, and copper attenuation.
+Profiles show phase-aligned, separately normalized longitudinal fields.
+The quantitative comparison uses all six components, with magnetic fields
+scaled by the free-space impedance. For a degenerate analytical space,
+the score is the squared projection onto its orthonormal span. Analytical
+orientation is fitted within that space for display; numerical fields and
+propagation constants are unchanged. A high subspace score does not claim a
+unique individual orientation. Staircase-split cylindrical modes are also
+compared with their complete smooth analytical pair. A square Cartesian
+mesh retains C4v rather than continuous rotational symmetry, so not every
+cylindrical pair remains numerically degenerate.
 
-subspaces: expanded
+Degenerate subspace
 -------------------
 
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/subspaces/results/expanded/README.rst>`
+The cases are a C2v 2:1 rectangular PEC guide, a C4v square PEC guide,
+a cylindrical PEC guide, and an open dielectric cylinder. The PEC runs
+retain their original dates and source hashes. Compact figures were
+regenerated from their original field archives; this is not a new PEC
+simulation. The open dielectric cylinder is a new full-vector comparison.
+
+For the vacuum-filled rectangular and square guides,
+
+.. math::
+
+   k_c^2=(m\pi/a)^2+(n\pi/b)^2, \qquad \beta=\sqrt{k_0^2-k_c^2}.
+
+TE fields have :math:`H_z\propto\cos(m\pi x/a)\cos(n\pi y/b)`; TM fields have
+:math:`E_z\propto\sin(m\pi x/a)\sin(n\pi y/b)`. The cylindrical PEC reference
+uses :math:`J_m(k_c r)` with TE roots of :math:`J'_m(k_c a)=0` and TM roots of
+:math:`J_m(k_c a)=0`. The comparison plots include every reported channel;
+the compact field pages show the first sixteen channels.
+
+.. list-table:: Cases and fine meshes
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Case
+     - Geometry
+     - Meshes
+   * - C2v rectangular PEC
+     - 20 × 10 mm; 35 reported channels
+     - 64 × 32 and 96 × 48
+   * - C4v square PEC
+     - 20 × 20 mm; 18 reported channels
+     - 64 × 64 and 96 × 96
+   * - Cylindrical PEC
+     - Radius 10 mm; 21 reported channels
+     - 96 × 96 and 192 × 192; 24 mm window
+   * - Open dielectric cylinder
+     - Radius 10 mm; core εr = 4, air cladding; 16 channels
+     - 192 × 192 and 256 × 256; 60 mm window
+
+For the open dielectric cylinder, the exact reference matches all four
+tangential components at the circular interface. Longitudinal fields use
+:math:`J_m(ur/a)` inside and :math:`K_m(wr/a)` outside, with
+:math:`u^2=a^2(\epsilon_c k_0^2-\beta^2)` and
+:math:`w^2=a^2(\beta^2-\epsilon_s k_0^2)`. For hybrid modes,
+
+.. math::
+
+   \left[\frac{J'_m(u)}{uJ_m(u)}+\frac{K'_m(w)}{wK_m(w)}\right]
+   \left[\frac{\epsilon_c J'_m(u)}{uJ_m(u)}+
+   \frac{\epsilon_s K'_m(w)}{wK_m(w)}\right]
+   =m^2\frac{\beta^2}{k_0^2}\left(\frac{1}{u^2}+\frac{1}{w^2}\right)^2.
+
+The m = 0 TE and TM roots come from the first and second factors. This is a
+full-vector solution; see the independent
+`step-index vector-mode derivation <https://jayggg.github.io/fibermode/1_4_stepindex_vector.html>`_.
+Hybrid labels give azimuthal order and characteristic-root order without
+claiming an unverified HE/EH family assignment. Numerical cladding is
+truncated by a distant PEC square; a larger-window check uses unchanged
+spacing. Only guided modes above the air light line enter the comparison.
+
+On the 256 × 256 mesh, minimum analytical-subspace overlap is 0.999398 and
+maximum relative β error is 0.0181% over 39, 40, and 41 GHz. The 192 × 192
+values are 0.993611 and 0.0276%. The retained smooth-cylinder PEC comparison
+has a 0.90% maximum β error on its finer mesh; it is a different boundary
+problem and includes higher modes with staircase sensitivity.
+
+.. include:: ../../testing/validation/eigenmode_tracking/degenerate_subspace/gallery.rst
+
+Branch crossing
+---------------
+
+A 20-mm square PEC bore is uniformly filled with
+:math:`\operatorname{diag}(2,2,\epsilon_z)`. At 20 GHz the sweep varies
+:math:`\epsilon_z` from 2.3 to 2.7. This is a material-parameter sweep, not a
+causal dispersive frequency sweep. Independent continuum dispersion is
+
+.. math::
+
+   \beta_{\mathrm{TE},mn}^2=\epsilon_t k_0^2-k_{c,mn}^2, \qquad
+   \beta_{\mathrm{TM},mn}^2=\epsilon_t k_0^2-
+   \frac{\epsilon_t}{\epsilon_z}k_{c,mn}^2.
+
+The persistent TE20/TE02 and TM12/TM21 doublets cross at
+:math:`\epsilon_z=2.5`. Tracking keeps two doublets through the coincidence
+and preserves their identities after raw eigenvalue ranks exchange. The
+exact continuum crossing and displaced finite-difference crossing are
+recorded separately. At each mesh's exact numerical coincidence, all four
+input modes are deliberately mixed by a seeded complex unitary matrix;
+the tracker must recover the two persistent pairs. Fine-mesh maximum relative β error is 0.00697%, and
+minimum full-vector pair overlap is 0.999999992.
+
+.. include:: ../../testing/validation/eigenmode_tracking/branch_crossing/gallery.rst
+
+Reproduce
+---------
+
+Run from the repository root, using fresh output directories::
+
+   python -m testing.validation.eigenmode_tracking.degenerate_subspace.validate_dielectric_cylinder --output results/cylindrical_dielectric --scratch results/cylindrical_dielectric_raw
+   python -m testing.validation.eigenmode_tracking.branch_crossing.square_anisotropic_bore --output results/square_anisotropic_bore
+
+Reproduce the three PEC analytical comparisons with::
 
-.. figure:: ../../testing/validation/eigenmode_tracking/subspaces/results/expanded/controlled_tracking.png
-   :width: 95%
-   :alt: subspaces: expanded
+   python -m testing.validation.eigenmode_tracking.degenerate_subspace.validate_pec_guides --output results/pec_guides --scratch results/pec_guides_raw
 
-   Subspaces: expanded. The full gallery includes all retained case plots.
+``plot_pec_comparison.py`` renders compact comparisons from a JSON report
+and its original field archive. Numerical regression fixtures remain under
+``testing/eigenmode_support``; they are not additional validation galleries.
+Check the independent analytical fields and related tracking code with::
 
-subspaces: general
-------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/subspaces/results/general/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/subspaces/results/general/c4v_dielectric_hybrid_tracking.png
-   :width: 95%
-   :alt: subspaces: general
-
-   Subspaces: general. The full gallery includes all retained case plots.
-
-subspaces: persistent
----------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/subspaces/results/persistent/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/subspaces/results/persistent/persistent_assignments.png
-   :width: 95%
-   :alt: subspaces: persistent
-
-   Subspaces: persistent. The full gallery includes all retained case plots.
-
-symmetry: automatic
--------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/symmetry/results/automatic/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/symmetry/results/automatic/automatic_circular_dielectric_tracking.png
-   :width: 95%
-   :alt: symmetry: automatic
-
-   Symmetry: automatic. The full gallery includes all retained case plots.
-
-symmetry: fine mesh
--------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/symmetry/results/fine_mesh/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/symmetry/results/fine_mesh/crossing_hybrid_parity_partners_tracking.png
-   :width: 95%
-   :alt: symmetry: fine mesh
-
-   Symmetry: fine mesh. The full gallery includes all retained case plots.
-
-symmetry: moment parity
------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/symmetry/results/moment_parity/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/symmetry/results/moment_parity/circular_higher_order_partners_tracking.png
-   :width: 95%
-   :alt: symmetry: moment parity
-
-   Symmetry: moment parity. The full gallery includes all retained case plots.
-
-symmetry: polygons
-------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/symmetry/results/polygons/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/symmetry/results/polygons/symmetry_breaking.png
-   :width: 95%
-   :alt: symmetry: polygons
-
-   Symmetry: polygons. The full gallery includes all retained case plots.
-
-symmetry: waveguides
---------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/symmetry/results/waveguides/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/symmetry/results/waveguides/circular_dielectric_symmetry_tracking.png
-   :width: 95%
-   :alt: symmetry: waveguides
-
-   Symmetry: waveguides. The full gallery includes all retained case plots.
-
-identification: C2v TE TM
--------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/identification/results/C2v_TE_TM/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/C2v_TE_TM/rectangular_te_tm_tracks.png
-   :width: 95%
-   :alt: identification: C2v TE TM
-
-   Identification: c2v te tm. The full gallery includes all retained case plots.
-
-identification: classification
-------------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/identification/results/classification/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/classification/circular_32_tracks.png
-   :width: 95%
-   :alt: identification: classification
-
-   Identification: classification. The full gallery includes all retained case plots.
-
-identification: higher circular
--------------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/identification/results/higher_circular/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/higher_circular/voxel_circular_higher_64_tracks.png
-   :width: 95%
-   :alt: identification: higher circular
-
-   Identification: higher circular. The full gallery includes all retained case plots.
-
-identification: longitudinal
-----------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/identification/results/longitudinal/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/longitudinal/hybrid_crossing_64_tracking.png
-   :width: 95%
-   :alt: identification: longitudinal
-
-   Identification: longitudinal. The full gallery includes all retained case plots.
-
-dielectric: hybrid control
---------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/dielectric/results/hybrid_control/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/dielectric/results/hybrid_control/hybrid_four_chamber_tracks.png
-   :width: 95%
-   :alt: dielectric: hybrid control
-
-   Dielectric: hybrid control. The full gallery includes all retained case plots.
-
-dielectric: separation
-----------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/dielectric/results/separation/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/dielectric/results/separation/fundamental_fields.png
-   :width: 95%
-   :alt: dielectric: separation
-
-   Dielectric: separation. The full gallery includes all retained case plots.
-
-conductors: copper symmetry
----------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/conductors/results/copper_symmetry/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/conductors/results/copper_symmetry/axis_resolved_partners.png
-   :width: 95%
-   :alt: conductors: copper symmetry
-
-   Conductors: copper symmetry. The full gallery includes all retained case plots.
-
-profiles: C2v rectangle 2to1 copper
------------------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_attenuation.png
-   :width: 95%
-   :alt: profiles: C2v rectangle 2to1 copper
-
-   Profiles: c2v rectangle 2to1 copper. The full gallery includes all retained case plots.
-
-profiles: C2v rectangle 2to1 PEC
---------------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/C2v_rectangle_2to1_PEC_matching.png
-   :width: 95%
-   :alt: profiles: C2v rectangle 2to1 PEC
-
-   Profiles: c2v rectangle 2to1 pec. The full gallery includes all retained case plots.
-
-profiles: C4v cylindrical copper
---------------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/C4v_cylindrical_copper_attenuation.png
-   :width: 95%
-   :alt: profiles: C4v cylindrical copper
-
-   Profiles: c4v cylindrical copper. The full gallery includes all retained case plots.
-
-profiles: C4v cylindrical PEC
------------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/C4v_cylindrical_PEC_convergence.png
-   :width: 95%
-   :alt: profiles: C4v cylindrical PEC
-
-   Profiles: c4v cylindrical pec. The full gallery includes all retained case plots.
-
-profiles: C4v square copper
----------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_copper/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_copper/C4v_square_copper_attenuation.png
-   :width: 95%
-   :alt: profiles: C4v square copper
-
-   Profiles: c4v square copper. The full gallery includes all retained case plots.
-
-profiles: C4v square PEC
-------------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_PEC/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_PEC/C4v_square_PEC_matching.png
-   :width: 95%
-   :alt: profiles: C4v square PEC
-
-   Profiles: c4v square pec. The full gallery includes all retained case plots.
-
-ports: figures
---------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/ports/figures/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/ports/figures/auto_degenerate_te11_mode1_results.png
-   :width: 95%
-   :alt: ports: figures
-
-   Ports: figures. The full gallery includes all retained case plots.
-
-overview: figures
------------------
-
-:download:`Full gallery and reports <../../testing/validation/eigenmode_tracking/overview/figures/README.rst>`
-
-.. figure:: ../../testing/validation/eigenmode_tracking/overview/figures/mode_tracking_lattice_rotations.png
-   :width: 95%
-   :alt: overview: figures
-
-   Overview: figures. The full gallery includes all retained case plots.
+   python -m pytest tests/test_tracking_analytical_references.py tests/test_eigenmode_expanded_validation.py tests/test_waveguide_modal_profiles.py tests/test_cylindrical_modal_profiles.py

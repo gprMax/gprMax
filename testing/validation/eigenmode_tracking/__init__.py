@@ -1,1 +1,1 @@
-"""Classified eigenmode-tracking validation studies."""
+"""Analytical validation of degenerate subspaces and branch crossings."""

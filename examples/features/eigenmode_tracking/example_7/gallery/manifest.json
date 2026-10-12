@@ -1,0 +1,39 @@
+{
+  "started_utc": "2026-10-12T17:44:20.814802+00:00",
+  "modes": 16,
+  "spacing_mm": 0.25,
+  "verification": "fast",
+  "excitation": false,
+  "time_stepping": false,
+  "geometry_only": true,
+  "source_sha256": {
+    "gallery.py": "ba21afb020e25c7ff48472e1b9b8f632fb989dd44b5292da44624776290fc93b",
+    "plot_results.py": "67d96452e73b1823bf61f83df3d8e3cacaf3ce24637315797fdbfec2cf1bc5af"
+  },
+  "status": "complete",
+  "case": {
+    "case": "dielectric_rectangular",
+    "mode_count": 16,
+    "anchor_count": 5,
+    "detected_symmetry": "not applied",
+    "symmetry_groups": [],
+    "automatic_groups": "",
+    "maximum_residual": 2.85442411989045e-14,
+    "minimum_real_neff": 1.7414870949696404,
+    "plots": [
+      "dielectric_rectangular_dispersion.png",
+      "dielectric_rectangular_E_modes.png",
+      "dielectric_rectangular_H_modes.png"
+    ]
+  },
+  "anchors_Hz": [
+    39000000000.0,
+    39500000000.0,
+    40000000000.0,
+    40500000000.0,
+    41000000000.0
+  ],
+  "dispersion_plot_postprocessing_sha256": {
+    "examples/features/eigenmode_tracking/plot_results.py": "029934c2e7bc4ea4f88c8b1d2ada3f3dca60cdfb762a2f30ee221203ebbdb16f"
+  }
+}

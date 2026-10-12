@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 
 from gprMax.eigenmode_symmetry import detect_symmetry, validate_material_symmetry
-from testing.validation.eigenmode_tracking.identification.tracking_classification_edges import copper_solver, rectangular_templates
-from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+from testing.eigenmode_support.identification.tracking_classification_edges import copper_solver, rectangular_templates
+from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
 from tests.test_eigenmode_auto_symmetry import aligned_bank
 
 

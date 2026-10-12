@@ -8,8 +8,8 @@ import gprMax.config as config
 import gprMax.eigenmode_symmetry as symmetry
 from gprMax.eigenmode_ports import EigenmodePortMonitor
 from tests.test_eigenmode_auto_symmetry import aligned_bank
-from testing.validation.eigenmode_tracking.subspaces.expanded_mode_tracking import fd_solver
-from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+from testing.eigenmode_support.subspaces.expanded_mode_tracking import fd_solver
+from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
 
 
 def unequal_longitudinal_basis():

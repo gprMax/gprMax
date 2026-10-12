@@ -3,7 +3,7 @@
 import pytest
 import numpy as np
 
-from testing.validation.eigenmode_tracking.subspaces.expanded_mode_tracking import (
+from testing.eigenmode_support.subspaces.expanded_mode_tracking import (
     CASES, recovery_and_refinement_trials, controlled_trial, physical_sweeps,
 )
 

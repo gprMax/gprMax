@@ -21,14 +21,16 @@ from gprMax.sources import EigenmodeSource
         ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", "y"),
         ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", "y"),
         ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60, None, "auto", None),
-        ("example_9_auto_mode_crossing/auto_mode_crossing", -60, None, "auto", None),
+        ("auto_mode_crossing", -60, None, "auto", None),
     ),
 )
 def test_tracking_example_straight_guide(
     tmp_path, monkeypatch, example, reflection_limit, averaging, tracking, polarizations, mode, record_property
 ):
     root = Path(__file__).resolve().parents[1]
-    path = root / "examples/features/eigenmode_ports" / f"{example}.py"
+    path = (root / "testing/regression/eigenmode_sources/auto_mode_crossing.py"
+            if example == "auto_mode_crossing" else
+            root / "examples/features/eigenmode_ports" / f"{example}.py")
     spec = importlib.util.spec_from_file_location("tracking_example", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -88,7 +90,7 @@ def test_tracking_example_straight_guide(
         assert np.max(np.abs(destination["S"][2 - mode])) < 1e-5
 
         neff = source["anchor_complex_neff"][...].real
-        if not example.startswith("example_9"):
+        if not example.startswith("auto_mode_crossing"):
             if example.startswith("example_8"):
                 assert source["mode_tracking"].attrs["AutomaticDegenerateGroups"] == "1,2"
             np.testing.assert_allclose(neff[:, 0], neff[:, 1], atol=1e-10)

@@ -6,7 +6,7 @@ import pytest
 
 from gprMax.eigenmode_symmetry import orient_irreducible_block, mirror_u, mirror_v
 from gprMax.eigenmode_tracking import _frame, _moments
-from testing.validation.eigenmode_tracking.subspaces.general_subspace_tracking import fd_solver, _configured_solver_constants
+from testing.eigenmode_support.subspaces.general_subspace_tracking import fd_solver, _configured_solver_constants
 from tests.test_eigenmode_auto_symmetry import aligned_bank
 
 

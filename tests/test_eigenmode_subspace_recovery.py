@@ -6,7 +6,7 @@ import pytest
 
 from gprMax.eigenmode_tracking import track_solver_bank, write_diagnostics
 from gprMax.sources import EigenmodeAnchorMismatchError
-from testing.validation.eigenmode_tracking.subspaces.persistent_mode_groups import make_owner, make_solver, pair_crossing_bank, unitary
+from testing.eigenmode_support.subspaces.persistent_mode_groups import make_owner, make_solver, pair_crossing_bank, unitary
 
 
 def projector(a):
@@ -137,8 +137,8 @@ def test_multiple_consecutive_coincident_anchors_retain_subgroups():
 
 
 def test_physical_hybrid_crossing_is_invariant_to_eigensolver_rotation():
-    from testing.validation.eigenmode_tracking.subspaces.general_subspace_tracking import loaded_solver, stress_rotation
-    from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+    from testing.eigenmode_support.subspaces.general_subspace_tracking import loaded_solver, stress_rotation
+    from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
     from gprMax.eigenmode_tracking import _tracking_vectors
     import gprMax.config as config
 
@@ -161,8 +161,8 @@ def test_physical_hybrid_crossing_is_invariant_to_eigensolver_rotation():
 
 @pytest.mark.parametrize('component', ['Ew', 'Hw', 'Hv'])
 def test_reconstructed_maxwell_check_detects_corrupted_field(component):
-    from testing.validation.eigenmode_tracking.subspaces.general_subspace_tracking import loaded_solver
-    from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+    from testing.eigenmode_support.subspaces.general_subspace_tracking import loaded_solver
+    from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
 
     with _configured_solver_constants():
         solver = loaded_solver(.1, cells=12)

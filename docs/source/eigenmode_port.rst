@@ -1314,7 +1314,7 @@ For unexpectedly large reflection in a uniform guide, also check frequency
 anchor spacing, PML thickness, and recording duration.
 
 The automatic circular-pair and anisotropic-crossing demonstrations are
-:ref:`eigenmode-example-8` and :ref:`eigenmode-example-9` in the tracking guide.
+:ref:`eigenmode-example-8` and :ref:`tracking-crossing-examples` in the tracking guide.
 
 Direct eigenmode ports inside an HSG subgrid
 --------------------------------------------

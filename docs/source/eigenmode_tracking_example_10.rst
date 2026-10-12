@@ -1,0 +1,30 @@
+Example 10: Two polarized branches crossing in frequency
+========================================================
+
+A 16 × 8 mm PEC bore filled with diag(2.25, 1, 1) has two orthogonally
+polarized fundamental branches. Their raw eigenvalue ranks exchange over
+12.8–16.1 GHz. The geometry-only run exports both branches and their E/H
+profiles, with no excitation or time stepping.
+
+Run from the repository root::
+
+   python examples/features/eigenmode_tracking/example_10/tracked_modes.py
+
+Use ``--spacing-mm`` for the native geometry mesh and ``--output`` for a
+fresh directory. Recorded plots are separate from fresh outputs.
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_10/gallery/frequency_crossing_dispersion.png
+   :width: 100%
+   :alt: frequency crossing dispersion.png
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_10/gallery/frequency_crossing_E_modes.png
+   :width: 100%
+   :alt: frequency crossing E modes.png
+
+.. figure:: ../../examples/features/eigenmode_tracking/example_10/gallery/frequency_crossing_H_modes.png
+   :width: 100%
+   :alt: frequency crossing H modes.png
+
+:download:`Executable script <../../examples/features/eigenmode_tracking/example_10/tracked_modes.py>`
+
+:download:`Recorded run metadata <../../examples/features/eigenmode_tracking/example_10/gallery/manifest.json>`

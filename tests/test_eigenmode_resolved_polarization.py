@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 
 from gprMax.eigenmode_tracking import _moments, write_diagnostics, aligned_plot_solvers
-from testing.validation.eigenmode_tracking.subspaces.expanded_mode_tracking import fd_solver
-from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+from testing.eigenmode_support.subspaces.expanded_mode_tracking import fd_solver
+from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
 from tests.test_eigenmode_degenerate import bank, circular_solvers
 from types import SimpleNamespace
 

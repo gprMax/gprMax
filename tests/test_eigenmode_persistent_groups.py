@@ -10,7 +10,7 @@ from gprMax.eigenmode_tracking import _assign_step, _persistent_groups, _span_me
 from gprMax.hash_cmds_multiuse import process_multicmds
 from gprMax.user_objects.cmds_multiuse import EigenmodePort
 from gprMax.sources import EigenmodeAnchorMismatchError
-from testing.validation.eigenmode_tracking.subspaces.persistent_mode_groups import make_owner, make_solver, pair_crossing_bank, unitary, validate
+from testing.eigenmode_support.subspaces.persistent_mode_groups import make_owner, make_solver, pair_crossing_bank, unitary, validate
 
 
 @pytest.mark.parametrize("reference", (-1.0, 0.0, 1.0))

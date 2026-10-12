@@ -18,7 +18,7 @@ from gprMax.eigenmode_tracking import (
 )
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from gprMax.sources import EigenmodeSource
-from testing.validation.validate_fdfd_eigenmodes import (
+from testing.eigenmode_support.validate_fdfd_eigenmodes import (
     CIRCULAR_SPACING,
     _circular_pec_masks,
     _circular_theory,

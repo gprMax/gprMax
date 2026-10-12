@@ -1,0 +1,34 @@
+{
+  "geometry_only": true,
+  "time_stepping": false,
+  "excitation": false,
+  "frequency_Hz": [
+    12800000000.0,
+    12900000000.0,
+    13000000000.0,
+    13100000000.0,
+    13200000000.0,
+    13300000000.0,
+    13400000000.0,
+    13500000000.0,
+    13600000000.0,
+    13800000000.0,
+    14000000000.0,
+    14150000000.0,
+    14300000000.0,
+    14600000000.0,
+    14900000000.0,
+    15200000000.0,
+    15500000000.0,
+    15800000000.0,
+    16100000000.0
+  ],
+  "mode_count": 2,
+  "maximum_residual": 9.423574535914172e-11,
+  "source_sha256": {
+    "examples\\features\\eigenmode_tracking\\example_10\\tracked_modes.py": "c488ccd39c7c52844ccd86c4e88c8c489693387ee3fbd735e3c0f8e7e8f5683a"
+  },
+  "dispersion_plot_postprocessing_sha256": {
+    "examples/features/eigenmode_tracking/plot_results.py": "029934c2e7bc4ea4f88c8b1d2ada3f3dca60cdfb762a2f30ee221203ebbdb16f"
+  }
+}

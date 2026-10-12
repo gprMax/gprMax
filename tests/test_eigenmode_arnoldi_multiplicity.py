@@ -2,8 +2,8 @@
 import numpy as np
 import pytest
 
-from testing.validation.eigenmode_tracking.subspaces.expanded_mode_tracking import fd_solver
-from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+from testing.eigenmode_support.subspaces.expanded_mode_tracking import fd_solver
+from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
 
 
 @pytest.mark.parametrize('seed', [0, 10, 12, 18, 19])

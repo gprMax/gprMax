@@ -6,8 +6,8 @@ import pytest
 
 from gprMax.eigenmode_tracking import align_groups
 from gprMax.sources import EigenmodeSource
-from testing.validation.eigenmode_tracking.symmetry.polygon_symmetry_breaking import polygon_solver, inspect, rotation_action, mirror_u
-from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
+from testing.eigenmode_support.symmetry.polygon_symmetry_breaking import polygon_solver, inspect, rotation_action, mirror_u
+from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
 import gprMax.config as config
 
 
