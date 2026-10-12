@@ -2,7 +2,7 @@
 Eigenmode port examples
 =======================
 
-These eight numbered Python examples form the tutorial in
+These nine numbered Python examples form the tutorial in
 ``docs/source/eigenmode_port.rst``:
 
 ``example_1_straight_waveguide``
@@ -33,7 +33,7 @@ These eight numbered Python examples form the tutorial in
     anchor points and distinguish coefficient validity from power-wave
     validity.
 
-``example_7_degenerate_te11``
+``example_7_legacy_degenerate_te11``
     Assign global y/x electric polarizations to the degenerate circular TE11
     pair at every anchor. Switch the launched polarization using only the
     excitation's mode number, with a virtual-guide source and receiving port.
@@ -125,11 +125,11 @@ the folder README includes the generated profiles for both tracked polarizations
 
 .. code-block:: console
 
-    python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --geometry-only
-    python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --mode 1
-    python examples/features/eigenmode_ports/example_7_degenerate_te11/plot_results.py --mode 1
-    python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --mode 2
-    python examples/features/eigenmode_ports/example_7_degenerate_te11/plot_results.py --mode 2
+    python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --geometry-only
+    python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --mode 1
+    python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/plot_results.py --mode 1
+    python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --mode 2
+    python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/plot_results.py --mode 2
 
 Example 8
 =========
@@ -157,6 +157,16 @@ The output and virtual-feed terminations use 16-cell PMLs.
     python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py --mode 1
     python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --mode 2
     python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py --mode 2
+
+Example 9: square anisotropic branch crossing
+=============================================
+
+``example_9_C2v_square_anisotropic_crossing`` restores the driven crossing
+example with a square 16 × 16 mm bore. Both ports use automatic tracking of
+channels 3 (TE10, Ey) and 4 (TE02, Ex), whose raw ranks exchange near 14.4 GHz on this mesh.
+Run the geometry-only inspection, then launch each mode and plot S11/S21 and
+the interior receiver polarization. Full instructions and recorded plots are
+in its ``README.rst``.
 
 Geometry-only mode tracking
 ===========================

@@ -1,5 +1,5 @@
-Circular TE11 with physical polarization labels
-===============================================
+Legacy tracking of the circular TE11 pair
+=========================================
 
 This broadband example launches the degenerate TE11 pair in a circular,
 air-filled PEC waveguide along global z. Both ports use:
@@ -76,11 +76,11 @@ Run from the repository root:
 
 .. code-block:: console
 
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --geometry-only
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --mode 1
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/plot_results.py --mode 1
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --mode 2
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/plot_results.py --mode 2
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --geometry-only
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --mode 1
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/plot_results.py --mode 1
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --mode 2
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/plot_results.py --mode 2
 
 Outputs default to this directory, with separate ``circular_te11_mode1`` and
 ``circular_te11_mode2`` stems. With ``plot_fields=True``, both geometry-only

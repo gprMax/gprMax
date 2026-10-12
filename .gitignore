@@ -42,8 +42,8 @@ examples/features/eigenmode_ports/**/*.csv
 examples/features/eigenmode_ports/**/*.png
 examples/features/eigenmode_tracking/**/results/
 examples/features/eigenmode_tracking/results/
-!examples/features/eigenmode_ports/example_7_degenerate_te11/te11_mode1.png
-!examples/features/eigenmode_ports/example_7_degenerate_te11/te11_mode2.png
+!examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/te11_mode1.png
+!examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/te11_mode2.png
 examples/features/impedance_surface/**/*.csv
 examples/features/impedance_surface/**/*.png
 examples/**/*_eigenmode_*.png
@@ -74,3 +74,5 @@ AGENTS.md
 
 # marimo runtime cache
 __marimo__/
+
+!examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode*_results.png

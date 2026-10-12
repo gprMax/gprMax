@@ -1218,7 +1218,7 @@ and refine the anchor sampling to check sensitivity.
    generalized coefficient can describe a decaying field there, but not a
    transported real-power ratio.
 
-Example 7: physically aligned circular TE11
+Example 7: legacy tracking of circular TE11
 -------------------------------------------
 
 The circular PEC guide assigns global y electric polarization to mode 1
@@ -1227,15 +1227,15 @@ and global -x polarization to mode 2 using ``degenerate=(1, 2)`` and
 anchors preserve those physical labels. The source uses a virtual guide;
 the receiving port sits at the opposite longitudinal PML interface.
 
-:download:`Complete Python model <../../examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py>`
+:download:`Complete Python model <../../examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py>`
 
 .. code-block:: console
 
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --geometry-only
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --mode 1
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/plot_results.py --mode 1
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --mode 2
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/plot_results.py --mode 2
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --geometry-only
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --mode 1
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/plot_results.py --mode 1
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --mode 2
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/plot_results.py --mode 2
 
 Only the excitation mode changes between the two full runs. Their separate
 result plots show reflection and transmission into each labelled channel
@@ -1314,7 +1314,43 @@ For unexpectedly large reflection in a uniform guide, also check frequency
 anchor spacing, PML thickness, and recording duration.
 
 The automatic circular-pair and anisotropic-crossing demonstrations are
-:ref:`eigenmode-example-8` and :ref:`tracking-crossing-examples` in the tracking guide.
+:ref:`eigenmode-example-8` and :ref:`eigenmode-example-9` in the tracking guide.
+
+Example 8: automatic circular TE11 tracking
+-------------------------------------------
+
+The circular-guide simulation detects the TE11 pair automatically at both
+ports, using ``tracking="auto"`` without a manually declared degenerate
+group. First inspect its geometry-only fields; then excite mode 1 or 2 and
+plot the co- and cross-polarized reflection and transmission. The source
+has a virtual-waveguide feed and the receiving end continues into a PML.
+See :ref:`eigenmode-example-8` for the complete workflow.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --geometry-only
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --mode 1
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py --mode 1
+
+:download:`Complete Python model <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`.
+
+Example 9: automatic crossing in a square anisotropic bore
+----------------------------------------------------------
+
+A square PEC guide filled with ``diag(2.25, 1, 1)`` has TE10 and TE02
+branches whose raw eigenvalue ranks exchange. Both ports automatically
+track channels 3 and 4 through that crossing. Inspect the modal fields,
+launch either channel, then check modal S11/S21 and the off-centre probe's
+polarization. See :ref:`eigenmode-example-9` for both launched-mode runs
+and the tracking diagnostics.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --geometry-only
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --mode 3
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py --mode 3
+
+:download:`Complete Python model <../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py>`.
 
 Direct eigenmode ports inside an HSG subgrid
 --------------------------------------------

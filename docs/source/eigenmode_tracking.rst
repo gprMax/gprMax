@@ -258,7 +258,7 @@ When mode numbers swap: a crossing in an anisotropic guide
 
 An anisotropic dielectric can affect x- and y-polarized fields differently.
 Their propagation constants can therefore cross as frequency changes, as in
-:ref:`tracking-crossing-examples`. The fields remain distinguishable, but their order
+:ref:`eigenmode-example-9`. The fields remain distinguishable, but their order
 in the solver's list changes. For example:
 
 .. list-table:: Why the raw solution number is not a reliable mode identity
@@ -772,6 +772,64 @@ with co-polarized S21 near 0 dB.
 
 :download:`Complete simulation model <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`
 and :download:`simulation result plotter <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py>`.
+
+.. _eigenmode-example-9:
+
+Worked simulation: branch crossing in a square anisotropic guide
+----------------------------------------------------------------
+
+Example 9 under ``eigenmode_ports`` uses a 16 × 16 mm square PEC bore filled
+with ``diag(2.25, 1, 1)``. The TE10 branch polarized along y and TE02 branch
+polarized along x start as modes 3 and 4; their propagation curves cross
+near 14.4 GHz on this mesh. These are higher-ranked channels rather than the two lowest
+modes. Both ports request ``modes=(3, 4)`` and ``tracking="auto"``. Their
+tracked labels remain stable as the raw eigenvalue ranks exchange.
+
+Follow the same full process as the circular-pair example: inspect the
+geometry-only dispersion and modal fields, choose one tracked channel to
+launch, run the simulation, and inspect co- and cross-channel scattering
+with valid power-wave masks. Explicit anchors cover the 13.1–15.8 GHz band
+and its guards. Walls are built after the anisotropic fill to preserve the
+modal/FDTD boundary agreement, and sixteen-cell PMLs terminate both ends.
+An off-centre receiver samples both Ex and Ey; the TE02 field is zero at
+the bore centre.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --geometry-only
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --mode 3
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py --mode 3
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --mode 4
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py --mode 4
+
+The result plots mark the tracked crossing and show the launched channel's
+reflection and transmission alongside the interior probe polarization.
+This demonstrates automatic tracking during a driven simulation; the later
+crossing galleries inspect undriven modal banks.
+
+:download:`Complete square-guide simulation <../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py>`
+and :download:`result plotter <../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py>`.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode3_results.png
+   :width: 95%
+   :alt: Mode 3 retains Ey polarization through the crossing while reflection and cross-channel transmission remain small.
+
+   Launching tracked mode 3: TE10 / Ey. The dotted line marks the crossing
+   inferred from retained anchors. The receiver is at x = 10 mm, y = 6 mm.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode4_results.png
+   :width: 95%
+   :alt: Mode 4 retains Ex polarization through the crossing while reflection and cross-channel transmission remain small.
+
+   Launching tracked mode 4: TE02 / Ex. Both full runs retain valid power-wave
+   masks over the measurement band and have no unresolved tracking intervals.
+
+The recorded double-precision CPU runs have worst co-channel S11 of
+-81.1 dB and -62.4 dB for launched modes 3 and 4. The largest co-channel
+S21 magnitude deviation from 0 dB is 0.000102 dB. These results concern the
+represented mesh and port sampling; they do not establish convergence to
+an exact continuum boundary. :download:`Recorded measurements
+<../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/recorded_results.json>`.
 
 .. _tracked-mode-gallery:
 .. _eigenmode_tracking_examples:
