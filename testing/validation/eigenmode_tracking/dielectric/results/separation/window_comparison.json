@@ -1,0 +1,20 @@
+{
+  "rectangular": {
+    "minimum_window_field_overlap": 0.9999500303381388,
+    "maximum_window_neff_difference": 2.2511891189624933e-05,
+    "hybrid_modes_at_20GHz": 12,
+    "minimum_neff": 1.3166033031230424
+  },
+  "square": {
+    "minimum_window_field_overlap": 0.9999942297465287,
+    "maximum_window_neff_difference": 9.278643206656056e-06,
+    "hybrid_modes_at_20GHz": 12,
+    "minimum_neff": 1.5546982995772516
+  },
+  "circular": {
+    "minimum_window_field_overlap": 0.9999908954346026,
+    "maximum_window_neff_difference": 8.319889422070403e-06,
+    "hybrid_modes_at_20GHz": 12,
+    "minimum_neff": 1.4738593725269482
+  }
+}

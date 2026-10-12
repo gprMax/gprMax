@@ -32,4 +32,4 @@ validated smooth-cylinder loss formula.
 
 See the tracking theory validation section and its cylindrical modal-profile
 gallery for recorded results and the reproducible solver implementation in
-``testing/validation/cylindrical_modal_profiles.py``.
+``testing/validation/eigenmode_tracking/profiles/cylindrical_modal_profiles.py``.

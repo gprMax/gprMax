@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-from testing.validation.waveguide_modal_profiles import run
+from testing.validation.eigenmode_tracking.profiles.waveguide_modal_profiles import run
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

@@ -7,7 +7,7 @@ Run from the repository root with the gprMax Python environment::
 
 Use ``--wall PEC`` or ``--wall copper`` to run one material, and ``--output DIR``
 to select a fresh output directory. There is no excitation or time stepping.
-The script invokes ``testing/validation/waveguide_modal_profiles.py`` and uses
+The script invokes ``testing/validation/eigenmode_tracking/profiles/waveguide_modal_profiles.py`` and uses
 64 and 96 cells across the 20-mm width, with square transverse cells.
 It writes native complex Yee fields (NPZ), source hashes and metrics (JSON),
 phase-aligned longitudinal field comparisons, full-vector matching matrices,

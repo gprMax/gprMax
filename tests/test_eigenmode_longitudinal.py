@@ -7,9 +7,9 @@ import pytest
 from gprMax.eigenmode_symmetry import longitudinal_blocks, axis_sensitive_blocks
 from gprMax.eigenmode_tracking import _frame
 from tests.test_eigenmode_auto_symmetry import aligned_bank
-from testing.validation.general_subspace_tracking import fd_solver, stress_rotation
+from testing.validation.eigenmode_tracking.subspaces.general_subspace_tracking import fd_solver, stress_rotation
 from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
-from testing.validation.tracking_classification_edges import rectangular_templates
+from testing.validation.eigenmode_tracking.identification.tracking_classification_edges import rectangular_templates
 
 
 @pytest.mark.parametrize('dimension,copies', [(1,2), (2,2), (2,3), (2,5)])

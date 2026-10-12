@@ -8,7 +8,7 @@ import pytest
 import gprMax
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from gprMax.grid.fdtd_grid import FDTDGrid
-from testing.validation.degenerate_eigenmode_ports import circular_scene
+from testing.validation.eigenmode_tracking.ports.degenerate_eigenmode_ports import circular_scene
 
 
 def run(path, *, randomize=False, precision="double", device_options=None, **kwargs):

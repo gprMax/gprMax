@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from testing.validation.waveguide_modal_profiles import analytical_fields, matching, vector
+from testing.validation.eigenmode_tracking.profiles.waveguide_modal_profiles import analytical_fields, matching, vector
 
 
 @pytest.mark.parametrize('height', [.02, .01])

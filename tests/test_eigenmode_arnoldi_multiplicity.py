@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from testing.validation.expanded_mode_tracking import fd_solver
+from testing.validation.eigenmode_tracking.subspaces.expanded_mode_tracking import fd_solver
 from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
 
 

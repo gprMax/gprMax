@@ -1,0 +1,71 @@
+{
+  "started_utc": "2026-10-12T16:43:10.969697+00:00",
+  "status": "complete",
+  "description": "FDFD banks only; no FDTD or manuscript changes.",
+  "cases": [
+    {
+      "name": "square_isotropic",
+      "cells": 24,
+      "epsilon": [
+        2,
+        2,
+        2
+      ],
+      "status": "complete"
+    },
+    {
+      "name": "square_axial_anisotropy",
+      "cells": 24,
+      "epsilon": [
+        2,
+        2,
+        3
+      ],
+      "status": "complete"
+    },
+    {
+      "name": "square_transverse_anisotropy",
+      "cells": 24,
+      "epsilon": [
+        2,
+        3,
+        2
+      ],
+      "status": "complete"
+    },
+    {
+      "name": "circular_32",
+      "cells": 32,
+      "epsilon": null,
+      "status": "complete"
+    },
+    {
+      "name": "circular_48",
+      "cells": 48,
+      "epsilon": null,
+      "status": "complete"
+    },
+    {
+      "name": "copper_square_24",
+      "cells": 24,
+      "epsilon": null,
+      "status": "complete"
+    },
+    {
+      "name": "copper_square_32",
+      "cells": 32,
+      "epsilon": null,
+      "status": "complete"
+    }
+  ],
+  "source_sha256": {
+    "testing\\validation\\eigenmode_tracking\\identification\\tracking_classification_edges.py": "140390ee1aa115799143bd5b189396e965cecc372877b62aeed7ac075e1f05c2",
+    "gprMax\\eigenmode_tracking.py": "aee01875f73044d3dbc4f5cc8edf81d99b0c8f51830c8962d5dc60b1fdcb4371",
+    "gprMax\\eigenmode_symmetry.py": "5c1b8e3362e42ab1e4120265b275bf24cffa7d9060930617d0e0b5ab77322a4d",
+    "testing\\validation\\eigenmode_tracking\\identification\\modal_field_templates.py": "c5572052d10243d5cf4506b30acee6bd4fc1270888e1b3b807397b2c285bba1e",
+    "gprMax\\eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291",
+    "tests\\fdfd_eigenmode_solver\\test_surface_impedance_fdfd_operator.py": "1a4198256abc9cd67419f6873bec58b451ee6656ea92f40f0a00a01f56304e58"
+  },
+  "residual_tolerance": 1e-07,
+  "finished_utc": "2026-10-12T16:43:17.538562+00:00"
+}

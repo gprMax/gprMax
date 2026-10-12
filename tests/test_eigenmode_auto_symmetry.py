@@ -8,7 +8,7 @@ import pytest
 from gprMax.eigenmode_symmetry import detect_symmetry, align_symmetry_subspaces
 from gprMax.eigenmode_tracking import align_groups, _power
 from gprMax.sources import EigenmodeSource
-from testing.validation.expanded_mode_tracking import fd_solver
+from testing.validation.eigenmode_tracking.subspaces.expanded_mode_tracking import fd_solver
 from testing.validation.validate_fdfd_eigenmodes import _configured_solver_constants
 import gprMax.config as config
 
@@ -90,7 +90,7 @@ def aligned_bank(bank, labels, symmetry='auto', tracking='auto'):
     e=[[v[0] for v in row] for row in fields]; h=[[v[1] for v in row] for row in fields]
     grid=SimpleNamespace(dl=np.array([bank[0].du,bank[0].dv,bank[0].du]))
     axis=[s.frequency for s in bank]
-    from testing.validation.general_subspace_tracking import align_validation_groups
+    from testing.validation.eigenmode_tracking.subspaces.general_subspace_tracking import align_validation_groups
     align_validation_groups(owner,grid,axis,bank,tuple(labels),e,h,np.ones((len(bank),len(labels)),bool),
                             symmetry=symmetry if tracking == 'auto' else None)
     return owner,grid,e,h
@@ -195,7 +195,7 @@ def test_rejected_c4v_trial_can_use_certified_c2v(monkeypatch):
 
 @pytest.mark.parametrize('sides,detected,groups',[(6,'c2v',()),(8,'c4v',((1,2),))])
 def test_polygon_detection_does_not_recombine_split_pairs(sides,detected,groups):
-    from testing.validation.polygon_symmetry_breaking import polygon_solver
+    from testing.validation.eigenmode_tracking.symmetry.polygon_symmetry_breaking import polygon_solver
     from gprMax.eigenmode_tracking import track_solver_bank
     from gprMax.eigenmode_config import EigenmodeTrackingConfig
     with _configured_solver_constants():
@@ -220,7 +220,7 @@ def test_default_detection_reaches_source_receiver_and_hdf5(tmp_path):
     import h5py
     import json
     import gprMax
-    from testing.validation.degenerate_eigenmode_ports import circular_scene
+    from testing.validation.eigenmode_tracking.ports.degenerate_eigenmode_ports import circular_scene
     scene=circular_scene(normal_axis=2,steps=12,virtual=False,monitor=True,averaging='n')
     for obj in scene.grid_objects:
         if isinstance(obj,gprMax.EigenmodePort):

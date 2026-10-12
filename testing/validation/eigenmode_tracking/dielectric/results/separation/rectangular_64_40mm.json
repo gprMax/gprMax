@@ -1,0 +1,1911 @@
+{
+  "name": "rectangular_64_40mm",
+  "frequency_GHz": [
+    18.0,
+    18.5,
+    19.0,
+    19.5,
+    20.0,
+    20.5,
+    21.0,
+    21.5,
+    22.0
+  ],
+  "modes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "neff": [
+    [
+      [
+        1.8991503423174385,
+        0.0
+      ],
+      [
+        1.8858978722378257,
+        0.0
+      ],
+      [
+        1.7756672053689067,
+        0.0
+      ],
+      [
+        1.7637382363232097,
+        0.0
+      ],
+      [
+        1.7155209400389848,
+        0.0
+      ],
+      [
+        1.6323278521087492,
+        0.0
+      ],
+      [
+        1.5913802844704021,
+        0.0
+      ],
+      [
+        1.5519738478995628,
+        0.0
+      ],
+      [
+        1.53239693445587,
+        0.0
+      ],
+      [
+        1.4943191672869116,
+        0.0
+      ],
+      [
+        1.3794793308920466,
+        0.0
+      ],
+      [
+        1.3249528460279298,
+        0.0
+      ]
+    ],
+    [
+      [
+        1.9040385678417486,
+        0.0
+      ],
+      [
+        1.891672366568875,
+        0.0
+      ],
+      [
+        1.786899004440912,
+        0.0
+      ],
+      [
+        1.7760395054982496,
+        0.0
+      ],
+      [
+        1.7292637484937394,
+        0.0
+      ],
+      [
+        1.6520228224326652,
+        0.0
+      ],
+      [
+        1.6116426731069051,
+        0.0
+      ],
+      [
+        1.5763031265715797,
+        0.0
+      ],
+      [
+        1.557022523539069,
+        0.0
+      ],
+      [
+        1.5228946819019709,
+        0.0
+      ],
+      [
+        1.4108393017171013,
+        0.0
+      ],
+      [
+        1.3601507636208403,
+        0.0
+      ]
+    ],
+    [
+      [
+        1.9085767939299476,
+        0.0
+      ],
+      [
+        1.8970168295017098,
+        0.0
+      ],
+      [
+        1.7973030433315047,
+        0.0
+      ],
+      [
+        1.787393622293461,
+        0.0
+      ],
+      [
+        1.7420150721731607,
+        0.0
+      ],
+      [
+        1.6701723768046166,
+        0.0
+      ],
+      [
+        1.630428102817365,
+        0.0
+      ],
+      [
+        1.598618618204312,
+        0.0
+      ],
+      [
+        1.579824523843145,
+        0.0
+      ],
+      [
+        1.5490366952485937,
+        0.0
+      ],
+      [
+        1.439811688971282,
+        0.0
+      ],
+      [
+        1.3927692187714278,
+        0.0
+      ]
+    ],
+    [
+      [
+        1.9127979463059057,
+        0.0
+      ],
+      [
+        1.9019731346502935,
+        0.0
+      ],
+      [
+        1.8069587523255743,
+        0.0
+      ],
+      [
+        1.7978959564728205,
+        0.0
+      ],
+      [
+        1.7538702440773792,
+        0.0
+      ],
+      [
+        1.6869316921771198,
+        0.0
+      ],
+      [
+        1.6478767311024851,
+        0.0
+      ],
+      [
+        1.6191434846391153,
+        0.0
+      ],
+      [
+        1.600960534708357,
+        0.0
+      ],
+      [
+        1.5730132974178146,
+        0.0
+      ],
+      [
+        1.4666394815224597,
+        0.0
+      ],
+      [
+        1.4230248051846324,
+        0.0
+      ]
+    ],
+    [
+      [
+        1.9167311382952406,
+        0.0
+      ],
+      [
+        1.90657816340357,
+        0.0
+      ],
+      [
+        1.8159363252375593,
+        0.0
+      ],
+      [
+        1.8076301980967933,
+        0.0
+      ],
+      [
+        1.7649131148659112,
+        0.0
+      ],
+      [
+        1.7024378319207223,
+        0.0
+      ],
+      [
+        1.6641126315517125,
+        0.0
+      ],
+      [
+        1.6380704056825195,
+        0.0
+      ],
+      [
+        1.620576357196888,
+        0.0
+      ],
+      [
+        1.59505921842959,
+        0.0
+      ],
+      [
+        1.4915347490564073,
+        0.0
+      ],
+      [
+        1.451121515225977,
+        0.0
+      ]
+    ],
+    [
+      [
+        1.9204021917942289,
+        0.0
+      ],
+      [
+        1.9108645034875489,
+        0.0
+      ],
+      [
+        1.8242979572845692,
+        0.0
+      ],
+      [
+        1.8166700083497807,
+        0.0
+      ],
+      [
+        1.7752177181667477,
+        0.0
+      ],
+      [
+        1.7168119490398766,
+        0.0
+      ],
+      [
+        1.6792459044028927,
+        0.0
+      ],
+      [
+        1.6555663688445734,
+        0.0
+      ],
+      [
+        1.6388054382926043,
+        0.0
+      ],
+      [
+        1.6153795052331967,
+        0.0
+      ],
+      [
+        1.5146833904394277,
+        0.0
+      ],
+      [
+        1.477247582560061,
+        0.0
+      ]
+    ],
+    [
+      [
+        1.9238340766678015,
+        0.0
+      ],
+      [
+        1.914861036162818,
+        0.0
+      ],
+      [
+        1.8320988993532556,
+        0.0
+      ],
+      [
+        1.8250804133644412,
+        0.0
+      ],
+      [
+        1.7848496533092888,
+        0.0
+      ],
+      [
+        1.7301612744140416,
+        0.0
+      ],
+      [
+        1.6933744866733598,
+        0.0
+      ],
+      [
+        1.6717766592808143,
+        0.0
+      ],
+      [
+        1.6557691089257838,
+        0.0
+      ],
+      [
+        1.6341532755274413,
+        0.0
+      ],
+      [
+        1.5362489990526167,
+        0.0
+      ],
+      [
+        1.5015747241549116,
+        0.0
+      ]
+    ],
+    [
+      [
+        1.9270472828898686,
+        0.0
+      ],
+      [
+        1.9185934318366162,
+        0.0
+      ],
+      [
+        1.8393883576549477,
+        0.0
+      ],
+      [
+        1.832918982745866,
+        0.0
+      ],
+      [
+        1.7938672402701692,
+        0.0
+      ],
+      [
+        1.7425808776032392,
+        0.0
+      ],
+      [
+        1.706585705196994,
+        0.0
+      ],
+      [
+        1.6868281721145004,
+        0.0
+      ],
+      [
+        1.6715772418255064,
+        0.0
+      ],
+      [
+        1.6515372043561554,
+        0.0
+      ],
+      [
+        1.556376055499106,
+        0.0
+      ],
+      [
+        1.5242585892102496,
+        0.0
+      ]
+    ],
+    [
+      [
+        1.9300601369737669,
+        0.0
+      ],
+      [
+        1.9220845700240428,
+        0.0
+      ],
+      [
+        1.8462102631123307,
+        0.0
+      ],
+      [
+        1.8402368281125177,
+        0.0
+      ],
+      [
+        1.802322489734553,
+        0.0
+      ],
+      [
+        1.7541552089069254,
+        0.0
+      ],
+      [
+        1.7189576104190658,
+        0.0
+      ],
+      [
+        1.7008321619342017,
+        0.0
+      ],
+      [
+        1.6863291076938332,
+        0.0
+      ],
+      [
+        1.6676686223898338,
+        0.0
+      ],
+      [
+        1.575192589210695,
+        0.0
+      ],
+      [
+        1.5454397828943278,
+        0.0
+      ]
+    ]
+  ],
+  "candidate_indices": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ]
+  ],
+  "groups": [],
+  "symmetry": {
+    "detected": "c2v",
+    "candidates": [
+      "c2v"
+    ],
+    "anchors": [
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      },
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      },
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      },
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      },
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      },
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      },
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      },
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      },
+      {
+        "supported": [
+          "c2v"
+        ],
+        "reasons": {
+          "c4v": "The sampled materials or boundary masks do not preserve C4V symmetry."
+        }
+      }
+    ],
+    "groups": []
+  },
+  "blocks": [],
+  "anchors": [
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 9.33606622246923e-15,
+        "electric_longitudinal_fraction": 0.04801332075903291,
+        "magnetic_longitudinal_fraction": 0.04617359637506406
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 6.470002527748389e-15,
+        "electric_longitudinal_fraction": 0.0793640259506842,
+        "magnetic_longitudinal_fraction": 0.029787291836485784
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 1.326193552196995e-14,
+        "electric_longitudinal_fraction": 0.06842132321985397,
+        "magnetic_longitudinal_fraction": 0.12844594936398918
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 1.320283209841539e-14,
+        "electric_longitudinal_fraction": 0.1828831751399737,
+        "magnetic_longitudinal_fraction": 0.042386642619403024
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 1.2834249732425492e-14,
+        "electric_longitudinal_fraction": 0.06559088715112771,
+        "magnetic_longitudinal_fraction": 0.17190207685905873
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 1.3456906592330314e-14,
+        "electric_longitudinal_fraction": 0.282114420556018,
+        "magnetic_longitudinal_fraction": 0.0342239526776931
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 2.782389693620599e-14,
+        "electric_longitudinal_fraction": 0.016265521409125336,
+        "magnetic_longitudinal_fraction": 0.30797916029309497
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.3407666522711943e-14,
+        "electric_longitudinal_fraction": 0.26175645120771796,
+        "magnetic_longitudinal_fraction": 0.12645241658715436
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.3696383801357848e-14,
+        "electric_longitudinal_fraction": 0.34025206704528954,
+        "magnetic_longitudinal_fraction": 0.03078575878175062
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 2.4651037648961782e-14,
+        "electric_longitudinal_fraction": 0.2700247222413112,
+        "magnetic_longitudinal_fraction": 0.16736046985691816
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 2.5330264776161826e-14,
+        "electric_longitudinal_fraction": 0.10688409681803508,
+        "magnetic_longitudinal_fraction": 0.35962623269128685
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 3.457671147493682e-14,
+        "electric_longitudinal_fraction": 0.12985373077559512,
+        "magnetic_longitudinal_fraction": 0.36686894136124093
+      }
+    ],
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 8.926294891995808e-15,
+        "electric_longitudinal_fraction": 0.04546207854157595,
+        "magnetic_longitudinal_fraction": 0.04436790083843738
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.009845931121064e-14,
+        "electric_longitudinal_fraction": 0.07528412347561142,
+        "magnetic_longitudinal_fraction": 0.028503169293904323
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 2.351760110690551e-14,
+        "electric_longitudinal_fraction": 0.06566870993574239,
+        "magnetic_longitudinal_fraction": 0.12226478926798316
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 1.7212320717469753e-14,
+        "electric_longitudinal_fraction": 0.1738934819000791,
+        "magnetic_longitudinal_fraction": 0.040931997838122694
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 9.40828191884971e-15,
+        "electric_longitudinal_fraction": 0.061014058676861486,
+        "magnetic_longitudinal_fraction": 0.16611749556461372
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 8.654661607390137e-15,
+        "electric_longitudinal_fraction": 0.27041919082589105,
+        "magnetic_longitudinal_fraction": 0.03247056984551037
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.1196567903835614e-14,
+        "electric_longitudinal_fraction": 0.01567137089481057,
+        "magnetic_longitudinal_fraction": 0.2952321269279193
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 4.575046358044215e-14,
+        "electric_longitudinal_fraction": 0.24815618173840284,
+        "magnetic_longitudinal_fraction": 0.12226134014811559
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 4.660443016965463e-14,
+        "electric_longitudinal_fraction": 0.33109204330335196,
+        "magnetic_longitudinal_fraction": 0.028317054822493398
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 2.0297055252656613e-14,
+        "electric_longitudinal_fraction": 0.25916485628594027,
+        "magnetic_longitudinal_fraction": 0.15823575066182413
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.946170868486173e-14,
+        "electric_longitudinal_fraction": 0.09598277974155599,
+        "magnetic_longitudinal_fraction": 0.3515443901046247
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 4.081225574943928e-14,
+        "electric_longitudinal_fraction": 0.1316704107372257,
+        "magnetic_longitudinal_fraction": 0.3484350699243913
+      }
+    ],
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 5.484834243627269e-15,
+        "electric_longitudinal_fraction": 0.043107478262699325,
+        "magnetic_longitudinal_fraction": 0.04266350202601494
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 4.908120704740324e-15,
+        "electric_longitudinal_fraction": 0.07150353795256043,
+        "magnetic_longitudinal_fraction": 0.027300175490627836
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 9.340345999190904e-15,
+        "electric_longitudinal_fraction": 0.06302259945832349,
+        "magnetic_longitudinal_fraction": 0.11654717845040917
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 8.919993883672344e-15,
+        "electric_longitudinal_fraction": 0.16549858008436413,
+        "magnetic_longitudinal_fraction": 0.039537590956541475
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 8.066284590479238e-15,
+        "electric_longitudinal_fraction": 0.056911607296652206,
+        "magnetic_longitudinal_fraction": 0.1605414051012005
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 8.966356335179538e-15,
+        "electric_longitudinal_fraction": 0.2591960993848122,
+        "magnetic_longitudinal_fraction": 0.030861336348019647
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.4774827698704515e-14,
+        "electric_longitudinal_fraction": 0.015117661052054386,
+        "magnetic_longitudinal_fraction": 0.28320512824247124
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.6807214507672593e-14,
+        "electric_longitudinal_fraction": 0.23543817779841375,
+        "magnetic_longitudinal_fraction": 0.11824048675191377
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.017909141953281e-14,
+        "electric_longitudinal_fraction": 0.3215601540123793,
+        "magnetic_longitudinal_fraction": 0.026190343205461666
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.7238504314114377e-14,
+        "electric_longitudinal_fraction": 0.24835921408799408,
+        "magnetic_longitudinal_fraction": 0.15001533848307086
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.5298092420968577e-14,
+        "electric_longitudinal_fraction": 0.08671000002204873,
+        "magnetic_longitudinal_fraction": 0.34288767481442245
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 6.236893337277405e-14,
+        "electric_longitudinal_fraction": 0.13347996106836293,
+        "magnetic_longitudinal_fraction": 0.33032443350658014
+      }
+    ],
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 7.708305986101853e-15,
+        "electric_longitudinal_fraction": 0.04093010999567573,
+        "magnetic_longitudinal_fraction": 0.04105317791791249
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 7.224041701651868e-15,
+        "electric_longitudinal_fraction": 0.06799476221428206,
+        "magnetic_longitudinal_fraction": 0.026171596608231627
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 2.4431585173810356e-14,
+        "electric_longitudinal_fraction": 0.060487437234390484,
+        "magnetic_longitudinal_fraction": 0.11124513229130965
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 3.158002016841411e-14,
+        "electric_longitudinal_fraction": 0.15765561432837608,
+        "magnetic_longitudinal_fraction": 0.038202058659019406
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 8.061676643230805e-15,
+        "electric_longitudinal_fraction": 0.05322088809293874,
+        "magnetic_longitudinal_fraction": 0.15517578935962092
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 9.731789449154822e-15,
+        "electric_longitudinal_fraction": 0.2484657845623308,
+        "magnetic_longitudinal_fraction": 0.029379315178373187
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.5616404268075438e-14,
+        "electric_longitudinal_fraction": 0.014601937854882927,
+        "magnetic_longitudinal_fraction": 0.27184952962127834
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.4315017065391154e-14,
+        "electric_longitudinal_fraction": 0.22355755587196205,
+        "magnetic_longitudinal_fraction": 0.11438900195536596
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 2.361134282820557e-14,
+        "electric_longitudinal_fraction": 0.31183412731764754,
+        "magnetic_longitudinal_fraction": 0.024368074089279136
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 3.435364628373035e-14,
+        "electric_longitudinal_fraction": 0.23780800024788806,
+        "magnetic_longitudinal_fraction": 0.14252913280104806
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 2.954694880138698e-14,
+        "electric_longitudinal_fraction": 0.07876316282895464,
+        "magnetic_longitudinal_fraction": 0.33390744855174376
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 1.2777360423096482e-14,
+        "electric_longitudinal_fraction": 0.13520315487351506,
+        "magnetic_longitudinal_fraction": 0.312750606150323
+      }
+    ],
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 7.997462058312546e-15,
+        "electric_longitudinal_fraction": 0.038912847275818334,
+        "magnetic_longitudinal_fraction": 0.039530315591824246
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 6.7099951826374064e-15,
+        "electric_longitudinal_fraction": 0.0647332037497725,
+        "magnetic_longitudinal_fraction": 0.02511140574452631
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 2.1779924944620943e-14,
+        "electric_longitudinal_fraction": 0.05806474625701957,
+        "magnetic_longitudinal_fraction": 0.10631696544915079
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 2.2681439251412757e-14,
+        "electric_longitudinal_fraction": 0.15032375286715172,
+        "magnetic_longitudinal_fraction": 0.036923651815353856
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 7.841016248053274e-15,
+        "electric_longitudinal_fraction": 0.04988889098238201,
+        "magnetic_longitudinal_fraction": 0.15001970734216674
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 1.0064560884830648e-14,
+        "electric_longitudinal_fraction": 0.23823410951339705,
+        "magnetic_longitudinal_fraction": 0.028010190307035485
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.3243639018144304e-14,
+        "electric_longitudinal_fraction": 0.014122046653177855,
+        "magnetic_longitudinal_fraction": 0.26111964517010716
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.6311902104626458e-14,
+        "electric_longitudinal_fraction": 0.21246290122696052,
+        "magnetic_longitudinal_fraction": 0.11070420783470189
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.417070125539744e-14,
+        "electric_longitudinal_fraction": 0.30204866258886615,
+        "magnetic_longitudinal_fraction": 0.022812882992344085
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 2.93425758825256e-14,
+        "electric_longitudinal_fraction": 0.2276320523358383,
+        "magnetic_longitudinal_fraction": 0.13565291589260858
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 2.266270518634446e-14,
+        "electric_longitudinal_fraction": 0.0719042040677483,
+        "magnetic_longitudinal_fraction": 0.3247845524360669
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 9.281843361445006e-14,
+        "electric_longitudinal_fraction": 0.13677861379759992,
+        "magnetic_longitudinal_fraction": 0.2958478186717421
+      }
+    ],
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 5.084532393747067e-15,
+        "electric_longitudinal_fraction": 0.03704054284019587,
+        "magnetic_longitudinal_fraction": 0.038088853527688565
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 5.380864506892264e-15,
+        "electric_longitudinal_fraction": 0.06169685486082437,
+        "magnetic_longitudinal_fraction": 0.024114178627670024
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 2.843147711607464e-14,
+        "electric_longitudinal_fraction": 0.055753940872331625,
+        "magnetic_longitudinal_fraction": 0.10172631337006009
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 1.817950696359604e-14,
+        "electric_longitudinal_fraction": 0.1434645860784565,
+        "magnetic_longitudinal_fraction": 0.03570037448889845
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 6.574176282419657e-15,
+        "electric_longitudinal_fraction": 0.046870624051750645,
+        "magnetic_longitudinal_fraction": 0.14507006089116675
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 9.57328924246691e-15,
+        "electric_longitudinal_fraction": 0.22849675725859278,
+        "magnetic_longitudinal_fraction": 0.026741766121307704
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 9.661842991258106e-15,
+        "electric_longitudinal_fraction": 0.013676031366586025,
+        "magnetic_longitudinal_fraction": 0.2509728101717896
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 3.7859972348831927e-14,
+        "electric_longitudinal_fraction": 0.20210071634626456,
+        "magnetic_longitudinal_fraction": 0.10718210402133067
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 3.640413403072646e-14,
+        "electric_longitudinal_fraction": 0.29230562446262326,
+        "magnetic_longitudinal_fraction": 0.021489317635284687
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 3.926723730841304e-14,
+        "electric_longitudinal_fraction": 0.21789974301804546,
+        "magnetic_longitudinal_fraction": 0.12929429728117076
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 3.3766774788491956e-14,
+        "electric_longitudinal_fraction": 0.06594460084397506,
+        "magnetic_longitudinal_fraction": 0.3156488001553991
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 7.82092562990272e-14,
+        "electric_longitudinal_fraction": 0.13815835166836649,
+        "magnetic_longitudinal_fraction": 0.27969933302684713
+      }
+    ],
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 5.621466870345487e-15,
+        "electric_longitudinal_fraction": 0.03529976825347483,
+        "magnetic_longitudinal_fraction": 0.036723229790601324
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 4.383561627852092e-15,
+        "electric_longitudinal_fraction": 0.058865998137575586,
+        "magnetic_longitudinal_fraction": 0.023175021582007977
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 1.2337190612212176e-14,
+        "electric_longitudinal_fraction": 0.053552941760057815,
+        "magnetic_longitudinal_fraction": 0.09744132339400682
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 1.3047983392325722e-14,
+        "electric_longitudinal_fraction": 0.13704229679067684,
+        "magnetic_longitudinal_fraction": 0.03453008449528272
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 2.131693820124314e-14,
+        "electric_longitudinal_fraction": 0.04412777367819875,
+        "magnetic_longitudinal_fraction": 0.14032219320969447
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 5.9685195822736986e-15,
+        "electric_longitudinal_fraction": 0.21924251738097392,
+        "magnetic_longitudinal_fraction": 0.025563579289982805
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.2286238746369205e-14,
+        "electric_longitudinal_fraction": 0.013262069500737448,
+        "magnetic_longitudinal_fraction": 0.24136934851619837
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.1417630610280149e-14,
+        "electric_longitudinal_fraction": 0.19241803574004043,
+        "magnetic_longitudinal_fraction": 0.10381776159541731
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 8.31499976227685e-15,
+        "electric_longitudinal_fraction": 0.28268169309555546,
+        "magnetic_longitudinal_fraction": 0.020364702044191912
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.9795864373569084e-14,
+        "electric_longitudinal_fraction": 0.2086445982628193,
+        "magnetic_longitudinal_fraction": 0.12338328907457187
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.1475056851112182e-14,
+        "electric_longitudinal_fraction": 0.060733983012102824,
+        "magnetic_longitudinal_fraction": 0.3065929198879661
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 5.905866973158898e-14,
+        "electric_longitudinal_fraction": 0.1393055195773051,
+        "magnetic_longitudinal_fraction": 0.2643539473579253
+      }
+    ],
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 5.032040018782035e-15,
+        "electric_longitudinal_fraction": 0.03367859093316039,
+        "magnetic_longitudinal_fraction": 0.035428335467749816
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 3.782263649334321e-15,
+        "electric_longitudinal_fraction": 0.05622294502026856,
+        "magnetic_longitudinal_fraction": 0.022289509634307682
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 3.107461117831643e-14,
+        "electric_longitudinal_fraction": 0.05145863842296169,
+        "magnetic_longitudinal_fraction": 0.0934339843988889
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 2.5807077084582025e-14,
+        "electric_longitudinal_fraction": 0.13102368644685147,
+        "magnetic_longitudinal_fraction": 0.033410566046163916
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 1.4616451658177523e-14,
+        "electric_longitudinal_fraction": 0.041627598416588835,
+        "magnetic_longitudinal_fraction": 0.13577035231777101
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 5.7164118287335286e-15,
+        "electric_longitudinal_fraction": 0.21045564245932427,
+        "magnetic_longitudinal_fraction": 0.024466594316521435
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.127598747149147e-14,
+        "electric_longitudinal_fraction": 0.0128784300349292,
+        "magnetic_longitudinal_fraction": 0.23227247432847395
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 1.0809007719183514e-14,
+        "electric_longitudinal_fraction": 0.1833639225264167,
+        "magnetic_longitudinal_fraction": 0.10060562609426334
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.2545615768987468e-14,
+        "electric_longitudinal_fraction": 0.2732341211880788,
+        "magnetic_longitudinal_fraction": 0.019409510883052733
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.8557153521334838e-14,
+        "electric_longitudinal_fraction": 0.19987705117224686,
+        "magnetic_longitudinal_fraction": 0.11786586664694561
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.277916397292469e-14,
+        "electric_longitudinal_fraction": 0.056151526387695105,
+        "magnetic_longitudinal_fraction": 0.2976825461763421
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 2.167573241236257e-14,
+        "electric_longitudinal_fraction": 0.14019321298648774,
+        "magnetic_longitudinal_fraction": 0.2498360277093302
+      }
+    ],
+    [
+      {
+        "mode": 1,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 5.337576214906867e-15,
+        "electric_longitudinal_fraction": 0.03216638297321937,
+        "magnetic_longitudinal_fraction": 0.03419947280655927
+      },
+      {
+        "mode": 2,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 4.0000459249772405e-15,
+        "electric_longitudinal_fraction": 0.05375180464139312,
+        "magnetic_longitudinal_fraction": 0.02145363308273208
+      },
+      {
+        "mode": 3,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 2.742749100450876e-14,
+        "electric_longitudinal_fraction": 0.04946723523043359,
+        "magnetic_longitudinal_fraction": 0.08967956954351945
+      },
+      {
+        "mode": 4,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 2.749884661960802e-14,
+        "electric_longitudinal_fraction": 0.12537811231484705,
+        "magnetic_longitudinal_fraction": 0.032339582002472736
+      },
+      {
+        "mode": 5,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 1.4203751187947919e-14,
+        "electric_longitudinal_fraction": 0.03934201734571993,
+        "magnetic_longitudinal_fraction": 0.13140804774417686
+      },
+      {
+        "mode": 6,
+        "parity": [
+          1,
+          1
+        ],
+        "parity_error": 7.828759133271445e-15,
+        "electric_longitudinal_fraction": 0.20211753779419137,
+        "magnetic_longitudinal_fraction": 0.023442962227890544
+      },
+      {
+        "mode": 7,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 9.912575467863748e-15,
+        "electric_longitudinal_fraction": 0.012523446254890169,
+        "magnetic_longitudinal_fraction": 0.22364815409683375
+      },
+      {
+        "mode": 8,
+        "parity": [
+          1,
+          -1
+        ],
+        "parity_error": 5.967541897843576e-14,
+        "electric_longitudinal_fraction": 0.17489027639823904,
+        "magnetic_longitudinal_fraction": 0.09753974742602539
+      },
+      {
+        "mode": 9,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 4.65812704263243e-14,
+        "electric_longitudinal_fraction": 0.2640050846221351,
+        "magnetic_longitudinal_fraction": 0.01859746255508016
+      },
+      {
+        "mode": 10,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.794334775146867e-14,
+        "electric_longitudinal_fraction": 0.19159240542661654,
+        "magnetic_longitudinal_fraction": 0.11269949628664558
+      },
+      {
+        "mode": 11,
+        "parity": [
+          -1,
+          1
+        ],
+        "parity_error": 1.1331946449913197e-14,
+        "electric_longitudinal_fraction": 0.05209943881330848,
+        "magnetic_longitudinal_fraction": 0.2889634214323591
+      },
+      {
+        "mode": 12,
+        "parity": [
+          -1,
+          -1
+        ],
+        "parity_error": 7.267487719227552e-14,
+        "electric_longitudinal_fraction": 0.1408036939418917,
+        "magnetic_longitudinal_fraction": 0.23615191803025734
+      }
+    ]
+  ],
+  "channel_overlaps": [
+    [
+      0.9999381928917691,
+      0.9999418563401113,
+      0.9997812009700676,
+      0.9998680051719074,
+      0.9997062591380251,
+      0.9997629940062022,
+      0.9995208802728608,
+      0.9995837665048515,
+      0.9992655283192533,
+      0.9989507595524589,
+      0.998769663038744,
+      0.9987317845466783
+    ],
+    [
+      0.9999443400608441,
+      0.9999481388654639,
+      0.9998083812079533,
+      0.9998841238428642,
+      0.9997417810279455,
+      0.9997984017469691,
+      0.9995682300372768,
+      0.9996333889392064,
+      0.9993267315583045,
+      0.9990755871960604,
+      0.9989975724349689,
+      0.9988687269741842
+    ],
+    [
+      0.9999497294310016,
+      0.9999535830546,
+      0.9998313730949091,
+      0.9998977369528723,
+      0.9997718482671916,
+      0.9998270941119954,
+      0.9996082683890524,
+      0.9996730727712109,
+      0.9993794719061639,
+      0.9991741294538224,
+      0.9991684138382783,
+      0.998973262634853
+    ],
+    [
+      0.9999544724070001,
+      0.9999583215609966,
+      0.9998509332265484,
+      0.9999093181347768,
+      0.9997974632451432,
+      0.9998506058692134,
+      0.9996423296471714,
+      0.9997052317347397,
+      0.9994264050010134,
+      0.999255184724354,
+      0.9992996802060163,
+      0.9990572002853378
+    ],
+    [
+      0.9999586614117794,
+      0.999962462877544,
+      0.999867664491949,
+      0.9999192358835566,
+      0.9998194177292684,
+      0.9998700650722161,
+      0.9996714730933443,
+      0.999731594311012,
+      0.9994692128100949,
+      0.99932420454276,
+      0.9994027209739776,
+      0.9991277826181697
+    ],
+    [
+      0.9999623735534942,
+      0.9999660962882336,
+      0.9998820501070628,
+      0.9999277802239777,
+      0.9998383417672334,
+      0.9998863145058147,
+      0.9996965483164129,
+      0.9997534291934952,
+      0.9995089310769716,
+      0.9993846041143949,
+      0.9994851143552134,
+      0.9991896081830649
+    ],
+    [
+      0.9999656735035951,
+      0.9999692956980604,
+      0.9998944796410748,
+      0.9999351818150679,
+      0.9998547403624485,
+      0.9998999931338722,
+      0.9997182430548986,
+      0.9997716875493617,
+      0.9995461689199853,
+      0.9994385358411563,
+      0.9995520585336285,
+      0.9992456182476974
+    ],
+    [
+      0.9999686157718071,
+      0.9999721226178302,
+      0.9999052689923585,
+      0.9999416258486679,
+      0.9998690211489278,
+      0.9999115918462254,
+      0.9997371186616596,
+      0.9997870956439878,
+      0.9995812604408392,
+      0.9994873615033557,
+      0.9996072085535321,
+      0.9992976578763516
+    ]
+  ],
+  "minimum_channel_overlap": 0.9987317845466783,
+  "maximum_field_residual": 3.603640121081934e-14,
+  "minimum_power_eigenvalue": 0.9962743592920806,
+  "maximum_parity_error": 9.281843361445006e-14,
+  "maximum_mixed_residual": 0,
+  "orientation": []
+}

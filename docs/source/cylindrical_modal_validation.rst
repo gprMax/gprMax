@@ -126,46 +126,46 @@ Run from the repository root in the gprMax Python environment:
 This runs both PEC and copper. Use ``--wall PEC`` or ``--wall copper`` for
 one material. ``--cells 96 192`` selects the refinement sequence; choose a
 fresh output directory for each run. The implementation is
-``testing/validation/cylindrical_modal_profiles.py``. It saves native complex
+``testing/validation/eigenmode_tracking/profiles/cylindrical_modal_profiles.py``. It saves native complex
 E/H fields (NPZ), tracking diagnostics and provenance (JSON), and every plot
 shown below. Six extra candidates complete the modal search bank.
 
 C4v cylindrical staircase: PEC
 ------------------------------
 
-:download:`Recorded PEC results <../../testing/validation/C4v_cylindrical_PEC_results.json>`.
+:download:`Recorded PEC results <../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/results.json>`.
 
-.. figure:: ../../images_shared/C4v_cylindrical_PEC_matching.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/C4v_cylindrical_PEC_matching.png
    :alt: PEC: full-vector matching of 21 tracked modes to smooth PEC Bessel profiles at 40 GHz on the 192 × 192 mesh.
    :width: 100%
 
    PEC: full-vector matching of 21 tracked modes to smooth PEC Bessel profiles at 40 GHz on the 192 × 192 mesh.
 
-.. figure:: ../../images_shared/C4v_cylindrical_PEC_convergence.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/C4v_cylindrical_PEC_convergence.png
    :alt: PEC: worst profile mismatch and relative propagation-constant difference across 39, 40, and 41 GHz on both meshes.
    :width: 100%
 
    PEC: worst profile mismatch and relative propagation-constant difference across 39, 40, and 41 GHz on both meshes.
 
-.. figure:: ../../images_shared/C4v_cylindrical_PEC_profiles_1.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/C4v_cylindrical_PEC_profiles_1.png
    :alt: PEC: modes 1–6 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
    :width: 100%
 
    PEC: modes 1–6 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
 
-.. figure:: ../../images_shared/C4v_cylindrical_PEC_profiles_2.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/C4v_cylindrical_PEC_profiles_2.png
    :alt: PEC: modes 7–12 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
    :width: 100%
 
    PEC: modes 7–12 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
 
-.. figure:: ../../images_shared/C4v_cylindrical_PEC_profiles_3.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/C4v_cylindrical_PEC_profiles_3.png
    :alt: PEC: modes 13–18 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
    :width: 100%
 
    PEC: modes 13–18 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
 
-.. figure:: ../../images_shared/C4v_cylindrical_PEC_profiles_4.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_PEC/C4v_cylindrical_PEC_profiles_4.png
    :alt: PEC: modes 19–21 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
    :width: 100%
 
@@ -174,45 +174,45 @@ C4v cylindrical staircase: PEC
 C4v cylindrical staircase: copper
 ---------------------------------
 
-:download:`Recorded copper results <../../testing/validation/C4v_cylindrical_copper_results.json>`.
+:download:`Recorded copper results <../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/results.json>`.
 
-.. figure:: ../../images_shared/C4v_cylindrical_copper_matching.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/C4v_cylindrical_copper_matching.png
    :alt: copper: full-vector matching of 21 tracked modes to smooth PEC Bessel profiles at 40 GHz on the 192 × 192 mesh.
    :width: 100%
 
    copper: full-vector matching of 21 tracked modes to smooth PEC Bessel profiles at 40 GHz on the 192 × 192 mesh.
 
-.. figure:: ../../images_shared/C4v_cylindrical_copper_convergence.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/C4v_cylindrical_copper_convergence.png
    :alt: copper: worst profile mismatch and relative propagation-constant difference across 39, 40, and 41 GHz on both meshes.
    :width: 100%
 
    copper: worst profile mismatch and relative propagation-constant difference across 39, 40, and 41 GHz on both meshes.
 
-.. figure:: ../../images_shared/C4v_cylindrical_copper_attenuation.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/C4v_cylindrical_copper_attenuation.png
    :alt: Copper: computed attenuation at 40 GHz on both staircase meshes.
    :width: 100%
 
    Copper: computed attenuation at 40 GHz on both staircase meshes.
 
-.. figure:: ../../images_shared/C4v_cylindrical_copper_profiles_1.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/C4v_cylindrical_copper_profiles_1.png
    :alt: copper: modes 1–6 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
    :width: 100%
 
    copper: modes 1–6 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
 
-.. figure:: ../../images_shared/C4v_cylindrical_copper_profiles_2.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/C4v_cylindrical_copper_profiles_2.png
    :alt: copper: modes 7–12 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
    :width: 100%
 
    copper: modes 7–12 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
 
-.. figure:: ../../images_shared/C4v_cylindrical_copper_profiles_3.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/C4v_cylindrical_copper_profiles_3.png
    :alt: copper: modes 13–18 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
    :width: 100%
 
    copper: modes 13–18 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
 
-.. figure:: ../../images_shared/C4v_cylindrical_copper_profiles_4.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_cylindrical_copper/C4v_cylindrical_copper_profiles_4.png
    :alt: copper: modes 19–21 compared with their dominant analytical longitudinal components; the outline marks the smooth 10-mm-radius bore.
    :width: 100%
 

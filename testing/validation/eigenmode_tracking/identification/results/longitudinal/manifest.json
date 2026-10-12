@@ -1,0 +1,1980 @@
+{
+  "status": "passed",
+  "started_utc": "2026-10-11T23:00:43.907682+00:00",
+  "description": "Native FDFD banks, automatic symmetry and longitudinal separation. Analytical mode names are validation only.",
+  "cases": [
+    {
+      "name": "rectangular_48",
+      "cells": [
+        48,
+        36
+      ],
+      "geometry": "rectangle",
+      "frequency_GHz": [
+        40,
+        42,
+        44
+      ],
+      "public_modes": 32,
+      "candidates": 40,
+      "epsilon": 2,
+      "dimensions_mm": [
+        20,
+        15
+      ],
+      "status": "passed",
+      "verification": {
+        "mode_count": 32,
+        "identified": [
+          {
+            "branch": 1,
+            "reference": "TE_10",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 2,
+            "reference": "TE_01",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 3,
+            "reference": "TE_11",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 4,
+            "reference": "TM_11",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 5,
+            "reference": "TE_20",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 6,
+            "reference": "TE_21",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 7,
+            "reference": "TM_21",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 8,
+            "reference": "TE_02",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 9,
+            "reference": "TE_12",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 10,
+            "reference": "TM_12",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 11,
+            "reference": "TE_30",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 12,
+            "reference": "TE_31",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 13,
+            "reference": "TM_31",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 14,
+            "reference": "TE_22",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 15,
+            "reference": "TM_22",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 16,
+            "reference": "TE_40",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 17,
+            "reference": "TE_03",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 18,
+            "reference": "TE_32",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 19,
+            "reference": "TM_32",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 20,
+            "reference": "TE_13",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 21,
+            "reference": "TM_13",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 22,
+            "reference": "TE_41",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 23,
+            "reference": "TM_41",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 24,
+            "reference": "TE_23",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 25,
+            "reference": "TM_23",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 26,
+            "reference": "TE_42",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 27,
+            "reference": "TM_42",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 28,
+            "reference": "TE_50",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 29,
+            "reference": "TE_33",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 30,
+            "reference": "TM_33",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 31,
+            "reference": "TE_51",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 32,
+            "reference": "TM_51",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          }
+        ],
+        "minimum_reference_score": 1.0,
+        "individually_resolved": 32,
+        "maximum_parity_error": 1.5792578817970627e-12,
+        "maximum_field_residual": 1.176277289471596e-14,
+        "minimum_channel_overlap": 0.9987321030695351
+      }
+    },
+    {
+      "name": "rectangular_64",
+      "cells": [
+        64,
+        48
+      ],
+      "geometry": "rectangle",
+      "frequency_GHz": [
+        40,
+        42,
+        44
+      ],
+      "public_modes": 32,
+      "candidates": 40,
+      "epsilon": 2,
+      "dimensions_mm": [
+        20,
+        15
+      ],
+      "status": "passed",
+      "verification": {
+        "mode_count": 32,
+        "identified": [
+          {
+            "branch": 1,
+            "reference": "TE_10",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 2,
+            "reference": "TE_01",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 3,
+            "reference": "TE_11",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 4,
+            "reference": "TM_11",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 5,
+            "reference": "TE_20",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 6,
+            "reference": "TE_21",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 7,
+            "reference": "TM_21",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 8,
+            "reference": "TE_02",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 9,
+            "reference": "TE_12",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 10,
+            "reference": "TM_12",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 11,
+            "reference": "TE_30",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 12,
+            "reference": "TE_31",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 13,
+            "reference": "TM_31",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 14,
+            "reference": "TE_22",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 15,
+            "reference": "TM_22",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 16,
+            "reference": "TE_40",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 17,
+            "reference": "TE_03",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 18,
+            "reference": "TE_32",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 19,
+            "reference": "TM_32",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 20,
+            "reference": "TE_13",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 21,
+            "reference": "TM_13",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 22,
+            "reference": "TE_41",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 23,
+            "reference": "TM_41",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 24,
+            "reference": "TE_23",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 25,
+            "reference": "TM_23",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 26,
+            "reference": "TE_42",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 27,
+            "reference": "TM_42",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 28,
+            "reference": "TE_50",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 29,
+            "reference": "TE_33",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 30,
+            "reference": "TM_33",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 31,
+            "reference": "TE_51",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 32,
+            "reference": "TM_51",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          }
+        ],
+        "minimum_reference_score": 1.0,
+        "individually_resolved": 32,
+        "maximum_parity_error": 1.270692131864208e-12,
+        "maximum_field_residual": 3.580455327464686e-14,
+        "minimum_channel_overlap": 0.9987236935217209
+      }
+    },
+    {
+      "name": "square_48",
+      "cells": [
+        48,
+        48
+      ],
+      "geometry": "square",
+      "frequency_GHz": [
+        40,
+        42,
+        44
+      ],
+      "public_modes": 32,
+      "candidates": 40,
+      "epsilon": 2,
+      "dimensions_mm": [
+        20,
+        20
+      ],
+      "status": "passed",
+      "verification": {
+        "mode_count": 34,
+        "identified": [
+          {
+            "branch": 1,
+            "reference": "TE_01",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 2,
+            "reference": "TE_10",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 3,
+            "reference": "TE_11",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 4,
+            "reference": "TM_11",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 5,
+            "reference": "TE_02",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 6,
+            "reference": "TE_20",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 7,
+            "reference": "TE_21",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 8,
+            "reference": "TE_12",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 9,
+            "reference": "TM_21",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 10,
+            "reference": "TM_12",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 11,
+            "reference": "TE_22",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 12,
+            "reference": "TM_22",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 13,
+            "reference": "TE_03",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 14,
+            "reference": "TE_30",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 15,
+            "reference": "TE_13",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 16,
+            "reference": "TE_31",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 17,
+            "reference": "TM_13",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 18,
+            "reference": "TM_31",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 19,
+            "reference": "TE_23",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 20,
+            "reference": "TE_32",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 21,
+            "reference": "TM_23",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 22,
+            "reference": "TM_32",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 23,
+            "reference": "TE_04",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 24,
+            "reference": "TE_40",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 25,
+            "reference": "TE_41",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 26,
+            "reference": "TE_14",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 27,
+            "reference": "TM_41",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 28,
+            "reference": "TM_14",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 29,
+            "reference": "TE_33",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 30,
+            "reference": "TM_33",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 31,
+            "reference": "TE_24",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 32,
+            "reference": "TE_42",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 33,
+            "reference": "TM_24",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 34,
+            "reference": "TM_42",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          }
+        ],
+        "minimum_reference_score": 1.0,
+        "individually_resolved": 34,
+        "maximum_parity_error": 4.512241130054329e-14,
+        "maximum_field_residual": 9.722537055704852e-15,
+        "minimum_channel_overlap": 0.9992082756788995
+      }
+    },
+    {
+      "name": "square_64",
+      "cells": [
+        64,
+        64
+      ],
+      "geometry": "square",
+      "frequency_GHz": [
+        40,
+        42,
+        44
+      ],
+      "public_modes": 32,
+      "candidates": 40,
+      "epsilon": 2,
+      "dimensions_mm": [
+        20,
+        20
+      ],
+      "status": "passed",
+      "verification": {
+        "mode_count": 34,
+        "identified": [
+          {
+            "branch": 1,
+            "reference": "TE_01",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 2,
+            "reference": "TE_10",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 3,
+            "reference": "TE_11",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 4,
+            "reference": "TM_11",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 5,
+            "reference": "TE_02",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 6,
+            "reference": "TE_20",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 7,
+            "reference": "TE_21",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 8,
+            "reference": "TE_12",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 9,
+            "reference": "TM_21",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 10,
+            "reference": "TM_12",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 11,
+            "reference": "TE_22",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 12,
+            "reference": "TM_22",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 13,
+            "reference": "TE_03",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 14,
+            "reference": "TE_30",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 15,
+            "reference": "TE_13",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 16,
+            "reference": "TE_31",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 17,
+            "reference": "TM_13",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 18,
+            "reference": "TM_31",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 19,
+            "reference": "TE_23",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 20,
+            "reference": "TE_32",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 21,
+            "reference": "TM_23",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 22,
+            "reference": "TM_32",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 23,
+            "reference": "TE_04",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 24,
+            "reference": "TE_40",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 25,
+            "reference": "TE_41",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 26,
+            "reference": "TE_14",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 27,
+            "reference": "TM_41",
+            "score": 1.0,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 28,
+            "reference": "TM_14",
+            "score": 1.0,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 29,
+            "reference": "TE_33",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 30,
+            "reference": "TM_33",
+            "score": 1.0,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 31,
+            "reference": "TE_24",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 32,
+            "reference": "TE_42",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 33,
+            "reference": "TM_24",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 34,
+            "reference": "TM_42",
+            "score": 1.0,
+            "parity": [
+              -1,
+              -1
+            ]
+          }
+        ],
+        "minimum_reference_score": 1.0,
+        "individually_resolved": 34,
+        "maximum_parity_error": 1.2945750850891293e-13,
+        "maximum_field_residual": 4.412990846479987e-14,
+        "minimum_channel_overlap": 0.9992057481797589
+      }
+    },
+    {
+      "name": "circular_64",
+      "cells": [
+        64,
+        64
+      ],
+      "geometry": "circular",
+      "frequency_GHz": [
+        40,
+        42,
+        44
+      ],
+      "public_modes": 32,
+      "candidates": 40,
+      "epsilon": 2,
+      "dimensions_mm": [
+        24,
+        24
+      ],
+      "status": "passed",
+      "radius_mm": 10,
+      "verification": {
+        "mode_count": 32,
+        "identified": [
+          {
+            "branch": 1,
+            "reference": "TE_11",
+            "score": 0.9999708716109399,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 2,
+            "reference": "TE_11",
+            "score": 0.9999708716109382,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 3,
+            "reference": "TM_01",
+            "score": 0.9997739698996341,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 4,
+            "reference": "TE_21",
+            "score": 0.9998890867804281,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 5,
+            "reference": "TE_21",
+            "score": 0.9999240675019174,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 6,
+            "reference": "TE_01",
+            "score": 0.9999129894716812,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 7,
+            "reference": "TM_11",
+            "score": 0.9994726622845751,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 8,
+            "reference": "TM_11",
+            "score": 0.9994726622845734,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 9,
+            "reference": "TE_31",
+            "score": 0.9995313947886534,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 10,
+            "reference": "TE_31",
+            "score": 0.9995313947886523,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 11,
+            "reference": "TM_21",
+            "score": 0.9995627075905972,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 12,
+            "reference": "TM_21",
+            "score": 0.9987572159017268,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 13,
+            "reference": "TE_41",
+            "score": 0.9991964634822091,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 14,
+            "reference": "TE_41",
+            "score": 0.9991376018676894,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 15,
+            "reference": "TE_12",
+            "score": 0.999612843656978,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 16,
+            "reference": "TE_12",
+            "score": 0.9996128436569768,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 17,
+            "reference": "TM_02",
+            "score": 0.9988091750989047,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 18,
+            "reference": "TE_51",
+            "score": 0.9979416936495051,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 19,
+            "reference": "TE_51",
+            "score": 0.9979416936495054,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 20,
+            "reference": "TM_31",
+            "score": 0.99756200625904,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 21,
+            "reference": "TM_31",
+            "score": 0.9975620062590396,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 22,
+            "reference": "TE_22",
+            "score": 0.9994275604583466,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 23,
+            "reference": "TE_22",
+            "score": 0.9994858855705319,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 24,
+            "reference": "TE_02",
+            "score": 0.9994998932955352,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 25,
+            "reference": "TM_12",
+            "score": 0.9968974018235669,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 26,
+            "reference": "TM_12",
+            "score": 0.996897401823565,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 27,
+            "reference": "TE_61",
+            "score": 0.9975858204433881,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 28,
+            "reference": "TE_61",
+            "score": 0.9967694595111658,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 29,
+            "reference": "TM_41",
+            "score": 0.9988153044692439,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 30,
+            "reference": "TM_41",
+            "score": 0.9965239566060555,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 31,
+            "reference": "TE_32",
+            "score": 0.9970725195573282,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 32,
+            "reference": "TE_32",
+            "score": 0.9970725195573281,
+            "parity": [
+              1,
+              -1
+            ]
+          }
+        ],
+        "minimum_reference_score": 0.9965239566060555,
+        "individually_resolved": 32,
+        "maximum_parity_error": 7.745762570434348e-13,
+        "maximum_field_residual": 1.6620390745861658e-14,
+        "minimum_channel_overlap": 0.9988075280547739
+      }
+    },
+    {
+      "name": "circular_96",
+      "cells": [
+        96,
+        96
+      ],
+      "geometry": "circular",
+      "frequency_GHz": [
+        40,
+        42,
+        44
+      ],
+      "public_modes": 32,
+      "candidates": 40,
+      "epsilon": 2,
+      "dimensions_mm": [
+        24,
+        24
+      ],
+      "status": "passed",
+      "radius_mm": 10,
+      "verification": {
+        "mode_count": 32,
+        "identified": [
+          {
+            "branch": 1,
+            "reference": "TE_11",
+            "score": 0.9999916880805761,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 2,
+            "reference": "TE_11",
+            "score": 0.9999916880805768,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 3,
+            "reference": "TM_01",
+            "score": 0.9998666133278502,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 4,
+            "reference": "TE_21",
+            "score": 0.9999778880636577,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 5,
+            "reference": "TE_21",
+            "score": 0.999959118642346,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 6,
+            "reference": "TE_01",
+            "score": 0.9999943531924398,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 7,
+            "reference": "TM_11",
+            "score": 0.9996946305496505,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 8,
+            "reference": "TM_11",
+            "score": 0.9996946305496481,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 9,
+            "reference": "TE_31",
+            "score": 0.9998338126641455,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 10,
+            "reference": "TE_31",
+            "score": 0.9998338126641462,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 11,
+            "reference": "TM_21",
+            "score": 0.9996989732156322,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 12,
+            "reference": "TM_21",
+            "score": 0.9993255892401507,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 13,
+            "reference": "TE_41",
+            "score": 0.9997447267421444,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 14,
+            "reference": "TE_41",
+            "score": 0.9999166715098861,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 15,
+            "reference": "TE_12",
+            "score": 0.9999564140737928,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 16,
+            "reference": "TE_12",
+            "score": 0.9999564140737932,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 17,
+            "reference": "TM_02",
+            "score": 0.9993140611245553,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 18,
+            "reference": "TE_51",
+            "score": 0.9994526482509861,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 19,
+            "reference": "TE_51",
+            "score": 0.9994526482509881,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 20,
+            "reference": "TM_31",
+            "score": 0.9987834976953488,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 21,
+            "reference": "TM_31",
+            "score": 0.9987834976953585,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 22,
+            "reference": "TE_22",
+            "score": 0.9996081342069542,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 23,
+            "reference": "TE_22",
+            "score": 0.9992931862166362,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 24,
+            "reference": "TE_02",
+            "score": 0.9999295992262223,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 25,
+            "reference": "TM_12",
+            "score": 0.9984192040632288,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 26,
+            "reference": "TM_12",
+            "score": 0.9984192040632389,
+            "parity": [
+              1,
+              -1
+            ]
+          },
+          {
+            "branch": 27,
+            "reference": "TE_61",
+            "score": 0.998566177293586,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 28,
+            "reference": "TE_61",
+            "score": 0.9989668109898185,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 29,
+            "reference": "TM_41",
+            "score": 0.998761105223008,
+            "parity": [
+              1,
+              1
+            ]
+          },
+          {
+            "branch": 30,
+            "reference": "TM_41",
+            "score": 0.9988259474891444,
+            "parity": [
+              -1,
+              -1
+            ]
+          },
+          {
+            "branch": 31,
+            "reference": "TE_32",
+            "score": 0.9995057454024324,
+            "parity": [
+              -1,
+              1
+            ]
+          },
+          {
+            "branch": 32,
+            "reference": "TE_32",
+            "score": 0.9995057454024392,
+            "parity": [
+              1,
+              -1
+            ]
+          }
+        ],
+        "minimum_reference_score": 0.9984192040632288,
+        "individually_resolved": 32,
+        "maximum_parity_error": 1.4165166704669158e-12,
+        "maximum_field_residual": 7.647885323888833e-14,
+        "minimum_channel_overlap": 0.998785310796925
+      }
+    },
+    {
+      "name": "hybrid_crossing_64",
+      "cells": [
+        64,
+        64
+      ],
+      "status": "passed",
+      "minimum_span_overlap": 0.9998124548421179,
+      "maximum_field_residual": 5.199337518838494e-13,
+      "maximum_mixed_residual": 1.6439041559283733e-13
+    }
+  ],
+  "source_sha256": {
+    "testing\\validation\\longitudinal_mode_identification.py": "32e2570a39275b2c077429b656666227f2753b2574bbce33d21f1751ab2739fe",
+    "gprMax\\eigenmode_symmetry.py": "d68877894be81e2dad7fb5ecb94f6cd75ea53f4d5070d388f2b8d6b79031416c",
+    "gprMax\\eigenmode_tracking.py": "880a013800e381055acce870a9a258d8ec6fa3b5d87ac8ef160df275d684c97f",
+    "gprMax\\eigenmode_config.py": "304481b403cf1cc71bf0df2c59f33f9c2a9f63d062d0edf1bb0ab64aa902928b",
+    "testing\\validation\\tracking_classification_edges.py": "3411d0c3c5741c610eb85f0d4b43c453331edb479be3f29f29bc411f38c84299",
+    "testing\\validation\\general_subspace_tracking.py": "9886638a1e5bc9f5952e7318aa73921f22858f2b649cca05f40a2dabc157eb33",
+    "testing\\validation\\modal_field_templates.py": "5bd85f36f050c060210fea929c9fce0f214769e66b41dd1a56db3bbf9f35b1d0"
+  },
+  "finished_utc": "2026-10-11T23:01:38.783479+00:00"
+}

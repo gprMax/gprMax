@@ -1,0 +1,75 @@
+{
+  "created_utc": "2026-10-11T20:12:21.242652+00:00",
+  "upstream_base": "0aeeec56393232cbe84c3c3b1866b06dd0275f28",
+  "branch": "codex/general-subspace-tracking",
+  "validation": "Full-vector FDFD tracking and source-basis construction",
+  "python": "3.13.15",
+  "numpy": "2.5.2",
+  "scipy": "1.18.1",
+  "source_sha256": {
+    "gprMax/eigenmode_tracking.py": "642031be39d0b0e2355d0738dd940e3d31ff3af29e00af22461799cf2a0b31d0",
+    "gprMax/eigenmode_symmetry.py": "d782bdc2aa038bd9fa14c44fac5b1cfc73e335e0ad973147ef84142122644157",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "88b094d174392a757aa66b96c06d95df67377ee8000a0332f87f65f14d250c01",
+    "testing/validation/general_subspace_tracking.py": "4553831fe17fd599ef0d6cdf689dbdd121d0671ecc6dea6e02c2fc0d0b4ac6a7",
+    "testing/validation/expanded_mode_tracking.py": "c40c6df2d9c3b765bce64c26465b12cf3daabc4a7d37cf93febd7bcd67497a9a"
+  },
+  "tracking_config": {
+    "residual_tolerance": 1e-08,
+    "beta_drift_tolerance": 0.001,
+    "verification_overlap": 0.999,
+    "edge_fraction_max": 0.001,
+    "tracking_overlap": 0.8,
+    "assignment_margin": 0.02,
+    "unmatched_cost": 0.65,
+    "cluster_gap": 1e-05,
+    "extra_candidates": 0,
+    "max_depth": 8,
+    "min_relative_step": 1e-05,
+    "max_solves": 200,
+    "subspace_margin": 0.02
+  },
+  "exact_cluster_rotation_seed": 412,
+  "optional_symmetry_cases": {
+    "c4v_metallic_quartet": {
+      "base_case": "persistent_metallic_quartet",
+      "mode_symmetry": "c4v"
+    },
+    "c4v_dielectric_hybrid": {
+      "base_case": "dielectric_hybrid_pair_crossing",
+      "mode_symmetry": "c4v"
+    }
+  },
+  "cases": {
+    "metallic_pair_crossing": {
+      "width_m": 0.02,
+      "cells": 16,
+      "frequency_Hz": 20000000000.0,
+      "epsilon_x_y": 2.0,
+      "epsilon_z": "31 values spanning discrete crossing +/- 0.12"
+    },
+    "dielectric_hybrid_pair_crossing": {
+      "width_m": 0.02,
+      "cells": 16,
+      "frequency_Hz": 20000000000.0,
+      "t": "49 uniform values from -0.12 to 0.12 plus +/-0.001",
+      "pattern": "p=cos(pi*x)+cos(pi*y)+0.35*cos(pi*x)*cos(pi*y), x,y in [-1,1]",
+      "epsilon_x_y": "2+t*p",
+      "epsilon_z": "2+t*(1.1+0.7*p)"
+    },
+    "square_dielectric_core": {
+      "window_m": 0.04,
+      "core_m": 0.02,
+      "cells": 24,
+      "epsilon_core": 4.0,
+      "epsilon_cladding": 1.0,
+      "outer_boundary": "PEC truncation",
+      "frequency_Hz": "21 uniform values from 18e9 to 22e9"
+    },
+    "persistent_metallic_quartet": {
+      "width_m": 0.02,
+      "cells": 16,
+      "epsilon": 2.0,
+      "frequency_Hz": "11 uniform values from 18e9 to 22e9"
+    }
+  }
+}

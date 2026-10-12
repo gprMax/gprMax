@@ -5,6 +5,9 @@ This directory contains reproducible, quantitative validation models. The
 retained cases compare production gprMax outputs with independent analytical
 solutions rather than with saved output from another gprMax version.
 
+Eigenmode tracking studies, including their classified result galleries, are
+listed in `eigenmode_tracking/README.rst <eigenmode_tracking/README.rst>`_.
+
 The main validations are:
 
 * ``validate_plane_wave_dispersive_halfspace.py`` -- normal-incidence Fresnel

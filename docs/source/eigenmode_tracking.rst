@@ -189,7 +189,7 @@ of fields associated across anchors. A **degenerate group** contains independent
 fields with the same propagation constant; its individual eigenvectors can
 rotate while their combined span stays unchanged.
 
-.. figure:: ../../images_shared/mode_tracking_workflow.png
+.. figure:: ../../testing/validation/eigenmode_tracking/overview/figures/mode_tracking_workflow.png
    :width: 100%
    :alt: Tracking workflow from independent solves through association and basis selection to a checked field bank.
 
@@ -646,7 +646,7 @@ match individual analytical longitudinal patterns after axis selection,
 including TE20/TE02, TE13/TE31, TM13/TM31, and TM24/TM42. Analytical templates
 are used only to check the output fields.
 
-.. figure:: ../../images_shared/mode_tracking_axis_partners.png
+.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/longitudinal/axis_resolved_partners.png
    :width: 100%
    :alt: Individually oriented TE and TM mn/nm partners in a square metallic guide.
 
@@ -664,7 +664,7 @@ The largest effective-index change from enlarging the window is
 :math:`2.26\times10^{-5}`. These ordinary single-core examples already have
 resolved symmetry orientations, so the additional axis step is inactive.
 
-.. figure:: ../../images_shared/mode_tracking_dielectric_hybrid_fields.png
+.. figure:: ../../testing/validation/eigenmode_tracking/dielectric/results/separation/higher_order_fields.png
    :width: 100%
    :alt: Longitudinal electric and magnetic components of higher-order dielectric hybrid modes.
 
@@ -673,7 +673,7 @@ resolved symmetry orientations, so the additional axis step is inactive.
    indices. Display phases and amplitude scales are chosen independently
    for each component. Dashed outlines show the dielectric cores.
 
-.. figure:: ../../images_shared/mode_tracking_dielectric_branches.png
+.. figure:: ../../testing/validation/eigenmode_tracking/dielectric/results/separation/tracked_modes.png
    :width: 100%
    :alt: Tracked branches and doublets in rectangular, square, and circular dielectric cores.
 
@@ -689,10 +689,10 @@ raw solver bases reproduces the oriented fields with overlap above
 the single-core studies above test the familiar dielectric geometries.
 
 Reproducible numerical sources are
-``testing/validation/longitudinal_mode_identification.py``,
-``testing/validation/dielectric_mode_separation.py``, and
-``testing/validation/axis_hybrid_control.py``. Figure provenance is recorded
-in ``images_shared/mode_tracking_figures.json``.
+``testing/validation/eigenmode_tracking/identification/longitudinal_mode_identification.py``,
+``testing/validation/eigenmode_tracking/dielectric/dielectric_mode_separation.py``, and
+``testing/validation/eigenmode_tracking/dielectric/axis_hybrid_control.py``. Figure provenance is recorded
+in ``testing/validation/eigenmode_tracking/overview/figure_provenance.json``.
 
 Warnings and inspection
 -----------------------
@@ -757,7 +757,7 @@ Illustrated symmetry and crossing tests
 The following plots use saved FDFD validation banks. They illustrate the
 sampled eigenmodes and their tracking; the time-domain input examples follow
 in the next section. Figure provenance, including source-data hashes, is
-recorded in ``images_shared/mode_tracking_figures.json``.
+recorded in ``testing/validation/eigenmode_tracking/overview/figure_provenance.json``.
 
 Square, hexagonal, and octagonal guides
 ---------------------------------------
@@ -768,7 +768,7 @@ The 60-degree rotations of C6v and 45-degree rotations of C8v need off-grid
 samples. The sampled material can therefore retain a smaller group than its
 smooth boundary. See :ref:`tracking-symmetry-theory` for the lattice argument.
 
-.. figure:: ../../images_shared/mode_tracking_mode_gallery.png
+.. figure:: ../../testing/validation/eigenmode_tracking/overview/figures/mode_tracking_mode_gallery.png
    :width: 100%
    :alt: Longitudinal magnetic fields and transverse electric arrows for paired modes of square, hexagonal, and octagonal metallic guides.
 
@@ -791,7 +791,7 @@ by less than :math:`10^{-12}`. A higher octagonal pair splits by 0.008126.
 Thus the same sampled octagon supports both a protected doublet and resolved
 singlets.
 
-.. figure:: ../../images_shared/mode_tracking_polygon_splitting.png
+.. figure:: ../../testing/validation/eigenmode_tracking/symmetry/results/polygons/symmetry_breaking.png
    :width: 100%
    :alt: Pair splitting versus grid spacing and tracked effective indices versus frequency for hexagonal and octagonal guides.
 
@@ -825,7 +825,7 @@ the smallest squared adjacent subspace overlap is 0.999812. The basis orientatio
 uses electric moments away from the crossing and mirror parity where those
 moments vanish.
 
-.. figure:: ../../images_shared/mode_tracking_hybrid_crossing.png
+.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/longitudinal/hybrid_crossing_64_tracking.png
    :width: 100%
    :alt: Effective indices and continuity diagnostics for crossing hybrid-mode doublets.
 
@@ -833,7 +833,7 @@ moments vanish.
    changes the dielectric while frequency stays fixed at 20 GHz. The curves
    and diagnostics are from the saved crossing validation, not a new FDTD run.
 
-.. figure:: ../../images_shared/mode_tracking_hybrid_fields.png
+.. figure:: ../../testing/validation/eigenmode_tracking/identification/results/longitudinal/hybrid_crossing_64_individual_fields.png
    :width: 100%
    :alt: Longitudinal electric amplitudes and transverse electric vectors before, at, and after a doublet crossing.
 
@@ -842,8 +842,8 @@ moments vanish.
    mirror parity and back. Color shows longitudinal electric amplitude;
    arrows show the transverse electric field on the 64 x 64 mesh.
 
-The validation sources are ``testing/validation/polygon_symmetry_breaking.py``
-and ``testing/validation/longitudinal_mode_identification.py``. Geometry and run
+The validation sources are ``testing/validation/eigenmode_tracking/symmetry/polygon_symmetry_breaking.py``
+and ``testing/validation/eigenmode_tracking/identification/longitudinal_mode_identification.py``. Geometry and run
 manifests remain with those data.
 
 
@@ -888,7 +888,7 @@ consistent orthogonal polarizations. After each full run, the plotter writes
 ``auto_degenerate_te11_modeN_results.png`` showing co- and cross-polarized
 S11/S21 and the center receiver's Ex/Ey traces.
 
-.. figure:: ../../images_shared/auto_degenerate_te11_mode1_results.png
+.. figure:: ../../testing/validation/eigenmode_tracking/ports/figures/auto_degenerate_te11_mode1_results.png
    :alt: Automatically tracked circular TE11 mode 1 with co-polarized transmission and a guide-center Ex pulse, while the orthogonal channel remains small.
    :width: 100%
 
@@ -941,7 +941,7 @@ produces these figures without time stepping. After a full run,
 ``auto_mode_crossing_modeN_results.png`` shows both modes' S11/S21, marks the
 crossing frequency, and plots the guide-center polarization.
 
-.. figure:: ../../images_shared/auto_mode_crossing_mode1_results.png
+.. figure:: ../../testing/validation/eigenmode_tracking/ports/figures/auto_mode_crossing_mode1_results.png
    :alt: Mode-1 transmission remains near zero decibels across the tracked crossing near 14.42 gigahertz, while the center receiver remains polarized along y.
    :width: 100%
 

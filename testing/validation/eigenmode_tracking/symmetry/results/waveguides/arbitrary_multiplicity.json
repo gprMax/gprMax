@@ -1,0 +1,102 @@
+[
+  {
+    "dimension": 2,
+    "irreducible_dimensions": [
+      2
+    ],
+    "irreps": [
+      "E"
+    ],
+    "invariance_error": 0.0
+  },
+  {
+    "dimension": 4,
+    "irreducible_dimensions": [
+      2,
+      2
+    ],
+    "irreps": [
+      "E",
+      "E"
+    ],
+    "invariance_error": 4.854694799244355e-15
+  },
+  {
+    "dimension": 6,
+    "irreducible_dimensions": [
+      2,
+      2,
+      2
+    ],
+    "irreps": [
+      "E",
+      "E",
+      "E"
+    ],
+    "invariance_error": 1.549924909837122e-14
+  },
+  {
+    "dimension": 8,
+    "irreducible_dimensions": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "irreps": [
+      "E",
+      "E",
+      "E",
+      "E"
+    ],
+    "invariance_error": 2.0999619148392008e-14
+  },
+  {
+    "dimension": 12,
+    "irreducible_dimensions": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "irreps": [
+      "E",
+      "E",
+      "E",
+      "E",
+      "E",
+      "E"
+    ],
+    "invariance_error": 1.6370886720300274e-14
+  },
+  {
+    "dimension": 20,
+    "irreducible_dimensions": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "irreps": [
+      "E",
+      "E",
+      "E",
+      "E",
+      "E",
+      "E",
+      "E",
+      "E",
+      "E",
+      "E"
+    ],
+    "invariance_error": 2.706086750521265e-14
+  }
+]

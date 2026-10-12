@@ -1,0 +1,90 @@
+{
+  "created_utc": "2026-10-11T20:42:45.598097+00:00",
+  "upstream_base": "0aeeec56393232cbe84c3c3b1866b06dd0275f28",
+  "branch": "codex/general-subspace-tracking",
+  "validation": "Full-vector FDFD tracking and source-basis construction",
+  "python": "3.13.15",
+  "numpy": "2.5.2",
+  "scipy": "1.18.1",
+  "source_sha256": {
+    "gprMax/eigenmode_tracking.py": "a40dafd629506013e4fcae03d7791c348892e5d4cff60b8cd65efe1ed74dc0cb",
+    "gprMax/eigenmode_symmetry.py": "25c3acae1eca3f0739bbeb0c599013b20f23ea612ec7d64b7c60cb616fd4194e",
+    "gprMax/eigenmode_classification.py": "dd5d2a347f6197cfff04ccee4cca187912e1ae2b6df0fe36d4aef9dc8afb6800",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "88b094d174392a757aa66b96c06d95df67377ee8000a0332f87f65f14d250c01",
+    "testing/validation/general_subspace_tracking.py": "6dcf08fdfdb1bc76879d2172e40ec59167b89e2b865566bd19e1c637cf95c483",
+    "testing/validation/expanded_mode_tracking.py": "c40c6df2d9c3b765bce64c26465b12cf3daabc4a7d37cf93febd7bcd67497a9a",
+    "testing/validation/waveguide_symmetry_validation.py": "cdb4e8e72c73567a3770f9df328963c6ea68e73e8de3f18c6ba5e05c25f3d20a"
+  },
+  "tracking_config": {
+    "residual_tolerance": 1e-08,
+    "beta_drift_tolerance": 0.001,
+    "verification_overlap": 0.999,
+    "edge_fraction_max": 0.001,
+    "tracking_overlap": 0.8,
+    "assignment_margin": 0.02,
+    "unmatched_cost": 0.65,
+    "cluster_gap": 1e-05,
+    "extra_candidates": 0,
+    "max_depth": 8,
+    "min_relative_step": 1e-05,
+    "max_solves": 200,
+    "subspace_margin": 0.02
+  },
+  "exact_cluster_rotation_seed": 412,
+  "cases": {
+    "square_pec_conventional": {
+      "width_m": 0.02,
+      "cells": 16,
+      "epsilon": 2.0,
+      "frequency_GHz": "11 equally spaced frequencies from 18 to 22 GHz",
+      "waveguide_type": "square_pec"
+    },
+    "square_pec_symmetry": {
+      "width_m": 0.02,
+      "cells": 16,
+      "epsilon": 2.0,
+      "frequency_GHz": "11 equally spaced frequencies from 18 to 22 GHz",
+      "mode_symmetry": "c4v"
+    },
+    "square_dielectric_symmetry": {
+      "window_m": 0.04,
+      "core_width_m": 0.02,
+      "cells": 32,
+      "epsilon_core": 4.0,
+      "epsilon_cladding": 1.0,
+      "outer_boundary": "PEC truncation",
+      "frequency_GHz": "11 equally spaced frequencies from 18 to 22 GHz"
+    },
+    "circular_pec_symmetry": {
+      "window_m": 0.024,
+      "radius_m": 0.01,
+      "cells": 32,
+      "epsilon": 2.0,
+      "boundary": "point-sampled Yee staircase PEC masks",
+      "frequency_GHz": "11 equally spaced frequencies from 18 to 22 GHz"
+    },
+    "circular_dielectric_symmetry": {
+      "window_m": 0.04,
+      "radius_m": 0.01,
+      "cells": 32,
+      "epsilon_core": 4.0,
+      "epsilon_cladding": 1.0,
+      "outer_boundary": "PEC truncation",
+      "frequency_GHz": "11 equally spaced frequencies from 18 to 22 GHz"
+    },
+    "crossing_hybrid_doublets": {
+      "width_m": 0.02,
+      "cells": 16,
+      "frequency_GHz": 20.0,
+      "t": "49 values from -0.12 to 0.12, plus +/-0.001",
+      "epsilon": "See loaded_solver; positive C4v inhomogeneous anisotropic profile"
+    },
+    "crossing_conventional_doublets": {
+      "width_m": 0.02,
+      "cells": 16,
+      "frequency_GHz": 20.0,
+      "epsilon_transverse": 2.0,
+      "epsilon_longitudinal": "31 values centered on discrete TE20/02-TM12/21 crossing, +/-0.12"
+    }
+  }
+}

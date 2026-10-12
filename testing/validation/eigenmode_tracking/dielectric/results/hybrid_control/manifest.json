@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "started_utc": "2026-10-11T23:06:21.125502+00:00",
+  "cells": 64,
+  "window_mm": 40,
+  "core_epsilon": 4,
+  "cladding_epsilon": 1,
+  "description": "A repeated, fully hybrid Maxwell eigenspace for axis-orientation validation.\n\nFour PEC-separated triangular chambers carry rotated dielectric cores. This\ncontrolled geometry makes exact equivalent copies without approximating a\nsplit eigenpair. It supplements the ordinary single-core guide tests.\n",
+  "source_sha256": {
+    "testing\\validation\\axis_hybrid_control.py": "1574743399c35e3fc6ce8c658e9372a3f10419c960a1a33d7c0e215a086541e2",
+    "gprMax\\eigenmode_symmetry.py": "d68877894be81e2dad7fb5ecb94f6cd75ea53f4d5070d388f2b8d6b79031416c",
+    "gprMax\\eigenmode_tracking.py": "880a013800e381055acce870a9a258d8ec6fa3b5d87ac8ef160df275d684c97f"
+  },
+  "axis_applications": 27,
+  "minimum_gauge_overlap": 0.9999999999999744,
+  "maximum_field_residual": 1.0799917628095278e-13,
+  "minimum_power_eigenvalue": 0.9982187214371548,
+  "minimum_channel_overlap": 0.9739576331231117,
+  "groups": [
+    [
+      1,
+      2,
+      3,
+      4
+    ],
+    [
+      5,
+      6,
+      7,
+      8
+    ],
+    [
+      9,
+      10,
+      11,
+      12
+    ]
+  ],
+  "finished_utc": "2026-10-11T23:06:43.484917+00:00"
+}

@@ -104,7 +104,7 @@ Run from the repository root in the gprMax Python environment:
 
 Each command runs both wall materials. Use ``--wall PEC`` or ``--wall copper``
 to select one. The shared implementation is
-``testing/validation/waveguide_modal_profiles.py``. Outputs include all six
+``testing/validation/eigenmode_tracking/profiles/waveguide_modal_profiles.py``. Outputs include all six
 complex native Yee components (NPZ), tracking diagnostics and run provenance
 (JSON), modal-field galleries, matching matrices, and copper attenuation.
 Choose a fresh output directory to keep separate run provenance.
@@ -112,27 +112,27 @@ Choose a fresh output directory to keep separate run provenance.
 C4v square PEC
 --------------
 
-:download:`Recorded results <../../testing/validation/C4v_square_PEC_results.json>`.
+:download:`Recorded results <../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_PEC/results.json>`.
 
-.. figure:: ../../images_shared/C4v_square_PEC_matching.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_PEC/C4v_square_PEC_matching.png
    :alt: C4v square PEC: full-vector matching to PEC analytical fields and mesh comparison. The right panel measures individual-profile overlap.
    :width: 100%
 
    C4v square PEC: full-vector matching to PEC analytical fields and mesh comparison. The right panel measures individual-profile overlap.
 
-.. figure:: ../../images_shared/C4v_square_PEC_profiles_1.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_PEC/C4v_square_PEC_profiles_1.png
    :alt: C4v square PEC: tracked modes 1–6, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C4v square PEC: tracked modes 1–6, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C4v_square_PEC_profiles_2.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_PEC/C4v_square_PEC_profiles_2.png
    :alt: C4v square PEC: tracked modes 7–12, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C4v square PEC: tracked modes 7–12, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C4v_square_PEC_profiles_3.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_PEC/C4v_square_PEC_profiles_3.png
    :alt: C4v square PEC: tracked modes 13–18, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
@@ -141,45 +141,45 @@ C4v square PEC
 C2v rectangle 2to1 PEC
 ----------------------
 
-:download:`Recorded results <../../testing/validation/C2v_rectangle_2to1_PEC_results.json>`.
+:download:`Recorded results <../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/results.json>`.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_PEC_matching.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/C2v_rectangle_2to1_PEC_matching.png
    :alt: C2v rectangle 2to1 PEC: full-vector matching to PEC analytical fields and mesh comparison. The right panel measures individual-profile overlap.
    :width: 100%
 
    C2v rectangle 2to1 PEC: full-vector matching to PEC analytical fields and mesh comparison. The right panel measures individual-profile overlap.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_PEC_profiles_1.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/C2v_rectangle_2to1_PEC_profiles_1.png
    :alt: C2v rectangle 2to1 PEC: tracked modes 1–6, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 PEC: tracked modes 1–6, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_PEC_profiles_2.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/C2v_rectangle_2to1_PEC_profiles_2.png
    :alt: C2v rectangle 2to1 PEC: tracked modes 7–12, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 PEC: tracked modes 7–12, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_PEC_profiles_3.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/C2v_rectangle_2to1_PEC_profiles_3.png
    :alt: C2v rectangle 2to1 PEC: tracked modes 13–18, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 PEC: tracked modes 13–18, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_PEC_profiles_4.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/C2v_rectangle_2to1_PEC_profiles_4.png
    :alt: C2v rectangle 2to1 PEC: tracked modes 19–24, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 PEC: tracked modes 19–24, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_PEC_profiles_5.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/C2v_rectangle_2to1_PEC_profiles_5.png
    :alt: C2v rectangle 2to1 PEC: tracked modes 25–30, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 PEC: tracked modes 25–30, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_PEC_profiles_6.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_PEC/C2v_rectangle_2to1_PEC_profiles_6.png
    :alt: C2v rectangle 2to1 PEC: tracked modes 31–35, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
@@ -188,33 +188,33 @@ C2v rectangle 2to1 PEC
 C4v square copper
 -----------------
 
-:download:`Recorded results <../../testing/validation/C4v_square_copper_results.json>`.
+:download:`Recorded results <../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_copper/results.json>`.
 
-.. figure:: ../../images_shared/C4v_square_copper_matching.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_copper/C4v_square_copper_matching.png
    :alt: C4v square copper: full-vector matching to PEC analytical fields and mesh comparison. The right panel measures complete PEC-subspace overlap.
    :width: 100%
 
    C4v square copper: full-vector matching to PEC analytical fields and mesh comparison. The right panel measures complete PEC-subspace overlap.
 
-.. figure:: ../../images_shared/C4v_square_copper_attenuation.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_copper/C4v_square_copper_attenuation.png
    :alt: C4v square copper: attenuation at the middle frequency on both meshes.
    :width: 100%
 
    C4v square copper: attenuation at the middle frequency on both meshes.
 
-.. figure:: ../../images_shared/C4v_square_copper_profiles_1.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_copper/C4v_square_copper_profiles_1.png
    :alt: C4v square copper: tracked modes 1–6, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C4v square copper: tracked modes 1–6, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C4v_square_copper_profiles_2.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_copper/C4v_square_copper_profiles_2.png
    :alt: C4v square copper: tracked modes 7–12, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C4v square copper: tracked modes 7–12, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C4v_square_copper_profiles_3.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C4v_square_copper/C4v_square_copper_profiles_3.png
    :alt: C4v square copper: tracked modes 13–18, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
@@ -223,51 +223,51 @@ C4v square copper
 C2v rectangle 2to1 copper
 -------------------------
 
-:download:`Recorded results <../../testing/validation/C2v_rectangle_2to1_copper_results.json>`.
+:download:`Recorded results <../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/results.json>`.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_copper_matching.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_matching.png
    :alt: C2v rectangle 2to1 copper: full-vector matching to PEC analytical fields and mesh comparison. The right panel measures complete PEC-subspace overlap.
    :width: 100%
 
    C2v rectangle 2to1 copper: full-vector matching to PEC analytical fields and mesh comparison. The right panel measures complete PEC-subspace overlap.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_copper_attenuation.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_attenuation.png
    :alt: C2v rectangle 2to1 copper: attenuation at the middle frequency on both meshes.
    :width: 100%
 
    C2v rectangle 2to1 copper: attenuation at the middle frequency on both meshes.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_copper_profiles_1.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_profiles_1.png
    :alt: C2v rectangle 2to1 copper: tracked modes 1–6, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 copper: tracked modes 1–6, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_copper_profiles_2.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_profiles_2.png
    :alt: C2v rectangle 2to1 copper: tracked modes 7–12, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 copper: tracked modes 7–12, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_copper_profiles_3.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_profiles_3.png
    :alt: C2v rectangle 2to1 copper: tracked modes 13–18, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 copper: tracked modes 13–18, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_copper_profiles_4.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_profiles_4.png
    :alt: C2v rectangle 2to1 copper: tracked modes 19–24, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 copper: tracked modes 19–24, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_copper_profiles_5.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_profiles_5.png
    :alt: C2v rectangle 2to1 copper: tracked modes 25–30, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 
    C2v rectangle 2to1 copper: tracked modes 25–30, alongside their PEC analytical longitudinal reference components.
 
-.. figure:: ../../images_shared/C2v_rectangle_2to1_copper_profiles_6.png
+.. figure:: ../../testing/validation/eigenmode_tracking/profiles/results/C2v_rectangle_2to1_copper/C2v_rectangle_2to1_copper_profiles_6.png
    :alt: C2v rectangle 2to1 copper: tracked modes 31–35, alongside their PEC analytical longitudinal reference components.
    :width: 100%
 

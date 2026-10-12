@@ -1,0 +1,127 @@
+{
+  "created_utc": "2026-10-11T21:27:25.741738+00:00",
+  "upstream_base": "0aeeec56393232cbe84c3c3b1866b06dd0275f28",
+  "branch": "codex/general-subspace-tracking",
+  "validation": "Full-vector FDFD tracking and source-basis construction",
+  "python": "3.13.15",
+  "numpy": "2.5.2",
+  "scipy": "1.18.1",
+  "source_sha256": {
+    "gprMax/eigenmode_tracking.py": "5564dca020da327ed3f87bbbf47ae1ec4684df375638ad9ab83f2514ee2fb997",
+    "gprMax/eigenmode_symmetry.py": "1c5b0d78af10b3277d6895ead7c5021dd5d7463b116d61c7188fa4f0c2b8ec30",
+    "gprMax/eigenmode_classification.py": "dd5d2a347f6197cfff04ccee4cca187912e1ae2b6df0fe36d4aef9dc8afb6800",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "88b094d174392a757aa66b96c06d95df67377ee8000a0332f87f65f14d250c01",
+    "testing/validation/general_subspace_tracking.py": "512b09d81e27a32dc2f5d9dd7de91480b2e81f1f888227a7fe06b199be4b17f7",
+    "testing/validation/expanded_mode_tracking.py": "c40c6df2d9c3b765bce64c26465b12cf3daabc4a7d37cf93febd7bcd67497a9a",
+    "testing/validation/moment_parity_validation.py": "f5963e49f1f94dd5291689b416535d0c3106eba25a79e10de43ea9b5988defe3",
+    "testing/validation/waveguide_symmetry_validation.py": "cdb4e8e72c73567a3770f9df328963c6ea68e73e8de3f18c6ba5e05c25f3d20a",
+    "gprMax/sources.py": "9c6cae98c64ce67530d334c441b7b6ceebd8a6f2950d730425864dc3a55b2950",
+    "gprMax/eigenmode_config.py": "b6ee08a713d7f7ec9868a03d36a9b146020e21bfc84c29d867b4be819fed5c7e",
+    "gprMax/user_objects/cmds_multiuse.py": "d3ea7b0ffc858f0948077f1c01341e4fc352788fb00b43b1efb3712751301274"
+  },
+  "tracking_config": {
+    "residual_tolerance": 1e-08,
+    "beta_drift_tolerance": 0.001,
+    "verification_overlap": 0.999,
+    "edge_fraction_max": 0.001,
+    "tracking_overlap": 0.8,
+    "assignment_margin": 0.02,
+    "unmatched_cost": 0.65,
+    "cluster_gap": 1e-05,
+    "extra_candidates": 0,
+    "max_depth": 8,
+    "min_relative_step": 1e-05,
+    "max_solves": 200,
+    "subspace_margin": 0.02
+  },
+  "exact_cluster_rotation_seed": 412,
+  "cases": {
+    "fundamental_moment_alignment": {
+      "axis": [
+        19.0,
+        19.5,
+        20.0,
+        20.5,
+        21.0
+      ],
+      "axis_label": "Frequency (GHz)",
+      "targets": [
+        1,
+        2
+      ],
+      "mode_symmetry": "auto"
+    },
+    "higher_order_parity_partners": {
+      "axis": [
+        19.0,
+        19.5,
+        20.0,
+        20.5,
+        21.0
+      ],
+      "axis_label": "Frequency (GHz)",
+      "targets": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "mode_symmetry": "auto"
+    },
+    "circular_higher_order_partners": {
+      "axis": [
+        19.0,
+        19.5,
+        20.0,
+        20.5,
+        21.0
+      ],
+      "axis_label": "Frequency (GHz)",
+      "targets": [
+        6,
+        7
+      ],
+      "mode_symmetry": "auto"
+    },
+    "crossing_hybrid_parity_partners": {
+      "axis": [
+        -0.12,
+        -0.11,
+        -0.09999999999999999,
+        -0.09,
+        -0.07999999999999999,
+        -0.06999999999999999,
+        -0.06,
+        -0.04999999999999999,
+        -0.039999999999999994,
+        -0.03,
+        -0.01999999999999999,
+        -0.009999999999999995,
+        -0.001,
+        0.0,
+        0.001,
+        0.010000000000000009,
+        0.020000000000000018,
+        0.03,
+        0.04000000000000001,
+        0.05000000000000002,
+        0.06,
+        0.07,
+        0.08000000000000002,
+        0.09,
+        0.1,
+        0.11000000000000001,
+        0.12
+      ],
+      "axis_label": "Dielectric perturbation t",
+      "targets": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "mode_symmetry": "auto"
+    }
+  },
+  "geometry_sources": "See the hashed moment_parity_validation.py and its imported builders."
+}
