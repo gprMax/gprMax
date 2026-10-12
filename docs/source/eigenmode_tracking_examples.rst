@@ -9,14 +9,14 @@ parameter sweep. Each case includes executable code and recorded galleries.
 .. toctree::
    :maxdepth: 1
 
-   eigenmode_tracking_example_1
-   eigenmode_tracking_example_2
-   eigenmode_tracking_example_3
-   eigenmode_tracking_example_4
-   eigenmode_tracking_example_5
-   eigenmode_tracking_example_6
-   eigenmode_tracking_example_7
-   eigenmode_tracking_example_8
-   eigenmode_tracking_example_9
-   eigenmode_tracking_example_10
-   eigenmode_tracking_example_11
+   eigenmode_tracking_example_1_C2v_rectangular_PEC
+   eigenmode_tracking_example_2_C4v_square_PEC
+   eigenmode_tracking_example_3_C4v_cylindrical_PEC
+   eigenmode_tracking_example_4_C2v_rectangular_copper
+   eigenmode_tracking_example_5_C4v_square_copper
+   eigenmode_tracking_example_6_C4v_cylindrical_copper
+   eigenmode_tracking_example_7_C2v_rectangular_dielectric
+   eigenmode_tracking_example_8_C4v_square_dielectric
+   eigenmode_tracking_example_9_C4v_cylindrical_dielectric
+   eigenmode_tracking_example_10_anisotropic_frequency_crossing
+   eigenmode_tracking_example_11_C4v_square_persistent_pair_crossing

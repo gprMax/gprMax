@@ -802,9 +802,9 @@ imaginary propagation curves. The scripts use no excitation or time stepping.
 
 Run a case from the repository root::
 
-   python examples/features/eigenmode_tracking/example_1/tracked_modes.py
-   python examples/features/eigenmode_tracking/example_6/tracked_modes.py
-   python examples/features/eigenmode_tracking/example_9/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/tracked_modes.py
 
 Each case has its own README and recorded E/H galleries. The default mesh
 spacing is 0.25 mm. ``--spacing-mm`` changes it; ``--modes`` changes the
@@ -844,8 +844,8 @@ numerical crossing.
 
 .. code-block:: console
 
-   python examples/features/eigenmode_tracking/example_10/tracked_modes.py
-   python examples/features/eigenmode_tracking/example_11/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/tracked_modes.py
+   python examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/tracked_modes.py
 
 These focused crossing examples use two and eight channels, respectively;
 the preceding nine shape/material galleries use sixteen. Source scripts and

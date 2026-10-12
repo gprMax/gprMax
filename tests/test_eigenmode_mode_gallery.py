@@ -59,7 +59,7 @@ def test_sixteen_undriven_tracked_modes(tmp_path, monkeypatch, material, shape):
 @pytest.mark.integration
 def test_frequency_crossing_example_geometry_only(tmp_path, monkeypatch):
     monkeypatch.setattr(Solver, 'solve', lambda *args, **kwargs: pytest.fail('Must not advance time'))
-    scene = _example('example_10/tracked_modes').build_scene(spacing=.0005)
+    scene = _example('example_10_anisotropic_frequency_crossing/tracked_modes').build_scene(spacing=.0005)
     assert not any(isinstance(obj, gprMax.EigenmodeExcitation) for obj in scene.grid_objects)
     gprMax.run(scenes=[scene], outputfile=tmp_path/'frequency_crossing', geometry_only=True,
                cpu_precision='double', hide_progress_bars=True, log_level=40)
@@ -76,7 +76,7 @@ def test_frequency_crossing_example_geometry_only(tmp_path, monkeypatch):
 @pytest.mark.integration
 def test_persistent_crossing_example_geometry_snapshot(tmp_path, monkeypatch):
     monkeypatch.setattr(Solver, 'solve', lambda *args, **kwargs: pytest.fail('Must not advance time'))
-    scene = _example('example_11/tracked_modes').build_scene(2.3, 'before_crossing', spacing=.0005)
+    scene = _example('example_11_C4v_square_persistent_pair_crossing/tracked_modes').build_scene(2.3, 'before_crossing', spacing=.0005)
     assert not any(isinstance(obj, gprMax.EigenmodeExcitation) for obj in scene.grid_objects)
     gprMax.run(scenes=[scene], outputfile=tmp_path/'before_crossing', geometry_only=True,
                cpu_precision='double', hide_progress_bars=True, log_level=40)
