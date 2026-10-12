@@ -216,7 +216,12 @@ def _finite_source_gap_admittance(output, frequency, dt, complex_dtype):
             dtype=np.complex128,
         )
         admittance[evaluable] = (
-            1j * omega_discrete[evaluable] * config.sim_config.em_consts["e0"] * epsilon_r * output.area / output.dl
+            1j
+            * omega_discrete[evaluable]
+            * config.sim_config.em_consts["e0"]
+            * epsilon_r
+            * output.area
+            / output.dl
         )
     admittance[nyquist] = np.nan + 1j * np.nan
     return np.asarray(admittance, dtype=complex_dtype)
