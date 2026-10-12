@@ -391,7 +391,7 @@ parallel to its requested direction; its integrated moment need not have unit
 magnitude. This fixes orientation and phase consistently across ports before
 interpolation.
 
-Requested directions need not be orthogonal. The full Hermitian power matrix
+The inferred electric-moment directions are orthogonal. The full Hermitian power matrix
 is retained: for simultaneous coefficients :math:`c`, total power is
 :math:`c^\dagger P c`, which can include interference terms. Continue using
 multiple ``EigenmodeExcitation`` objects with ``amplitude`` and ``phase_deg``
@@ -405,30 +405,28 @@ those directions. Without usable physical directions, a deterministic
 reference basis is transported outwards using the SVD rotation below.
 Legacy modes without a declared group retain independent-mode phase tracking.
 
-Automatic tracking ignores ``degenerate`` and detects the groups from the
-solved spectrum. ``mode_polarizations`` is optional: a detected two-mode group
-first separates longitudinal-field families and uses verified discrete
-symmetries to select irreducible subspaces. Electric moments or mirror parity
-orient doublets; axis-sensitive variation resolves eligible equal-parity
-singlets. When symmetry
-selection is unavailable, a two-mode group uses transverse electric moments
-if they remain usable throughout the active bank; otherwise the complete
-group retains a power-whitened basis. Explicit polarization
-directions override this choice and are validated against the detected groups.
-The default ``None`` preserves this automatic assignment. A single axis
-(``"x"``, ``"y"``, or ``"z"``) or real transverse three-vector applies to the
-first member of every degenerate pair; its partner follows the positive
-port-normal axis crossed with that direction, independently of propagation
-sign. Two supplied directions explicitly select both members of every pair;
-independent nonorthogonal directions retain their power Gram matrix. Per-mode
-mapping keys are absolute mode indices and require legacy tracking with
-declared groups. Automatic tracking accepts only shared directions or ``None``.
+Automatic tracking ignores ``degenerate`` and detects groups from the solved
+spectrum. It separates longitudinal families, resolves symmetry subspaces and
+eligible directional variation, then orients native doublets by electric
+moments or mirror parity. Explicit ``mode_polarizations`` is applied afterward
+within each resolved doublet, preserving its span. A two-mode parent with no
+certified subdivision can use independent electric moments; larger unresolved
+parents cannot be polarized. Legacy tracking applies the direction to its
+declared pairs without automatic symmetry selection.
+
+Only one axis or real transverse vector is accepted. Its partner is the
+positive port-normal axis crossed with it, independently of propagation sign.
+Two supplied directions and per-mode/per-group mappings are rejected. Requested
+diagonal directions need not diagonalize the mirror actions; native parity is
+certified before this final rotation. Maxwell residuals and complete-bank
+measurement conditioning are checked again afterward. The default ``None``
+retains the automatic orientation.
 
 The native discrete eigenvalue spread must be below
 :math:`10^{-8}\max(1,\max|\lambda|)`, and mixed-mode relative eigen-residuals
 must satisfy ``residual_tolerance`` (default :math:`10^{-7}`). Resolved splitting in a declared group is an
 error; automatic tracking keeps split branches as independent modes.
-Propagation constants are preserved individually. Moment and direction
+Propagation constants are preserved individually. Moment
 condition numbers above :math:`10^8` are rejected. A usable electric moment
 must also exceed :math:`10^{-12}` times the absolute transverse-field sample
 sum multiplied by transverse cell area; this prevents cancellation noise from
@@ -480,8 +478,8 @@ The implementation normalizes the complete power form:
    T^{\mathrm H}PT=I.
 
 Physical-direction alignment instead normalizes each column as above.
-Prescribed nonorthogonal directions can leave off-diagonal power terms;
-those terms are retained rather than discarded.
+Orthogonal integrated moments do not by themselves guarantee power orthogonality
+in a general guide; any off-diagonal power terms are retained.
 
 Deterministic basis without electric directions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

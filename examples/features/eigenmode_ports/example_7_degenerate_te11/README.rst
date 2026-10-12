@@ -23,58 +23,23 @@ every automatic frequency anchor and agree at the source and receiving port,
 including the receiving port's reversed direction. Polarization describes
 the integrated transverse E field, rather than every local field vector.
 
-Choosing one of the three polarization forms
---------------------------------------------
+Choosing the polarization
+-------------------------
 
-Edit the ``EigenmodePort`` arguments inside the loop in ``circular_te11.py``
-so both ports receive the same setting. Choose one of these alternatives:
+Set the same ``mode_polarizations="y"`` on both ports. The first member of
+each eligible pair follows y; its orthogonal partner follows -x for this
+z-normal guide. A single real vector such as ``(1, 1, 0)`` is also accepted.
+The positive port normal determines the partner independently of propagation
+sign. Set ``None`` to retain automatic orientation.
 
-.. code-block:: python
+Automatic tracking resolves subspaces before applying the direction inside
+each doublet. Legacy tracking uses declared pairs. Integrated transverse
+electric moments must support the requested orientation. Two-direction
+sequences and per-mode/per-group mappings raise an error in both trackers.
 
-   # 1. One direction: every pair is y/-x in this z-normal guide.
-   tracking="auto",
-   mode_polarizations="y",
-
-   # 2. Two directions: every pair is explicitly y/+x.
-   tracking="auto",
-   mode_polarizations=("y", "x"),
-
-   # 3. Exact mode indices: only modes 1 and 2 get these assignments.
-   tracking="legacy",
-   degenerate=(1, 2),
-   mode_polarizations={1: "y", 2: "x"},
-
-Use one block, not all three. With automatic tracking, remove ``degenerate``;
-it is ignored because the pairs are detected. Set ``mode_polarizations=None``
-to retain the current automatic direction assignment. ``anchors="auto"``
-controls frequency anchors and is separate from ``tracking="auto"``.
-
-The first member is the lower tracked mode index within each pair. For one
-direction the orthogonal partner is positive port normal cross that direction;
-this convention does not change when the receiving port reverses propagation.
-For two directions, the second is taken literally. Both must be transverse,
-finite, real, nonzero and linearly independent. Out-of-plane directions and
-nearly parallel or antiparallel directions raise an error before solving.
-The normalized normal-component tolerance is ``1e-12``; the direction matrix
-normalized direction-matrix condition-number limit is ``10``. The angle between
-the directions must be approximately 11.4 to 168.6 degrees. Prefer orthogonal
-directions.
-Real vectors are normalized:
-``(1, 1, 0)`` is one direction, whereas ``((1, 1, 0), (-1, 1, 0))`` is two.
-Only numerically degenerate pairs can be mixed; isolated modes stay unchanged.
-
-For ``circular_te11.in``, change the options on **both** port lines to one of:
-
-.. code-block:: none
-
-   tracking=auto mode_polarizations=y
-   tracking=auto mode_polarizations=y;x
-   tracking=legacy degenerate=1,2 mode_polarizations=1:y;2:x
-
-For two vectors use ``mode_polarizations=1,1,0;-1,1,0`` with no spaces.
-An exact-mode mapping with automatic tracking is rejected: choose a shared
-form or switch to legacy tracking and declare the pair. To launch the second
-member, change the excitation's mode to 2; the port definitions stay unchanged.
+For the hash input, use ``tracking=auto mode_polarizations=y`` or
+``tracking=auto mode_polarizations=1,1,0`` on both port lines. Change only the
+excitation's mode to 2 to launch the orthogonal partner.
 
 Why declare the pair?
 ---------------------

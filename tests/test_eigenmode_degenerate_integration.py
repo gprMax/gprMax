@@ -262,7 +262,7 @@ def test_geometry_export_and_plots_use_physical_bank(tmp_path, monkeypatch, synt
     with h5py.File(tmp_path / "bank.modes.h5") as output:
         port = output["ports/1"]
         np.testing.assert_array_equal(
-            port["degenerate_groups/1/requested_directions"], [[0, 1, 0], [1, 0, 0]]
+            port["degenerate_groups/1/requested_directions"], [[0, 1, 0], [-1, 0, 0]]
         )
         for i, (u, v, _, family) in enumerate(vectors):
             mode = i // 2

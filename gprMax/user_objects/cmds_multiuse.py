@@ -2672,10 +2672,10 @@ class EigenmodePort(GridUserObject):
         degenerate: optional legacy mode pair or disjoint groups tracked as subspaces;
             ignored when ``tracking="auto"``.
         mode_polarizations: optional global transverse E axis or real three-vector
-            shared by the first member of every degenerate pair; the second uses
-            positive port normal cross that direction. Two directions explicitly set
-            both members of every pair. Mappings from absolute mode indices
-            to directions require tracking="legacy" and declared pairs.
+            shared by the first member of every resolved doublet; the second uses
+            positive port normal cross that direction. Automatic tracking resolves
+            subgroups before polarization; legacy tracking uses declared pairs.
+            Two-direction sequences and mode/group mappings are rejected.
             None preserves the current assignment. Physical selection requires a
             3D cross-section and independent transverse directions.
         tracking: ``"legacy"`` (default) or experimental ``"auto"`` branch
@@ -2780,12 +2780,6 @@ class EigenmodePort(GridUserObject):
             else normalize_groups(self.kwargs.get("degenerate"), modes)
         )
         polarization_input = self.kwargs.get("mode_polarizations")
-        if tracking == "auto" and hasattr(polarization_input, "items"):
-            raise ValueError(
-                f"{self.params_str()} mode_polarizations mappings require tracking='legacy' "
-                "and declared degenerate pairs. With tracking='auto', use None, one "
-                "direction (e.g. 'y'), or two directions (e.g. ('y', 'x')) for every pair."
-            )
         mode_polarizations = normalize_polarizations(
             polarization_input, degenerate, normal_axis, invariant_axis,
             unresolved=tracking == "auto" and not degenerate,

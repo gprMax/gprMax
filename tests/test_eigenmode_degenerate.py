@@ -59,13 +59,14 @@ def bank(
     automatic=False,
     groups=((1, 2),),
     tracking_config=None,
+    tracking="legacy",
 ):
     owner = EigenmodeSource(None)
     if tracking_config is not None:
         owner.tracking_config = tracking_config
     # Exercise the original power/moment alignment independently of the new
     # default symmetry stage, which has its own physical regression tests.
-    owner.tracking = 'legacy'
+    owner.tracking = tracking
     owner.normal_axis = axis
     owner.normal = "xyz"[axis]
     owner.direction = direction
@@ -80,7 +81,10 @@ def bank(
         owner.anchor_policy = "auto"
         owner.dft_start = solvers[1].frequency
         owner.dft_stop = solvers[-1].frequency
-    owner.mode_polarizations = normalize_polarizations(references, owner.degenerate, axis)
+    # Internal basis tests retain arbitrary reference frames; public mappings are rejected.
+    owner.mode_polarizations = (
+        {m: normalize_polarizations(v, (), axis, unresolved=True) for m, v in references.items()}
+        if isinstance(references, dict) else normalize_polarizations(references, owner.degenerate, axis, unresolved=tracking == "auto"))
     owner._tracking_impedance = config.SimulationConfig.em_consts["z0"]
     grid = SimpleNamespace(dl=np.full(3, CIRCULAR_SPACING))
     owner._tracking_grid = grid
@@ -222,7 +226,7 @@ def test_equal_squared_eigenvalues_do_not_allow_opposite_phase_branches(circular
 
 def test_hash_python_equivalence():
     tail, options = parse_port_options(
-        ["auto", "n", "degenerate=1,2;3,4", "mode_polarizations=1:0,1,0;2:x"]
+        ["auto", "n", "degenerate=1,2;3,4", "mode_polarizations=y"]
     )
     assert tail == ["auto", "n"]
     groups = normalize_groups(options["degenerate"], (1, 2, 3, 4))
@@ -230,7 +234,9 @@ def test_hash_python_equivalence():
     assert normalize_groups((1, 2), (1, 2)) == ((1, 2),)
     assert normalize_polarizations(options["mode_polarizations"], groups, 2) == {
         1: (0, 1, 0),
-        2: (1, 0, 0),
+        2: (-1, 0, 0),
+        3: (0, 1, 0),
+        4: (-1, 0, 0),
     }
 
 
@@ -294,7 +300,8 @@ def test_single_direction_hash_and_auto_group_resolution(value, primary):
     assert resolved[1] == resolved[3]
     assert resolved[2] == resolved[4]
     np.testing.assert_allclose(resolved[2], np.cross((0, 0, 1), primary))
-    assert normalize_polarizations(resolved, ((1, 2), (3, 4)), 2) == resolved
+    with pytest.raises(ValueError, match="one transverse direction only"):
+        normalize_polarizations(resolved, ((1, 2), (3, 4)), 2)
 
 
 @pytest.mark.parametrize("direction", ("+", "-"))
@@ -394,10 +401,6 @@ def test_near_degenerate_mixing_retains_a_finite_residual_budget(circular_solver
 @pytest.mark.parametrize("hash_value, python_value", [
     ("y", "y"),
     ("1,1,0", (1, 1, 0)),
-    ("y;x", ("y", "x")),
-    ("0,1,0;x", ((0, 1, 0), "x")),
-    ("1,1,0;-1,1,0", ((1, 1, 0), (-1, 1, 0))),
-    ("1:y;2:1,0,0", {1: "y", 2: "x"}),
 ])
 def test_python_hash_build_equivalence(monkeypatch, tracking, hash_value, python_value):
     from gprMax.grid.fdtd_grid import FDTDGrid
@@ -428,19 +431,13 @@ def test_python_hash_build_equivalence(monkeypatch, tracking, hash_value, python
     grids = [FDTDGrid(), FDTDGrid()]
     for obj, grid in zip((parsed, explicit), grids):
         grid.eigenmodeband = SimpleNamespace()
-        if tracking == "auto" and isinstance(python_value, dict):
-            with pytest.raises(ValueError, match="mappings require tracking='legacy'"):
-                obj.build(grid)
-        else:
-            obj.build(grid)
-    if tracking == "auto" and isinstance(python_value, dict):
-        return
+        obj.build(grid)
     assert grids[0].eigenmodeportdefs[1] == grids[1].eigenmodeportdefs[1]
 
 
 def test_physical_selection_rejects_reduced_mode():
     with pytest.raises(ValueError, match="3D"):
-        normalize_polarizations({1: "x", 2: "y"}, ((1, 2),), 2, 0)
+        normalize_polarizations("x", ((1, 2),), 2, 0)
 
 
 def test_group_cutoff_masks(circular_solvers):
@@ -619,64 +616,16 @@ def test_plots_exclude_unaligned_cutoff_anchors(circular_solvers, monkeypatch, t
     assert all(call["solvers"][0].mode_polarizations == owner.mode_polarizations for call in calls)
 
 
-@pytest.mark.parametrize("directions", [("y", "x"), ((1, 1, 0), (-1, 1, 0)), ("x", (1, 1, 0))])
-def test_two_shared_directions_apply_to_every_pair(directions):
-    pending = normalize_polarizations(directions, (), 2, unresolved=True)
-    resolved = normalize_polarizations(pending, ((1, 2), (4, 5)), 2)
-    expected = normalize_polarizations({1: directions[0], 2: directions[1]}, ((1, 2),), 2)
-    assert resolved == {1: expected[1], 2: expected[2], 4: expected[1], 5: expected[2]}
-
-
-@pytest.mark.parametrize("directions", [("x", "x"), ("x", "z"), ("x", (0, 0, 0)), ("x", (1j, 1, 0)), ("x", "y", "z")])
-def test_invalid_two_direction_input_rejected_before_solving(directions):
-    with pytest.raises(ValueError):
-        normalize_polarizations(directions, (), 2, unresolved=True)
-
-
-@pytest.mark.parametrize("direction", ("+", "-"))
-@pytest.mark.parametrize("references", [("y", "x"), ((1, 1, 0), (-1, 1, 0)), ("x", (1, 1, 0))])
-def test_two_directions_align_like_exact_modes(circular_solvers, direction, references):
-    _, _, e, h = bank(deepcopy(circular_solvers), references=references, direction=direction)
-    _, _, expected_e, expected_h = bank(
-        deepcopy(circular_solvers), references=dict(zip((1, 2), references)), direction=direction
-    )
-    for actual, expected in ((e, expected_e), (h, expected_h)):
-        for anchor, reference in zip(actual, expected):
-            for mode, reference_mode in zip(anchor, reference):
-                for component, reference_component in zip(mode, reference_mode):
-                    np.testing.assert_allclose(component, reference_component, atol=1e-12)
-
-
-@pytest.mark.parametrize("axis", range(3))
-@pytest.mark.parametrize("scale", (1e-100, 1.0, 1e100))
-@pytest.mark.parametrize("sign", (-1, 1))
-def test_shared_pair_rejects_nearly_dependent_directions(axis, scale, sign):
-    transverse = [i for i in range(3) if i != axis]
-    first = np.eye(3)[transverse[0]]
-    second = scale * (sign * first + 1e-10 * np.eye(3)[transverse[1]])
-    with pytest.raises(ValueError, match="linearly dependent or ill-conditioned"):
-        normalize_polarizations((first, second), (), axis, unresolved=True)
-
-
-@pytest.mark.parametrize("axis", range(3))
-@pytest.mark.parametrize("member", (0, 1))
-def test_shared_pair_rejects_out_of_plane_component(axis, member):
-    transverse = [i for i in range(3) if i != axis]
-    directions = [np.eye(3)[i] for i in transverse]
-    directions[member][axis] = 1e-6
-    with pytest.raises(ValueError, match="transverse to the port normal"):
-        normalize_polarizations(directions, (), axis, unresolved=True)
-
-
-@pytest.mark.parametrize("mapping", (False, True))
+@pytest.mark.parametrize("value", [("y", "x"), ((1, 1, 0), (-1, 1, 0)),
+                                       ("x", (1, 1, 0)), {1: "y", 2: "x"},
+                                       {(1, 2): "y"}, {}])
 @pytest.mark.parametrize("unresolved", (False, True))
-@pytest.mark.parametrize("angle, accepted", [(10, False), (12, True), (45, True), (90, True), (168, True), (170, False)])
-def test_user_directions_must_be_clearly_distinct(mapping, unresolved, angle, accepted):
-    radians = np.deg2rad(angle)
-    directions = ("x", (np.cos(radians), np.sin(radians), 0))
-    value = dict(zip((1, 2), directions)) if mapping else directions
-    if accepted:
+def test_removed_direction_forms_raise_clear_errors(value, unresolved):
+    with pytest.raises(ValueError, match="one transverse direction only"):
         normalize_polarizations(value, ((1, 2),), 2, unresolved=unresolved)
-    else:
-        with pytest.raises(ValueError, match="clearly distinct.*at most 10"):
-            normalize_polarizations(value, ((1, 2),), 2, unresolved=unresolved)
+
+
+@pytest.mark.parametrize("value", ["y;x", "1,1,0;-1,1,0", "1:y;2:x", "1,2:y"])
+def test_removed_hash_direction_forms_raise_clear_errors(value):
+    with pytest.raises(ValueError, match="one transverse direction only"):
+        parse_port_options([f"mode_polarizations={value}"])

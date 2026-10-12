@@ -19,9 +19,7 @@ from gprMax.sources import EigenmodeSource
     (
         ("example_7_degenerate_te11/circular_te11", -55, "y", "legacy", "y"),
         ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", "y"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", ("y", "x")),
         ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", "y"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", ("y", "x")),
         ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60, None, "auto", None),
         ("example_9_auto_mode_crossing/auto_mode_crossing", -60, None, "auto", None),
     ),

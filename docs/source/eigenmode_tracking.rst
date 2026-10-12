@@ -93,7 +93,7 @@ table lists every ``EigenmodeTrackingConfig`` control.
      - An ``EigenmodeTrackingConfig`` instance or mapping overriding the numerical controls in the next table. Omitted fields keep their defaults.
    * - ``mode_polarizations``
      - ``None``
-     - Optional transverse direction(s) for electric-moment alignment of a pair: an axis name, a real three-vector, or two directions. One direction defines its partner by the positive port-normal axis crossed with it. Shared directions work with automatic tracking; mappings to exact mode indices require legacy tracking. Overrides automatic symmetry selection.
+     - Optional single transverse axis or real three-vector. Its orthogonal partner is inferred using the positive port normal. Applied after subgroup resolution with automatic tracking, or to declared pairs with legacy tracking. Direction pairs and mode/group mappings are rejected.
    * - ``degenerate``
      - ``None``
      - Legacy groups such as ``(1, 2)`` or ``((1, 2), (3, 4))``. Members must be requested in ``modes``. Automatic tracking detects groups and ignores this argument.
@@ -215,9 +215,9 @@ rotate while their combined span stays unchanged.
    symmetry, separate longitudinal-field families, and resolve irreducible
    subspaces. Electric moments or mirror parity orient each doublet;
    directional field variation separates compatible equal-parity singlets.
-   The fallback uses usable
-   electric moments for a pair, otherwise a power-whitened basis for the full
-   group. No waveguide preset or mode-index template is required.
+   The fallback retains a power-whitened basis for the full group. An explicit
+   direction is applied afterward within each eligible doublet. No waveguide
+   preset or mode-index template is required.
 5. **Check and use the bank.** Record identity, residual, propagation, power,
    and boundary diagnostics separately. Eligible propagating fields supply
    excitation. Receiving references can also describe evanescent fields, with
@@ -430,56 +430,34 @@ Physically labeled degenerate modes
 -----------------------------------
 
 The default ``mode_polarizations=None`` uses automatic basis selection.
-For a pair with independent integrated electric moments, request particular
-directions using one of these
-three forms. Use the same choice at the source and receiving ports.
+Supply one transverse axis (``"x"``, ``"y"``, or ``"z"``) or one real
+three-vector such as ``(1, 1, 0)`` to orient every eligible doublet. The first
+channel follows that direction; the second follows the positive port-normal
+axis crossed with it. For a z-normal port, ``"y"`` gives y/-x. This convention
+is independent of propagation sign. Use the same setting at both ports.
 
-1. **One direction for every pair.** Set ``mode_polarizations="y"`` (or
-   ``"x"``/``"z"``). The first member of each pair follows that direction;
-   the second follows the positive port-normal axis crossed with the first.
-   For a z-normal port, ``"y"`` gives y/-x. A real three-vector such as
-   ``mode_polarizations=(1, 1, 0)`` selects a diagonal direction and infers
-   its orthogonal partner. This form works with automatic or legacy tracking.
+With ``tracking="auto"``, the complete parent group is tracked and subdivided
+by longitudinal content, symmetry, and directional variation first. The
+requested direction is then applied independently inside each resolved
+two-dimensional block. Singlets remain unchanged: two accidentally degenerate
+singlets are not combined into a polarization pair. If symmetry selection is
+unavailable, an entire two-mode parent can be oriented when its integrated
+electric moments are independent; larger unresolved parents cannot.
 
-2. **Two directions for every pair.** Set ``mode_polarizations=("y", "x")``
-   to explicitly select both members: first y, second x. For diagonal
-   directions use ``mode_polarizations=((1, 1, 0), (-1, 1, 0))``. Axes and
-   vectors can be mixed, for example ``("x", (1, 1, 0))``. The directions
-   must be linearly independent; they need not be orthogonal and are not
-   automatically orthogonalized. This form also works with either tracker.
+With ``tracking="legacy"``, the direction applies to the declared two-mode
+pairs, without automatic symmetry selection. In either mode, a request with
+no eligible pair or a pair with zero or ill-conditioned integrated transverse
+E raises an error. Higher-order doublets with vanishing moments retain their
+automatic mirror-based orientation when the option is omitted.
 
-3. **Exact mode assignments, legacy tracking only.** Set
-   ``tracking="legacy"``, declare ``degenerate=((1, 2), (3, 4))``, and use
-   ``mode_polarizations={1: "y", 2: "x", 3: "x", 4: "y"}`` to give different
-   pairs different directions. Mapping keys are absolute mode indices:
-   ``{1: "y", 2: "x"}`` affects only modes 1 and 2. Supply both members of
-   each pair you select; other declared pairs retain their existing assignment.
-   All declared members must be included in ``modes``. Mappings are rejected
-   with ``tracking="auto"``; replace them with form 1 or 2, or explicitly
-   switch to legacy tracking and declare the pairs.
+First and second refer to the lower and higher tracked indices inside the
+resolved pair, including any internally retained partner. The direction must
+be finite, nonzero, real, and transverse. It is normalized; a normalized normal
+component above ``1e-12`` is rejected. The inferred partner is orthogonal.
 
-For shared forms, first and second mean the lower and higher tracked mode
-indices within each detected or declared pair, not raw eigensolver ordering.
-They apply to every pair, including a partner solved internally by automatic
-tracking. Isolated modes are unchanged. Alignment requires a genuine
-numerically degenerate two-mode subspace; it does not force split modes to
-become degenerate. A shared override with no eligible pair is an error.
-
-All axes are global and must be transverse to the port normal: ``"z"`` is
-invalid for a z-normal port. Vectors must be finite, nonzero and real, and are
-normalized. A normalized normal component larger than ``1e-12`` is rejected
-(roundoff below that tolerance is removed). For two directions, gprMax rejects
-a normalized direction matrix condition number above ``10``. The angle between
-the directions must therefore be approximately 11.4 to 168.6 degrees; directions
-too close to parallel or antiparallel are rejected before solving. These errors
-also apply to explicit legacy mappings. Choose two well-separated transverse
-directions, ideally orthogonal. gprMax does not repair an invalid pair by
-projecting it into the transverse plane or orthogonalizing it.
-
-The sign convention is independent of propagation direction.
-Thus ``"y"`` and ``("y", "x")`` differ in the second member's sign for a
-z-normal port. An explicitly requested direction that the subspace cannot
-represent raises an error rather than silently falling back.
+This is a breaking API change: two-direction sequences and per-mode or
+per-group direction mappings are rejected in both tracking modes. Supply only
+the first direction; the second is always inferred.
 
 For circular TE11 propagating along z, assign the channels once:
 
@@ -488,7 +466,7 @@ For circular TE11 propagating along z, assign the channels once:
    scene.add(gprMax.EigenmodePort(
        port=1, p1=(0, 0, 0.02), p2=(0.05, 0.05, 0.02), direction="+",
        modes=(1, 2), anchors="auto", tracking="auto",
-       mode_polarizations="y",  # Or ("y", "x") to explicitly choose both.
+       mode_polarizations="y",  # The partner is automatically -x.
    ))
    scene.add(gprMax.EigenmodeExcitation(port=1, mode=1, waveform="auto"))
 
@@ -504,17 +482,13 @@ Equivalent hash options follow the existing anchor and plotting arguments:
 
    ## One direction for every detected pair:
    #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto tracking=auto mode_polarizations=y
-   ## Two explicit directions for every detected pair:
-   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto tracking=auto mode_polarizations=y;x
-   ## Exact mode indices, with declared legacy pairs:
-   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto tracking=legacy degenerate=1,2 mode_polarizations=1:y;2:x
+   ## One diagonal direction; its orthogonal partner is inferred:
+   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto tracking=auto mode_polarizations=1,1,0
 
-These are alternatives: use one definition per port. Components inside a
-vector use commas, and two directions use a semicolon:
-``mode_polarizations=1,1,0;-1,1,0``. Mapping entries use a colon between mode
-index and direction. Do not put spaces inside hash option values. Omitting
-the option corresponds to Python ``None``. Values are parsed literally,
-with no expression evaluation.
+Use one definition per port and no spaces inside hash option values. Omitting
+the option corresponds to Python ``None``. Semicolon-separated directions and
+colon-based mappings raise an error. Values are parsed without expression
+evaluation.
 
 Polarization describes the direction of the transverse electric field
 integrated across the aperture; local arrows need not all be parallel. gprMax
@@ -598,9 +572,9 @@ stores the original ``irreducible_basis`` separately from the final source
 as ``A2+B2`` describes the irreps contributing to that source field.
 
 Each group is tested independently. If C4v decomposition fails, C2v is tried
-when supported; if neither succeeds, a two-mode group retains its electric-
-moment basis when the moments define independent axes throughout the active
-bank. Otherwise it retains the power-whitened basis at its full dimension.
+when supported; if neither succeeds, the group retains its power-whitened
+basis at its full dimension. A requested direction can then orient a complete
+two-mode parent with independent electric moments.
 Two transverse electric moments cannot fully orient a group larger than two.
 Trials check span closure, continuity, mixed eigen-residuals,
 reconstructed Maxwell residuals when available, positive full-group power,
@@ -627,7 +601,14 @@ frequency. The original tracking group remains available in
 ``degenerate_groups``; the selected source subspaces and their transformations
 are stored in ``symmetry_subspaces`` in the HDF5 output.
 
-Explicit ``mode_polarizations`` takes priority over automatic symmetry selection.
+Explicit ``mode_polarizations`` is applied after automatic subgroup selection.
+The native symmetry basis passes mirror-parity checks before the requested
+rotation. A diagonal polarized channel need not itself be a mirror eigenvector;
+its two-dimensional span retains the certified symmetry. Final fields still
+pass eigen-residual, Maxwell-residual, and measurement-conditioning checks.
+``symmetry_subspaces`` describes the certified basis before this rotation;
+``polarization_subspaces`` stores the pairwise rotations and requested directions.
+The parent ``degenerate_groups`` transformations describe the final fields.
 
 .. _tracking-hybrid-conventions:
 
@@ -878,8 +859,8 @@ This 3D straight circular PEC guide has two ports and measures both TE11
 polarizations over 20--24 GHz. Both ports use ``tracking="auto"`` and omit
 ``degenerate`` and ``mode_polarizations``. The tracker discovers the pair and
 defaults mode 1 to global x and mode 2 to global y. These labels differ from
-Example 7's explicit y/-x assignment. One or two shared polarization
-directions can swap or rotate them. Requesting only ``modes=(1,)`` still solves the missing
+Example 7's explicit y/-x assignment. One shared polarization
+direction can swap or rotate them. Requesting only ``modes=(1,)`` still solves the missing
 partner internally without adding a second public channel.
 
 The bore retains ``averaging="y"`` as explained in

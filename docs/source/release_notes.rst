@@ -63,12 +63,12 @@ Eigenmode tracking and surface-impedance refinements
   automatic tracking. See :ref:`eigenmode-mode-tracking` and the new TE11 and
   mode-crossing examples in :doc:`examples_advanced`.
 
-* Degenerate-mode polarization controls accept a shared direction, two shared
-  directions, or exact mode assignments. Exact mode mappings require
-  ``tracking="legacy"`` and declared degenerate pairs; with automatic
-  tracking, use shared directions instead. Invalid, non-transverse or
-  insufficiently distinct directions are rejected. See :doc:`eigenmode_port`
-  for the Python API and equivalent hash-command forms.
+* **Breaking change:** ``mode_polarizations`` accepts one transverse axis or
+  real three-vector. The orthogonal partner is inferred from the positive port
+  normal. Two-direction sequences and per-mode/per-group mappings now raise
+  errors in both automatic and legacy tracking. Automatic tracking resolves
+  subgroups before applying polarization within each eligible doublet. See
+  :doc:`eigenmode_tracking` for conventions and examples.
 
 * CPU SIBC/PML and virtual-guide coupling support uniformly extruded
   heterogeneous, lossy and electrically dispersive retained hosts, subject

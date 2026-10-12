@@ -8,14 +8,12 @@ implemented here under gprMax's GPL license.
 
 import logging
 import numbers
-from copy import copy
+from copy import copy, deepcopy
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 _CONDITION_LIMIT = 1e8
-# User-selected unit directions must be at least ~11.4 degrees from collinearity.
-_POLARIZATION_CONDITION_LIMIT = 10.0
 _DEGENERACY_TOLERANCE = 1e-8
 _SUBSPACE_PIVOT_TOLERANCE = 1e-12
 logger = logging.getLogger(__name__)
@@ -513,9 +511,10 @@ def track_solver_bank(owner, frequencies, solvers, mode_count):
     if owner.mode_polarizations:
         owner.mode_polarizations = normalize_polarizations(
             owner.mode_polarizations,
-            owner.degenerate,
+            (),
             owner.normal_axis,
             owner.invariant_axis,
+            unresolved=True,
         )
     owner.tracking_diagnostics = {
         "schema_version": 1,
@@ -973,15 +972,17 @@ def normalize_groups(value, modes):
 
 
 def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False):
-    """Normalize one/two shared directions or explicit per-mode directions.
-
-    The inferred partner is n_positive cross first, independent of the port's
-    propagation sign. Automatic tracking expands it after detecting groups.
-    """
+    """Normalize one transverse direction and infer its orthogonal partner."""
     if value is None:
         return {}
-    mapping = hasattr(value, "items")
-    if (not mapping or value) and invariant_axis is not None:
+    if hasattr(value, "items"):
+        raise ValueError("mode_polarizations accepts one transverse direction only; "
+                         "per-mode or per-group direction mappings are no longer supported.")
+    sequence = isinstance(value, (tuple, list, np.ndarray))
+    if sequence and not (isinstance(value, np.ndarray) and value.ndim == 0) and len(value) == 2:
+        raise ValueError("mode_polarizations accepts one transverse direction only; "
+                         "two-direction pairs are no longer supported. The orthogonal partner is automatic.")
+    if invariant_axis is not None:
         raise ValueError("Physical mode_polarizations require a 3D port cross-section.")
 
     def normalize_direction(direction):
@@ -1002,43 +1003,13 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
         vector[normal_axis] = 0
         return tuple(float(value) for value in vector / np.linalg.norm(vector))
 
-    if mapping:
-        result = {_index(mode): normalize_direction(direction) for mode, direction in value.items()}
-    else:
-        sequence = isinstance(value, (tuple, list)) or (isinstance(value, np.ndarray) and value.ndim > 0)
-        shared_pair = sequence and len(value) == 2
-        if shared_pair:
-            primary, partner = (normalize_direction(direction) for direction in value)
-            if np.linalg.cond(np.asarray((primary, partner)).T) > _POLARIZATION_CONDITION_LIMIT:
-                raise ValueError(
-                    "Requested polarization directions are linearly dependent or ill-conditioned. "
-                    "Choose clearly distinct transverse directions: condition number must be "
-                    "at most 10 (about 11.4 degrees away from parallel or antiparallel)."
-                )
-        else:
-            primary = normalize_direction(value)
-            partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
-        if unresolved:
-            return (primary, partner) if shared_pair else primary
-        if not groups or any(len(group) != 2 for group in groups):
-            raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
-        result = {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
-    if not unresolved and not set(result).issubset({item for group in groups for item in group}):
-        raise ValueError("mode_polarizations must belong to a declared degenerate group.")
-    for group in groups:
-        if set(group).intersection(result):
-            if len(group) != 2 or not set(group).issubset(result):
-                raise ValueError(
-                    "Physical polarization mappings require both members of a two-mode pair."
-                )
-            matrix = np.asarray([result[item] for item in group]).T
-            if np.linalg.cond(matrix) > _POLARIZATION_CONDITION_LIMIT:
-                raise ValueError(
-                    "Requested polarization directions are linearly dependent or ill-conditioned. "
-                    "Choose clearly distinct transverse directions: condition number must be "
-                    "at most 10 (about 11.4 degrees away from parallel or antiparallel)."
-                )
-    return result
+    primary = normalize_direction(value)
+    if unresolved:
+        return primary
+    if not groups or any(len(group) != 2 for group in groups):
+        raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
+    partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
+    return {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
 
 
 def parse_port_options(tokens):
@@ -1075,27 +1046,13 @@ def parse_port_options(tokens):
                 options[key] = tuple(
                     tuple(int(v) for v in group.split(",")) for group in value.split(";")
                 )
-            elif ":" not in value:
-                directions = [
-                    tuple(float(v) for v in entry.split(",")) if "," in entry else entry
-                    for entry in value.split(";")
-                ]
-                if len(directions) > 2:
-                    raise ValueError("Supply one or two shared polarization directions.")
-                options[key] = directions[0] if len(directions) == 1 else tuple(directions)
             else:
-                directions = {}
-                for entry in value.split(";"):
-                    label, vector = entry.split(":", 1)
-                    label = int(label)
-                    if label in directions:
-                        raise ValueError("Repeated polarization label")
-                    directions[label] = (
-                        tuple(float(v) for v in vector.split(",")) if "," in vector else vector
-                    )
-                options[key] = directions
+                if ":" in value or ";" in value:
+                    raise ValueError("Supply one transverse direction only; direction pairs and "
+                                     "per-mode/per-group mappings are no longer supported.")
+                options[key] = tuple(float(v) for v in value.split(",")) if "," in value else value
         except (ValueError, TypeError) as exc:
-            raise ValueError(f"Invalid eigenmode port {key}: {value!r}.") from exc
+            raise ValueError(f"Invalid eigenmode port {key}: {value!r}. {exc}") from exc
     return positional, options
 
 
@@ -1243,7 +1200,10 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
     """Align declared groups in place; never change solved propagation constants."""
     residual_limit = owner.tracking_config.residual_tolerance
     explicit_polarizations = bool(owner.mode_polarizations)
+    automatic = getattr(owner, "tracking", "legacy") == "auto"
+    requested_polarizations = owner.mode_polarizations if automatic else None
     owner.degenerate_diagnostics = []
+    owner.polarization_diagnostics = []
     owner.symmetry_diagnostics = []
     owner.symmetry_detection = None
     owner._degenerate_masks = {}
@@ -1258,9 +1218,9 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
         used = np.flatnonzero(active)
         if not len(used) or np.any(np.diff(used) != 1):
             raise ValueError(f"{context} requires one contiguous propagating anchor range.")
-        explicit_physical = group[0] in owner.mode_polarizations
+        explicit_physical = not automatic and group[0] in owner.mode_polarizations
         automatic_axes = False
-        if not explicit_physical and len(group) == 2 and owner.invariant_axis is None:
+        if not automatic and not explicit_physical and len(group) == 2 and owner.invariant_axis is None:
             automatic_axes = True
             for k in used:
                 electric = [anchor_e[k][position] for position in positions]
@@ -1537,15 +1497,115 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
         )
 
 
-    if getattr(owner, "tracking", "legacy") == "auto" and not explicit_polarizations:
-        # Temporary automatic moment directions are not user overrides on a
-        # later rebuild/refinement of this same source bank.
-        owner.mode_polarizations.clear()
+    if automatic:
         from gprMax.eigenmode_symmetry import align_symmetry_subspaces
         align_symmetry_subspaces(owner, grid, frequencies, solvers, mode_indices, anchor_e, anchor_h)
+        if explicit_polarizations:
+            _polarize_resolved_pairs(owner, grid, solvers, mode_indices, anchor_e, anchor_h,
+                                    requested_polarizations)
+
+
+def _polarize_resolved_pairs(owner, grid, solvers, modes, electric, magnetic, requested):
+    """Apply directions within resolved doublets, never across their parent span."""
+    from gprMax.eigenmode_symmetry import _validate_measurement_basis
+
+    resolved = {tuple(record['modes']): record['blocks'] for record in owner.symmetry_diagnostics}
+    pairs = [tuple(block) for parent in owner.degenerate_diagnostics
+             for block in resolved.get(tuple(parent['modes']), (parent['modes'],))
+             if len(block) == 2]
+    if not pairs:
+        raise ValueError('mode_polarizations requires a resolved two-mode subspace; '
+                         'the detected groups contain no eligible doublet.')
+    directions = normalize_polarizations(requested, pairs, owner.normal_axis, owner.invariant_axis)
+    trial_e, trial_h = [list(row) for row in electric], [list(row) for row in magnetic]
+    parents = deepcopy(owner.degenerate_diagnostics)
+    records = []
+    changed_anchors = set()
+    for pair in pairs:
+        if pair[0] not in directions:
+            continue
+        positions = [modes.index(label) for label in pair]
+        parent = next(p for p in parents if set(pair).issubset(p['modes']))
+        local = [parent['modes'].index(label) for label in pair]
+        wanted = np.asarray([directions[label] for label in pair]).T[list(owner.transverse_axes)]
+        record = dict(modes=pair, directions=np.asarray([directions[label] for label in pair]), anchors={})
+        previous_frame = None
+        for k, anchor in enumerate(parent['anchors']):
+            if not anchor['active']:
+                continue
+            e, h = [trial_e[k][p] for p in positions], [trial_h[k][p] for p in positions]
+            moments = _moments(owner, grid, e)
+            scale = np.asarray([sum(np.sum(abs(f[a])) for a in owner.transverse_axes)
+                                for f in e]) * np.prod(grid.dl[list(owner.transverse_axes)])
+            condition = np.linalg.cond(moments)
+            if (not np.isfinite(condition) or condition > _CONDITION_LIMIT
+                    or np.any(np.linalg.norm(moments, axis=0) <= 1e-12 * scale)):
+                raise ValueError(f'mode_polarizations: resolved pair {pair} has zero or ill-conditioned '
+                                 'integrated transverse E; use automatic field orientation.')
+            transform = np.linalg.solve(moments, wanted)
+            ee, hh = _mix(e, transform), _mix(h, transform)
+            frame = _frame(ee, hh, float(owner._tracking_impedance))
+            overlaps = np.ones(2)
+            if previous_frame is not None:
+                overlaps = abs(np.sum(previous_frame.conj() * frame, axis=0))**2 / (
+                    np.sum(abs(previous_frame)**2, axis=0) * np.sum(abs(frame)**2, axis=0))
+                if not np.all(np.isfinite(overlaps)) or np.min(overlaps) < owner.tracking_config.tracking_overlap:
+                    raise ValueError('Explicit subgroup polarization requires closer anchors for channel continuity.')
+            previous_frame = frame
+            norms = np.real(np.diag(_power(owner, grid, ee, hh)))
+            if not np.all(np.isfinite(norms)) or np.any(norms <= 0):
+                raise ValueError(f'mode_polarizations: resolved pair {pair} has invalid power.')
+            transform /= np.sqrt(norms)[None, :]
+            ee, hh = _mix(e, transform), _mix(h, transform)
+            for j, p in enumerate(positions):
+                trial_e[k][p], trial_h[k][p] = ee[j], hh[j]
+            rotation = np.eye(len(parent['modes']), dtype=complex)
+            rotation[np.ix_(local, local)] = transform
+            total = anchor['transform'] @ rotation
+            residual = _residuals(solvers[k], parent['modes'], total)
+            if not np.all(np.isfinite(residual)) or np.max(residual) > owner.tracking_config.residual_tolerance:
+                raise ValueError('Explicit subgroup polarization fails the mixed eigen-residual check.')
+            if hasattr(solvers[k], 'mode_tracking_field_operators'):
+                check = copy(solvers[k])
+                indices = np.asarray(parent['modes']) - 1
+                for name in ('Eu', 'Ev', 'Ew', 'Hu', 'Hv', 'Hw'):
+                    fields = getattr(check, name).copy()
+                    fields[..., indices] = fields[..., indices] @ total
+                    setattr(check, name, fields)
+                field_residual = np.max(check.tracking_field_residuals(indices))
+                if not np.isfinite(field_residual) or field_residual > owner.tracking_config.residual_tolerance:
+                    raise ValueError('Explicit subgroup polarization fails the Maxwell residual check.')
+            pp = [modes.index(label) for label in parent['modes']]
+            power = _power(owner, grid, [trial_e[k][p] for p in pp], [trial_h[k][p] for p in pp])
+            anchor.update(transform=total, residual=residual, power_gram=power)
+            record['anchors'][k] = dict(transform=transform, moment_condition=condition, channel_overlaps=overlaps)
+            changed_anchors.add(k)
+        parent['orientation'] = 'explicit_resolved_pairs'
+        parent['physical'] = all(label in directions for label in parent['modes'])
+        if parent['physical']:
+            parent['polarization_directions'] = tuple(directions[label] for label in parent['modes'])
+        records.append(record)
+    for k in changed_anchors:
+        _validate_measurement_basis(owner, grid, trial_e[k], trial_h[k])
+    # Publish only when every pair and anchor passes, keeping failed requests atomic.
+    for k in range(len(electric)):
+        electric[k][:], magnetic[k][:] = trial_e[k], trial_h[k]
+    owner.degenerate_diagnostics = parents
+    owner.polarization_diagnostics = records
 
 
 def write_diagnostics(group, owner):
+    if getattr(owner, 'polarization_diagnostics', None):
+        root = group.create_group('polarization_subspaces')
+        root.attrs['TransformationConvention'] = 'final pair fields = symmetry-aligned pair fields @ transform'
+        for i, record in enumerate(owner.polarization_diagnostics):
+            output = root.create_group(str(i+1))
+            output.attrs['ModeIndices'] = record['modes']
+            output['requested_directions'] = record['directions']
+            for k, values in record['anchors'].items():
+                anchor = output.create_group(f'anchor{k}')
+                for key, value in values.items():
+                    anchor[key] = value
     detection = getattr(owner, "symmetry_detection", None)
     if detection is not None:
         import json
@@ -1559,6 +1619,7 @@ def write_diagnostics(group, owner):
     if getattr(owner, "symmetry_diagnostics", None):
         root = group.create_group("symmetry_subspaces")
         root.attrs["Method"] = "longitudinal_symmetry_and_axis_orientation_v3"
+        root.attrs['BasisConvention'] = 'Certified symmetry basis before any explicit subgroup polarization'
         for i, record in enumerate(owner.symmetry_diagnostics):
             output = root.create_group(str(i+1))
             output.attrs["ParentModes"] = record['modes']
@@ -1688,7 +1749,7 @@ def write_diagnostics(group, owner):
                 if directions is None:
                     directions = [owner.mode_polarizations[item] for item in record["modes"]]
                 output["polarization_directions"] = directions
-                if record["orientation"] == "explicit":
+                if record["orientation"] in ("explicit", "explicit_resolved_pairs"):
                     output["requested_directions"] = directions
             for k, anchor in enumerate(record["anchors"]):
                 row = output.create_group(f"anchor{k}")
@@ -1699,6 +1760,9 @@ def write_diagnostics(group, owner):
 def aligned_plot_solvers(owner, solvers):
     """Plot copies in the authoritative bank basis without altering raw solves."""
     result = [copy(solver) for solver in solvers]
+    directions = dict(owner.mode_polarizations) if isinstance(owner.mode_polarizations, dict) else {}
+    for record in getattr(owner, 'polarization_diagnostics', ()):
+        directions.update(zip(record['modes'], record['directions']))
     for record in owner.degenerate_diagnostics:
         indices = np.asarray(record["modes"]) - 1
         for k, diagnostic in enumerate(record["anchors"]):
@@ -1711,5 +1775,5 @@ def aligned_plot_solvers(owner, solvers):
                 destination = np.array(getattr(result[k], name), copy=True)
                 destination[..., indices] = field[..., indices] @ diagnostic["transform"]
                 setattr(result[k], name, destination)
-            result[k].mode_polarizations = owner.mode_polarizations
+            result[k].mode_polarizations = directions
     return tuple(result)

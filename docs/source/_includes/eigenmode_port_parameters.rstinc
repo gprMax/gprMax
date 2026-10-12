@@ -38,4 +38,4 @@
      - Legacy tracking only: a group such as ``(1, 2)``, or disjoint groups such as ``((1, 2), (3, 4))``. All members must be in ``modes``. With ``tracking="auto"``, this argument is ignored and groups are detected from the solved spectrum.
    * - ``mode_polarizations``
      - ``None``
-     - Optional transverse axis/vector directions for degenerate pairs. Accepts ``"x"``, ``"y"``, ``"z"``, finite nonzero real three-vectors, or two directions. Exact-mode mappings require legacy tracking and declared pairs. Explicit directions override automatic symmetry selection. See :doc:`eigenmode_tracking` for conventions, examples, and compatibility rules.
+     - Optional single transverse axis (``"x"``, ``"y"``, ``"z"``) or finite nonzero real three-vector. The orthogonal partner is inferred from the positive port normal. Automatic tracking resolves subgroups before applying the direction. Two directions and mode/group mappings raise an error. See :doc:`eigenmode_tracking`.

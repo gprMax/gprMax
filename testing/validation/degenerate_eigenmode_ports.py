@@ -76,7 +76,7 @@ def circular_scene(
             tracking=tracking,
             verification=verification,
             degenerate=(1, 2) if tracking == "legacy" else None,
-            mode_polarizations={1: "xyz"[transverse[1]], 2: "xyz"[transverse[0]]},
+            mode_polarizations="xyz"[transverse[1]],
         )
     )
     if monitor:
@@ -92,7 +92,7 @@ def circular_scene(
                 tracking=tracking,
                 verification=verification,
                 degenerate=(1, 2) if tracking == "legacy" else None,
-                mode_polarizations={1: "xyz"[transverse[1]], 2: "xyz"[transverse[0]]},
+                mode_polarizations="xyz"[transverse[1]],
             )
         )
     if virtual:

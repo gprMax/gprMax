@@ -369,7 +369,8 @@ def test_hash_ports_require_one_band_and_excitation():
         process_multicmds(commands)
 
 
-def test_grid_rejects_port_definitions_without_excitation():
+def test_grid_rejects_port_definitions_without_excitation(monkeypatch):
+    monkeypatch.setattr(config, 'sim_config', SimpleNamespace(geometry_only=False))
     grid = FDTDGrid()
     grid.eigenmodeband = object()
     grid.eigenmodeportdefs[1] = object()
