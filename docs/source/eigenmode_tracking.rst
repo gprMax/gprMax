@@ -88,9 +88,6 @@ table lists every ``EigenmodeTrackingConfig`` control.
    * - ``tracking_config``
      - ``None``
      - An ``EigenmodeTrackingConfig`` instance or mapping overriding the numerical controls in the next table. Omitted fields keep their defaults.
-   * - ``mode_symmetry``
-     - ``"auto"``
-     - Detect C4v/C2v from the sampled materials and walls, then validate their action on each eligible group. ``None`` disables symmetry selection. Explicit ``"c4v"``/``"c2v"`` or a Python mapping of symmetry callbacks requests strict validation. See :ref:`tracking-symmetry-options`.
    * - ``mode_polarizations``
      - ``None``
      - Optional transverse direction(s) for electric-moment alignment of a pair: an axis name, a real three-vector, or two directions. One direction defines its partner by the positive port-normal axis crossed with it. Shared directions work with automatic tracking; mappings to exact mode indices require legacy tracking. Overrides automatic symmetry selection.
@@ -101,9 +98,9 @@ table lists every ``EigenmodeTrackingConfig`` control.
      - ``None``
      - ``True`` writes dispersion and modal-field plots in all runs; ``False`` suppresses them; ``None`` writes them in geometry-only runs.
 
-Native symmetry decomposition applies to automatic tracking on supported
-3D port cross sections. ``mode_symmetry`` also accepts a named hash option. Python symmetry callbacks
-and polarization vectors use the Python API. Keep the same basis convention
+Symmetry detection and basis selection run automatically with ``tracking="auto"``
+on supported 3D port cross sections. Legacy tracking skips symmetry selection.
+There is no separate symmetry input argument. Polarization vectors use the Python API. Keep the same basis convention
 at both ports when comparing their channel coefficients.
 
 Advanced thresholds and limits
@@ -613,23 +610,17 @@ unsupported transverse solvers use the fallback. HDF5 ``symmetry_detection`` rec
 symmetries at each anchor, the applied choice per group, and rejected-trial
 reasons; ``symmetry_subspaces`` stores successful decompositions.
 
+Before accepting a selected basis, the complete power-wave measurement bank
+must pass the modal coefficient solver's precision budget for both electric
+and magnetic Gram matrices. An unsafe automatic trial retains the fallback
+basis.
+
 Neighboring fields continue the selected families and orientations across
 frequency. The original tracking group remains available in
 ``degenerate_groups``; the selected source subspaces and their transformations
 are stored in ``symmetry_subspaces`` in the HDF5 output.
 
-For expert overrides, ``mode_symmetry=None`` disables detection, while
-``"c4v"`` or ``"c2v"`` requests strict validation with errors on failure.
-Python users can also supply a mapping ``mode_symmetry={"name": action, ...}`` of
-symmetry generators. Each callable has signature ``action(solver, E, H)`` and
-returns ``(transformed_E, transformed_H)``. Each field family is a tuple of
-local ``(u,v,w)`` component arrays on the original staggered grid, with modal
-columns on the final axis. A callback must preserve these shapes and account
-for E being a polar vector and H an axial vector under reflection. Supply
-generators for the complete intended symmetry group. Top-level callables
-should be used with multiprocessing. Invalid supplied actions raise a
-diagnostic error. Explicit ``mode_polarizations`` takes priority over automatic
-detection and cannot be combined with an explicit symmetry override.
+Explicit ``mode_polarizations`` takes priority over automatic symmetry selection.
 
 .. _tracking-hybrid-conventions:
 

@@ -80,24 +80,47 @@ def test_uncertified_materials_fall_back(change):
     assert result['anchors'][0]['reasons']
 
 
-def aligned_bank(bank, labels, symmetry='auto'):
+def aligned_bank(bank, labels, symmetry='auto', tracking='auto'):
     owner=EigenmodeSource(None)
+    owner.tracking=tracking
     owner.normal_axis=2; owner.normal='z'; owner.direction='+'; owner.transverse_axes=(0,1)
-    owner.degenerate=(tuple(labels),); owner.mode_polarizations={}; owner.mode_symmetry=symmetry
+    owner.degenerate=(tuple(labels),); owner.mode_polarizations={}
     owner._tracking_impedance=config.sim_config.em_consts['z0']
     fields=[[owner._fields_from_solver_mode(s,m) for m in labels] for s in bank]
     e=[[v[0] for v in row] for row in fields]; h=[[v[1] for v in row] for row in fields]
     grid=SimpleNamespace(dl=np.array([bank[0].du,bank[0].dv,bank[0].du]))
     axis=[s.frequency for s in bank]
-    align_groups(owner,grid,axis,bank,tuple(labels),e,h,np.ones((len(bank),len(labels)),bool))
+    from testing.validation.general_subspace_tracking import align_validation_groups
+    align_validation_groups(owner,grid,axis,bank,tuple(labels),e,h,np.ones((len(bank),len(labels)),bool),
+                            symmetry=symmetry if tracking == 'auto' else None)
     return owner,grid,e,h
+
+
+def test_legacy_declared_group_skips_automatic_symmetry(monkeypatch):
+    import gprMax.eigenmode_symmetry as symmetry
+
+    def unexpected_selection(*args, **kwargs):
+        pytest.fail('Legacy tracking entered automatic symmetry selection')
+
+    monkeypatch.setattr(symmetry, 'align_symmetry_subspaces', unexpected_selection)
+    with _configured_solver_constants():
+        bank = [fd_solver(20e9, (12,12), .02/12, (2,2,2), count=12)]
+        owner, _, actual_e, actual_h = aligned_bank(bank, (7,8,9,10), tracking='legacy')
+        _, _, expected_e, expected_h = aligned_bank(bank, (7,8,9,10), symmetry=None, tracking='legacy')
+    assert not getattr(owner, 'symmetry_diagnostics', None)
+    assert not getattr(owner, 'symmetry_detection', None)
+    for actual, expected in ((actual_e, expected_e), (actual_h, expected_h)):
+        for row, expected_row in zip(actual, expected):
+            for field, expected_field in zip(row, expected_row):
+                for component, expected_component in zip(field, expected_field):
+                    np.testing.assert_array_equal(component, expected_component)
 
 
 def test_default_square_quartet_decomposes_without_user_symmetry():
     with _configured_solver_constants():
         bank=[fd_solver(f*1e9,(12,12),.02/12,(2,2,2),count=12) for f in (19,20,21)]
         owner,grid,e,h=aligned_bank(bank,(7,8,9,10))
-        assert EigenmodeSource(None).mode_symmetry=='auto'
+        assert not hasattr(EigenmodeSource(None), 'mode_symmetry')
         assert owner.symmetry_detection['detected']=='c4v'
         assert owner.symmetry_detection['groups'][0]['applied']=='c4v'
         record=owner.symmetry_diagnostics[0]
@@ -132,12 +155,11 @@ def test_failed_automatic_trials_do_not_change_fallback_fields(monkeypatch):
         owner,grid,e,h=aligned_bank(bank,(7,8,9,10),symmetry=None)
         expected_e,expected_h=deepcopy(e),deepcopy(h)
         parents=deepcopy(owner.degenerate_diagnostics)
-        def failed_trial(trial, grid, frequencies, solvers, modes, electric, magnetic):
+        def failed_trial(trial, grid, frequencies, solvers, modes, electric, magnetic, **kwargs):
             electric[0][0]=[a*7 for a in electric[0][0]]
             trial.degenerate_diagnostics[0]['orientation']='invalid'
             raise ValueError('Test rejection after a partial trial.')
         monkeypatch.setattr(symmetry,'_align_symmetry_subspaces',failed_trial)
-        owner.mode_symmetry='auto'
         align_symmetry_subspaces(owner,grid,[19e9,20e9],bank,(7,8,9,10),e,h)
         for actual,expected in ((e,expected_e),(h,expected_h)):
             for arow,brow in zip(actual,expected):
@@ -154,10 +176,10 @@ def test_failed_automatic_trials_do_not_change_fallback_fields(monkeypatch):
 def test_rejected_c4v_trial_can_use_certified_c2v(monkeypatch):
     import gprMax.eigenmode_symmetry as symmetry
     original=symmetry._align_symmetry_subspaces
-    def reject_quarter_turn(owner,*args):
-        if owner.mode_symmetry=='c4v':
+    def reject_quarter_turn(owner,*args,**kwargs):
+        if kwargs['symmetry']=='c4v':
             raise ValueError('Injected quarter-turn rejection.')
-        return original(owner,*args)
+        return original(owner,*args,**kwargs)
     monkeypatch.setattr(symmetry,'_align_symmetry_subspaces',reject_quarter_turn)
     with _configured_solver_constants():
         solver=fd_solver(20e9,(12,12),.02/12,(2,2,2),count=12)
@@ -203,6 +225,7 @@ def test_default_detection_reaches_source_receiver_and_hdf5(tmp_path):
     for obj in scene.grid_objects:
         if isinstance(obj,gprMax.EigenmodePort):
             obj.kwargs['mode_polarizations']=None
+            obj.kwargs['tracking']='auto'
     path=tmp_path/'automatic_symmetry'
     gprMax.run(scenes=[scene],outputfile=path,cpu_precision='double',hide_progress_bars=True,log_level=40)
     with h5py.File(path.with_suffix('.h5')) as result:

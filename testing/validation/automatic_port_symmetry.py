@@ -46,7 +46,7 @@ def validate(output):
                  'gprMax/sources.py','gprMax/eigenmode_config.py','gprMax/user_objects/cmds_multiuse.py'):
         manifest['source_sha256'][name]=hashlib.sha256((root/name).read_bytes()).hexdigest()
     manifest.pop('optional_symmetry_cases',None)
-    manifest['cases']={r['name']:dict(axis=r['axis'],axis_label=r['axis_label'],mode_symmetry='auto') for r in reports}
+    manifest['cases']={r['name']:dict(axis=r['axis'],axis_label=r['axis_label'],symmetry_selection='auto') for r in reports}
     manifest['geometry_sources']='Builders in automatic_port_symmetry.py and imported validation modules; their hashes are recorded.'
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     (output/'README.md').write_text('# Automatic port symmetry validation\n\n'

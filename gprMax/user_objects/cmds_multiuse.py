@@ -2679,14 +2679,10 @@ class EigenmodePort(GridUserObject):
             None preserves the current assignment. Physical selection requires a
             3D cross-section and independent transverse directions.
         tracking: ``"legacy"`` (default) or experimental ``"auto"`` branch
-            tracking, enabled at the user's discretion.
+            tracking, including automatic symmetry detection and selection
+            for eligible degenerate spans.
         verification: ``"full"`` or ``"fast"`` quality checks for automatic tracking.
         tracking_config: optional :class:`gprMax.EigenmodeTrackingConfig` or mapping.
-        mode_symmetry: ``"auto"`` by default: detect C4v or C2v from the
-            sampled port and decompose eligible degenerate spans. If detection
-            or decomposition fails, retain power whitening. No symmetry label
-            is required. None disables detection; explicit ``"c4v"``,
-            ``"c2v"``, or named field-action callables enable strict checks.
     """
 
     @property
@@ -2699,7 +2695,7 @@ class EigenmodePort(GridUserObject):
 
     _allowed_kwargs = frozenset({
         "anchors", "degenerate", "direction", "mode_polarizations", "modes", "p1", "p2",
-        "plot_fields", "port", "tracking", "tracking_config", "verification", "mode_symmetry",
+        "plot_fields", "port", "tracking", "tracking_config", "verification",
     })
 
     def __init__(self, **kwargs):
@@ -2784,12 +2780,6 @@ class EigenmodePort(GridUserObject):
             else normalize_groups(self.kwargs.get("degenerate"), modes)
         )
         polarization_input = self.kwargs.get("mode_polarizations")
-        from gprMax.eigenmode_symmetry import normalize_symmetry
-        mode_symmetry = normalize_symmetry(self.kwargs.get("mode_symmetry", "auto"))
-        if mode_symmetry == "auto" and polarization_input is not None:
-            mode_symmetry = None
-        if mode_symmetry is not None and polarization_input is not None:
-            raise ValueError("Use mode_symmetry or mode_polarizations to select the source basis, not both.")
         if tracking == "auto" and hasattr(polarization_input, "items"):
             raise ValueError(
                 f"{self.params_str()} mode_polarizations mappings require tracking='legacy' "
@@ -2819,7 +2809,6 @@ class EigenmodePort(GridUserObject):
             verification=verification,
             tracking_config=tracking_config,
             degenerate=degenerate,
-            mode_symmetry=mode_symmetry,
             mode_polarizations=mode_polarizations,
         )
         axis_name = "xyz"[normal_axis]
@@ -3150,7 +3139,6 @@ def build_eigenmode_runtime_ports(grid):
         runtime.verification = port.verification
         runtime.tracking_config = port.tracking_config
         runtime.degenerate = port.degenerate
-        runtime.mode_symmetry = port.mode_symmetry
         runtime.mode_polarizations = port.mode_polarizations
         runtime.requested_anchor_policy = port.anchor_policy
         runtime.resolved_anchor_policy = port.anchor_policy
@@ -3197,7 +3185,6 @@ def build_passive_virtual_eigenmode_ports(grid):
         runtime.verification = port.verification
         runtime.tracking_config = port.tracking_config
         runtime.degenerate = port.degenerate
-        runtime.mode_symmetry = port.mode_symmetry
         runtime.mode_polarizations = port.mode_polarizations
         runtime.requested_anchor_policy = port.anchor_policy
         runtime.resolved_anchor_policy = port.anchor_policy

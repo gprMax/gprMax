@@ -128,7 +128,6 @@ def track_frequency_bank(sides, output, cells=64):
     owner.degenerate=(); owner.mode_polarizations={}
     owner._tracking_impedance=config.sim_config.em_consts['z0']
     owner.tracking='auto'; owner.verification='none'
-    owner.mode_symmetry='c4v' if sides==8 else None
     mapping=track_solver_bank(owner,axis,solvers,5)
     modes=tuple(range(1,owner._auto_tracking_mode_count+1))
     owner.mode_indices=modes; owner.mode_index=1; owner.mode_count=len(modes)

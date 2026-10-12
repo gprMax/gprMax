@@ -14,6 +14,27 @@ def projector(a):
     return q @ q.conj().T
 
 
+@pytest.mark.parametrize('angle', [0, 10, 15, 20])
+@pytest.mark.parametrize('reference', [-1., 0., 1.])
+def test_partially_mixed_crossing_preserves_subgroup_projectors(angle, reference):
+    theta = np.deg2rad(angle)
+    identity = np.eye(2)
+    rotation = np.block([[np.cos(theta)*identity, -np.sin(theta)*identity],
+                         [np.sin(theta)*identity, np.cos(theta)*identity]])
+    solvers = [make_solver([-4, -4, -4.04, -4.04]),
+               make_solver([-4]*4, rotation),
+               make_solver([-4, -4, -3.96, -3.96])]
+    owner = make_owner(reference)
+    track_solver_bank(owner, [-1, 0, 1], solvers, 4)
+    assert sorted(map(len, owner.degenerate)) == [2, 2]
+    for group in owner.degenerate:
+        columns = np.asarray(group) - 1
+        expected = projector(solvers[0].Ea[:, columns])
+        for solver in solvers:
+            np.testing.assert_allclose(projector(solver.Ea[:, columns]), expected, atol=1e-12)
+    assert bool(owner.tracking_diagnostics['subspace_recovery']) == bool(angle)
+
+
 @pytest.mark.parametrize('reference', [-1., 0., 1.])
 @pytest.mark.parametrize('seed', [3, 19, 71])
 def test_fully_mixed_pair_pair_crossing(reference, seed):

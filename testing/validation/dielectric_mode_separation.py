@@ -55,7 +55,7 @@ def analyse(bank,output,name,save_fields=True):
     owner.normal_axis=2;owner.normal='z';owner.direction='+';owner.transverse_axes=(0,1)
     owner.tracking_config=EigenmodeTrackingConfig(extra_candidates=0)
     owner.port_index=1;owner.fallback_frequency=20e9;owner.degenerate=();owner.mode_polarizations={}
-    owner.tracking='auto';owner.verification='none';owner.mode_symmetry='auto'
+    owner.tracking='auto';owner.verification='none'
     owner._tracking_impedance=config.sim_config.em_consts['z0']
     axis=np.array([s.frequency for s in bank])
     mapping=track_solver_bank(owner,axis,bank,12)

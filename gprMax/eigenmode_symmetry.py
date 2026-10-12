@@ -10,18 +10,6 @@ from copy import copy, deepcopy
 import numpy as np
 
 
-def normalize_symmetry(value):
-    if value is None:
-        return None
-    if isinstance(value, str) and value.lower() in ("auto", "c4v", "c2v"):
-        return value.lower()
-    if hasattr(value, "items") and value and all(
-        isinstance(name, str) and callable(action) for name, action in value.items()
-    ):
-        return dict(value)
-    raise ValueError("mode_symmetry must be None, 'auto', 'c4v', 'c2v', or a named mapping of field-action callables.")
-
-
 def c4_rotation(solver, electric, magnetic):
     if solver.Nu != solver.Nv or not np.isclose(solver.du, solver.dv, rtol=1e-12, atol=0):
         raise ValueError("C4v symmetry requires a square transverse grid with equal spacing.")
@@ -45,14 +33,13 @@ def mirror_v(solver, electric, magnetic):
 
 
 def field_actions(value):
-    value = normalize_symmetry(value)
     if value == "c4v":
         return {"rotation_90": c4_rotation, "mirror_u": mirror_u}
     if value == "c2v":
         return {"mirror_u": mirror_u, "mirror_v": mirror_v}
-    if value == "auto":
-        raise ValueError("Automatic symmetry must first be detected from the sampled port.")
-    return value
+    if hasattr(value, 'items') and value and all(callable(action) for action in value.values()):
+        return value
+    raise ValueError('Expected a detected C4v/C2v symmetry or internal field actions.')
 
 
 def validate_c4v_materials(solver):
@@ -462,14 +449,37 @@ def axis_sensitive_blocks(blocks, electric, magnetic, mirrors, spacing, field_sc
     return tuple(result), records
 
 
+def _validate_measurement_basis(owner, grid, electric, magnetic):
+    """Require the complete power-wave bank to pass monitor precision checks."""
+    import gprMax.config as config
+    from gprMax.eigenmode_ports import _coefficient_precision_limits, _solve_conditioned_gram
+
+    dtype = getattr(config.sim_config, 'dtypes', {}).get('complex', np.complex128)
+    epsilon, limit = _coefficient_precision_limits(dtype)
+    gram = np.asarray([[owner._modal_cross_power(e, h, grid) for e in electric]
+                       for h in magnetic])
+    # The monitor normalizes propagating profiles to unit real power. Below-
+    # cutoff references have separate validity handling and are not power waves.
+    powers = np.real(np.diag(gram))
+    active = np.flatnonzero(np.isfinite(powers) & (powers > 1e-12))
+    if active.size == 0:
+        raise ValueError('Symmetry-adapted fields have no valid measurement power.')
+    gram = gram[np.ix_(active, active)] / np.sqrt(powers[active, None] * powers[None, active])
+    gram = gram.astype(dtype)
+    for matrix in (gram, gram.conj().T, (gram + gram.conj().T) / 2):
+        _, valid, _ = _solve_conditioned_gram(
+            matrix, np.zeros(active.size), component_epsilon=epsilon,
+            condition_limit=limit, power_coordinates=np.ones(active.size, dtype=bool))
+        if not np.all(valid):
+            raise ValueError('Symmetry-adapted measurement basis exceeds the coefficient precision budget.')
+
+
 def align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric, magnetic):
     """Automatically decompose certified spans, preserving the fallback bank.
 
     Each trial uses private field-bank rows and diagnostics. A rejected trial
     cannot partially publish its transforms, including at earlier anchors.
     """
-    if owner.mode_symmetry != "auto":
-        return _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric, magnetic)
     detection = detect_symmetry(solvers)
     owner.symmetry_detection = detection
     owner.symmetry_diagnostics = []
@@ -481,13 +491,12 @@ def align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric,
         detection['groups'].append(record)
         for name in detection['candidates']:
             trial = copy(owner)
-            trial.mode_symmetry = name
             trial.degenerate_diagnostics = deepcopy([parent])
             trial.symmetry_diagnostics = []
             trial_e = [list(row) for row in electric]
             trial_h = [list(row) for row in magnetic]
             try:
-                _align_symmetry_subspaces(trial, grid, frequencies, solvers, modes, trial_e, trial_h)
+                _align_symmetry_subspaces(trial, grid, frequencies, solvers, modes, trial_e, trial_h, symmetry=name)
             except (ValueError, np.linalg.LinAlgError) as error:
                 record['attempts'].append(dict(symmetry=name, reason=str(error)))
                 continue
@@ -499,17 +508,17 @@ def align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric,
             break
 
 
-def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric, magnetic):
+def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric, magnetic, *, symmetry):
     """Decompose eligible source spans, then continue their irreducible blocks."""
     from scipy.optimize import linear_sum_assignment
     from gprMax.eigenmode_tracking import _frame, _mix, _power, _residuals, _orthonormal, _moments
 
-    actions = field_actions(owner.mode_symmetry)
+    actions = field_actions(symmetry)
     if owner.invariant_axis is not None:
-        raise ValueError("mode_symmetry requires a two-dimensional transverse port mesh.")
-    if owner.mode_symmetry in ('c4v', 'c2v'):
+        raise ValueError("Symmetry decomposition requires a two-dimensional transverse port mesh.")
+    if symmetry in ('c4v', 'c2v'):
         for solver in solvers:
-            validate_material_symmetry(solver, owner.mode_symmetry)
+            validate_material_symmetry(solver, symmetry)
     owner.symmetry_diagnostics = []
     tolerance = 1e-8
     impedance = float(owner._tracking_impedance)
@@ -570,20 +579,20 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                         q = np.linalg.qr(coordinates[:,columns])[0]
                         probe += (j+1) * (q @ q.conj().T)
                 longitudinal = None
-                if owner.mode_symmetry in ('c4v', 'c2v'):
+                if symmetry in ('c4v', 'c2v'):
                     blocks, leakage, longitudinal = longitudinal_blocks(
                         generators, local_e[2], impedance * local_h[2],
                         np.linalg.norm(frame, 'fro')**2, probe=probe, tolerance=tolerance)
                 else:
                     blocks, leakage = irreducible_blocks(generators, probe=probe, tolerance=tolerance)
                 axis_records, source_irreps, irreducible_basis = [], (), None
-                if owner.mode_symmetry in ('c4v', 'c2v'):
-                    rotation = generators[0] if owner.mode_symmetry == 'c4v' else None
+                if symmetry in ('c4v', 'c2v'):
+                    rotation = generators[0] if symmetry == 'c4v' else None
                     mirrors = (generators[1], rotation @ generators[1] @ rotation.conj().T) if rotation is not None else generators
                     ib = np.column_stack(blocks)
                     cuts = np.cumsum([0]+[b.shape[1] for b in blocks])
                     ic = [np.arange(a,b) for a,b in zip(cuts[:-1],cuts[1:])]
-                    naming = c4v_irrep_names if owner.mode_symmetry == 'c4v' else c2v_irrep_names
+                    naming = c4v_irrep_names if symmetry == 'c4v' else c2v_irrep_names
                     names = naming([np.linalg.solve(ib,d @ ib) for d in generators], ic)
                     irreducible_basis = dict(transform=ib, columns=ic, irreps=names)
                     family_tolerance = tolerance
@@ -623,15 +632,15 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                         inverse = np.argsort(order[np.argsort(rows)])
                         for record in axis_records:
                             record['source_block_indices'] = [int(inverse[j]) for j in record['block_indices']]
-                    if owner.mode_symmetry not in ('c4v', 'c2v'):
+                    if symmetry not in ('c4v', 'c2v'):
                         continued = []
                         for b, columns in zip(blocks, old['columns']):
                             left, _, right = np.linalg.svd((frame @ b).conj().T @ old['frame'][:,columns])
                             continued.append(b @ (left @ right))
                         blocks = tuple(continued)
                 orientation = []
-                if owner.mode_symmetry in ('c4v', 'c2v'):
-                    rotation = generators[0] if owner.mode_symmetry == 'c4v' else None
+                if symmetry in ('c4v', 'c2v'):
+                    rotation = generators[0] if symmetry == 'c4v' else None
                     mirrors = (generators[1], rotation @ generators[1] @ rotation.conj().T) if rotation is not None else generators
                     moments = _moments(owner, grid, e)
                     oriented_blocks = []
@@ -681,6 +690,10 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                     any(np.linalg.norm(power[np.ix_(c, c)]-np.eye(len(c)), 2) > tolerance
                         for c in columns)):
                     raise ValueError("Symmetry-adapted fields fail positive group power or block whitening.")
+                bank_e, bank_h = list(electric[k]), list(magnetic[k])
+                for j, position in enumerate(positions):
+                    bank_e[position], bank_h[position] = final_e[j], final_h[j]
+                _validate_measurement_basis(owner, grid, bank_e, bank_h)
                 results[k] = dict(frame=final_frame, columns=columns, electric=final_e, magnetic=final_h,
                                   transform=total, residual=residual, power=power, closure=closure,
                                   leakage=leakage, field_residual=field_residual,
@@ -692,7 +705,7 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
         # Publish only after the complete parent bank passes symmetry checks.
         blocks = tuple(tuple(labels[j] for j in c) for c in results[reference]['columns'])
         irreps = ()
-        if owner.mode_symmetry in ('c4v', 'c2v'):
+        if symmetry in ('c4v', 'c2v'):
             irreps = results[reference]['source_irreps']
             for row in results.values():
                 if row['source_irreps'] != irreps:

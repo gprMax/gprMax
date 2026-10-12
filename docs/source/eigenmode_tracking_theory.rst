@@ -194,6 +194,14 @@ contains the neighboring reference fields, recovery uses
 
    Y=QQ^{\mathrm H}R,\qquad T=F^{+}Y.
 
+When the cluster merges previously resolved groups, successful raw-column
+assignment alone does not bypass recovery. Each assigned subgroup must match
+the projected reference span to a projector tolerance of ``1e-8``; otherwise
+the full-span projection above restores its identity.
+For frequency-dependent subspaces this is a finite-anchor transport
+approximation; its projector error must be controlled by anchor refinement,
+even when the mixed eigen-residual vanishes at an exact coincidence.
+
 The same transformation :math:`T` is applied to every E/H component. Projection
 preserves reference subgroups without forcing distinct subgroups to be mutually
 orthogonal. Recovery requires full rank, sufficient complete-span overlap,
@@ -825,9 +833,12 @@ group. Increasing a candidate search gap does not change this dimension
 count or relax the separate mixing-residual test.
 
 All accepted transformations act identically on E and H and pass the mixed
-eigen-residual, available reconstructed-field residual, and power checks.
+eigen-residual, available reconstructed-field residual, power checks, and
+the coefficient solver's precision budget for the complete power-wave
+measurement bank.
 Automatic selection can try C2v after a C4v trial fails, then retain the
-fallback basis. An explicit user-supplied symmetry instead reports failure.
+fallback basis. Symmetry selection is enabled by automatic tracking and is
+skipped by legacy tracking.
 The HDF5 diagnostics record which basis was used at each group and anchor.
 
 Symmetry references

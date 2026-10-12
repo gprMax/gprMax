@@ -131,7 +131,6 @@ def analyse(name,bank,public,output,geometry,diagnostic_groups=None,symmetry='au
     owner.tracking_config=EigenmodeTrackingConfig(extra_candidates=0)
     owner.port_index=1; owner.fallback_frequency=float(axis[len(axis)//2])
     owner.degenerate=(); owner.mode_polarizations={}; owner.tracking='auto'; owner.verification='none'
-    owner.mode_symmetry=symmetry
     owner._tracking_impedance=config.sim_config.em_consts['z0']
     mapping=track_solver_bank(owner,axis,bank,public)
     original_groups=owner.degenerate
@@ -143,7 +142,8 @@ def analyse(name,bank,public,output,geometry,diagnostic_groups=None,symmetry='au
     fields=[[owner._fields_from_solver_mode(s,m) for m in modes] for s in bank]
     e=[[v[0] for v in row] for row in fields]; h=[[v[1] for v in row] for row in fields]
     propagating=np.array([[s.complex_neff[j].real>0 for j in range(len(modes))] for s in bank])
-    align_groups(owner,grid,axis,bank,modes,e,h,propagating)
+    from testing.validation.general_subspace_tracking import align_validation_groups
+    align_validation_groups(owner,grid,axis,bank,modes,e,h,propagating,symmetry=symmetry)
     report=dict(name=name,geometry=geometry,frequency_GHz=axis/1e9,
         detected=detect_symmetry(bank),symmetry_detection=owner.symmetry_detection,
         groups=owner.degenerate,blocks=[dict(modes=r['modes'],blocks=r['blocks'],irreps=r['irreps']) for r in owner.symmetry_diagnostics],

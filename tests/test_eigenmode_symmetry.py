@@ -73,20 +73,28 @@ def test_supplied_action_must_preserve_the_actual_fields(tmp_path, monkeypatch):
                                 [7,8,9,10],tmp_path,'GHz',symmetry={'invalid':invalid})
 
 
-def test_hash_port_accepts_optional_c4v_information():
+@pytest.mark.parametrize('value', ['auto', 'c4v', 'c2v', 'none'])
+def test_hash_port_rejects_removed_symmetry_argument(value):
     from collections import defaultdict
     from gprMax.hash_cmds_multiuse import process_multicmds
     from gprMax.user_objects.cmds_multiuse import EigenmodePort
     commands = defaultdict(lambda: None)
     commands['#eigenmode_band'] = ['band 18e9 22e9 3']
     commands['#eigenmode_excitation'] = ['1 1 auto n']
-    commands['#eigenmode_port'] = ['1 0 0 0.02 0.02 0.02 0.02 + 1,2 auto tracking=auto mode_symmetry=c4v']
-    port = next(obj for obj in process_multicmds(commands) if isinstance(obj,EigenmodePort))
-    assert port.kwargs['mode_symmetry'] == 'c4v'
+    commands['#eigenmode_port'] = [f'1 0 0 0.02 0.02 0.02 0.02 + 1,2 auto tracking=auto mode_symmetry={value}']
+    with pytest.raises(ValueError, match='mode_symmetry'):
+        process_multicmds(commands)
+
+
+@pytest.mark.parametrize('value', [None, 'auto', 'c4v', 'c2v', {}])
+def test_python_port_rejects_removed_symmetry_argument(value):
+    from gprMax.user_objects.cmds_multiuse import EigenmodePort
+    with pytest.raises((ValueError, TypeError), match='mode_symmetry'):
+        EigenmodePort(port=1, tracking='auto', mode_symmetry=value)
 
 
 @pytest.mark.parametrize('axis', [0,1,2])
-def test_symmetry_option_reaches_source_receiver_and_hdf5(tmp_path, axis):
+def test_automatic_symmetry_reaches_source_receiver_and_hdf5(tmp_path, axis):
     import h5py
     import gprMax
     from testing.validation.degenerate_eigenmode_ports import circular_scene
@@ -94,7 +102,7 @@ def test_symmetry_option_reaches_source_receiver_and_hdf5(tmp_path, axis):
     for obj in scene.grid_objects:
         if isinstance(obj, gprMax.EigenmodePort):
             obj.kwargs['mode_polarizations'] = None
-            obj.kwargs['mode_symmetry'] = 'c4v'
+            obj.kwargs['tracking'] = 'auto'
     path = tmp_path / f'symmetry_axis{axis}'
     gprMax.run(scenes=[scene], outputfile=path, cpu_precision='double',
                hide_progress_bars=True, log_level=40)

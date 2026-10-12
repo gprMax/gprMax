@@ -268,12 +268,13 @@ def _project_cluster(reference, candidate):
 
 
 def _recover_crossing_subspaces(solvers, frequencies, centre, impedance, config):
-    """Recover fully rotated coincidences from adjacent, resolved field spans.
+    """Recover mixed coincidences from adjacent, resolved field spans.
 
     Use the least-degenerate anchor as the transport seed, preserving the user's
     reference anchor for public labels. No TE/TM or spatial symmetry is assumed.
-    Already identifiable raw-column subsets and persistent degeneracies retain
-    their solver fields. All accepted rotations are recorded before reordering.
+    Raw-column subsets reproducing established projectors and persistent
+    degeneracies retain their solver fields. All accepted rotations are
+    recorded before reordering.
     """
     gap = min(config.cluster_gap, _DEGENERACY_TOLERANCE)
     groups = [_persistent_groups(s.eigenvalues, gap) for s in solvers]
@@ -322,7 +323,23 @@ def _recover_crossing_subspaces(solvers, frequencies, centre, impedance, config)
                     )
                     continuing = any(set(members) == set(g) for g in recovered_groups[previous])
                     if np.all(assigned >= 0) and not continuing:
-                        continue
+                        subgroups = _persistent_groups(old_values, gap)
+                        if len(subgroups) == 1:
+                            continue
+                        # Assignment tolerates appreciable cross-group mixing.
+                        # At a merged cluster, compare each assigned span with
+                        # its established span projected into the whole cluster.
+                        span = _orthonormal(new[:, columns])
+                        projected = span @ (span.conj().T @ old[:, members])
+                        projector_error = 0.0
+                        for subgroup in subgroups:
+                            indices = np.asarray(subgroup)
+                            target = _orthonormal(projected[:, indices])
+                            actual = _orthonormal(new[:, columns[assigned[indices]]])
+                            projector_error = max(projector_error, np.linalg.norm(
+                                target - actual @ (actual.conj().T @ target), 2))
+                        if projector_error <= 1e-8:
+                            continue
                     electric, magnetic = zip(*[_solver_mode_fields(solver, i) for i in group])
                     frame = _frame(electric, magnetic, impedance)
                     transform, projected = _project_cluster(old[:, members], frame)
@@ -1035,7 +1052,6 @@ def parse_port_options(tokens):
         scalar_options = {
             "tracking": str,
             "verification": str,
-            "mode_symmetry": str,
             "residual_tolerance": float,
             "beta_drift_tolerance": float,
             "verification_overlap": float,
@@ -1244,7 +1260,7 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
             raise ValueError(f"{context} requires one contiguous propagating anchor range.")
         explicit_physical = group[0] in owner.mode_polarizations
         automatic_axes = False
-        if not explicit_physical and len(group) == 2 and owner.invariant_axis is None and getattr(owner, "mode_symmetry", None) in (None, "auto"):
+        if not explicit_physical and len(group) == 2 and owner.invariant_axis is None:
             automatic_axes = True
             for k in used:
                 electric = [anchor_e[k][position] for position in positions]
@@ -1521,12 +1537,10 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
         )
 
 
-    symmetry = getattr(owner, "mode_symmetry", None)
-    if symmetry == "auto" and not explicit_polarizations:
+    if getattr(owner, "tracking", "legacy") == "auto" and not explicit_polarizations:
         # Temporary automatic moment directions are not user overrides on a
         # later rebuild/refinement of this same source bank.
         owner.mode_polarizations.clear()
-    if symmetry is not None and not (symmetry == "auto" and explicit_polarizations):
         from gprMax.eigenmode_symmetry import align_symmetry_subspaces
         align_symmetry_subspaces(owner, grid, frequencies, solvers, mode_indices, anchor_e, anchor_h)
 

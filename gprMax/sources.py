@@ -355,7 +355,6 @@ class EigenmodeSource(Source):
         self._auto_numerical_valid = None
         self._auto_tracking_mode_count = None
         self.degenerate = ()
-        self.mode_symmetry = "auto"
         self.symmetry_diagnostics = []
         self.symmetry_detection = None
         self.mode_polarizations = {}

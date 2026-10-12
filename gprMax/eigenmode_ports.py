@@ -178,6 +178,13 @@ DFT_PHASE_REANCHOR_INTERVAL = 1024
 NEFF_CUTOFF_TOLERANCE = 1e-12
 
 
+def _coefficient_precision_limits(complex_dtype):
+    """Shared input-precision budget for basis selection and coefficient solves."""
+    component_dtype = np.float32 if np.dtype(complex_dtype) == np.dtype(np.complex64) else np.float64
+    epsilon = np.finfo(component_dtype).eps
+    return epsilon, min(MAX_CONDITION_NUMBER, CONDITION_RELATIVE_ERROR_BUDGET / epsilon)
+
+
 def _dft_phase_at_time(frequencies, time, dtype):
     """Return exp(-j omega t) with float64 transcendental argument reduction."""
 
@@ -1014,12 +1021,7 @@ class EigenmodePortMonitor:
     def finalise(self, grid):
         nf, nm = self.electric_dft.shape
         complex_dtype = np.dtype(config.sim_config.dtypes["complex"])
-        component_dtype = np.float32 if complex_dtype == np.dtype(np.complex64) else np.float64
-        component_epsilon = np.finfo(component_dtype).eps
-        condition_limit = min(
-            MAX_CONDITION_NUMBER,
-            CONDITION_RELATIVE_ERROR_BUDGET / component_epsilon,
-        )
+        component_epsilon, condition_limit = _coefficient_precision_limits(complex_dtype)
         # Generalized coefficients can remain finite below cutoff when the
         # tracked evanescent profile supplies a conditioned reference basis.
         # Their separate real-power-wave mask remains false.

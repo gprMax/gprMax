@@ -65,7 +65,7 @@ def bank(
         owner.tracking_config = tracking_config
     # Exercise the original power/moment alignment independently of the new
     # default symmetry stage, which has its own physical regression tests.
-    owner.mode_symmetry = None
+    owner.tracking = 'legacy'
     owner.normal_axis = axis
     owner.normal = "xyz"[axis]
     owner.direction = direction

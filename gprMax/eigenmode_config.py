@@ -419,7 +419,6 @@ class EigenmodePortSpec:
     tracking_config: EigenmodeTrackingConfig = field(default_factory=EigenmodeTrackingConfig)
     resolved_anchors: tuple[float, ...] = field(default_factory=tuple)
     degenerate: tuple[tuple[int, ...], ...] = ()
-    mode_symmetry: object = "auto"
     mode_polarizations: (
         dict | tuple[float, float, float]
         | tuple[tuple[float, float, float], tuple[float, float, float]]

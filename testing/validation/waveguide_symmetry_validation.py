@@ -77,7 +77,7 @@ def validate(output):
     manifest = json.loads((output/'manifest.json').read_text())
     manifest['source_sha256']['testing/validation/waveguide_symmetry_validation.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     manifest['cases'] = {
-        'square_pec_symmetry':dict(width_m=.02,cells=16,epsilon=2.,frequency_GHz=axis_description(),mode_symmetry='c4v'),
+        'square_pec_symmetry':dict(width_m=.02,cells=16,epsilon=2.,frequency_GHz=axis_description(),symmetry_selection='c4v'),
         'square_dielectric_symmetry':dict(window_m=.04,core_width_m=.02,cells=32,epsilon_core=4.,epsilon_cladding=1.,outer_boundary='PEC truncation',frequency_GHz=axis_description()),
         'circular_pec_symmetry':dict(window_m=.024,radius_m=.01,cells=32,epsilon=2.,boundary='point-sampled Yee staircase PEC masks',frequency_GHz=axis_description()),
         'circular_dielectric_symmetry':dict(window_m=.04,radius_m=.01,cells=32,epsilon_core=4.,epsilon_cladding=1.,outer_boundary='PEC truncation',frequency_GHz=axis_description()),

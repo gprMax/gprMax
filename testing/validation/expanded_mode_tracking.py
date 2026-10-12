@@ -94,17 +94,29 @@ def controlled_trial(case, seed=41, reference=0.0, anchors=41):
     mapping = track_solver_bank(owner, axis, solvers, solvers[0].num_modes)
     expected = tuple(sorted(tuple(int(i + 1) for i in label) for label in labels if len(label) > 1))
     assert owner.degenerate == expected, (case, owner.degenerate, expected)
-    error = max(
-        np.linalg.norm(projector(solver.Ea[:, label]) - truths[k][g], 2)
-        for k, solver in enumerate(solvers) for g, label in enumerate(labels)
-    )
-    assert error < 1e-11, (case, error)
     diagnostics = owner.tracking_diagnostics
+    errors = np.array([
+        max(np.linalg.norm(projector(solver.Ea[:, label]) - truths[k][g], 2)
+            for g, label in enumerate(labels))
+        for k, solver in enumerate(solvers)
+    ])
+    # At an exact coincidence the operator determines only the merged span.
+    # Historical projection cannot know the within-span evolution at that
+    # anchor. These truth frames evolve as exp(x*A), ||A||_2 = .25, so their
+    # projector displacement is bounded by 2*||A||_2*dx. Require exact truth
+    # away from recovered anchors and check the finite-step bound at them.
+    bounds = np.full(len(axis), 1e-11)
+    for record in diagnostics['subspace_recovery']:
+        k, previous = record['anchor'], record['reference_anchor']
+        bounds[k] = max(bounds[k], bounds[previous] + .5 * abs(axis[k] - axis[previous]))
+    assert np.all(errors < bounds), (case, errors, bounds)
+    error = float(np.max(errors))
     residual = float(np.max(diagnostics["residuals"]))
     assert residual < 1e-12
     return {
         "case": case, "seed": seed, "reference": reference,
         "persistent_groups": expected, "maximum_projector_error": float(error),
+        "projector_error_bounds": bounds.tolist(),
         "maximum_residual": residual,
         "minimum_overlap": float(np.min(diagnostics["overlaps"])),
         "axis": axis.tolist(),

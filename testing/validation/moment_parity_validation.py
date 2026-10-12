@@ -99,7 +99,7 @@ def validate(output):
         manifest['source_sha256'][path]=hashlib.sha256((root/path).read_bytes()).hexdigest()
     manifest.pop('optional_symmetry_cases',None)
     manifest['cases']={r['name']:dict(axis=r['axis'],axis_label=r['axis_label'],
-        targets=[m for g in r['groups'] for m in g['labels']],mode_symmetry='auto') for r in reports}
+        targets=[m for g in r['groups'] for m in g['labels']],symmetry_selection='auto') for r in reports}
     manifest['geometry_sources']='See the hashed moment_parity_validation.py and its imported builders.'
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     (output/'README.md').write_text('# Electric-moment and mirror-parity validation\n\n'

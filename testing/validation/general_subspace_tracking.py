@@ -79,6 +79,20 @@ def span_overlap(a,b):
     return float(np.min(np.linalg.svd(qa.conj().T @ qb,compute_uv=False))**2)
 
 
+def align_validation_groups(owner, grid, axis, solvers, modes, electric, magnetic, propagating, *, symmetry):
+    """Exercise internal decomposition kernels separately from automatic policy."""
+    from gprMax.eigenmode_symmetry import _align_symmetry_subspaces
+
+    tracking = owner.tracking
+    owner.tracking = 'auto' if symmetry == 'auto' else 'legacy'
+    try:
+        align_groups(owner, grid, axis, solvers, modes, electric, magnetic, propagating)
+    finally:
+        owner.tracking = tracking
+    if symmetry is not None and symmetry != 'auto':
+        _align_symmetry_subspaces(owner, grid, axis, solvers, modes, electric, magnetic, symmetry=symmetry)
+
+
 def run_case(name, axis, solvers, public, targets, output, xlabel, expected_sizes=(2, 2), symmetry=None):
     raw=np.array([s.complex_neff.real.copy() for s in solvers])
     owner=EigenmodeSource(None)
@@ -87,7 +101,6 @@ def run_case(name, axis, solvers, public, targets, output, xlabel, expected_size
     owner.port_index=1; owner.fallback_frequency=float(axis[0]); owner.degenerate=(); owner.mode_polarizations={}
     owner._tracking_impedance=config.sim_config.em_consts['z0']
     owner.tracking='auto'; owner.verification='none'
-    owner.mode_symmetry = symmetry
     mapping=track_solver_bank(owner,axis,solvers,public)
     modes=tuple(range(1,owner._auto_tracking_mode_count+1))
     owner.mode_indices=modes; owner.mode_index=1; owner.mode_count=len(modes)
@@ -96,7 +109,7 @@ def run_case(name, axis, solvers, public, targets, output, xlabel, expected_size
     for solver in solvers:
         f=[owner._fields_from_solver_mode(solver,m) for m in modes]
         electric.append([v[0] for v in f]); magnetic.append([v[1] for v in f])
-    align_groups(owner,grid,axis,solvers,modes,electric,magnetic,np.ones((len(axis),len(modes)),bool))
+    align_validation_groups(owner,grid,axis,solvers,modes,electric,magnetic,np.ones((len(axis),len(modes)),bool),symmetry=symmetry)
     frames=[_frame(e,h,owner._tracking_impedance) for e,h in zip(electric,magnetic)]
     decomposed = {tuple(r['modes']): r['blocks'] for r in owner.symmetry_diagnostics}
     basis_groups = tuple(b for g in owner.degenerate for b in decomposed.get(tuple(g), (g,)))
@@ -284,8 +297,8 @@ def write_manifest(output):
         'tracking_config': vars(EigenmodeTrackingConfig(extra_candidates=0)),
         'exact_cluster_rotation_seed': 412,
         'optional_symmetry_cases': {
-            'c4v_metallic_quartet': {'base_case':'persistent_metallic_quartet', 'mode_symmetry':'c4v'},
-            'c4v_dielectric_hybrid': {'base_case':'dielectric_hybrid_pair_crossing', 'mode_symmetry':'c4v'},
+            'c4v_metallic_quartet': {'base_case':'persistent_metallic_quartet', 'symmetry_selection':'c4v'},
+            'c4v_dielectric_hybrid': {'base_case':'dielectric_hybrid_pair_crossing', 'symmetry_selection':'c4v'},
         },
         'cases': {
             'metallic_pair_crossing': {'width_m': .02, 'cells': 16, 'frequency_Hz': 20e9,
