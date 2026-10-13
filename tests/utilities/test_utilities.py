@@ -369,6 +369,19 @@ class TestRound32:
         """``float(value)`` first, so a value straight from a hash command works."""
         assert round32("33") == 64
 
+    @pytest.mark.parametrize("bad", [-1, -32, -33, float("inf"), float("-inf"), float("nan")])
+    def test_non_finite_or_negative_raises(self, bad):
+        """Block sizes come from counts, so negatives and non-finite values
+        are programming errors, not sizes. Previously ``-1`` gave ``0`` and
+        ``inf``/``nan`` raised cryptic ``OverflowError``/``ValueError``."""
+        with pytest.raises(ValueError):
+            round32(bad)
+
+    @pytest.mark.parametrize("bad", [True, False, None])
+    def test_non_numeric_type_raises(self, bad):
+        with pytest.raises(ValueError):
+            round32(bad)
+
 
 class TestFftPower:
     """``fft_power`` — the spectrum used for numerical-dispersion analysis."""

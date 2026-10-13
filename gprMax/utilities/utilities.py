@@ -198,7 +198,15 @@ def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:
 
 def round32(value):
     """Rounds up to nearest multiple of 32."""
-    return int(32 * np.ceil(float(value) / 32))
+    if isinstance(value, (bool, np.bool_)):
+        raise ValueError(f"round32 requires a numeric value, got {value!r}")
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"round32 requires a numeric value, got {value!r}") from exc
+    if not np.isfinite(number) or number < 0:
+        raise ValueError(f"round32 requires a finite value >= 0, got {value!r}")
+    return int(32 * np.ceil(number / 32))
 
 
 def fft_power(waveform, dt):
