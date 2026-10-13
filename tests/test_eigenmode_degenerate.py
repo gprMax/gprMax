@@ -404,6 +404,9 @@ def test_near_degenerate_mixing_retains_a_finite_residual_budget(circular_solver
     for hash_value, python_value in (("y", "y"), ("1,1,0", (1, 1, 0)))
 ] + [
     ("legacy", "y;x", ("y", "x")),
+    ("auto", "y;x", ("y", "x")),
+    ("auto", "0,-1,0;-1,0,0", ((0, -1, 0), (-1, 0, 0))),
+    ("auto", "x;1,1,0", ("x", (1, 1, 0))),
     ("legacy", "1:y;2:x", {1: "y", 2: "x"}),
     ("legacy", "1,2:y", {(1, 2): "y"}),
 ])
@@ -623,18 +626,16 @@ def test_plots_exclude_unaligned_cutoff_anchors(circular_solvers, monkeypatch, t
     assert all(call["solvers"][0].mode_polarizations == owner.mode_polarizations for call in calls)
 
 
-@pytest.mark.parametrize("value", [("y", "x"), ((1, 1, 0), (-1, 1, 0)),
-                                       ("x", (1, 1, 0)), {1: "y", 2: "x"},
-                                       {(1, 2): "y"}, {}])
-def test_automatic_tracking_rejects_legacy_direction_forms(value):
-    with pytest.raises(ValueError, match="one transverse direction only"):
+@pytest.mark.parametrize("value", [{1: "y", 2: "x"}, {(1, 2): "y"}, {}])
+def test_automatic_tracking_rejects_legacy_direction_mappings(value):
+    with pytest.raises(ValueError, match="require tracking='legacy'"):
         normalize_polarizations(value, ((1, 2),), 2, unresolved=True)
 
 
-@pytest.mark.parametrize("value", ["y;x", "1,1,0;-1,1,0", "1:y;2:x", "1,2:y"])
-def test_automatic_tracking_rejects_parsed_legacy_direction_forms(value):
+@pytest.mark.parametrize("value", ["1:y;2:x", "1,2:y"])
+def test_automatic_tracking_rejects_parsed_legacy_direction_mappings(value):
     _, options = parse_port_options([f"mode_polarizations={value}"])
-    with pytest.raises(ValueError, match="one transverse direction only"):
+    with pytest.raises(ValueError, match="require tracking='legacy'"):
         normalize_polarizations(options["mode_polarizations"], (), 2, unresolved=True)
 
 
@@ -659,6 +660,12 @@ def test_legacy_group_mapping_applies_only_to_named_pair():
 def test_legacy_direction_forms_still_validate_independence_and_groups(value):
     with pytest.raises(ValueError):
         normalize_polarizations(value, ((1, 2),), 2)
+
+
+@pytest.mark.parametrize("value", [("x", "x"), ("x", (1., 1e-3, 0.)), ("y", "z")])
+def test_auto_direction_pairs_validate_before_group_detection(value):
+    with pytest.raises(ValueError):
+        normalize_polarizations(value, (), 2, unresolved=True)
 
 
 @pytest.mark.parametrize("value", [None, "y", (1, 1, 0)])

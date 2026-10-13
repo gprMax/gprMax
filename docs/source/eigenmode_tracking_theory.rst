@@ -417,10 +417,12 @@ certified subdivision can use independent electric moments; larger unresolved
 parents cannot be polarized. Legacy tracking applies the direction to its
 declared pairs without automatic symmetry selection.
 
-Automatic tracking accepts one axis or real transverse vector. Its partner is the
+Automatic tracking accepts one axis or real transverse vector, or a deprecated
+explicit direction pair. With one direction, its partner is the
 positive port-normal axis crossed with it, independently of propagation sign.
-Legacy tracking also accepts explicit direction pairs and mode/group mappings
-with a deprecation warning; these forms will be removed in gprMax 5.0. See
+Both trackers preserve explicit direction pairs, including their signs and
+valid nonorthogonal directions, with a deprecation warning. Legacy tracking
+also accepts mode/group mappings. These forms will be removed in gprMax 5.0. See
 :doc:`eigenmode_tracking` for migration examples. Requested
 diagonal directions need not diagonalize the mirror actions; native parity is
 certified before this final rotation. Maxwell residuals and complete-bank
@@ -563,6 +565,14 @@ Here :math:`X` contains the raw reduced eigenvectors and
 :math:`A_{\mathrm{op}}` is the actual discrete eigenproblem operator.
 The common ``residual_tolerance`` setting controls input eigenpair, mixed-vector,
 and available reconstructed-field residual checks.
+This changes the acceptance policy from released 4.0.1: the general default
+was ``1e-8``, and mixed-mode eigen-residual acceptance used a separate fixed
+``1e-9`` limit. The new default is ``1e-7``, including legacy degenerate groups,
+so the mixed-mode limit is relaxed by a factor of 100 at the default.
+Additional reconstructed Maxwell-residual checks impose a separate physical
+consistency requirement where the solver supplies them. Set
+``EigenmodeTrackingConfig(residual_tolerance=1e-9)`` to retain the previous
+mixed-mode limit; this setting also tightens the other residual checks.
 Propagation constants and eigenvalues are never replaced by a group average
 to make mixing pass. Mixing resolved splitting or opposite propagation
 branches remains forbidden; a numerical rotation cannot repair that physical

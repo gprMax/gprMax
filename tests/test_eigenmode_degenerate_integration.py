@@ -11,7 +11,7 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from testing.eigenmode_support.ports.degenerate_eigenmode_ports import circular_scene
 
 
-def run(path, *, randomize=False, precision="double", device_options=None, **kwargs):
+def run(path, *, randomize=False, precision="double", device_options=None, mode_polarizations=None, **kwargs):
     original = FDFD_2D_mode_solver.solve
     rng = np.random.default_rng(62)
     grids = []
@@ -35,11 +35,16 @@ def run(path, *, randomize=False, precision="double", device_options=None, **kwa
                 fields = getattr(solver, name)
                 fields[..., :2] = fields[..., :2] @ rotation
 
+    scene = circular_scene(**kwargs)
+    if mode_polarizations is not None:
+        for obj in scene.grid_objects:
+            if isinstance(obj, gprMax.EigenmodePort):
+                obj.kwargs['mode_polarizations'] = mode_polarizations
     with patch.object(FDFD_2D_mode_solver, "solve", solve), patch.object(
         FDTDGrid, "build", capture
     ):
         gprMax.run(
-            scenes=[circular_scene(**kwargs)],
+            scenes=[scene],
             outputfile=path,
             cpu_precision=precision,
             gpu_precision=precision,
@@ -62,6 +67,26 @@ def run(path, *, randomize=False, precision="double", device_options=None, **kwa
         assert metadata.attrs["PhysicalPolarization"]
         assert np.max(metadata["anchor0/residual"]) < 1e-9
     return traces, grids[0]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize('direction', ('+', '-'))
+@pytest.mark.parametrize('requested', [('y', 'x'), ('x', (1, 1, 0))])
+def test_auto_direction_pair_injection_matches_legacy(tmp_path, direction, requested):
+    options = dict(direction=direction, mode=2, virtual=True,
+                   mode_polarizations=requested, verification='fast')
+    with pytest.warns(FutureWarning, match='removed in gprMax 5.0'):
+        reference, _ = run(tmp_path / 'legacy', tracking='legacy', **options)
+    with pytest.warns(FutureWarning, match='removed in gprMax 5.0'):
+        actual, grid = run(tmp_path / 'auto', tracking='auto', randomize=True, **options)
+    weights = np.array([1, 1, 1, 376.730313668, 376.730313668, 376.730313668])[None, :, None]
+    assert np.all(np.isfinite(actual)) and np.max(abs(reference * weights)) > 0
+    error = np.max(abs((actual - reference) * weights)) / np.max(abs(reference * weights))
+    assert error < 2e-8
+    from gprMax.eigenmode_tracking import normalize_polarizations
+    wanted = normalize_polarizations(requested, ((1, 2),), 2, warn_deprecated=False)
+    np.testing.assert_allclose(grid.virtual_waveguides[0].port.mode_polarizations,
+                               [wanted[1], wanted[2]], atol=1e-15)
 
 
 @pytest.mark.integration

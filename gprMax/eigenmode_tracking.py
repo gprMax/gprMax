@@ -523,6 +523,7 @@ def track_solver_bank(owner, frequencies, solvers, mode_count):
             owner.normal_axis,
             owner.invariant_axis,
             unresolved=True,
+            warn_deprecated=False,
         )
     owner.tracking_diagnostics = {
         "schema_version": 1,
@@ -979,10 +980,11 @@ def normalize_groups(value, modes):
     return tuple(result)
 
 
-def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False):
+def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False,
+                            warn_deprecated=True):
     """Normalize global polarization or deprecated legacy pair/mapping forms.
 
-    Unresolved automatic groups accept only one global transverse direction.
+    Automatic groups accept shared directions; mappings require legacy groups.
     """
     if value is None:
         return {}
@@ -990,11 +992,8 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
     sequence = isinstance(value, (tuple, list)) or (isinstance(value, np.ndarray) and value.ndim > 0)
     shared_pair = not mapping and sequence and len(value) == 2
     if unresolved and mapping:
-        raise ValueError("mode_polarizations accepts one transverse direction only; "
+        raise ValueError("Automatic mode_polarizations accepts shared directions; "
                          "per-mode or per-group direction mappings require tracking='legacy'.")
-    if unresolved and shared_pair:
-        raise ValueError("mode_polarizations accepts one transverse direction only; "
-                         "two-direction pairs require tracking='legacy'. The orthogonal partner is automatic.")
     if (not mapping or value) and invariant_axis is not None:
         raise ValueError("Physical mode_polarizations require a 3D port cross-section.")
 
@@ -1026,6 +1025,13 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
         partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
         return primary, partner
 
+    def validate_pair(directions):
+        if np.linalg.cond(np.asarray(directions).T) > _POLARIZATION_CONDITION_LIMIT:
+            raise ValueError(
+                "Requested polarization directions are linearly dependent or ill-conditioned. "
+                "Choose clearly distinct transverse directions: condition number must be at most 10."
+            )
+
     if mapping:
         result = {}
         for label, direction in value.items():
@@ -1042,31 +1048,26 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
                 result[mode] = direction
     else:
         primary, partner = pair_directions(value)
+        validate_pair((primary, partner))
         if not unresolved and (not groups or any(len(group) != 2 for group in groups)):
             raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
         result = {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
-    if unresolved:
-        return primary
-    if not set(result).issubset({mode for group in groups for mode in group}):
+    if not unresolved and not set(result).issubset({mode for group in groups for mode in group}):
         raise ValueError("mode_polarizations must belong to a declared degenerate group.")
-    for group in groups:
+    for group in (() if unresolved else groups):
         if set(group).intersection(result):
             if len(group) != 2 or not set(group).issubset(result):
                 raise ValueError("Physical polarization mappings require both members of a two-mode pair.")
-            if np.linalg.cond(np.asarray([result[mode] for mode in group]).T) > _POLARIZATION_CONDITION_LIMIT:
-                raise ValueError(
-                    "Requested polarization directions are linearly dependent or ill-conditioned. "
-                    "Choose clearly distinct transverse directions: condition number must be at most 10."
-                )
-    if mapping or shared_pair:
+            validate_pair([result[mode] for mode in group])
+    if warn_deprecated and (mapping or shared_pair):
         warnings.warn(
             "Two-direction sequences and per-mode/per-group mode_polarizations mappings "
-            "are deprecated and will be removed in gprMax 5.0. Use one global transverse "
-            "direction, e.g. mode_polarizations='y'; the orthogonal partner is automatically "
-            "the positive port normal crossed with that direction.",
+            "are deprecated and will be removed in gprMax 5.0. Prefer one global transverse "
+            "direction when its automatically inferred orthogonal partner matches the intended "
+            "basis. Explicit direction signs and nonorthogonal pairs are preserved until removal.",
             FutureWarning, stacklevel=2,
         )
-    return result
+    return ((primary, partner) if shared_pair else primary) if unresolved else result
 
 
 def parse_port_options(tokens):
@@ -1583,7 +1584,8 @@ def _polarize_resolved_pairs(owner, grid, solvers, modes, electric, magnetic, re
     if not pairs:
         raise ValueError('mode_polarizations requires a resolved two-mode subspace; '
                          'the detected groups contain no eligible doublet.')
-    directions = normalize_polarizations(requested, pairs, owner.normal_axis, owner.invariant_axis)
+    directions = normalize_polarizations(requested, pairs, owner.normal_axis, owner.invariant_axis,
+                                        warn_deprecated=False)
     trial_e, trial_h = [list(row) for row in electric], [list(row) for row in magnetic]
     parents = deepcopy(owner.degenerate_diagnostics)
     records = []

@@ -1499,9 +1499,10 @@ changing the model.
        field profiles, then refine the mesh and anchors. Automatic tracking
        can detect groups without a manual declaration.
    * - ``Two-direction sequences and per-mode/per-group mode_polarizations mappings are deprecated``
-     - Replace the legacy pair or mapping with one global transverse direction,
-       such as ``mode_polarizations="y"``. The partner follows the positive port
-       normal crossed with it. These compatibility forms will be removed in
+     - Prefer one global transverse direction when its inferred orthogonal
+       partner matches the intended basis. Both trackers retain explicit shared
+       pairs, preserving their signs and nonorthogonal directions; mappings
+       require legacy tracking. These compatibility forms will be removed in
        gprMax 5.0; see :doc:`eigenmode_tracking` for migration and phase conventions.
    * - ``Mode polarization must be transverse to the port normal``
      - Supply one nonzero direction in the port's transverse plane, such as

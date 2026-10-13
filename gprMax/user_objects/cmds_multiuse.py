@@ -2675,8 +2675,10 @@ class EigenmodePort(GridUserObject):
             shared by the first member of every resolved doublet; the second uses
             positive port normal cross that direction. Automatic tracking resolves
             subgroups before polarization; legacy tracking uses declared pairs.
-            Legacy two-direction sequences and mode/group mappings emit a
-            deprecation warning and will be removed in gprMax 5.0.
+            Shared two-direction sequences in both trackers and mode/group
+            mappings in legacy tracking emit a deprecation warning and will
+            be removed in gprMax 5.0. Explicit pairs retain both signs and
+            valid nonorthogonal directions.
             None preserves the current assignment. Physical selection requires a
             3D cross-section and independent transverse directions.
         tracking: ``"legacy"`` (default) or experimental ``"auto"`` branch
