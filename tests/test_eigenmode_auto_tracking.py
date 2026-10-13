@@ -111,7 +111,7 @@ def test_tracker_restores_swapped_candidate_order_and_phase():
 def test_tracking_configuration_defaults_are_opt_in_safe():
     config = EigenmodeTrackingConfig()
 
-    assert config.residual_tolerance == 1e-8
+    assert config.residual_tolerance == 1e-7
     assert config.verification_overlap == 0.999
     assert config.max_depth == 8
     assert config.max_solves == 200
@@ -264,7 +264,7 @@ def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path):
         tracking = output["mode_tracking"]
         assert tracking.attrs["SchemaVersion"] == 1
         assert tracking.attrs["Tracking"] == "auto"
-        assert tracking.attrs["GroupAssignmentPolicy"] == "persistent_subgroups_v1"
+        assert tracking.attrs["GroupAssignmentPolicy"] == "projected_subgroups_v2"
         np.testing.assert_allclose(tracking["adaptive_frequencies"], (1.5,))
         assert "combined_residuals" in tracking
         assert "field_residuals" in tracking

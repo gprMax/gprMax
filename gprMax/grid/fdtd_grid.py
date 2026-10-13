@@ -1347,14 +1347,15 @@ class FDTDGrid:
         if self.eigenmodeportdefs and self.eigenmodeband is None:
             raise ValueError("Eigenmode ports require exactly one EigenmodeBand.")
         if self.eigenmodeportdefs and not self.eigenmodeexcitations:
-            if set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs):
+            if (not getattr(config.sim_config, 'geometry_only', False)
+                    and set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs)):
                 raise ValueError(
                     "Eigenmode ports require at least one EigenmodeExcitation, unless "
-                    "every port has a passive VirtualWaveguide."
+                    "every port has a passive VirtualWaveguide or the run is geometry-only."
                 )
-            from gprMax.user_objects.cmds_multiuse import build_passive_virtual_eigenmode_ports
+            from gprMax.user_objects.cmds_multiuse import build_passive_eigenmode_ports
 
-            build_passive_virtual_eigenmode_ports(self)
+            build_passive_eigenmode_ports(self)
         elif self.eigenmodeportdefs and not (self.eigenmodesources or self.eigenmodereceivers):
             from gprMax.user_objects.cmds_multiuse import build_eigenmode_runtime_ports
 

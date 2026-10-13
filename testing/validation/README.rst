@@ -5,6 +5,9 @@ This directory contains reproducible, quantitative validation models. The
 retained cases compare production gprMax outputs with independent analytical
 solutions rather than with saved output from another gprMax version.
 
+Eigenmode tracking studies, including their classified result galleries, are
+listed in `eigenmode_tracking/README.rst <eigenmode_tracking/README.rst>`_.
+
 The main validations are:
 
 * ``validate_plane_wave_dispersive_halfspace.py`` -- normal-incidence Fresnel
@@ -56,9 +59,6 @@ The main validations are:
   pulse-energy patterns of the GSSI-like 1.5 GHz antenna over a lossless
   half-space, verifying the convergence reported by Warren and Giannopoulos
   against a broadband layered-NTFF asymptote;
-* ``validate_fdfd_eigenmodes.py`` -- effective index of 1D PEC
-  parallel-plate and dielectric slab modes, plus 2D rectangular and cylindrical
-  PEC waveguide modes, against analytical dispersion;
 * ``validate_rational_network_literature.py`` -- elementary R, C, and L
   terminal sheets and the series-RC/series-RLC loaded-guide examples of
   Pereda et al. against their exact TEM reflection coefficients;
@@ -159,7 +159,6 @@ Run modules from the repository root, for example::
     python -m testing.validation.planar_layered_ntff.validate_engheta_interfacial_dipoles --gpu 0
     python -m testing.validation.planar_layered_ntff.validate_smith_dipole_height --gpu 0
     python -m testing.validation.planar_layered_ntff.validate_gssi_energy_convergence --gpu 0
-    python -m testing.validation.validate_fdfd_eigenmodes
     python -m testing.validation.impedance_surface.validate_copper_wall_waveguide --threads 4
     python -m testing.validation.validate_rational_network_literature
     python -m testing.validation.validate_dielectric_sphere_rcs --gpu 0
