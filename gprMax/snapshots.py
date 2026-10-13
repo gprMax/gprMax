@@ -730,6 +730,10 @@ def htod_snapshot_array(snapshots: List[Snapshot], queue=None):
         snapE_dev, snapH_dev: float arrays of snapshot data on compute device.
     """
 
+    solver = config.sim_config.general.get("solver")
+    if solver not in ("cuda", "opencl", "metal"):
+        raise ValueError(f"Unknown device solver {solver!r} for snapshot arrays.")
+
     # Get dimensions of largest requested snapshot
     shape = update_snapshot_max_dims(snapshots)
 
