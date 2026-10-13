@@ -23,7 +23,7 @@ import numpy as np
 import pytest
 
 import gprMax.config as config
-from gprMax.materials import Material
+from gprMax.materials import DispersiveMaterial, Material
 from gprMax.ntff.conventions import engineering_dft
 from gprMax.ports import (
     _finite_source_gap_admittance,
@@ -227,3 +227,46 @@ def test_wavelength_limit_retains_every_3d_spacing(port_config, axis):
     )
     cells, _ = minimum_wavelength_sampling(grid, [1e9])
     assert cells[0] == pytest.approx(299792458.0 / (1e9 * 0.1))
+
+
+@pytest.mark.parametrize("real_dtype", [np.float32, np.float64])
+@pytest.mark.parametrize("nsamples", [100, 101])
+def test_nyquist_singular_bin_skipped_before_material_evaluation(port_config, real_dtype, nsamples):
+    dt = 1e-11
+    frequency = np.fft.rfftfreq(nsamples, d=dt).astype(real_dtype)
+    material = DispersiveMaterial(0, "soil")
+    material.type = "debye"
+    material.er = 4.0
+    material.se = 0.05
+    material.poles = 1
+    material.deltaer.append(2.0)
+    material.tau.append(8e-12)
+    seen = []
+    evaluate = material.calculate_er
+
+    def recording(values):
+        seen.append(np.asarray(values, dtype=np.float64).copy())
+        return evaluate(values)
+
+    material.calculate_er = recording
+    output = SimpleNamespace(
+        background_is_dispersive=True,
+        background_material=material,
+        background_conductance=0.02,
+        gap_capacitance=1e-15,
+        area=2e-6,
+        dl=1e-3,
+    )
+    actual = _finite_source_gap_admittance(output, frequency, dt, np.complex128)
+
+    assert seen
+    assert all(np.all(np.isfinite(part)) and np.all(part > 0) for part in seen)
+    nyquist = np.isclose(
+        np.asarray(frequency, dtype=np.float64) * dt,
+        0.5,
+        rtol=0,
+        atol=4 * np.finfo(np.float64).eps,
+    )
+    assert all(np.isnan(actual[nyquist]))
+    assert actual[0] == pytest.approx(0.02)
+    assert np.all(np.isfinite(actual[~np.isnan(actual)]))

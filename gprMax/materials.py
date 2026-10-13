@@ -89,12 +89,30 @@ def validate_user_material_id(material_id: str) -> None:
             "IDs and other generated materials. Use '_' instead in user-defined material IDs."
         )
 
+def _validate_evaluation_frequency(freq, material_id) -> None:
+    """Reject non-finite, complex, and empty frequencies; any finite real sign is allowed."""
+
+    message = f"Material {material_id!r} requires a finite real evaluation frequency."
+
+    if np.iscomplexobj(freq):
+        raise ValueError(message)
+
+    try:
+        values = np.asarray(freq, dtype=np.float64)
+    except (TypeError, ValueError) as err:
+        raise ValueError(message) from err
+
+    if values.size == 0 or not np.all(np.isfinite(values)):
+        raise ValueError(message)
+
 
 def _validate_bin_count(nbins, owner_id) -> None:
     """Check that the number of bins is a positive integer."""
-    if isinstance(nbins, bool) or not isinstance(nbins, numbers.Integral) or nbins < 1:
-        raise ValueError(f"Mixture {owner_id!r} needs a positive integer bin count, got {nbins!r}.")
 
+    if isinstance(nbins, bool) or not isinstance(nbins, numbers.Integral) or nbins < 1:
+        raise ValueError(
+            f"Mixture {owner_id!r} needs a positive integer bin count, got {nbins!r}."
+        )
 
 def create_directional_material(grid, materials):
     """Return a cell record retaining an ordered diagonal constitutive tensor.
@@ -324,12 +342,13 @@ class Material:
 
         Args:
             freq: float for frequency used to calculate complex relative
-                    permittivity.
+                    permittivity. Finite real frequency; DC returns the static value.
 
         Returns:
             er: float for complex relative permittivity.
         """
 
+        _validate_evaluation_frequency(freq, self.ID)
         return self.er
 
 
@@ -484,19 +503,41 @@ class DispersiveMaterial(Material):
 
         Args:
             freq: float for frequency used to calculate complex relative
-                    permittivity.
+                    permittivity. Finite real frequency; DC allowed unless the formula diverges there.
 
         Returns:
             er: float for complex relative permittivity.
         """
 
+        _validate_evaluation_frequency(freq, self.ID)
+
+        values = np.asarray(freq, dtype=np.float64)
+        if np.any(values == 0):
+            if self.se != 0 or self.inclusive_conductivity != 0:
+                raise ValueError(
+                    f"Material {self.ID!r} includes electric conductivity, "
+                    "which is singular at zero frequency (DC)."
+                )
+            if "drude" in self.type and self.poles:
+                raise ValueError(
+                    f"Material {self.ID!r} includes a Drude pole, "
+                    "which is singular at zero frequency (DC)."
+                )
+            if self.inclusive_w and any(pole_q == 0 for pole_q in self.inclusive_q):
+                raise ValueError(
+                    f"Material {self.ID!r} includes an inclusive pole at the origin, "
+                    "which is singular at zero frequency (DC)."
+                )
+
         # Permittivity at infinite frequency if the material is dispersive
         er = self.er
 
         w = 2 * np.pi * freq
-        er += self.se / (1j * w * config.e0)
+        if self.se != 0:
+            er += self.se / (1j * w * config.e0)
         if self.inclusive_w:
-            er += self.inclusive_conductivity / (1j * w * config.e0)
+            if self.inclusive_conductivity != 0:
+                er += self.inclusive_conductivity / (1j * w * config.e0)
             for pole_w, pole_q in zip(self.inclusive_w, self.inclusive_q):
                 if np.isclose(np.imag(pole_w), 0.0) and np.isclose(np.imag(pole_q), 0.0):
                     er += np.real(pole_w) / (1j * w - np.real(pole_q))
