@@ -173,14 +173,19 @@ def run(
     Runs the simulation for the given list of scenes.
 
     Args:
-        scenes: list of the scenes to run the model. Multiple scene
-            objects can be given in order to run multiple simulation
-            runs. Each scene must contain the essential simulation
-            objects.
+        scenes: list of complete Scene definitions. A single entry is reused
+            for all n runs, equivalently to [scene] * n; it is rebuilt unless
+            geometry_fixed=True. A list with multiple entries supplies one
+            definition per run and must contain at least n entries when
+            rebuilding. Additional entries are ignored with a warning.
+            Geometry reuse builds only the first Scene. Each Scene must
+            contain the essential simulation objects.
         inputfile: optional string for input file path. Can also run
             simulation by providing an input file.
         outputfile: string for file path to the output data file
-        n: optional int for number of required simulation runs.
+        n: optional positive int for number of required simulation runs
+            (default 1; not inferred from the Scene-list length). Studies
+            determine their own case count.
         i: optional int for model number to start/restart simulation
             from. For ordinary runs, n is the number of models to execute,
             not the final model number: i=45, n=16 runs A-scans 45 through

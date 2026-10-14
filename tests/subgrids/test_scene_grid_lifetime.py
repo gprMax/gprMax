@@ -89,6 +89,7 @@ def _assert_released(references):
 def _check_sequential_release(monkeypatch, runtime_references, scenes, path, **kwargs):
     run_model = Context._run_model
     completed = []
+    count = kwargs.pop("n", len(scenes))
 
     def observe(context, model_num):
         run_model(context, model_num)
@@ -98,9 +99,13 @@ def _check_sequential_release(monkeypatch, runtime_references, scenes, path, **k
         completed.append(model_num)
 
     monkeypatch.setattr(Context, "_run_model", observe)
-    _run(scenes, path, n=len(scenes), **kwargs)
-    assert len(completed) == len(scenes)
-    assert config.sim_config.scenes is scenes
+    _run(scenes, path, n=count, **kwargs)
+    assert len(completed) == count
+    if len(scenes) == 1 and count > 1:
+        assert len(config.sim_config.scenes) == count
+        assert all(scene is scenes[0] for scene in config.sim_config.scenes)
+    else:
+        assert config.sim_config.scenes is scenes
     assert all(obj.subgrid is None for scene in scenes for obj in scene.subgrid_objects)
     _assert_released(runtime_references)
 
@@ -143,11 +148,18 @@ def test_single_scene_releases_grids_in_persistent_process(
 
 
 @pytest.mark.parametrize("ratio", [1, 3])
+@pytest.mark.parametrize("singleton", [False, True])
 def test_scene_can_be_built_again_after_releasing_grids(
-    tmp_path, monkeypatch, runtime_references, ratio
+    tmp_path, monkeypatch, runtime_references, ratio, singleton
 ):
     scene = _scene(ratio)
-    _check_sequential_release(monkeypatch, runtime_references, [scene] * 3, tmp_path / "repeated")
+    _check_sequential_release(
+        monkeypatch,
+        runtime_references,
+        [scene] * (1 if singleton else 3),
+        tmp_path / "repeated",
+        n=3,
+    )
     assert len(runtime_references) == 6
 
 
