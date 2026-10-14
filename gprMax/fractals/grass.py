@@ -15,6 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
+from numbers import Integral
+
 import numpy as np
 
 from gprMax import config
@@ -33,7 +35,9 @@ class Grass:
             seed: int for seed value for random number generator.
         """
 
-        self.numblades = numblades
+        if isinstance(numblades, bool) or not isinstance(numblades, Integral) or numblades < 0:
+            raise ValueError(f"Grass requires a non-negative integer blade count, got {numblades!r}")
+        self.numblades = int(numblades)
         self.geometryparams = np.zeros(
             (self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"]
         )

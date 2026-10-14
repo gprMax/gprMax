@@ -76,6 +76,15 @@ class TestGeometryParameters:
         g = Grass(0, SEED)
         assert g.geometryparams.shape == (0, 6)
 
+    @pytest.mark.parametrize("bad", [-1, -10, 2.5, "3", None, True, False])
+    def test_invalid_blade_count_raises(self, bad):
+        """A blade count sizes the parameter table, so a bad value is a
+        programming error. Previously negatives raised numpy's generic
+        ``ValueError: negative dimensions`` and other bad types raised
+        cryptic ``TypeError``s, all with no grass context."""
+        with pytest.raises(ValueError, match="non-negative integer blade count"):
+            Grass(bad, SEED)
+
     def test_six_generators_are_created(self):
         # R1-R4 fill the table at construction; R5/R6 drive the root walk.
         g = Grass(3, SEED)
