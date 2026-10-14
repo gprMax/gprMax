@@ -111,7 +111,8 @@ def _validate_bin_count(nbins, owner_id) -> None:
 
     if isinstance(nbins, bool) or not isinstance(nbins, numbers.Integral) or nbins < 1:
         raise ValueError(
-            f"Mixture {owner_id!r} needs a positive integer bin count, got {nbins!r}."
+            f"Mixture {owner_id!r} needs a positive integer nbins, "
+            f"i.e. a positive integer bin count, got {nbins!r}."
         )
 
 def create_directional_material(grid, materials):
@@ -938,7 +939,7 @@ class ListMaterial:
         if nbins > len(self.mat):
             raise ValueError(
                 f"Material list {self.ID!r} contains {len(self.mat)} materials, "
-                f"but {nbins} bins were requested."
+                f"but {nbins} bins were requested, which exceeds list length."
             )
 
         material_ids = []
