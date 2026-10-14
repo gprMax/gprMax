@@ -25,6 +25,13 @@ from numpy.testing import assert_allclose
 import gprMax
 from gprMax.cuda_opencl import knl_rational_network
 
+try:
+    import Metal
+
+    HAS_METAL = Metal.MTLCreateSystemDefaultDevice() is not None
+except Exception:
+    HAS_METAL = False
+
 
 def _scene():
     dl = 2e-3
@@ -119,13 +126,19 @@ def test_rational_network_template_substitutions_are_complete(backend):
 
 @pytest.mark.integration
 @pytest.mark.gpu
-@pytest.mark.parametrize("backend", ["cuda", "opencl"])
+@pytest.mark.parametrize("backend", ["cuda", "opencl", "metal"])
 @pytest.mark.parametrize("precision", ["single", "double"])
 def test_device_rational_network_matches_cpu(tmp_path, request, backend, precision):
     if backend == "cuda":
         device_options = {"gpu": [request.getfixturevalue("gpu_device")]}
-    else:
+    elif backend == "opencl":
         device_options = {"opencl": [request.getfixturevalue("opencl_device")]}
+    else:
+        if not HAS_METAL:
+            pytest.skip("No Apple Metal device/PyObjC available")
+        if precision == "double":
+            pytest.skip("Metal supports single precision only")
+        device_options = {"metal": True}
 
     cpu_path = tmp_path / f"cpu_network_{precision}"
     device_path = tmp_path / f"{backend}_network_{precision}"
