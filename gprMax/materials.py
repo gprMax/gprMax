@@ -111,7 +111,8 @@ def _validate_bin_count(nbins, owner_id) -> None:
 
     if isinstance(nbins, bool) or not isinstance(nbins, numbers.Integral) or nbins < 1:
         raise ValueError(
-            f"Mixture {owner_id!r} needs a positive integer bin count, got {nbins!r}."
+            f"Mixture {owner_id!r} needs a positive integer nbins, "
+            f"i.e. a positive integer bin count, got {nbins!r}."
         )
 
 def create_directional_material(grid, materials):
@@ -938,20 +939,21 @@ class ListMaterial:
         if nbins > len(self.mat):
             raise ValueError(
                 f"Material list {self.ID!r} contains {len(self.mat)} materials, "
-                f"but {nbins} bins were requested."
+                f"but {nbins} bins were requested, which exceeds list length."
             )
 
         material_ids = []
 
         # Iterate over the bins
-        for iter in np.arange(nbins):
-            requiredID = self.mat[iter]
+        for index in np.arange(nbins):
+            requiredID = self.mat[index]
             # Check if the material already exists before creating a new one
             material = next((x for x in G.materials if x.ID == requiredID), None)
 
             if not material:
-                logger.exception(self.__str__() + f" material(s) {requiredID} do not exist")
-                raise ValueError
+                message = f"ListMaterial '{self.ID}' material(s) {requiredID!r} do not exist"
+                logger.exception(message)
+                raise ValueError(message)
 
             material_ids.append(material.numID)
 
