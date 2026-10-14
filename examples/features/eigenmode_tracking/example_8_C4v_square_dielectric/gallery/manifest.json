@@ -1,0 +1,72 @@
+{
+  "started_utc": "2026-10-12T17:44:20.814802+00:00",
+  "modes": 16,
+  "spacing_mm": 0.25,
+  "verification": "fast",
+  "excitation": false,
+  "time_stepping": false,
+  "geometry_only": true,
+  "source_sha256": {
+    "gallery.py": "ba21afb020e25c7ff48472e1b9b8f632fb989dd44b5292da44624776290fc93b",
+    "plot_results.py": "67d96452e73b1823bf61f83df3d8e3cacaf3ce24637315797fdbfec2cf1bc5af"
+  },
+  "status": "complete",
+  "case": {
+    "case": "dielectric_square",
+    "mode_count": 16,
+    "anchor_count": 5,
+    "detected_symmetry": "c4v",
+    "symmetry_groups": [
+      {
+        "modes": [
+          1,
+          2
+        ],
+        "applied": "c4v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          7,
+          8
+        ],
+        "applied": "c4v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          9,
+          10
+        ],
+        "applied": "c4v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          11,
+          12
+        ],
+        "applied": "c4v",
+        "attempts": []
+      }
+    ],
+    "automatic_groups": "1,2;7,8;9,10;11,12",
+    "maximum_residual": 2.0582062035883292e-14,
+    "minimum_real_neff": 1.8942053842302438,
+    "plots": [
+      "dielectric_square_dispersion.png",
+      "dielectric_square_E_modes.png",
+      "dielectric_square_H_modes.png"
+    ]
+  },
+  "anchors_Hz": [
+    39000000000.0,
+    39500000000.0,
+    40000000000.0,
+    40500000000.0,
+    41000000000.0
+  ],
+  "dispersion_plot_postprocessing_sha256": {
+    "examples/features/eigenmode_tracking/plot_results.py": "029934c2e7bc4ea4f88c8b1d2ada3f3dca60cdfb762a2f30ee221203ebbdb16f"
+  }
+}

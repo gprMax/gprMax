@@ -56,23 +56,29 @@ def test_hash_virtual_waveguide_parses_defaults_and_custom_profile():
     }
 
 
-def test_hash_allows_passive_ports_only_when_each_has_virtual_waveguide():
+@pytest.mark.parametrize("geometry_only", [False, True], ids=["simulation", "geometry-only"])
+@pytest.mark.parametrize("virtual_ports", [("1", "2"), ("1",), ()], ids=["all", "some", "none"])
+def test_hash_passive_ports_respect_run_mode(monkeypatch, geometry_only, virtual_ports):
+    # Integration tests can leave a geometry-only run in the global config.
+    # Set this parser test's run mode explicitly and restore it afterwards.
+    monkeypatch.setattr(config, "sim_config", SimpleNamespace(geometry_only=geometry_only))
     commands = defaultdict(lambda: None)
     commands["#eigenmode_band"] = ["wg 4e9 6e9 21"]
     commands["#eigenmode_port"] = [
         "1 0.01 0.005 0 0.01 0.035 0.01 + 1 auto",
         "2 0.09 0.005 0 0.09 0.035 0.01 - 1 auto",
     ]
-    commands["#virtual_waveguide"] = ["1", "2"]
+    commands["#virtual_waveguide"] = list(virtual_ports)
+
+    if not geometry_only and len(virtual_ports) != 2:
+        with pytest.raises(ValueError, match="every port has a passive"):
+            process_multicmds(commands)
+        return
 
     objects = process_multicmds(commands)
 
-    assert len([obj for obj in objects if isinstance(obj, VirtualWaveguide)]) == 2
+    assert len([obj for obj in objects if isinstance(obj, VirtualWaveguide)]) == len(virtual_ports)
     assert not any(isinstance(obj, EigenmodeExcitation) for obj in objects)
-
-    commands["#virtual_waveguide"] = ["1"]
-    with pytest.raises(ValueError, match="every port has a passive"):
-        process_multicmds(commands)
 
 
 def test_virtual_waveguide_python_api_rejects_fractional_cell_counts(monkeypatch):

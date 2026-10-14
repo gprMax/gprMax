@@ -17,7 +17,7 @@
 
 import csv
 
-from testing.validation.validate_fdfd_eigenmodes import run_validation
+from testing.eigenmode_support.validate_fdfd_eigenmodes import run_validation
 
 
 def test_fdfd_eigenmode_validation_matches_analytical_dispersion(tmp_path):

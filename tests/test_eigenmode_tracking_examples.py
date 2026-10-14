@@ -17,20 +17,20 @@ from gprMax.sources import EigenmodeSource
 @pytest.mark.parametrize(
     "example,reflection_limit,averaging,tracking,polarizations",
     (
-        ("example_7_degenerate_te11/circular_te11", -55, "y", "legacy", "y"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", "y"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "legacy", ("y", "x")),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", "y"),
-        ("example_7_degenerate_te11/circular_te11", -60, "n", "auto", ("y", "x")),
+        ("example_7_legacy_degenerate_te11/circular_te11", -55, "y", "legacy", "y"),
+        ("example_7_legacy_degenerate_te11/circular_te11", -60, "n", "legacy", "y"),
+        ("example_7_legacy_degenerate_te11/circular_te11", -60, "n", "auto", "y"),
         ("example_8_auto_degenerate_te11/auto_degenerate_te11", -60, None, "auto", None),
-        ("example_9_auto_mode_crossing/auto_mode_crossing", -60, None, "auto", None),
+        ("auto_mode_crossing", -60, None, "auto", None),
     ),
 )
 def test_tracking_example_straight_guide(
     tmp_path, monkeypatch, example, reflection_limit, averaging, tracking, polarizations, mode, record_property
 ):
     root = Path(__file__).resolve().parents[1]
-    path = root / "examples/features/eigenmode_ports" / f"{example}.py"
+    path = (root / "testing/regression/eigenmode_sources/auto_mode_crossing.py"
+            if example == "auto_mode_crossing" else
+            root / "examples/features/eigenmode_ports" / f"{example}.py")
     spec = importlib.util.spec_from_file_location("tracking_example", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -90,7 +90,7 @@ def test_tracking_example_straight_guide(
         assert np.max(np.abs(destination["S"][2 - mode])) < 1e-5
 
         neff = source["anchor_complex_neff"][...].real
-        if not example.startswith("example_9"):
+        if not example.startswith("auto_mode_crossing"):
             if example.startswith("example_8"):
                 assert source["mode_tracking"].attrs["AutomaticDegenerateGroups"] == "1,2"
             np.testing.assert_allclose(neff[:, 0], neff[:, 1], atol=1e-10)
@@ -102,10 +102,42 @@ def test_tracking_example_straight_guide(
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize('mode', (3, 4))
+def test_square_anisotropic_crossing_simulation(tmp_path, monkeypatch, mode, record_property):
+    root = Path(__file__).resolve().parents[1]
+    path = root/'examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py'
+    spec = importlib.util.spec_from_file_location('square_crossing_example', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(EigenmodeSource, '_should_plot_eigenmode_fields', lambda self: False)
+    gprMax.run(scenes=[module.build_scene(mode)], outputfile=tmp_path/'guide',
+               cpu_precision='double', hide_progress_bars=True, log_level=40)
+    with h5py.File(tmp_path/'guide.h5') as output:
+        source, receiver = [output[f'eigenmode_ports/port{p}'] for p in (1, 2)]
+        for port in (source, receiver):
+            assert np.all(port['power_wave_valid_S'][:])
+            assert np.all(np.isfinite(port['S'][:]))
+            assert np.all(port['mode_tracking/numerical_valid'][:])
+            assert port['mode_tracking/unresolved_interval_modes'].size == 0
+            neff = port['anchor_complex_neff'][:].real
+            assert (neff[0, 0]-neff[0, 1])*(neff[-1, 0]-neff[-1, 1]) < 0
+            candidates = port['mode_tracking/candidate_indices'][:]
+            assert candidates[0, 2] != candidates[-1, 2]
+        local_mode = mode-3
+        reflection = 20*np.log10(abs(source['S'][local_mode]))
+        transmission = 20*np.log10(abs(receiver['S'][local_mode]))
+        record_property('maximum_s11_db', float(np.max(reflection)))
+        record_property('maximum_s21_error_db', float(np.max(abs(transmission))))
+        assert np.max(reflection) < -55
+        assert np.max(abs(transmission)) < .01
+        assert np.max(abs(receiver['S'][1-local_mode])) < 1e-5
+
+
+@pytest.mark.integration
 @pytest.mark.parametrize(
     "model",
     (
-        "examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.in",
+        "examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.in",
         "testing/regression/eigenmode_sources/straight_waveguide/3d/"
         "cylindrical_waveguide/cylindrical_waveguide.in",
     ),
