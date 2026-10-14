@@ -169,13 +169,13 @@ class TestCheckKappamin:
         """Expects ``ValueError``: an empty list sums to zero, so a grid with
         no CFS terms can never build a PML."""
         g = make_pml_grid(cfs=[])
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Sum of kappamin"):
             PML(g, "x0", "xminus", 0, 4, 0, 11, 0, 11)
 
     def test_kappamin_below_one_is_rejected(self, make_pml_grid, make_cfs):
         """Expects ``ValueError`` for a single term with ``kappa.min == 0.5``."""
         g = make_pml_grid(cfs=[make_cfs(kappa={"min": 0.5})])
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Sum of kappamin"):
             PML(g, "x0", "xminus", 0, 4, 0, 11, 0, 11)
 
     def test_two_terms_summing_to_one_are_accepted(self, make_pml_grid, make_cfs):
@@ -189,19 +189,17 @@ class TestCheckKappamin:
         """Expects ``ValueError`` for ``0.4 + 0.4`` — just under the limit."""
         cfs = [make_cfs(kappa={"min": 0.4}), make_cfs(kappa={"min": 0.4})]
         g = make_pml_grid(cfs=cfs)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Sum of kappamin"):
             PML(g, "x0", "xminus", 0, 4, 0, 11, 0, 11)
 
-    def test_the_rejection_message_goes_only_to_the_log(self, make_pml_grid, caplog):
-        """Expects the explanatory text in the log record, not on the
-        exception: the code calls ``logger.exception(...)`` and then
-        ``raise ValueError`` with no argument, so ``str(exc)`` is empty.
-        Assert on ``caplog``, never on the message."""
+    def test_the_rejection_message_is_on_the_exception(self, make_pml_grid, caplog):
+        """Expects the explanatory text on the exception as well as the log
+        record, so API callers can diagnose without scraping the log."""
         g = make_pml_grid(cfs=[])
         with caplog.at_level(logging.ERROR, logger="gprMax.pml"):
-            with pytest.raises(ValueError) as excinfo:
+            with pytest.raises(ValueError, match="Sum of kappamin") as excinfo:
                 PML(g, "x0", "xminus", 0, 4, 0, 11, 0, 11)
-        assert str(excinfo.value) == ""
+        assert "Sum of kappamin value(s) for PML is 0" in str(excinfo.value)
         assert "Sum of kappamin value(s) for PML is 0" in caplog.text
 
     def test_cfs_list_is_shared_with_the_grid(self, make_pml_grid):

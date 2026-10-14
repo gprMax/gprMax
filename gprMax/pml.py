@@ -332,10 +332,11 @@ class PML:
 
         kappamin = sum(cfs.kappa.min for cfs in self.CFS)
         if kappamin < 1:
-            logger.exception(
+            message = (
                 f"Sum of kappamin value(s) for PML is {kappamin} and must be greater than one."
             )
-            raise ValueError
+            logger.exception(message)
+            raise ValueError(message)
 
     def initialise_field_arrays(self):
         """Allocate slab-local convolution histories, not full-grid fields.
