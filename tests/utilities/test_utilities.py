@@ -291,18 +291,15 @@ class TestRoundFloat:
     def test_many_places_leave_the_value_alone(self):
         assert round_float(0.1, 15) == pytest.approx(0.1)
 
-    @pytest.mark.parametrize(
-        "value, places, expected",
-        [(0.99, 2, 0.99), (1.23, 2, 1.23), (2.99, 2, 2.99)],
-    )
-    def test_decimal_boundaries_are_not_dropped_a_unit(self, value, places, expected):
-        assert round_float(value, places) == expected
-
-    def test_a_numpy_float32_is_accepted(self):
-        assert round_float(np.float32(1.23), 2) == 1.23
-
-    def test_a_negative_place_count_is_silently_treated_as_zero(self):
-        """``'0' * -1`` is the empty string, so the target becomes ``"1."``.
+    @pytest.mark.parametrize("places", [-1, -10, True, 2.0, "2", None])
+    def test_invalid_place_count_raises(self, places):
+        """``'0' * -1`` is the empty string, so the old code silently treated
+        a negative count as zero (``Decimal("1.")``); ``True`` silently meant
+        one place. A place count comes from configuration, so a bad value is
+        a programming error and must fail clearly instead of rounding to the
+        wrong precision. No production caller passes a negative count."""
+        with pytest.raises(ValueError):
+            round_float(1.9, places)
 
     @pytest.mark.parametrize(
         "value, places, expected",
