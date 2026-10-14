@@ -24,9 +24,15 @@ and MetalCommandQueue.synchronise() waits only before the host touches
 device memory. MetalPML also launched one thread per cell of the whole grid
 for every slab update; it now launches one thread per cell of the slab.
 
+Because work is now left in flight, a solver error must not abandon it:
+a failed command buffer is reported only after the buffers behind it have
+completed, and MetalUpdates.cleanup() drains the queue without replacing the
+solver's exception.
+
 Like the other Metal dispatch tests, these use fake Metal objects.
 """
 
+import logging
 from types import SimpleNamespace
 
 import numpy as np
@@ -34,6 +40,7 @@ import pytest
 
 from gprMax import config
 from gprMax.pml import MetalPML
+from gprMax.solvers import Solver
 from gprMax.updates import metal_updates as metal_updates_module
 from gprMax.updates.metal_updates import MetalCommandQueue, MetalUpdates
 
@@ -54,7 +61,8 @@ class _Command:
 
     def waitUntilCompleted(self):
         self.log.append(("wait", self.name))
-        self._status = _ERROR if self.fails else _COMPLETED
+        if self._status != _ERROR:
+            self._status = _ERROR if self.fails else _COMPLETED
 
     def status(self):
         return self._status
@@ -109,6 +117,154 @@ def test_submit_raises_for_a_failed_command_it_releases():
 
     with pytest.raises(RuntimeError, match="GPU fault"):
         queue.submit(_Command([], "a", status=_ERROR))
+
+
+def test_synchronise_waits_for_commands_behind_a_failed_command():
+    log = []
+    queue = MetalCommandQueue(SimpleNamespace())
+    queue.submit(_Command(log, "failed", fails=True))
+    queue.submit(_Command(log, "pending"))
+
+    with pytest.raises(RuntimeError, match="GPU fault"):
+        queue.synchronise()
+
+    assert log[2:] == [("wait", "failed"), ("wait", "pending")]
+    assert not queue._submitted
+
+
+def test_submit_waits_for_commands_behind_a_failed_command_before_raising():
+    log = []
+    queue = MetalCommandQueue(SimpleNamespace())
+    failed = _Command(log, "failed")
+    queue.submit(failed)
+    queue.submit(_Command(log, "pending"))
+    _fail_on_gpu(failed)
+
+    with pytest.raises(RuntimeError, match="GPU fault"):
+        queue.submit(_Command(log, "next"))
+
+    assert log[3:] == [("wait", "failed"), ("wait", "pending"), ("wait", "next")]
+    assert not queue._submitted
+
+
+def test_drain_waits_for_every_command_and_logs_failures(caplog):
+    log = []
+    queue = MetalCommandQueue(SimpleNamespace())
+    queue.submit(_Command(log, "failed", fails=True))
+    queue.submit(_Command(log, "pending"))
+
+    with caplog.at_level(logging.WARNING, logger=metal_updates_module.__name__):
+        queue.drain()
+
+    assert log[2:] == [("wait", "failed"), ("wait", "pending")]
+    assert not queue._submitted
+    assert "Metal command buffer failed: GPU fault" in caplog.text
+
+
+def _fail_on_gpu(command):
+    """Marks a submitted command buffer as failed by the GPU."""
+    command._status = _ERROR
+
+
+def _updates_with_pending_work(log, *commands):
+    """A MetalUpdates whose solve submits commands and then reaches store_outputs."""
+    updates = MetalUpdates.__new__(MetalUpdates)
+    updates.cmdqueue = MetalCommandQueue(SimpleNamespace())
+
+    def time_start():
+        for command in commands:
+            updates.cmdqueue.submit(command)
+
+    updates.time_start = time_start
+    return updates
+
+
+@pytest.mark.parametrize("error", [ValueError("host failure"), KeyboardInterrupt()])
+def test_cleanup_drains_pending_work_after_a_host_exception(error):
+    log = []
+    updates = _updates_with_pending_work(log, _Command(log, "a"), _Command(log, "b"))
+
+    def store_outputs(iteration):
+        raise error
+
+    updates.store_outputs = store_outputs
+
+    with pytest.raises(type(error)) as raised:
+        Solver(updates).solve(range(3))
+
+    assert raised.value is error
+    assert log == [("commit", "a"), ("commit", "b"), ("wait", "a"), ("wait", "b")]
+
+
+def test_cleanup_drains_a_failed_command_without_replacing_a_host_exception(caplog):
+    log = []
+    failed = _Command(log, "failed")
+    updates = _updates_with_pending_work(log, failed, _Command(log, "pending"))
+    error = ValueError("host failure")
+
+    def store_outputs(iteration):
+        _fail_on_gpu(failed)
+        raise error
+
+    updates.store_outputs = store_outputs
+
+    with caplog.at_level(logging.WARNING, logger=metal_updates_module.__name__):
+        with pytest.raises(ValueError) as raised:
+            Solver(updates).solve(range(3))
+
+    assert raised.value is error
+    assert log[2:] == [("wait", "failed"), ("wait", "pending")]
+    assert "Metal command buffer failed: GPU fault" in caplog.text
+
+
+def test_a_failed_command_followed_by_pending_work_leaves_nothing_in_flight():
+    log = []
+    failed = _Command(log, "failed")
+    updates = _updates_with_pending_work(log, failed, _Command(log, "pending"))
+
+    def store_outputs(iteration):
+        _fail_on_gpu(failed)
+        updates.cmdqueue.submit(_Command(log, "next"))
+
+    updates.store_outputs = store_outputs
+
+    with pytest.raises(RuntimeError, match="Metal command buffer failed: GPU fault"):
+        Solver(updates).solve(range(3))
+
+    assert log == [
+        ("commit", "failed"),
+        ("commit", "pending"),
+        ("commit", "next"),
+        ("wait", "failed"),
+        ("wait", "pending"),
+        ("wait", "next"),
+    ]
+    assert not updates.cmdqueue._submitted
+
+
+def test_cleanup_can_be_called_repeatedly(caplog):
+    log = []
+    failed = _Command(log, "failed")
+    updates = _updates_with_pending_work(log, failed, _Command(log, "pending"))
+
+    def store_outputs(iteration):
+        _fail_on_gpu(failed)
+        raise ValueError("host failure")
+
+    updates.store_outputs = store_outputs
+
+    with caplog.at_level(logging.WARNING, logger=metal_updates_module.__name__):
+        with pytest.raises(ValueError, match="host failure"):
+            Solver(updates).solve(range(3))
+        updates.cleanup()
+        updates.cleanup()
+
+    assert log[2:] == [("wait", "failed"), ("wait", "pending")]
+    assert caplog.text.count("Metal command buffer failed") == 1
+
+
+def test_cleanup_without_a_command_queue_does_nothing():
+    MetalUpdates.__new__(MetalUpdates).cleanup()
 
 
 def test_command_buffer_passes_through_to_the_wrapped_queue():

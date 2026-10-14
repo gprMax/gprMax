@@ -86,6 +86,11 @@ class MetalCommandQueue:
 
     commandBuffer() passes through to the wrapped queue, so code that commits
     and waits on its own command buffers works unchanged.
+
+    No method leaves submitted work outstanding when it raises: a failed
+    command buffer is reported only after every buffer submitted behind it
+    has completed. If the host raises instead, drain() waits for the work
+    still in flight without raising.
     """
 
     def __init__(self, queue):
@@ -103,19 +108,41 @@ class MetalCommandQueue:
         while (
             self._submitted and self._submitted[0].status() >= _MTL_COMMAND_BUFFER_STATUS_COMPLETED
         ):
-            self._check(self._submitted.popleft())
+            if self._submitted[0].status() == _MTL_COMMAND_BUFFER_STATUS_ERROR:
+                # Raises for this buffer once the work behind it has finished.
+                self.synchronise()
+                break
+            self._submitted.popleft()
 
     def synchronise(self):
-        """Blocks until every submitted command buffer has completed."""
+        """Blocks until every submitted command buffer has completed.
+
+        Raises:
+            RuntimeError: for the first submitted command buffer that failed.
+        """
+        errors = self._wait_for_submitted()
+        if errors:
+            raise RuntimeError(f"Metal command buffer failed: {errors[0]}")
+
+    def drain(self):
+        """Blocks until every submitted command buffer has completed.
+
+        Unlike synchronise(), it logs failed command buffers instead of
+        raising, so that cleanup after a solver error does not replace the
+        original exception.
+        """
+        for error in self._wait_for_submitted():
+            logger.warning(f"Metal command buffer failed: {error}")
+
+    def _wait_for_submitted(self):
+        """Waits for every submitted command buffer and returns their errors."""
+        errors = []
         while self._submitted:
             command = self._submitted.popleft()
             command.waitUntilCompleted()
-            self._check(command)
-
-    @staticmethod
-    def _check(command):
-        if command.status() == _MTL_COMMAND_BUFFER_STATUS_ERROR:
-            raise RuntimeError(f"Metal command buffer failed: {command.error()}")
+            if command.status() == _MTL_COMMAND_BUFFER_STATUS_ERROR:
+                errors.append(command.error())
+        return errors
 
 
 class MetalUpdates(Updates[MetalGrid]):
@@ -1846,4 +1873,10 @@ class MetalUpdates(Updates[MetalGrid]):
                 dtoh_snapshot_array(*snap_arrays, i, snap)
 
     def cleanup(self):
-        pass
+        """Waits for submitted work, which a solver error may have left in flight.
+
+        Once the queue has drained, further calls do nothing.
+        """
+        cmdqueue = getattr(self, "cmdqueue", None)
+        if cmdqueue is not None:
+            cmdqueue.drain()
