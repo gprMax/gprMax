@@ -155,9 +155,11 @@ def test_metal_uploads_the_slab_mask_at_the_kernel_argument_index(make_pml_grid,
     command = SimpleNamespace(
         computeCommandEncoder=lambda: encoder, commit=lambda: None, waitUntilCompleted=lambda: None
     )
-    slab.queue = SimpleNamespace(commandBuffer=lambda: command)
-    slab.psoE = slab.psoH = object()
-    grid.tptg = grid.tgs = (1, 1, 1)
+    slab.queue = SimpleNamespace(
+        commandBuffer=lambda: command, submit=lambda buffer: buffer.commit()
+    )
+    slab.psoE = slab.psoH = SimpleNamespace(maxTotalThreadsPerThreadgroup=lambda: 1)
+    grid.metal = SimpleNamespace(MTLSizeMake=lambda x, y, z: (x, y, z))
     for name in ("ID", "Ex", "Ey", "Ez", "Hx", "Hy", "Hz"):
         setattr(grid, name + "_dev", object())
     for prefix in ("E", "H"):

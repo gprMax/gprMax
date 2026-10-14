@@ -114,6 +114,12 @@ class _FakeCommandQueue:
         self.buffers_created.append(buf)
         return buf
 
+    def submit(self, command):
+        command.commit()
+
+    def synchronise(self):
+        pass
+
 
 class _FakePSO:
     def maxTotalThreadsPerThreadgroup(self):
@@ -308,3 +314,24 @@ def test_finalise_populates_each_snapshot_from_its_own_page(monkeypatch):
     assert np.array_equal(snap0.snapfields["Ex"], known["Ex"][0, 0:2, 0:2, 0:2])
     assert np.array_equal(snap1.snapfields["Ex"], known["Ex"][1, 0:2, 0:2, 0:2])
     assert not np.array_equal(snap0.snapfields["Ex"], snap1.snapfields["Ex"])
+
+
+def test_store_snapshots_synchronises_before_immediate_readback(monkeypatch):
+    # Command buffers are submitted without waiting, so the host must wait
+    # for the snapshot kernel before it reads the snapshot buffers.
+    snap = _FakeSnap(iteration=0)
+    updates, _ = _make_updates([snap], snapsgpu2cpu=True, monkeypatch=monkeypatch)
+    events = []
+    updates.cmdqueue.synchronise = lambda: events.append("synchronise")
+    dtoh = metal_updates_mod.dtoh_snapshot_array
+
+    def recording_dtoh(*args):
+        events.append("dtoh")
+        return dtoh(*args)
+
+    monkeypatch.setattr(metal_updates_mod, "dtoh_snapshot_array", recording_dtoh)
+
+    updates.store_snapshots(iteration=0)
+
+    assert updates.cmdqueue.buffers_created[0].committed
+    assert events == ["synchronise", "dtoh"]

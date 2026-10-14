@@ -102,6 +102,9 @@ class _FakeCommandQueue:
         self.buffers_created.append(buf)
         return buf
 
+    def submit(self, command):
+        command.commit()
+
 
 class _FakePSO:
     def maxTotalThreadsPerThreadgroup(self):
@@ -158,7 +161,7 @@ def test_update_magnetic_sources_dispatches_kernel_with_correct_buffer_order(
     assert encoder.dispatched
     assert encoder.ended
     assert updates.cmdqueue.buffers_created[0].committed
-    assert updates.cmdqueue.buffers_created[0].waited
+    assert not updates.cmdqueue.buffers_created[0].waited
 
     # Buffer index contract must match knl_source_updates.update_magnetic_dipole's
     # args_metal signature: N, iteration, dx, dy, dz, srcinfo1, srcinfo2,
