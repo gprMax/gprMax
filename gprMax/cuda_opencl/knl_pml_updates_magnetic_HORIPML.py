@@ -46,7 +46,8 @@ x_args = {
                                           const $REAL* __restrict__ RB,
                                           const $REAL* __restrict__ RE,
                                           const $REAL* __restrict__ RF,
-                                          $REAL d)
+                                          $REAL d,
+                                        int PMC_MASK)
                     """
     ),
     "opencl": Template(
@@ -77,7 +78,8 @@ x_args = {
                         __global const $REAL* restrict RB,
                         __global const $REAL* restrict RE,
                         __global const $REAL* restrict RF,
-                        $REAL d
+                        $REAL d,
+                        int PMC_MASK
                     """
     ),
     "metal": Template(
@@ -109,6 +111,7 @@ x_args = {
                                         device const $REAL* RE,
                                         device const $REAL* RF,
                                         device const $REAL& d,
+                                        device const int& PMC_MASK,
                                         uint i [[thread_position_in_grid]])
                     """
     ),
@@ -143,7 +146,8 @@ y_args = {
                                           const $REAL* __restrict__ RB,
                                           const $REAL* __restrict__ RE,
                                           const $REAL* __restrict__ RF,
-                                          $REAL d)
+                                          $REAL d,
+                                        int PMC_MASK)
                     """
     ),
     "opencl": Template(
@@ -174,7 +178,8 @@ y_args = {
                         __global const $REAL* restrict RB,
                         __global const $REAL* restrict RE,
                         __global const $REAL* restrict RF,
-                        $REAL d
+                        $REAL d,
+                        int PMC_MASK
                     """
     ),
     "metal": Template(
@@ -206,6 +211,7 @@ y_args = {
                                         device const $REAL* RE,
                                         device const $REAL* RF,
                                         device const $REAL& d,
+                                        device const int& PMC_MASK,
                                         uint i [[thread_position_in_grid]])
                     """
     ),
@@ -240,7 +246,8 @@ z_args = {
                                           const $REAL* __restrict__ RB,
                                           const $REAL* __restrict__ RE,
                                           const $REAL* __restrict__ RF,
-                                          $REAL d)
+                                          $REAL d,
+                                        int PMC_MASK)
                     """
     ),
     "opencl": Template(
@@ -271,7 +278,8 @@ z_args = {
                         __global const $REAL* restrict RB,
                         __global const $REAL* restrict RE,
                         __global const $REAL* restrict RF,
-                        $REAL d
+                        $REAL d,
+                        int PMC_MASK
                     """
     ),
     "metal": Template(
@@ -303,6 +311,7 @@ z_args = {
                                         device const $REAL* RE,
                                         device const $REAL* RF,
                                         device const $REAL& d,
+                                        device const int& PMC_MASK,
                                         uint i [[thread_position_in_grid]])
                     """
     ),
@@ -353,7 +362,7 @@ order1_xminus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx && j1 < ny + ((PMC_MASK >> 1) & 1) && k1 < nz) {
         // Subscripts for field arrays
         ii = xf - (i1 + 1);
         jj = j1 + ys;
@@ -373,7 +382,7 @@ order1_xminus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz + ((PMC_MASK >> 2) & 1)) {
         // Subscripts for field arrays
         ii = xf - (i2 + 1);
         jj = j2 + ys;
@@ -441,7 +450,7 @@ order2_xminus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx && j1 < ny + ((PMC_MASK >> 1) & 1) && k1 < nz) {
         // Subscripts for field arrays
         ii = xf - (i1 + 1);
         jj = j1 + ys;
@@ -469,7 +478,7 @@ order2_xminus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz + ((PMC_MASK >> 2) & 1)) {
         // Subscripts for field arrays
         ii = xf - (i2 + 1);
         jj = j2 + ys;
@@ -545,7 +554,7 @@ order1_xplus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx && j1 < ny + ((PMC_MASK >> 1) & 1) && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = j1 + ys;
@@ -565,7 +574,7 @@ order1_xplus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz + ((PMC_MASK >> 2) & 1)) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = j2 + ys;
@@ -633,7 +642,7 @@ order2_xplus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx && j1 < ny + ((PMC_MASK >> 1) & 1) && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = j1 + ys;
@@ -661,7 +670,7 @@ order2_xplus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz + ((PMC_MASK >> 2) & 1)) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = j2 + ys;
@@ -737,7 +746,7 @@ order1_yminus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx + ((PMC_MASK >> 0) & 1) && j1 < ny && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = yf - (j1 + 1);
@@ -757,7 +766,7 @@ order1_yminus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz + ((PMC_MASK >> 2) & 1)) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = yf - (j2 + 1);
@@ -825,7 +834,7 @@ order2_yminus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx + ((PMC_MASK >> 0) & 1) && j1 < ny && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = yf - (j1 + 1);
@@ -853,7 +862,7 @@ order2_yminus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz + ((PMC_MASK >> 2) & 1)) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = yf - (j2 + 1);
@@ -928,7 +937,7 @@ order1_yplus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx + ((PMC_MASK >> 0) & 1) && j1 < ny && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = j1 + ys;
@@ -948,7 +957,7 @@ order1_yplus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz + ((PMC_MASK >> 2) & 1)) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = j2 + ys;
@@ -1016,7 +1025,7 @@ order2_yplus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx + ((PMC_MASK >> 0) & 1) && j1 < ny && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = j1 + ys;
@@ -1043,7 +1052,7 @@ order2_yplus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz + ((PMC_MASK >> 2) & 1)) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = j2 + ys;
@@ -1118,7 +1127,7 @@ order1_zminus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx + ((PMC_MASK >> 0) & 1) && j1 < ny && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = j1 + ys;
@@ -1138,7 +1147,7 @@ order1_zminus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEy;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny + ((PMC_MASK >> 1) & 1) && k2 < nz) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = j2 + ys;
@@ -1206,7 +1215,7 @@ order2_zminus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx + ((PMC_MASK >> 0) & 1) && j1 < ny && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = j1 + ys;
@@ -1234,7 +1243,7 @@ order2_zminus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEy;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny + ((PMC_MASK >> 1) & 1) && k2 < nz) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = j2 + ys;
@@ -1310,7 +1319,7 @@ order1_zplus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx + ((PMC_MASK >> 0) & 1) && j1 < ny && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = j1 + ys;
@@ -1330,7 +1339,7 @@ order1_zplus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEy;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny + ((PMC_MASK >> 1) & 1) && k2 < nz) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = j2 + ys;
@@ -1398,7 +1407,7 @@ order2_zplus = {
     int ny = yf - ys;
     int nz = zf - zs;
 
-    if (p1 == 0 && i1 < nx && j1 < ny && k1 < nz) {
+    if (p1 == 0 && i1 < nx + ((PMC_MASK >> 0) & 1) && j1 < ny && k1 < nz) {
         // Subscripts for field arrays
         ii = i1 + xs;
         jj = j1 + ys;
@@ -1426,7 +1435,7 @@ order2_zplus = {
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEy;
     }
 
-    if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
+    if (p2 == 0 && i2 < nx && j2 < ny + ((PMC_MASK >> 1) & 1) && k2 < nz) {
         // Subscripts for field arrays
         ii = i2 + xs;
         jj = j2 + ys;

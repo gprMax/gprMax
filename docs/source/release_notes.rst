@@ -5,6 +5,15 @@ Release notes
 Unreleased / next release
 =========================
 
+PMC symmetry boundaries and PML
+-------------------------------
+
+* Fixed missing PML corrections where an upper PMC symmetry boundary meets
+  a perpendicular PML. These intersections could produce incorrect fields
+  and late-time instability. Electric and magnetic corrections now include
+  the required staggered boundary samples on CPU/MPI, CUDA, OpenCL and Metal;
+  ordinary PMLs and internal MPI rank boundaries retain their existing extents.
+
 Eigenmode tracking
 ------------------
 
