@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+from numbers import Integral
 
 import numpy as np
 
@@ -882,17 +883,28 @@ class ListMaterial:
             G: FDTDGrid class describing a grid in a model.
         """
 
+        if isinstance(nbins, bool) or not isinstance(nbins, Integral) or int(nbins) < 1:
+            raise ValueError(
+                f"ListMaterial '{self.ID}' requires a positive integer nbins, got {nbins!r}"
+            )
+        nbins = int(nbins)
+        if nbins > len(self.mat):
+            raise ValueError(
+                f"ListMaterial '{self.ID}' nbins ({nbins}) exceeds list length ({len(self.mat)})"
+            )
+
         material_ids = []
 
         # Iterate over the bins
-        for iter in np.arange(nbins):
-            requiredID = self.mat[iter]
+        for index in np.arange(nbins):
+            requiredID = self.mat[index]
             # Check if the material already exists before creating a new one
             material = next((x for x in G.materials if x.ID == requiredID), None)
 
             if not material:
-                logger.exception(self.__str__() + f" material(s) {requiredID} do not exist")
-                raise ValueError
+                message = f"ListMaterial '{self.ID}' material(s) {requiredID!r} do not exist"
+                logger.exception(message)
+                raise ValueError(message)
 
             material_ids.append(material.numID)
 
