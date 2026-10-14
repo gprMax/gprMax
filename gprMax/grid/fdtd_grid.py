@@ -20,6 +20,7 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
+from numbers import Integral
 from types import SimpleNamespace
 from typing import Any, Iterable, List, Optional, Tuple, Union
 
@@ -300,19 +301,41 @@ class FDTDGrid:
         self.dl[2] = value
 
     def set_pml_thickness(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
-        if isinstance(thickness, int):
+        if isinstance(thickness, (bool, str, bytes)):
+            raise ValueError("PML thickness requires integer cell counts")
+        if isinstance(thickness, Integral):
+            thickness_values = (int(thickness),)
+        else:
+            try:
+                thickness_values = tuple(thickness)
+            except TypeError as exc:
+                raise ValueError(
+                    "PML thickness requires either one or six integer cell counts"
+                ) from exc
+
+        if len(thickness_values) not in (1, 6):
+            raise ValueError("PML thickness requires either one or six parameter(s)")
+        if any(isinstance(t, bool) or not isinstance(t, Integral) for t in thickness_values):
+            raise ValueError("PML thickness requires integer cell counts")
+        thickness_values = tuple(int(t) for t in thickness_values)
+
+        # A negative thickness is not rejected without this check -
+        # _build_pmls() only constructs a slab when `thickness > 0`, so a
+        # negative value would silently behave like 0 (no PML on that face)
+        # instead of raising an error for a nonsensical request.
+        if any(t < 0 for t in thickness_values):
+            raise ValueError("PML thickness requires the thickness to be zero or greater")
+
+        if len(thickness_values) == 1:
             for key in PML.boundaryIDs:
-                self.pmls["thickness"][key] = int(thickness)
-        elif len(thickness) == 1:
-            for key in PML.boundaryIDs:
-                self.pmls["thickness"][key] = int(thickness[0])
-        elif len(thickness) == 6:
-            self.pmls["thickness"]["x0"] = int(thickness[0])
-            self.pmls["thickness"]["y0"] = int(thickness[1])
-            self.pmls["thickness"]["z0"] = int(thickness[2])
-            self.pmls["thickness"]["xmax"] = int(thickness[3])
-            self.pmls["thickness"]["ymax"] = int(thickness[4])
-            self.pmls["thickness"]["zmax"] = int(thickness[5])
+                self.pmls["thickness"][key] = thickness_values[0]
+        else:
+            self.pmls["thickness"]["x0"] = thickness_values[0]
+            self.pmls["thickness"]["y0"] = thickness_values[1]
+            self.pmls["thickness"]["z0"] = thickness_values[2]
+            self.pmls["thickness"]["xmax"] = thickness_values[3]
+            self.pmls["thickness"]["ymax"] = thickness_values[4]
+            self.pmls["thickness"]["zmax"] = thickness_values[5]
 
     def add_fractal_volume(
         self,
