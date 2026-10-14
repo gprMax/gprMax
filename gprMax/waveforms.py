@@ -66,6 +66,29 @@ class Waveform:
         waveforms.
         """
 
+        if self.type in (
+            "gaussian",
+            "gaussiandot",
+            "gaussiandotnorm",
+            "gaussianprime",
+            "gaussiandoubleprime",
+            "gaussiandotdot",
+            "gaussiandotdotnorm",
+            "ricker",
+            "gauspulse",
+        ):
+            freq = self.freq
+            if (
+                isinstance(freq, bool)
+                or not isinstance(freq, (int, float, np.integer, np.floating))
+                or not np.isfinite(freq)
+                or freq <= 0
+            ):
+                raise ValueError(
+                    f"Waveform {self.ID!r} type {self.type!r} requires a finite freq > 0, "
+                    f"got {freq!r}"
+                )
+
         if self.type in [
             "gaussian",
             "gaussiandot",

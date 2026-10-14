@@ -78,8 +78,9 @@ class SubGridBase(ModelUserObject):
         elif isinstance(node, OutputUserObject):
             self.children_output.append(node)
         else:
-            logger.exception(f"{str(node)} this Object can not be added to a sub grid")
-            raise ValueError
+            message = f"{str(node)} this Object can not be added to a sub grid"
+            logger.exception(message)
+            raise ValueError(message)
 
     def set_discretisation(self, sg: SubGridBaseGrid, grid: FDTDGrid):
         sg.dx = grid.dx / sg.ratio
@@ -175,8 +176,9 @@ class SubGridBase(ModelUserObject):
         # Don't mix and match different subgrid types
         for sg_made in model.subgrids:
             if type(sg) != type(sg_made):
-                logger.exception(f"{self.__str__()} please only use one type of subgrid")
-                raise ValueError
+                message = f"{self.__str__()} please only use one type of subgrid"
+                logger.exception(message)
+                raise ValueError(message)
 
         # Reference the subgrid under the main grid to which it belongs
         model.subgrids.append(sg)

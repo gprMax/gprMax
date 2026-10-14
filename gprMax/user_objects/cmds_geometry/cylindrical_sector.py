@@ -187,15 +187,17 @@ class CylindricalSector(GeometryUserObject):
             logger.error(message)
             raise ValueError(message)
         if sectorstartangle < 0 or sectorangle <= 0:
-            logger.exception(
+            message = (
                 f"{self.__str__()} the starting angle and sector angle should be a positive values."
             )
-            raise ValueError
+            logger.exception(message)
+            raise ValueError(message)
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
-            logger.exception(
+            message = (
                 f"{self.__str__()} the starting angle and sector angle must be less than 360 degrees."
             )
-            raise ValueError
+            logger.exception(message)
+            raise ValueError(message)
 
         materials = resolve_geometry_materials(
             grid,

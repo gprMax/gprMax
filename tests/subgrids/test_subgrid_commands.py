@@ -201,8 +201,16 @@ class TestChildCollection:
         assert cmd.children_grid == []
 
     def test_unknown_child_raises(self, command):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="can not be added to a sub grid"):
             command().add(object())
+
+    def test_unknown_child_message_names_the_object(self, command):
+        """The message must carry the detail — previously it lived only in
+        the log while the exception itself was empty."""
+        with pytest.raises(ValueError) as excinfo:
+            command().add(object())
+        assert "can not be added to a sub grid" in str(excinfo.value)
+        assert excinfo.value.args[0] != ""
 
     def test_children_accumulate_in_order(self, command):
         cmd = command()
@@ -358,7 +366,7 @@ class TestBuild:
             pass
 
         model.subgrids.append(_Other(**command().kwargs))
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="only use one type of subgrid"):
             command(id="three").build(model)
 
 

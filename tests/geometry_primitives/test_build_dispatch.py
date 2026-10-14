@@ -368,13 +368,22 @@ class TestCylindricalSectorBuild:
     def test_full_circle_end_angle_raises(self, dispatch_grid):
         # The wrapper caps sector angles strictly below 360 degrees.
         g = dispatch_grid()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="less than 360 degrees"):
             CylindricalSector(end=360.0, **self.KWARGS).build(g)
 
     def test_zero_end_angle_raises(self, dispatch_grid):
         g = dispatch_grid()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="positive values"):
             CylindricalSector(end=0.0, **self.KWARGS).build(g)
+
+    def test_rejection_message_is_on_the_exception(self, dispatch_grid):
+        """The message must carry the detail — previously it lived only in
+        the log while the exception itself was empty."""
+        g = dispatch_grid()
+        with pytest.raises(ValueError) as excinfo:
+            CylindricalSector(end=0.0, **self.KWARGS).build(g)
+        assert "positive values" in str(excinfo.value)
+        assert excinfo.value.args[0] != ""
 
     def test_invalid_normal_raises(self, dispatch_grid):
         g = dispatch_grid()

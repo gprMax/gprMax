@@ -237,5 +237,25 @@ class TestErrors:
         with pytest.raises(ValueError, match="Unknown waveform type"):
             w.calculate_value(1e-9, dt=1e-12)
 
+    @pytest.mark.parametrize(
+        "wave_type", ["gaussian", "gaussiandotnorm", "gaussiandotdotnorm", "ricker", "gauspulse"]
+    )
+    @pytest.mark.parametrize(
+        "bad_freq", [0, -1e9, float("inf"), float("nan"), None, "1e9", True]
+    )
+    def test_non_positive_or_non_numeric_freq_raises(self, make_waveform, wave_type, bad_freq):
+        """Frequency goes into ``1 / freq``, so zero divides by zero while
+        negatives and non-finite values silently build nonsense pulses.
+        Previously these gave ``ZeroDivisionError``, cryptic ``TypeError``s,
+        or silently wrong waveforms."""
+        w = make_waveform(wave_type, freq=bad_freq)
+        with pytest.raises(ValueError, match="requires a finite freq"):
+            w.calculate_value(1e-9, dt=1e-12)
+
+    def test_impulse_without_freq_still_works(self, make_waveform):
+        """Impulse carries no frequency, so the guard must not touch it."""
+        w = make_waveform("impulse", freq=None)
+        assert w.calculate_value(0.0, dt=1e-12) == 1
+
 
 pytestmark = pytest.mark.unit
