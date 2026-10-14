@@ -199,8 +199,11 @@ class TestCheckKappamin:
         with caplog.at_level(logging.ERROR, logger="gprMax.pml"):
             with pytest.raises(ValueError, match="Sum of kappamin") as excinfo:
                 PML(g, "x0", "xminus", 0, 4, 0, 11, 0, 11)
-        assert "Sum of kappamin value(s) for PML is 0" in str(excinfo.value)
-        assert "Sum of kappamin value(s) for PML is 0" in caplog.text
+        expected_message = (
+            "Sum of kappamin value(s) for PML is 0 and must be greater than or equal to one."
+        )
+        assert str(excinfo.value) == expected_message
+        assert expected_message in caplog.text
 
     def test_cfs_list_is_shared_with_the_grid(self, make_pml_grid):
         """Expects ``pml.CFS`` to *be* ``G.pmls["cfs"]`` rather than a copy, so

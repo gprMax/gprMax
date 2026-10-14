@@ -333,7 +333,7 @@ class PML:
         kappamin = sum(cfs.kappa.min for cfs in self.CFS)
         if kappamin < 1:
             message = (
-                f"Sum of kappamin value(s) for PML is {kappamin} and must be greater than one."
+                f"Sum of kappamin value(s) for PML is {kappamin} and must be greater than or equal to one."
             )
             logger.exception(message)
             raise ValueError(message)
