@@ -295,6 +295,23 @@ class PML:
         self.ny = yf - ys
         self.nz = zf - zs
 
+        # A PMC wall has live tangential E and normal H samples on its
+        # upper Yee plane. The usual half-open transverse PML bounds omit
+        # those samples. Extend only a slab that actually reaches an owned
+        # global PMC face, never an internal slab edge or an MPI rank seam.
+        local_faces = (
+            G.get_local_symmetry_boundaries()
+            if hasattr(G, "get_local_symmetry_boundaries")
+            else getattr(G, "symmetry_boundaries", {})
+        )
+        self.pmc_mask = sum(
+            1 << axis
+            for axis, name in enumerate("xyz")
+            if name != direction[0]
+            and local_faces.get(name + "max") == "pmc"
+            and getattr(self, name + "f") == getattr(G, "n" + name)
+        )
+
         # Spatial discretisation and thickness
         if self.direction[0] == "x":
             self.d = self.G.dx
@@ -647,6 +664,7 @@ class PML:
             self.ERE,
             self.ERF,
             self.d,
+            self.pmc_mask,
         )
 
     def update_magnetic(self):
@@ -681,6 +699,7 @@ class PML:
             self.HRE,
             self.HRF,
             self.d,
+            self.pmc_mask,
         )
 
 
@@ -759,6 +778,7 @@ class CUDAPML(PML):
             self.ERE_dev.gpudata,
             self.ERF_dev.gpudata,
             config.sim_config.dtypes["float_or_double"](self.d),
+            np.int32(self.pmc_mask),
             block=self.G.tpb,
             grid=self.bpg,
         )
@@ -793,6 +813,7 @@ class CUDAPML(PML):
             self.HRE_dev.gpudata,
             self.HRF_dev.gpudata,
             config.sim_config.dtypes["float_or_double"](self.d),
+            np.int32(self.pmc_mask),
             block=self.G.tpb,
             grid=self.bpg,
         )
@@ -882,6 +903,7 @@ class OpenCLPML(PML):
             self.ERE_dev,
             self.ERF_dev,
             config.sim_config.dtypes["float_or_double"](self.d),
+            np.int32(self.pmc_mask),
             range=self._electric_update_range,
         )
         event.wait()
@@ -918,6 +940,7 @@ class OpenCLPML(PML):
             self.HRE_dev,
             self.HRF_dev,
             config.sim_config.dtypes["float_or_double"](self.d),
+            np.int32(self.pmc_mask),
             range=self._magnetic_update_range,
         )
         event.wait()
@@ -1001,6 +1024,7 @@ class MetalPML(PML):
         cmpencoder.setBuffer_offset_atIndex_(self.ERF_dev, 0, 25)
         d_bytes = config.sim_config.dtypes["float_or_double"](self.d).tobytes()
         cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.pmc_mask).tobytes(), 4, 27)
 
         # Dispatch threads using grid's thread configuration
         cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
@@ -1048,6 +1072,7 @@ class MetalPML(PML):
         cmpencoder.setBuffer_offset_atIndex_(self.HRF_dev, 0, 25)
         d_bytes = config.sim_config.dtypes["float_or_double"](self.d).tobytes()
         cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
+        cmpencoder.setBytes_length_atIndex_(np.int32(self.pmc_mask).tobytes(), 4, 27)
 
         # Dispatch threads using grid's thread configuration
         cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)

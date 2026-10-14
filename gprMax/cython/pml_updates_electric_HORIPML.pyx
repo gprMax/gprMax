@@ -22,6 +22,13 @@ from cython.parallel import prange
 
 from gprMax.config cimport float_or_double
 
+# pmc_mask bits x/y/z include upper transverse PMC planes. Each component
+# has only one padded transverse Yee axis: the other component's padding
+# must not be read or written (including its convolution history).
+# With mask zero, the original slab extents and recurrences are unchanged.
+# Explicit zero-mask guards let the compiler retain an unguarded ordinary
+# PML loop instead of testing component padding at every cell.
+
 # Match spacing to the field/coefficient precision; a C float would round
 # double-precision grid spacing before the correction is evaluated.
 
@@ -48,7 +55,8 @@ cpdef void order1_xminus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ey and Ez field components for the xminus slab.
 
@@ -75,22 +83,24 @@ cpdef void order1_xminus(
         RE0 = RE[0, i]
         RF0 = RF[0, i]
         ii = xf - i
-        for j in range(0, ny):
+        for j in range(0, ny + ((pmc_mask >> 1) & 1)):
             jj = j + ys
-            for k in range(0, nz):
+            for k in range(0, nz + ((pmc_mask >> 2) & 1)):
                 kk = k + zs
-                # Ey
-                materialEy = ID[1, ii, jj, kk]
-                dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
-                                  (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
-                # Ez
-                materialEz = ID[2, ii, jj, kk]
-                dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
-                                  (RA01 * dHy + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
+                if pmc_mask == 0 or j < ny:
+                    # Ey
+                    materialEy = ID[1, ii, jj, kk]
+                    dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
+                    Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
+                                      (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
+                if pmc_mask == 0 or k < nz:
+                    # Ez
+                    materialEz = ID[2, ii, jj, kk]
+                    dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
+                    Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
+                                      (RA01 * dHy + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
 
 cpdef void order2_xminus(
     int xs,
@@ -114,7 +124,8 @@ cpdef void order2_xminus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ey and Ez field components for the xminus slab.
 
@@ -146,28 +157,30 @@ cpdef void order2_xminus(
         RF1 = RF[1, i]
         RA01 = RA[0, i] * RA[1, i] - 1
         ii = xf - i
-        for j in range(0, ny):
+        for j in range(0, ny + ((pmc_mask >> 1) & 1)):
             jj = j + ys
-            for k in range(0, nz):
+            for k in range(0, nz + ((pmc_mask >> 2) & 1)):
                 kk = k + zs
-                # Ey
-                materialEy = ID[1, ii, jj, kk]
-                dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
-                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
-                                  RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
-                                    (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
-                # Ez
-                materialEz = ID[2, ii, jj, kk]
-                dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
-                                  (RA01 * dHy + RA1 * RB0 * Phi2[0, i, j, k] +
-                                  RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
-                                    (RA0 * dHy + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
+                if pmc_mask == 0 or j < ny:
+                    # Ey
+                    materialEy = ID[1, ii, jj, kk]
+                    dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
+                    Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
+                                      (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
+                                      RB1 * Phi1[1, i, j, k]))
+                    Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
+                                        (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
+                if pmc_mask == 0 or k < nz:
+                    # Ez
+                    materialEz = ID[2, ii, jj, kk]
+                    dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
+                    Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
+                                      (RA01 * dHy + RA1 * RB0 * Phi2[0, i, j, k] +
+                                      RB1 * Phi2[1, i, j, k]))
+                    Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
+                                        (RA0 * dHy + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
 
 
 cpdef void order1_xplus(
@@ -192,7 +205,8 @@ cpdef void order1_xplus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ey and Ez field components for the xplus slab.
 
@@ -219,22 +233,24 @@ cpdef void order1_xplus(
         RE0 = RE[0, i]
         RF0 = RF[0, i]
         ii = i + xs
-        for j in range(0, ny):
+        for j in range(0, ny + ((pmc_mask >> 1) & 1)):
             jj = j + ys
-            for k in range(0, nz):
+            for k in range(0, nz + ((pmc_mask >> 2) & 1)):
                 kk = k + zs
-                # Ey
-                materialEy = ID[1, ii, jj, kk]
-                dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
-                                  (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
-                # Ez
-                materialEz = ID[2, ii, jj, kk]
-                dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
-                                  (RA01 * dHy + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
+                if pmc_mask == 0 or j < ny:
+                    # Ey
+                    materialEy = ID[1, ii, jj, kk]
+                    dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
+                    Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
+                                      (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
+                if pmc_mask == 0 or k < nz:
+                    # Ez
+                    materialEz = ID[2, ii, jj, kk]
+                    dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
+                    Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
+                                      (RA01 * dHy + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
 
 cpdef void order2_xplus(
     int xs,
@@ -258,7 +274,8 @@ cpdef void order2_xplus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ey and Ez field components for the xplus slab.
 
@@ -290,28 +307,30 @@ cpdef void order2_xplus(
         RF1 = RF[1, i]
         RA01 = RA[0, i] * RA[1, i] - 1
         ii = i + xs
-        for j in range(0, ny):
+        for j in range(0, ny + ((pmc_mask >> 1) & 1)):
             jj = j + ys
-            for k in range(0, nz):
+            for k in range(0, nz + ((pmc_mask >> 2) & 1)):
                 kk = k + zs
-                # Ey
-                materialEy = ID[1, ii, jj, kk]
-                dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
-                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
-                                  RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
-                                    (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
-                # Ez
-                materialEz = ID[2, ii, jj, kk]
-                dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
-                                  (RA01 * dHy + RA1 * RB0 * Phi2[0, i, j, k] +
-                                  RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
-                                    (RA0 * dHy + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
+                if pmc_mask == 0 or j < ny:
+                    # Ey
+                    materialEy = ID[1, ii, jj, kk]
+                    dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
+                    Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
+                                      (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
+                                      RB1 * Phi1[1, i, j, k]))
+                    Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
+                                        (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
+                if pmc_mask == 0 or k < nz:
+                    # Ez
+                    materialEz = ID[2, ii, jj, kk]
+                    dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
+                    Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
+                                      (RA01 * dHy + RA1 * RB0 * Phi2[0, i, j, k] +
+                                      RB1 * Phi2[1, i, j, k]))
+                    Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
+                                        (RA0 * dHy + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
 
 
 cpdef void order1_yminus(
@@ -336,7 +355,8 @@ cpdef void order1_yminus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ex and Ez field components for the yminus slab.
 
@@ -357,7 +377,7 @@ cpdef void order1_yminus(
     ny = yf - ys
     nz = zf - zs
 
-    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+    for i in prange(0, nx + ((pmc_mask >> 0) & 1), nogil=True, schedule='static', num_threads=nthreads):
         ii = i + xs
         for j in range(0, ny):
             jj = yf - j
@@ -365,20 +385,22 @@ cpdef void order1_yminus(
             RB0 = RB[0, j]
             RE0 = RE[0, j]
             RF0 = RF[0, j]
-            for k in range(0, nz):
+            for k in range(0, nz + ((pmc_mask >> 2) & 1)):
                 kk = k + zs
-                # Ex
-                materialEx = ID[0, ii, jj, kk]
-                dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
-                                  (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
-                # Ez
-                materialEz = ID[2, ii, jj, kk]
-                dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
-                                  (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
+                if pmc_mask == 0 or i < nx:
+                    # Ex
+                    materialEx = ID[0, ii, jj, kk]
+                    dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
+                    Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
+                                      (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
+                if pmc_mask == 0 or k < nz:
+                    # Ez
+                    materialEz = ID[2, ii, jj, kk]
+                    dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
+                    Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
+                                      (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
 cpdef void order2_yminus(
     int xs,
@@ -402,7 +424,8 @@ cpdef void order2_yminus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ex and Ez field components for the yminus slab.
 
@@ -423,7 +446,7 @@ cpdef void order2_yminus(
     ny = yf - ys
     nz = zf - zs
 
-    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+    for i in prange(0, nx + ((pmc_mask >> 0) & 1), nogil=True, schedule='static', num_threads=nthreads):
         ii = i + xs
         for j in range(0, ny):
             jj = yf - j
@@ -436,26 +459,28 @@ cpdef void order2_yminus(
             RE1 = RE[1, j]
             RF1 = RF[1, j]
             RA01 = RA[0, j] * RA[1, j] - 1
-            for k in range(0, nz):
+            for k in range(0, nz + ((pmc_mask >> 2) & 1)):
                 kk = k + zs
-                # Ex
-                materialEx = ID[0, ii, jj, kk]
-                dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
-                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
-                                  RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
-                                    (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
-                # Ez
-                materialEz = ID[2, ii, jj, kk]
-                dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
-                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
-                                  RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
-                                    (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
+                if pmc_mask == 0 or i < nx:
+                    # Ex
+                    materialEx = ID[0, ii, jj, kk]
+                    dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
+                    Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
+                                      (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
+                                      RB1 * Phi1[1, i, j, k]))
+                    Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
+                                        (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
+                if pmc_mask == 0 or k < nz:
+                    # Ez
+                    materialEz = ID[2, ii, jj, kk]
+                    dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
+                    Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
+                                      (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
+                                      RB1 * Phi2[1, i, j, k]))
+                    Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
+                                        (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
 
 cpdef void order1_yplus(
@@ -480,7 +505,8 @@ cpdef void order1_yplus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ex and Ez field components for the yplus slab.
 
@@ -501,7 +527,7 @@ cpdef void order1_yplus(
     ny = yf - ys
     nz = zf - zs
 
-    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+    for i in prange(0, nx + ((pmc_mask >> 0) & 1), nogil=True, schedule='static', num_threads=nthreads):
         ii = i + xs
         for j in range(0, ny):
             jj = j + ys
@@ -509,20 +535,22 @@ cpdef void order1_yplus(
             RB0 = RB[0, j]
             RE0 = RE[0, j]
             RF0 = RF[0, j]
-            for k in range(0, nz):
+            for k in range(0, nz + ((pmc_mask >> 2) & 1)):
                 kk = k + zs
-                # Ex
-                materialEx = ID[0, ii, jj, kk]
-                dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
-                                  (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
-                # Ez
-                materialEz = ID[2, ii, jj, kk]
-                dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
-                                  (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
+                if pmc_mask == 0 or i < nx:
+                    # Ex
+                    materialEx = ID[0, ii, jj, kk]
+                    dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
+                    Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
+                                      (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
+                if pmc_mask == 0 or k < nz:
+                    # Ez
+                    materialEz = ID[2, ii, jj, kk]
+                    dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
+                    Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
+                                      (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
 cpdef void order2_yplus(
     int xs,
@@ -546,7 +574,8 @@ cpdef void order2_yplus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ex and Ez field components for the yplus slab.
 
@@ -567,7 +596,7 @@ cpdef void order2_yplus(
     ny = yf - ys
     nz = zf - zs
 
-    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+    for i in prange(0, nx + ((pmc_mask >> 0) & 1), nogil=True, schedule='static', num_threads=nthreads):
         ii = i + xs
         for j in range(0, ny):
             jj = j + ys
@@ -580,26 +609,28 @@ cpdef void order2_yplus(
             RE1 = RE[1, j]
             RF1 = RF[1, j]
             RA01 = RA[0, j] * RA[1, j] - 1
-            for k in range(0, nz):
+            for k in range(0, nz + ((pmc_mask >> 2) & 1)):
                 kk = k + zs
-                # Ex
-                materialEx = ID[0, ii, jj, kk]
-                dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
-                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
-                                  RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
-                                    (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
-                # Ez
-                materialEz = ID[2, ii, jj, kk]
-                dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
-                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
-                                  RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
-                                    (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
+                if pmc_mask == 0 or i < nx:
+                    # Ex
+                    materialEx = ID[0, ii, jj, kk]
+                    dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
+                    Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
+                                      (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
+                                      RB1 * Phi1[1, i, j, k]))
+                    Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
+                                        (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
+                if pmc_mask == 0 or k < nz:
+                    # Ez
+                    materialEz = ID[2, ii, jj, kk]
+                    dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
+                    Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
+                                      (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
+                                      RB1 * Phi2[1, i, j, k]))
+                    Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
+                                        (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
 
 cpdef void order1_zminus(
@@ -624,7 +655,8 @@ cpdef void order1_zminus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ex and Ey field components for the zminus slab.
 
@@ -645,9 +677,9 @@ cpdef void order1_zminus(
     ny = yf - ys
     nz = zf - zs
 
-    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+    for i in prange(0, nx + ((pmc_mask >> 0) & 1), nogil=True, schedule='static', num_threads=nthreads):
         ii = i + xs
-        for j in range(0, ny):
+        for j in range(0, ny + ((pmc_mask >> 1) & 1)):
             jj = j + ys
             for k in range(0, nz):
                 kk = zf - k
@@ -655,18 +687,20 @@ cpdef void order1_zminus(
                 RB0 = RB[0, k]
                 RE0 = RE[0, k]
                 RF0 = RF[0, k]
-                # Ex
-                materialEx = ID[0, ii, jj, kk]
-                dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
-                                  (RA01 * dHy + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
-                # Ey
-                materialEy = ID[1, ii, jj, kk]
-                dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
-                                  (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
+                if pmc_mask == 0 or i < nx:
+                    # Ex
+                    materialEx = ID[0, ii, jj, kk]
+                    dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
+                    Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
+                                      (RA01 * dHy + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
+                if pmc_mask == 0 or j < ny:
+                    # Ey
+                    materialEy = ID[1, ii, jj, kk]
+                    dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
+                    Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
+                                      (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
 cpdef void order2_zminus(
     int xs,
@@ -690,7 +724,8 @@ cpdef void order2_zminus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ex and Ey field components for the zminus slab.
 
@@ -711,9 +746,9 @@ cpdef void order2_zminus(
     ny = yf - ys
     nz = zf - zs
 
-    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+    for i in prange(0, nx + ((pmc_mask >> 0) & 1), nogil=True, schedule='static', num_threads=nthreads):
         ii = i + xs
-        for j in range(0, ny):
+        for j in range(0, ny + ((pmc_mask >> 1) & 1)):
             jj = j + ys
             for k in range(0, nz):
                 kk = zf - k
@@ -726,24 +761,26 @@ cpdef void order2_zminus(
                 RE1 = RE[1, k]
                 RF1 = RF[1, k]
                 RA01 = RA[0, k] * RA[1, k] - 1
-                # Ex
-                materialEx = ID[0, ii, jj, kk]
-                dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
-                                  (RA01 * dHy + RA1 * RB0 * Phi1[0, i, j, k] +
-                                  RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
-                                    (RA0 * dHy + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
-                # Ey
-                materialEy = ID[1, ii, jj, kk]
-                dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
-                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
-                                  RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
-                                    (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
+                if pmc_mask == 0 or i < nx:
+                    # Ex
+                    materialEx = ID[0, ii, jj, kk]
+                    dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
+                    Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
+                                      (RA01 * dHy + RA1 * RB0 * Phi1[0, i, j, k] +
+                                      RB1 * Phi1[1, i, j, k]))
+                    Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
+                                        (RA0 * dHy + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
+                if pmc_mask == 0 or j < ny:
+                    # Ey
+                    materialEy = ID[1, ii, jj, kk]
+                    dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
+                    Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
+                                      (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
+                                      RB1 * Phi2[1, i, j, k]))
+                    Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
+                                        (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
 
 cpdef void order1_zplus(
@@ -768,7 +805,8 @@ cpdef void order1_zplus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ex and Ey field components for the zplus slab.
 
@@ -789,9 +827,9 @@ cpdef void order1_zplus(
     ny = yf - ys
     nz = zf - zs
 
-    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+    for i in prange(0, nx + ((pmc_mask >> 0) & 1), nogil=True, schedule='static', num_threads=nthreads):
         ii = i + xs
-        for j in range(0, ny):
+        for j in range(0, ny + ((pmc_mask >> 1) & 1)):
             jj = j + ys
             for k in range(0, nz):
                 kk = k + zs
@@ -799,18 +837,20 @@ cpdef void order1_zplus(
                 RB0 = RB[0, k]
                 RE0 = RE[0, k]
                 RF0 = RF[0, k]
-                # Ex
-                materialEx = ID[0, ii, jj, kk]
-                dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
-                                  (RA01 * dHy + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
-                # Ey
-                materialEy = ID[1, ii, jj, kk]
-                dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
-                                  (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
+                if pmc_mask == 0 or i < nx:
+                    # Ex
+                    materialEx = ID[0, ii, jj, kk]
+                    dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
+                    Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
+                                      (RA01 * dHy + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
+                if pmc_mask == 0 or j < ny:
+                    # Ey
+                    materialEy = ID[1, ii, jj, kk]
+                    dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
+                    Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
+                                      (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
 cpdef void order2_zplus(
     int xs,
@@ -834,7 +874,8 @@ cpdef void order2_zplus(
     float_or_double[:, ::1] RB,
     float_or_double[:, ::1] RE,
     float_or_double[:, ::1] RF,
-    float_or_double d
+    float_or_double d,
+    int pmc_mask=0
 ):
     """Updates the Ex and Ey field components for the zplus slab.
 
@@ -855,9 +896,9 @@ cpdef void order2_zplus(
     ny = yf - ys
     nz = zf - zs
 
-    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+    for i in prange(0, nx + ((pmc_mask >> 0) & 1), nogil=True, schedule='static', num_threads=nthreads):
         ii = i + xs
-        for j in range(0, ny):
+        for j in range(0, ny + ((pmc_mask >> 1) & 1)):
             jj = j + ys
             for k in range(0, nz):
                 kk = k + zs
@@ -870,21 +911,23 @@ cpdef void order2_zplus(
                 RE1 = RE[1, k]
                 RF1 = RF[1, k]
                 RA01 = RA[0, k] * RA[1, k] - 1
-                # Ex
-                materialEx = ID[0, ii, jj, kk]
-                dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
-                                  (RA01 * dHy + RA1 * RB0 * Phi1[0, i, j, k] +
-                                  RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
-                                    (RA0 * dHy + RB0 * Phi1[0, i, j, k]))
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
-                # Ey
-                materialEy = ID[1, ii, jj, kk]
-                dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
-                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
-                                  RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
-                                    (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
+                if pmc_mask == 0 or i < nx:
+                    # Ex
+                    materialEx = ID[0, ii, jj, kk]
+                    dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
+                    Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
+                                      (RA01 * dHy + RA1 * RB0 * Phi1[0, i, j, k] +
+                                      RB1 * Phi1[1, i, j, k]))
+                    Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
+                                        (RA0 * dHy + RB0 * Phi1[0, i, j, k]))
+                    Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
+                if pmc_mask == 0 or j < ny:
+                    # Ey
+                    materialEy = ID[1, ii, jj, kk]
+                    dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
+                    Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
+                                      (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
+                                      RB1 * Phi2[1, i, j, k]))
+                    Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
+                                        (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
+                    Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx

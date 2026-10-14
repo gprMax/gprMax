@@ -19,7 +19,7 @@
 
 Neither method does any arithmetic. Each assembles a module path and a
 function name from the grid's formulation, the CFS order and the slab's
-direction, imports the module, and forwards twenty-two positional arguments to
+direction, imports the module, and forwards twenty-three positional arguments to
 the kernel it finds there:
 
     gprMax.cython.pml_updates_<polarity>_<formulation>.order<N>_<direction>
@@ -159,16 +159,23 @@ class TestFunctionNameResolution:
 
 
 class TestForwardedArguments:
-    def test_electric_forwards_twenty_two_arguments(self, ready_pml, spy_import):
-        """Expects exactly 22 positional arguments — the kernels take no
+    @pytest.mark.parametrize("family", ("electric", "magnetic"))
+    def test_forwards_nonzero_pmc_mask(self, ready_pml, spy_import, family):
+        slab = ready_pml()
+        slab.pmc_mask = 2
+        getattr(slab, "update_" + family)()
+        assert spy_import.calls[0][1][-1] == 2
+
+    def test_electric_forwards_twenty_three_arguments(self, ready_pml, spy_import):
+        """Expects exactly 23 positional arguments — the kernels take no
         keywords, so a signature change is silent unless pinned here."""
         ready_pml().update_electric()
-        assert len(spy_import.calls[0][1]) == 22
+        assert len(spy_import.calls[0][1]) == 23
 
-    def test_magnetic_forwards_twenty_two_arguments(self, ready_pml, spy_import):
+    def test_magnetic_forwards_twenty_three_arguments(self, ready_pml, spy_import):
         """Expects the magnetic kernel to take the same count."""
         ready_pml().update_magnetic()
-        assert len(spy_import.calls[0][1]) == 22
+        assert len(spy_import.calls[0][1]) == 23
 
     def test_extents_lead_the_argument_list(self, ready_pml, spy_import):
         """Expects ``xs, xf, ys, yf, zs, zf`` in positions 0-5, matching the
