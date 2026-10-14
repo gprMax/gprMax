@@ -88,6 +88,9 @@ class _MetalQueue:
             waitUntilCompleted=lambda: setattr(encoder.record, "waited", True),
         )
 
+    def submit(self, command):
+        command.commit()
+
 
 def _record_kernel(calls, name):
     def kernel(*args, **kwargs):
@@ -237,7 +240,7 @@ def test_source_dispatch_keeps_full_counts_and_cpu_family_order(backend, count):
         updates.grid.magneticfrillsources
     )
     if backend == "metal":
-        assert all(call.ended and call.committed and call.waited for call in calls)
+        assert all(call.ended and call.committed and not call.waited for call in calls)
 
 
 @pytest.mark.parametrize("backend", BACKENDS)

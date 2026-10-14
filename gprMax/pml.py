@@ -1030,8 +1030,7 @@ class MetalPML(PML):
         cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
 
         cmpencoder.endEncoding()
-        cmdbuffer.commit()
-        cmdbuffer.waitUntilCompleted()
+        self.queue.submit(cmdbuffer)
 
     def update_magnetic(self):
         """Updates magnetic field components with the PML correction on the GPU using Metal."""
@@ -1078,8 +1077,7 @@ class MetalPML(PML):
         cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
 
         cmpencoder.endEncoding()
-        cmdbuffer.commit()
-        cmdbuffer.waitUntilCompleted()
+        self.queue.submit(cmdbuffer)
 
 
 class MPIPML(PML):

@@ -80,6 +80,9 @@ class _Queue:
         self.buffer = _CommandBuffer()
         return self.buffer
 
+    def submit(self, command):
+        command.commit()
+
 
 class _PSO:
     def maxTotalThreadsPerThreadgroup(self):
@@ -122,7 +125,7 @@ def test_current_output_uses_second_encoder_and_all_ten_kernel_arguments(monkeyp
     updates.store_outputs(iteration=3)
 
     command = updates.cmdqueue.buffer
-    assert command.committed and command.waited
+    assert command.committed and not command.waited
     assert len(command.encoders) == 2
     current = command.encoders[1]
     assert current.pso is updates.pso_store_current_outputs

@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+from collections import deque
 from importlib import import_module
 
 import numpy as np
@@ -67,6 +68,55 @@ from gprMax.utilities.utilities import round32, timer
 
 logger = logging.getLogger(__name__)
 
+# MTLCommandBufferStatus values (Metal/MTLCommandBuffer.h).
+_MTL_COMMAND_BUFFER_STATUS_COMPLETED = 4
+_MTL_COMMAND_BUFFER_STATUS_ERROR = 5
+
+
+class MetalCommandQueue:
+    """Command queue that submits solver work without waiting for it.
+
+    Waiting for every command buffer to complete made the solver
+    latency-bound: a 3D model with six PML slabs made about 18 blocking
+    CPU-GPU round trips per iteration. Command buffers execute in the order
+    they are committed to a queue, and Metal tracks hazards on buffers created
+    with the default (tracked) hazard mode, so each stage still sees the
+    results of every stage submitted before it. The host only has to wait
+    before it reads or writes device memory itself, which synchronise() does.
+
+    commandBuffer() passes through to the wrapped queue, so code that commits
+    and waits on its own command buffers works unchanged.
+    """
+
+    def __init__(self, queue):
+        self.queue = queue
+        self._submitted = deque()
+
+    def commandBuffer(self):
+        return self.queue.commandBuffer()
+
+    def submit(self, command):
+        """Commits a command buffer without waiting for it to complete."""
+        command.commit()
+        self._submitted.append(command)
+        # Release command buffers the GPU has finished, oldest first.
+        while (
+            self._submitted and self._submitted[0].status() >= _MTL_COMMAND_BUFFER_STATUS_COMPLETED
+        ):
+            self._check(self._submitted.popleft())
+
+    def synchronise(self):
+        """Blocks until every submitted command buffer has completed."""
+        while self._submitted:
+            command = self._submitted.popleft()
+            command.waitUntilCompleted()
+            self._check(command)
+
+    @staticmethod
+    def _check(command):
+        if command.status() == _MTL_COMMAND_BUFFER_STATUS_ERROR:
+            raise RuntimeError(f"Metal command buffer failed: {command.error()}")
+
 
 class MetalUpdates(Updates[MetalGrid]):
     """Defines update functions for Apple Metal-based solver."""
@@ -86,7 +136,7 @@ class MetalUpdates(Updates[MetalGrid]):
         # queue so their fields can be coupled without host transfers.
         if shared is None:
             self.dev = config.get_model_config().device["dev"]
-            self.cmdqueue = self.dev.newCommandQueue()
+            self.cmdqueue = MetalCommandQueue(self.dev.newCommandQueue())
         else:
             self.dev = shared.dev
             self.cmdqueue = shared.cmdqueue
@@ -806,8 +856,7 @@ class MetalUpdates(Updates[MetalGrid]):
                     ),
                 )
                 encoder.endEncoding()
-            self.cmdbuffer_store_outputs.commit()
-            self.cmdbuffer_store_outputs.waitUntilCompleted()
+            self.cmdqueue.submit(self.cmdbuffer_store_outputs)
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
@@ -871,10 +920,10 @@ class MetalUpdates(Updates[MetalGrid]):
                     ),
                 )
                 cmpencoder_snap.endEncoding()
-                cmdbuffer_snap.commit()
-                cmdbuffer_snap.waitUntilCompleted()
+                self.cmdqueue.submit(cmdbuffer_snap)
 
                 if config.get_model_config().device["snapsgpu2cpu"]:
+                    self.cmdqueue.synchronise()
                     dtoh_snapshot_array(*self._metal_snapshot_buffers_to_numpy(), 0, snap)
 
     def observe_ntff_electric(self, iteration):
@@ -913,8 +962,7 @@ class MetalUpdates(Updates[MetalGrid]):
             self.metal.MTLSizeMake(pipeline.maxTotalThreadsPerThreadgroup(), 1, 1),
         )
         encoder.endEncoding()
-        command.commit()
-        command.waitUntilCompleted()
+        self.cmdqueue.submit(command)
 
     def observe_eigenmode_ports(self, iteration):
         """Project modal port fields and accumulate DFTs on Metal."""
@@ -973,6 +1021,8 @@ class MetalUpdates(Updates[MetalGrid]):
             )
             self._dispatch_1d(self.pso_eigenmode_dft, (parameters,), buffers, nf)
             monitor._next_iteration += 1
+            # Re-anchoring rewrites the phase arrays from the host.
+            self.cmdqueue.synchronise()
             reanchor_device_eigenmode_monitor(monitor, self.grid, "metal")
 
     def _launch_eigenmode_source(self, source, iteration, magnetic):
@@ -1139,8 +1189,7 @@ class MetalUpdates(Updates[MetalGrid]):
 
         self.cmpencoderH.dispatchThreads_threadsPerThreadgroup_(self.grid.tptg, self.grid.tgs)
         self.cmpencoderH.endEncoding()
-        self.cmdbufferH.commit()
-        self.cmdbufferH.waitUntilCompleted()
+        self.cmdqueue.submit(self.cmdbufferH)
 
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
@@ -1231,8 +1280,7 @@ class MetalUpdates(Updates[MetalGrid]):
                 self.metal.MTLSizeMake(1, 1, 1),
             )
             cmpencoder_magnetic.endEncoding()
-            cmdbuffer_magnetic.commit()
-            cmdbuffer_magnetic.waitUntilCompleted()
+            self.cmdqueue.submit(cmdbuffer_magnetic)
 
         if self.grid.magneticfrillsources:
             cmdbuffer = self.cmdqueue.commandBuffer()
@@ -1267,8 +1315,7 @@ class MetalUpdates(Updates[MetalGrid]):
                 ),
             )
             encoder.endEncoding()
-            cmdbuffer.commit()
-            cmdbuffer.waitUntilCompleted()
+            self.cmdqueue.submit(cmdbuffer)
 
     def update_plane_waves_magnetic(self, iteration):
         """Advance Metal auxiliary plane waves and apply magnetic TF/SF corrections."""
@@ -1322,8 +1369,7 @@ class MetalUpdates(Updates[MetalGrid]):
             self.metal.MTLSizeMake(self.pso_rational_network.maxTotalThreadsPerThreadgroup(), 1, 1),
         )
         encoder.endEncoding()
-        command.commit()
-        command.waitUntilCompleted()
+        self.cmdqueue.submit(command)
 
     def update_electric_a(self):
         """Updates electric field components."""
@@ -1362,8 +1408,7 @@ class MetalUpdates(Updates[MetalGrid]):
             self.cmpencoderE.dispatchThreads_threadsPerThreadgroup_(self.grid.tptg, self.grid.tgs)
 
             self.cmpencoderE.endEncoding()
-            self.cmdbufferE.commit()
-            self.cmdbufferE.waitUntilCompleted()
+            self.cmdqueue.submit(self.cmdbufferE)
 
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
@@ -1410,8 +1455,7 @@ class MetalUpdates(Updates[MetalGrid]):
             )
 
             cmpencoder.endEncoding()
-            cmdbuffer.commit()
-            cmdbuffer.waitUntilCompleted()
+            self.cmdqueue.submit(cmdbuffer)
 
     def update_symmetry_boundaries_electric(self):
         """Apply the PMC ghost-image correction on Metal."""
@@ -1461,8 +1505,7 @@ class MetalUpdates(Updates[MetalGrid]):
             self.metal.MTLSizeMake(pipeline.maxTotalThreadsPerThreadgroup(), 1, 1),
         )
         encoder.endEncoding()
-        command.commit()
-        command.waitUntilCompleted()
+        self.cmdqueue.submit(command)
 
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
@@ -1473,8 +1516,9 @@ class MetalUpdates(Updates[MetalGrid]):
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
 
-        One work-item advances each list in CPU order. Completion waits
-        retain voltage, TL, then Hertzian precedence across source families.
+        One work-item advances each list in CPU order. Command buffers run in
+        submission order, which retains voltage, TL, then Hertzian precedence
+        across source families.
         """
         if self.grid.voltagesources:
             real_dtype = config.sim_config.dtypes["float_or_double"]
@@ -1534,8 +1578,7 @@ class MetalUpdates(Updates[MetalGrid]):
                 self.metal.MTLSizeMake(1, 1, 1),
             )
             cmpencoder_voltage.endEncoding()
-            cmdbuffer_voltage.commit()
-            cmdbuffer_voltage.waitUntilCompleted()
+            self.cmdqueue.submit(cmdbuffer_voltage)
 
         if getattr(self.grid, "transmissionlines", ()):
             real = config.sim_config.dtypes["float_or_double"]
@@ -1628,12 +1671,12 @@ class MetalUpdates(Updates[MetalGrid]):
                 self.metal.MTLSizeMake(1, 1, 1),
             )
             cmpencoder_hertzian.endEncoding()
-            cmdbuffer_hertzian.commit()
-            cmdbuffer_hertzian.waitUntilCompleted()
+            self.cmdqueue.submit(cmdbuffer_hertzian)
 
             # Check Ex field before and after kernel execution
             # Optional debug: Check source fields briefly for first iteration
-            if iteration == 1:
+            if iteration == 1 and logger.isEnabledFor(logging.DEBUG):
+                self.cmdqueue.synchronise()
                 try:
                     total_elements = (self.grid.nx + 1) * (self.grid.ny + 1) * (self.grid.nz + 1)
                     buffer_size = total_elements * 4
@@ -1698,8 +1741,7 @@ class MetalUpdates(Updates[MetalGrid]):
             )
 
             cmpencoder.endEncoding()
-            cmdbuffer.commit()
-            cmdbuffer.waitUntilCompleted()
+            self.cmdqueue.submit(cmdbuffer)
 
     def update_symmetry_boundaries_electric_b(self):
         """Complete the dispersive PMC ADE update on Metal."""
@@ -1735,15 +1777,14 @@ class MetalUpdates(Updates[MetalGrid]):
             self.metal.MTLSizeMake(pipeline.maxTotalThreadsPerThreadgroup(), 1, 1),
         )
         encoder.endEncoding()
-        command.commit()
-        command.waitUntilCompleted()
+        self.cmdqueue.submit(command)
 
     def time_start(self):
         """Start the wall timer used to calculate solving time for a model.
 
-        Metal launches in this backend wait for each command buffer to finish,
-        so elapsed wall time measures the completed GPU work without requiring
-        a separate end event.
+        finalise() waits for all submitted command buffers to finish and the
+        solver reads the clock after it, so elapsed wall time measures the
+        completed GPU work without requiring a separate end event.
         """
         self.timestart = timer()
 
@@ -1764,6 +1805,7 @@ class MetalUpdates(Updates[MetalGrid]):
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
+        self.cmdqueue.synchronise()
         collector = getattr(self, "ntff_collector", None)
         if collector is not None:
             collector.finalise()
