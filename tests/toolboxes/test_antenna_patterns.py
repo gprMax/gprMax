@@ -19,7 +19,9 @@ import json
 
 import h5py
 import numpy as np
+import pytest
 
+from gprMax.toolboxes.AntennaPatterns import plot_fields
 from gprMax.toolboxes.AntennaPatterns.initial_save import process_pattern
 from gprMax.toolboxes.AntennaPatterns.plot_fields import load_pattern_data, plot_pattern
 
@@ -82,3 +84,59 @@ def test_pattern_processing_and_plotting_workflow(tmp_path):
         feed["Ez"] = np.ones(8) * 1e6
     process_pattern(outputfile, configfile, patternfile)
     np.testing.assert_array_equal(load_pattern_data(patternfile)["patterns"], data["patterns"])
+
+
+def _pattern_data():
+    return {
+        "patterns": np.array([[1.0, 0.5, 0.1]]),
+        "radii": np.array([0.1]),
+        "theta_degrees": np.array([0.0, 90.0, 180.0]),
+        "pattern": np.array("E"),
+        "relative_permittivity": np.array(np.nan),
+        "relative_permeability": np.array(1.0),
+        "centre_frequency": np.array(1e9),
+        "antenna_dimension": np.array(0.06),
+    }
+
+
+@pytest.mark.parametrize(
+    ("minimum_db", "ring_step_db"),
+    [(-72, 12), (-72, 10), (-80, 12), (-50, 12), (-60, 20)],
+)
+def test_plot_pattern_rings_stay_within_display_range(
+    tmp_path, monkeypatch, minimum_db, ring_step_db
+):
+    captured = []
+    monkeypatch.setattr(plot_fields.plt, "close", captured.append)
+
+    plot_pattern(
+        _pattern_data(),
+        tmp_path / "pattern.png",
+        minimum_db=minimum_db,
+        ring_step_db=ring_step_db,
+    )
+
+    axes = captured[-1].axes[0]
+    ticks = np.asarray(axes.get_yticks(), dtype=float)
+    labels = [label.get_text() for label in axes.get_yticklabels()]
+
+    assert axes.get_ylim() == (minimum_db, 0)
+    assert np.all(ticks >= minimum_db) and np.all(ticks <= 0)
+    assert ticks[-1] == 0
+    np.testing.assert_allclose(np.diff(ticks), ring_step_db)
+    assert labels[-1] == "0 dB"
+    assert labels[:-1] == [f"{tick:g}" for tick in ticks[:-1]]
+
+
+@pytest.mark.parametrize(
+    ("minimum_db", "ring_step_db"),
+    [(-72, 0), (-72, -12), (0, 12), (10, 12), (-72, np.inf), (-np.inf, 12)],
+)
+def test_plot_pattern_rejects_invalid_ring_settings(tmp_path, minimum_db, ring_step_db):
+    with pytest.raises(ValueError):
+        plot_pattern(
+            _pattern_data(),
+            tmp_path / "pattern.png",
+            minimum_db=minimum_db,
+            ring_step_db=ring_step_db,
+        )

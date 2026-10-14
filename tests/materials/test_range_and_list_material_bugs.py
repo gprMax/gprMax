@@ -73,3 +73,43 @@ def test_list_material_existing_materials_resolve_correctly():
     lm.calculate_properties(1, _Grid())
 
     assert lm.matID == [5]
+
+
+def test_list_material_nbins_exceeding_list_length_raises_valueerror():
+    existing = Material(numID=5, ID="my_material")
+
+    class _Grid:
+        materials = [existing]
+
+    lm = ListMaterial(ID="list1", listofmaterials=["my_material"])
+
+    with pytest.raises(ValueError, match="exceeds list length"):
+        lm.calculate_properties(2, _Grid())
+    # Rejected call leaves previous state alone
+    assert lm.matID == []
+
+
+@pytest.mark.parametrize("bad", [0, -1, True, False, 2.5, "2", None])
+def test_list_material_non_positive_or_non_integer_nbins_raises_valueerror(bad):
+    existing = Material(numID=5, ID="my_material")
+
+    class _Grid:
+        materials = [existing]
+
+    lm = ListMaterial(ID="list1", listofmaterials=["my_material"])
+
+    with pytest.raises(ValueError, match="positive integer nbins"):
+        lm.calculate_properties(bad, _Grid())
+    assert lm.matID == []
+
+
+def test_list_material_missing_material_message_is_in_exception_args():
+    class _Grid:
+        materials = []
+
+    lm = ListMaterial(ID="list1", listofmaterials=["nonexistent_material"])
+
+    with pytest.raises(ValueError) as excinfo:
+        lm.calculate_properties(1, _Grid())
+    assert "nonexistent_material" in str(excinfo.value)
+    assert excinfo.value.args[0] != ""

@@ -179,11 +179,11 @@ wall's impedance and loss, put that wall inside the window with at least one
 opaque voxel beyond it. An SIBC wall exactly on the rim becomes PEC in the
 modal solve and virtual guide.
 
-Automatic mode tracking is experimental and requires further testing. Set
-``tracking="auto"`` at your discretion to use branch assignment, automatic
-degeneracy detection, and mode-quality diagnostics. See
+Set ``tracking="auto"`` to enable experimental branch assignment, automatic
+degeneracy detection, symmetry-based basis selection, and mode-quality diagnostics.
+Explicit ``mode_polarizations`` takes precedence for pair orientation. See
 :ref:`eigenmode-mode-tracking` for setup, parameters, and interpretation.
-The default remains ``"legacy"``.
+The default ``"legacy"`` uses manual groups and skips symmetry selection.
 
 An excited port launches the selected modal field and measures returning
 waves, but it does not absorb those waves. Continue the guide behind the
@@ -207,7 +207,7 @@ omitting it retains the geometry-only default.
 Named hash options may follow the anchor/plot tail. Automatic tracking accepts
 ``tracking=auto`` and ``verification=full|fast``. Advanced names match
 ``EigenmodeTrackingConfig`` fields, for example
-``residual_tolerance=1e-8``, ``edge_fraction_max=1e-3``, and
+``residual_tolerance=1e-7``, ``edge_fraction_max=1e-3``, and
 ``max_solves=200``.
 
 EigenmodeExcitation arguments
@@ -560,9 +560,12 @@ the geometry, NTFF setup, and commands to run and plot the results.
 
 For a passive receiving port in a multiport model, add its own
 ``EigenmodePort`` and ``VirtualWaveguide`` but no ``EigenmodeExcitation`` for
-that port. A model with no eigenmode excitations is allowed only when every
-eigenmode port has a virtual guide; it records raw modal spectra without
-normalized S-parameters.
+that port. During time stepping, a model with no eigenmode excitations is
+allowed only when every eigenmode port has a virtual guide; it records raw
+modal spectra without normalized S-parameters. With ``geometry_only=True``,
+ports can be inspected without an excitation or virtual guide. Combine an
+``EigenmodeBand``, ``EigenmodePort``, and ``EigenmodeFieldOutput`` to export
+tracked fields, as in :ref:`tracked-mode-gallery`.
 
 VirtualWaveguide arguments
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -606,179 +609,9 @@ Inspect the solved E/H profile before assigning a physical mode name.
 Mode numbers are solver ordering, not guaranteed TE/TM labels. A near tie
 can rotate the raw solver basis even in an unchanged symmetric guide.
 
-.. _eigenmode-degeneracy-explained:
-
-What degeneracy means for a port
---------------------------------
-
-Two modes are **degenerate** when they have the same propagation constant
-at a given frequency but independent field patterns. They accumulate the
-same propagation phase along a uniform guide. This does not mean that they
-are duplicate results or that only one should be kept: they represent two
-independent channels that the guide can carry.
-
-The circular TE11 pair is a familiar example. An ideal circular guide has
-no preferred transverse direction. One TE11 pattern can be oriented with
-its overall electric polarization along y and another along x. Rotated
-combinations, such as two diagonal polarizations, describe the same pair
-equally well. The chosen pair of patterns is called a **basis**. Changing
-the basis changes how we label and combine the channels, not the guide.
-
-Why mode numbers alone can be misleading
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-An eigensolver finds valid field patterns, but symmetry does not tell it
-which one to call vertical. At one frequency it might return vertical and
-horizontal patterns as modes 1 and 2; at another it might return the same
-patterns in reverse order, or two diagonal combinations. Small numerical
-differences can change that choice even when the physical guide is unchanged.
-This is a change of basis, not evidence that the guide has converted the
-wave's polarization.
-
-Broadband ports solve several frequency anchors and interpolate their
-fields. If mode 1 means vertical at one anchor and diagonal at the next,
-interpolating those raw patterns would change the intended polarization
-across the pulse spectrum. Tracking the complete degenerate pair lets
-gprMax compare the same two-channel space before choosing its labels.
-
-Which option should I use?
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-* Use ``degenerate=(1, 2)`` when you want the pair tracked together but do
-  not need mode numbers to mean particular physical directions with legacy
-  tracking. Its initial basis is arbitrary; subsequent anchors follow it smoothly.
-* Also use ``mode_polarizations="y"`` when you want mode 1
-  to mean vertical and mode 2 horizontal for a z-directed guide. gprMax
-  enforces those physical directions independently at each retained anchor.
-  Use the same assignments at the receiving port to measure the same labels.
-* Use ``tracking="auto"`` to detect the pair and choose default transverse
-  directions without either setting, as in :ref:`eigenmode-example-8`.
-  ``degenerate`` is ignored in this mode; ``mode_polarizations`` remains useful
-  for rotating or swapping the default directions.
-
-Declaring the pair neither excites both channels nor forces their physical
-propagation constants to become equal. ``EigenmodeExcitation`` still selects
-the channel to launch. A declared pair contributes two channels to a complete
-S-matrix study, so each needs its own independent excitation case.
-
-Near equality alone is not enough to justify mixing. For example, an
-elliptical guide can split the circular pair into modes with different
-propagation constants. Those modes accumulate different phases, and a
-combination can change polarization as it travels. That is physical beating,
-which should be represented using independent modes. gprMax accepts exact
-or numerically unresolved degeneracy for mixing. It rejects resolved splitting
-in a declared group and keeps split automatic branches separate; the
-thresholds and alignment method are in :ref:`eigenmode-degenerate-theory`.
-
-Physically labelled degenerate modes
-------------------------------------
-
-The default ``mode_polarizations=None`` preserves the current direction
-assignment. With ``tracking="auto"``, gprMax detects degenerate pairs and
-chooses their directions automatically. To override them, choose one of these
-three forms. Use the same choice at the source and receiving ports.
-
-1. **One direction for every pair.** Set ``mode_polarizations="y"`` (or
-   ``"x"``/``"z"``). The first member of each pair follows that direction;
-   the second follows the positive port-normal axis crossed with the first.
-   For a z-normal port, ``"y"`` gives y/-x. A real three-vector such as
-   ``mode_polarizations=(1, 1, 0)`` selects a diagonal direction and infers
-   its orthogonal partner. This form works with automatic or legacy tracking.
-
-2. **Two directions for every pair.** Set ``mode_polarizations=("y", "x")``
-   to explicitly select both members: first y, second x. For diagonal
-   directions use ``mode_polarizations=((1, 1, 0), (-1, 1, 0))``. Axes and
-   vectors can be mixed, for example ``("x", (1, 1, 0))``. The directions
-   must be linearly independent; they need not be orthogonal and are not
-   automatically orthogonalized. This form also works with either tracker.
-
-3. **Exact mode assignments, legacy tracking only.** Set
-   ``tracking="legacy"``, declare ``degenerate=((1, 2), (3, 4))``, and use
-   ``mode_polarizations={1: "y", 2: "x", 3: "x", 4: "y"}`` to give different
-   pairs different directions. Mapping keys are absolute mode indices:
-   ``{1: "y", 2: "x"}`` affects only modes 1 and 2. Supply both members of
-   each pair you select; other declared pairs retain their existing assignment.
-   All declared members must be included in ``modes``. Mappings are rejected
-   with ``tracking="auto"``; replace them with form 1 or 2, or explicitly
-   switch to legacy tracking and declare the pairs.
-
-For shared forms, first and second mean the lower and higher tracked mode
-indices within each detected or declared pair, not raw eigensolver ordering.
-They apply to every pair, including a partner solved internally by automatic
-tracking. Isolated modes are unchanged. Alignment requires a genuine
-numerically degenerate two-mode subspace; it does not force split modes to
-become degenerate. A shared override with no eligible pair is an error.
-
-All axes are global and must be transverse to the port normal: ``"z"`` is
-invalid for a z-normal port. Vectors must be finite, nonzero and real, and are
-normalized. A normalized normal component larger than ``1e-12`` is rejected
-(roundoff below that tolerance is removed). For two directions, gprMax rejects
-a normalized direction matrix condition number above ``10``. The angle between
-the directions must therefore be approximately 11.4 to 168.6 degrees; directions
-too close to parallel or antiparallel are rejected before solving. These errors
-also apply to explicit legacy mappings. Choose two well-separated transverse
-directions, ideally orthogonal. gprMax does not repair an invalid pair by
-projecting it into the transverse plane or orthogonalizing it.
-
-The sign convention is independent of propagation direction.
-Thus ``"y"`` and ``("y", "x")`` differ in the second member's sign for a
-z-normal port. An explicitly requested direction that the subspace cannot
-represent raises an error rather than silently falling back.
-
-For circular TE11 propagating along z, assign the channels once:
-
-.. code-block:: python
-
-   scene.add(gprMax.EigenmodePort(
-       port=1, p1=(0, 0, 0.02), p2=(0.05, 0.05, 0.02), direction="+",
-       modes=(1, 2), anchors="auto", tracking="auto",
-       mode_polarizations="y",  # Or ("y", "x") to explicitly choose both.
-   ))
-   scene.add(gprMax.EigenmodeExcitation(port=1, mode=1, waveform="auto"))
-
-Here mode 1 is vertically polarized (global y); changing only ``mode=1`` to
-``mode=2`` launches horizontal polarization (global -x). Reversing propagation
-does not change these electric-field labels. ``anchors="auto"`` selects the
-frequency anchors; it does not enable automatic mode tracking. Set
-``tracking="auto"`` explicitly to discover pairs without ``degenerate``.
-
-Equivalent hash options follow the existing anchor and plotting arguments:
-
-.. code-block:: none
-
-   ## One direction for every detected pair:
-   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto tracking=auto mode_polarizations=y
-   ## Two explicit directions for every detected pair:
-   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto tracking=auto mode_polarizations=y;x
-   ## Exact mode indices, with declared legacy pairs:
-   #eigenmode_port: 1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto tracking=legacy degenerate=1,2 mode_polarizations=1:y;2:x
-
-These are alternatives: use one definition per port. Components inside a
-vector use commas, and two directions use a semicolon:
-``mode_polarizations=1,1,0;-1,1,0``. Mapping entries use a colon between mode
-index and direction. Do not put spaces inside hash option values. Omitting
-the option corresponds to Python ``None``. Values are parsed literally,
-with no expression evaluation.
-
-Polarization describes the direction of the transverse electric field
-integrated across the aperture; local arrows need not all be parallel. gprMax
-aligns that direction at every retained frequency anchor. Geometry-only plots,
-single-anchor and broadband sources, monitors, studies, and virtual guides
-all use the same aligned fields. Set ``plot_fields=True`` to also write the
-standard modal pictures during a full run. Example 7 shows the two tracked
-TE11 profiles.
-
-With only ``degenerate``, the group is tracked smoothly, but its orientations
-at the reference anchor remain arbitrary. With neither argument, modes keep
-the existing independent tracking. Physical axis/vector selection requires
-a two-mode group in a 3D cross-section. With one direction, the second is inferred.
-
-Declare a group only for exact or numerically unresolved degeneracy. If
-asymmetry resolves the splitting, excite the independently solved modes or
-correct unintended geometry asymmetry. A group with negligible integrated
-electric field cannot be oriented by axis/vector references; use generic
-group tracking. These failures and their numerical thresholds are derived
-in :ref:`eigenmode-degenerate-theory`.
+For branch assignment, degeneracy, and polarization selection, see
+:doc:`eigenmode_tracking`. The tracking inputs remain part of
+:class:`gprMax.EigenmodePort`; the dedicated guide explains their use.
 
 Coherent and quadrature excitation
 ----------------------------------
@@ -1160,336 +993,18 @@ study-command syntax.
 The modal projection, full power matrices, and measured-excitation matrix
 solve are derived in :ref:`eigenmode-measurement-theory`.
 
-.. _eigenmode-mode-tracking:
+Tracking across frequency
+=========================
 
-Mode tracking
-=============
+Set ``tracking="auto"`` on a port to associate its modes across the anchor
+frequencies. Keep the tracking, verification, and basis-selection arguments
+in the same ``EigenmodePort`` definition as the aperture and mode list.
+See :doc:`eigenmode_tracking` for the argument tables, workflow, symmetry
+selection, diagnostics, and worked examples; :doc:`eigenmode_tracking_theory`
+derives the overlap, subspace, and alignment methods.
 
-A broadband pulse contains many frequencies. To launch the intended mode
-across that band, the port needs to know what its field looks like at each
-frequency. It solves the fields at a set of frequencies called **anchors**,
-then interpolates between them.
-
-That interpolation only makes sense if the anchor fields belong together.
-Blending an x-polarized mode at one frequency with an unrelated y-polarized
-mode at the next creates the wrong broadband source, even if both individual
-mode solves are accurate. It can also make the receiving port measure the
-wrong channel. **Mode tracking decides which fields belong to the same mode
-as frequency changes.** Its verification checks also warn about profiles that
-may be distorted by the finite port aperture.
-
-.. warning::
-
-   Automatic mode tracking and its confinement/artifact diagnostics are
-   experimental and require further testing. Use them at your discretion and
-   inspect the dispersion curves, field plots, and warnings before relying on
-   the results. Legacy tracking remains the default.
-
-When mode numbers swap: a crossing in an anisotropic guide
-----------------------------------------------------------
-
-An anisotropic dielectric can affect x- and y-polarized fields differently.
-Their propagation constants can therefore cross as frequency changes, as in
-:ref:`eigenmode-example-9`. The fields remain distinguishable, but their order
-in the solver's list changes. For example:
-
-.. list-table:: Why the raw solution number is not a reliable mode identity
-   :header-rows: 1
-
-   * - Frequency
-     - First solution in the sorted list
-     - Second solution in the sorted list
-   * - Below a crossing
-     - Mostly x-polarized
-     - Mostly y-polarized
-   * - Above the crossing
-     - Mostly y-polarized
-     - Mostly x-polarized
-
-If the source simply took the first solution at every anchor, its polarization
-would switch at the crossing. Interpolating those fields would blend two
-different channels. A receiver using the same mistaken numbering could then
-report an apparent change in transmission or coupling between modes.
-
-Automatic tracking compares the **field patterns**, as well as how their
-propagation constants change. In this example it connects the x-like field
-below the crossing to the x-like field above it, even when its raw solution
-number changes. The selected channel follows one curve *through* the crossing
-instead of jumping to the other curve. Distinct modes retain their own
-propagation constants; tracking does not average them together.
-
-In the plots, follow one label across neighbouring frequencies: its field
-should change consistently. A crossing in the dispersion plot is not itself
-an error. At an avoided crossing, the physical fields can gradually exchange
-character; tracking is not a rule that forces every mode to stay x-polarized
-or y-polarized forever.
-
-When polarization rotates arbitrarily: the circular TE11 pair
--------------------------------------------------------------
-
-A circular waveguide has two TE11 modes with the same propagation constant.
-One can be chosen x-polarized and the other y-polarized. Because they are
-**degenerate** (they share that propagation constant), rotated combinations
-are equally valid solutions.
-
-An eigensolver might return x/y fields at one anchor and two diagonal fields
-at the next. Nothing in the circular guide has rotated: the solver has simply
-chosen different representatives of the same pair. Interpolating the first
-returned field at each frequency would make the source polarization vary
-across the pulse's band. Measured coupling into the other polarization could
-then reflect this choice of fields rather than a physical effect.
-
-Automatic tracking recognizes the pair and aligns it **as a pair**. In
-:ref:`eigenmode-example-8`, it chooses x/y directions consistently at the
-anchors, so a selected input polarization keeps its meaning across the band.
-The pair does not need to be declared with ``degenerate``, and
-``mode_polarizations`` is optional. Supply ``"y"`` when you want y/-x
-directions instead of x/y, and use the same choice at both ports.
-
-Even if you request only ``modes=(1,)``, the tracker can solve the second member
-internally to align the pair. That extra solve does not add another public
-input or output channel. Alignment is only allowed when the modes really can
-be mixed without breaking their field equations. Two nearby modes with
-different, resolved propagation constants stay separate.
-
-When the mode belongs to the artificial box
--------------------------------------------
-
-An open guide, such as a coplanar waveguide, has fields extending into the
-surrounding air. The mode solver can only see the finite cross-section inside
-the port aperture. Its artificial outer boundary can influence the fields
-or support a pattern that mainly belongs to that calculation box. This is a
-**box mode**; it is not the same as a legitimate mode confined by the physical
-metal walls of a waveguide.
-
-A box mode can be solved very accurately and still be a poor representation
-of the intended guide. If used for injection or measurement, it can produce
-results that depend strongly on the chosen aperture. Following that pattern
-consistently across frequency would not, by itself, make it a good profile.
-
-With ``verification="full"``, automatic tracking asks practical questions:
-
-* Is much of the field still present near the artificial outer boundary?
-* If the window is enlarged using the surrounding model geometry, does the
-  field pattern or propagation constant change appreciably?
-* Does a finer transverse grid give a consistent result?
-
-These checks can flag a **suspected** box mode or poorly confined profile.
-Mesh sensitivity alone does not prove that a mode is a box artifact. Nor can
-the checks always distinguish an artificial mode from a real guided mode
-whose field has simply been cut off by a small aperture.
-
-For example, a low-frequency CPW mode can have a wide field extending far into
-the air. A small aperture may truncate it and trigger a warning, even though
-it is the intended mode. **A confinement or box-mode warning does not remove
-the profile:** it remains available if its numerical solution, tracking, and
-forward power are valid. The warning says that accuracy may be reduced.
-Enlarge the aperture, leave enough surrounding non-PML geometry for the
-checks, and compare the fields and S-parameters. Tracking helps identify the
-problem; it cannot supply the missing space around the guide.
-
-Enabling tracking and choosing what to inspect
------------------------------------------------
-
-Add ``tracking="auto"`` to each participating source and receiver port.
-Start with the default ``verification="full"`` when evaluating a model.
-``verification="fast"`` skips the extra mesh and window solves, so it provides
-less evidence about box modes. Examples 8 and 9 use ``fast`` to keep their
-inspection runs short; change it to ``full`` to perform those extra checks.
-
-.. code-block:: python
-
-   scene.add(gprMax.EigenmodePort(
-       port=1, p1=(0.02, 0.005, 0), p2=(0.02, 0.075, float("inf")),
-       direction="+", modes=(1, 2), anchors="auto",
-       tracking="auto", verification="full", plot_fields=True,
-   ))
-
-``anchors="auto"`` and ``tracking="auto"`` do different jobs: **anchors choose
-where to solve; tracking chooses which solutions to connect**. You can also
-provide an explicit list of anchor frequencies, as Examples 8 and 9 do.
-
-Mode labels are assigned at the anchor nearest the band centre (the lower
-frequency on a tie), then followed towards both ends of the band. Thus
-``mode=1`` means a tracked channel, not necessarily the first raw solution at
-every frequency. When comparing with an older run, check the actual fields
-at both ports rather than assuming that the same number means the same
-polarization.
-
-Run Examples 8 and 9 with ``--geometry-only`` to inspect their dispersion
-curves and modal fields before the time-domain simulation. Their scripts set
-``plot_fields=True``, so a full run also produces these plots. At a crossing,
-check that the labels follow consistent fields. For TE11, check that the chosen
-polarizations stay aligned. For an open guide, check the outer-edge fields and
-any confinement warnings. Read the warning status as well as the curve: a
-smooth curve can still describe a questionable profile.
-
-Tracking does not guarantee low S11. Correctly matched fields can still be
-interpolated too coarsely, especially near cutoff. Check convergence with
-closer anchor spacing, a suitable aperture, mesh resolution, PML thickness,
-and recording duration when small reflections matter.
-
-Tracking and verification options
----------------------------------
-
-* ``tracking="auto"`` matches fields across frequency and finds degenerate
-  groups. ``tracking="legacy"`` preserves the existing tracking method and
-  manual grouping; it remains the default.
-* ``verification="full"`` is the default for automatic tracking. It checks
-  how well the fields satisfy the numerical equations, then compares them
-  with a finer transverse grid (half the spacing) and, for open cross-sections,
-  two larger windows from the model. The comparison windows contain no PML.
-  Refinement checks the geometry represented on the grid; it does not recover
-  a perfectly smooth wall or missing thin-sheet details. These comparisons
-  add setup solves.
-* ``verification="fast"`` checks the numerical equations and the fields near
-  artificial edges, but skips the finer-grid and larger-window solves. It is
-  useful for quick inspection; its confinement label has less evidence.
-  Verification settings apply
-  only to automatic tracking.
-* ``degenerate`` is ignored with automatic tracking. A detected two-mode group
-  is aligned with the global transverse electric directions when its fields
-  support that choice (x/y for the z-directed circular guide in Example 8).
-  Otherwise the solver chooses a reproducible pair of fields.
-  ``mode_polarizations`` optionally requests different directions, which must
-  be supported by the detected group. Supply one or two shared directions
-  and use the same choice at both ports; mappings require legacy tracking.
-* ``plot_fields=True`` writes tracked dispersion and modal-field figures in
-  both geometry-only and full runs. ``None`` enables them only in geometry-only
-  runs; ``False`` suppresses them.
-
-Warnings and inspection
------------------------
-
-A warning about the aperture is different from a failed mode solve or an
-uncertain mode identity. Use the following distinction when deciding what to
-change:
-
-.. list-table:: What the result means for your source
-   :header-rows: 1
-   :widths: 30 35 35
-
-   * - Result
-     - What happens
-     - What to inspect
-   * - Suspected box mode or poor confinement
-     - A numerically valid, confidently tracked mode with forward power
-       stays in use, with an accuracy warning. This warning alone does not
-       remove anchors or change mode numbers.
-     - Check whether the field reaches the artificial edge. Enlarge the
-       aperture and compare fields and S-parameters.
-   * - Verification could not finish
-     - The result is unresolved, rather than proved good or bad. A usable
-       primary profile is retained.
-     - Read the reason: surrounding geometry may be unavailable, refinement
-       may be unsupported, or the extra-solve budget may be exhausted.
-   * - Unsure which mode connects to the next anchor
-     - The tracker tries more candidates and intermediate frequencies. If
-       still unresolved, it uses the automatic-anchor fallback or raises an
-       error for explicit anchors. It does not interpolate across the gap.
-     - Inspect the fields on both sides of the uncertain interval and the
-       anchor-selection message before trusting the broadband result.
-   * - Failed numerical solution
-     - Fields that fail the equation checks, contain nonfinite values, or
-       cannot be reconstructed or aligned reliably cannot supply a profile.
-     - Investigate the solve failure; enlarging a warning threshold does not
-       repair unusable fields.
-
-A mode below cutoff is another case: decay along the guide does not make it
-a box mode. It may remain useful as a receiver reference, but a mode without
-usable forward power cannot be injected as a travelling power wave.
-
-The figures place the dispersion curves, ``Re(n_eff)`` and ``-Im(n_eff)``,
-above the E/H fields. The first shows how the phase propagation changes with
-frequency; the second shows attenuation for the passive forward convention.
-Diagnostic markers distinguish questionable profiles that remain in use
-from missing or unusable profiles. A nonzero attenuation curve alone is not
-evidence of a box mode.
-
-For detailed inspection, the HDF5 ``mode_tracking`` group records which
-solutions were matched, equation errors, verification evidence, and unresolved
-intervals. Existing anchor and power validity masks keep their meanings.
-The equations and exact decision rules are in
-:ref:`eigenmode-auto-tracking-theory`.
-
-Advanced thresholds and limits
-------------------------------
-
-Most users can leave these settings at their defaults. Inspect the fields and
-geometry before relaxing a threshold to suppress a warning. Pass
-``tracking_config=gprMax.EigenmodeTrackingConfig(...)`` or a mapping to
-override the defaults below. Omitted fields keep their defaults. All thresholds
-are dimensionless; integer controls count candidates, refinement steps, or
-additional solves. These controls apply only to automatic tracking.
-Thresholds must be finite and in ``(0, 1]``; ``extra_candidates`` and
-``max_depth`` are nonnegative integers, and ``max_solves`` is a positive integer.
-
-.. list-table:: EigenmodeTrackingConfig
-   :header-rows: 1
-   :widths: 25 15 60
-
-   * - Parameter
-     - Default
-     - Meaning
-   * - ``residual_tolerance``
-     - ``1e-8``
-     - Maximum relative eigenpair and reconstructed-field residual for numerical validity. Mixed degenerate fields also retain the stricter ``1e-9`` residual check.
-   * - ``beta_drift_tolerance``
-     - ``1e-3``
-     - Maximum normalized propagation-constant drift in mesh/window verification.
-   * - ``verification_overlap``
-     - ``0.999``
-     - Minimum squared field overlap, or smallest squared principal subspace overlap, in verification comparisons.
-   * - ``edge_fraction_max``
-     - ``1e-3``
-     - Maximum fraction of the squared E/H field norm in the outer edge strip (10% of each transverse extent, at least one cell) used as confinement evidence at artificial boundaries.
-   * - ``tracking_overlap``
-     - ``0.8``
-     - Minimum squared field/subspace overlap for a candidate match. This is distinct from the stricter verification overlap.
-   * - ``assignment_margin``
-     - ``0.02``
-     - Minimum total-cost advantage over an alternative one-to-one assignment for an individual-mode match.
-   * - ``subspace_margin``
-     - ``0.02``
-     - Minimum separation of the squared projection scores of the last selected and first excluded members when extracting a subgroup from a larger cluster.
-   * - ``unmatched_cost``
-     - ``0.65``
-     - Cost of leaving an individual mode unmatched rather than forcing a poor match.
-   * - ``cluster_gap``
-     - ``1e-5``
-     - Relative eigenvalue gap for candidate clusters. It does not relax the stricter ``1e-8`` degeneracy condition for mixing fields.
-   * - ``extra_candidates``
-     - ``4``
-     - Additional internal eigenpairs requested per solve, subject to solver size, to find competing branches or missing partners.
-   * - ``max_depth``
-     - ``8``
-     - Maximum adaptive midpoint-refinement steps for resolving identity ambiguity; ``0`` disables these extra frequency solves.
-   * - ``min_relative_step``
-     - ``1e-5``
-     - Stop refining an ambiguous interval when its width divided by its midpoint frequency reaches this threshold.
-   * - ``max_solves``
-     - ``200``
-     - Budget for additional adaptive and verification solves per port. Required primary anchors are retained independently of this budget.
-
-For example, allow more internal candidates while retaining all other defaults:
-
-.. code-block:: python
-
-   tracking_config = gprMax.EigenmodeTrackingConfig(extra_candidates=6)
-   # Pass tracking="auto", tracking_config=tracking_config to EigenmodePort.
-
-The equivalent hash options use the field names directly, without a
-``tracking_config`` prefix:
-
-.. code-block:: none
-
-   #eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto y tracking=auto verification=full extra_candidates=6
-
-Applications and troubleshooting
-================================
-
-Tutorial examples
------------------
+Simulation examples
+===================
 
 Run these commands from the repository root with gprMax installed in the
 active environment. Every model defines ``build_scene()`` without running on
@@ -1700,7 +1215,7 @@ and refine the anchor sampling to check sensitivity.
    generalized coefficient can describe a decaying field there, but not a
    transported real-power ratio.
 
-Example 7: physically aligned circular TE11
+Example 7: legacy tracking of circular TE11
 -------------------------------------------
 
 The circular PEC guide assigns global y electric polarization to mode 1
@@ -1709,15 +1224,15 @@ and global -x polarization to mode 2 using ``degenerate=(1, 2)`` and
 anchors preserve those physical labels. The source uses a virtual guide;
 the receiving port sits at the opposite longitudinal PML interface.
 
-:download:`Complete Python model <../../examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py>`
+:download:`Complete Python model <../../examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py>`
 
 .. code-block:: console
 
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --geometry-only
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --mode 1
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/plot_results.py --mode 1
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/circular_te11.py --mode 2
-   python examples/features/eigenmode_ports/example_7_degenerate_te11/plot_results.py --mode 2
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --geometry-only
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --mode 1
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/plot_results.py --mode 1
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py --mode 2
+   python examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/plot_results.py --mode 2
 
 Only the excitation mode changes between the two full runs. Their separate
 result plots show reflection and transmission into each labelled channel
@@ -1745,10 +1260,49 @@ x/y; E and H magnitudes are normalised independently.
 
    Degenerate TE11 mode 2: global x electric polarization.
 
+Example 8: automatic circular TE11 tracking
+-------------------------------------------
+
+The circular-guide simulation detects the TE11 pair automatically at both
+ports, using ``tracking="auto"`` without a manually declared degenerate
+group. First inspect its geometry-only fields; then excite mode 1 or 2 and
+plot the co- and cross-polarized reflection and transmission. The source
+has a virtual-waveguide feed and the receiving end continues into a PML.
+See :ref:`eigenmode-example-8` for the complete workflow.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --geometry-only
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --mode 1
+   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py --mode 1
+
+:download:`Complete Python model <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`.
+
+Example 9: automatic crossing in a square anisotropic bore
+----------------------------------------------------------
+
+A square PEC guide filled with ``diag(2.25, 1, 1)`` has TE10 and TE02
+branches whose raw eigenvalue ranks exchange. Both ports automatically
+track channels 3 and 4 through that crossing. Inspect the modal fields,
+launch either channel, then check modal S11/S21 and the off-centre probe's
+polarization. See :ref:`eigenmode-example-9` for both launched-mode runs
+and the tracking diagnostics.
+
+.. code-block:: console
+
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --geometry-only
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py --mode 3
+   python examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py --mode 3
+
+:download:`Complete Python model <../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py>`.
+
+Miscellaneous
+=============
+
 .. _eigenmode-pec-wall-sampling:
 
 PEC wall construction and averaging
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-----------------------------------
 
 At an air/PEC boundary, the practical question is **which material wins at a
 shared electric-field sample?** Electric fields are stored on the edges of
@@ -1795,111 +1349,8 @@ perfectly round; check mesh convergence for the intended physical geometry.
 For unexpectedly large reflection in a uniform guide, also check frequency
 anchor spacing, PML thickness, and recording duration.
 
-.. _eigenmode-example-8:
-
-Example 8: automatic circular TE11 degeneracy
----------------------------------------------
-
-This 3D straight circular PEC guide has two ports and measures both TE11
-polarizations over 20--24 GHz. Both ports use ``tracking="auto"`` and omit
-``degenerate`` and ``mode_polarizations``. The tracker discovers the pair and
-defaults mode 1 to global x and mode 2 to global y. These labels differ from
-Example 7's explicit y/-x assignment. One or two shared polarization
-directions can swap or rotate them. Requesting only ``modes=(1,)`` still solves the missing
-partner internally without adding a second public channel.
-
-The bore retains ``averaging="y"`` as explained in
-:ref:`eigenmode-pec-wall-sampling`. Explicit anchors resolve the modal impedance
-between 20 and 24 GHz and cover the pulse's spectral guards; grouping and
-polarization remain automatic. A virtual guide terminates the source port,
-and the receiving end continues into the domain PML.
-
-:download:`Complete Python model <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`
-and :download:`result plotter <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py>`
-
-.. code-block:: console
-
-   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --geometry-only
-   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --mode 1
-   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py --mode 1
-   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py --mode 2
-   python examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py --mode 2
-
-The model sets ``plot_fields=True``, so both geometry-only and full runs write
-``auto_degenerate_te11_modeN_PortP_ModeM.png`` for each port and tracked mode.
-Each figure combines dispersion curves with the modal E/H fields at retained
-anchors. The two branches should have coincident effective indices and
-consistent orthogonal polarizations. After each full run, the plotter writes
-``auto_degenerate_te11_modeN_results.png`` showing co- and cross-polarized
-S11/S21 and the centre receiver's Ex/Ey traces.
-
-.. figure:: ../../images_shared/auto_degenerate_te11_mode1_results.png
-   :alt: Automatically tracked circular TE11 mode 1 with co-polarized transmission and a guide-centre Ex pulse, while the orthogonal channel remains small.
-   :width: 100%
-
-   Example 8, launched mode 1: the detected pair retains its global x/y
-   polarization labels across the band; the plotted output is dominated by
-   the driven x-polarized channel.
-
-Automatic tracking is experimental; use it at your discretion. This example uses
-``verification="fast"`` for quick inspection; omitting that argument selects
-the automatic tracker's default full verification. Fast diagnostics do not
-include mesh or larger-window comparison solves. In the tested
-double-precision CPU configuration, the worst co-polarized S11 is about
--62.9 dB for either excitation and co-polarized S21 is near 0 dB.
-
-.. _eigenmode-example-9:
-
-Example 9: a mode crossing in an anisotropic guide
---------------------------------------------------
-
-This 3D example uses one straight rectangular PEC guide with a 16 by 8 mm
-bore filled by the diagonal relative-permittivity tensor
-``diag(2.25, 1, 1)``. Its two polarized fundamental branches have different
-cutoff terms and slopes. Their effective-index curves cross near 14.4 GHz
-on this voxel grid. Both ports use ``tracking="auto"``: each public label
-should retain its polarization while its raw eigensolver order changes.
-The distinct propagation constants are preserved on either side of the
-crossing; the two branches are not treated as a permanently degenerate pair.
-
-The ports are separated by 52 mm and measure 13.1--15.8 GHz. The anisotropic
-fill is built before the surrounding PEC walls to preserve their electric
-boundary samples. Explicit anchors are closer near the lower band's cutoff,
-where the modal impedance changes rapidly. Both guide ends continue through
-16-cell domain PMLs.
-
-:download:`Complete Python model <../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py>`
-and :download:`result plotter <../../examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py>`
-
-.. code-block:: console
-
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --geometry-only
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --mode 1
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py --mode 1
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/auto_mode_crossing.py --mode 2
-   python examples/features/eigenmode_ports/example_9_auto_mode_crossing/plot_results.py --mode 2
-
-Both ports set ``plot_fields=True``. Inspect
-``auto_mode_crossing_modeN_PortP_ModeM.png`` for the crossing dispersion curves
-and the tracked E/H polarization at each anchor. The geometry-only command
-produces these figures without time stepping. After a full run,
-``auto_mode_crossing_modeN_results.png`` shows both modes' S11/S21, marks the
-crossing frequency, and plots the guide-centre polarization.
-
-.. figure:: ../../images_shared/auto_mode_crossing_mode1_results.png
-   :alt: Mode-1 transmission remains near zero decibels across the tracked crossing near 14.42 gigahertz, while the centre receiver remains polarized along y.
-   :width: 100%
-
-   Example 9, launched tracked mode 1: the response remains on one
-   polarization branch through the crossing near 14.42 GHz.
-
-Automatic tracking is experimental; use it at your discretion. This example also selects
-``verification="fast"``. Use ``verification="full"`` to request the extra
-verification solves. Tested double-precision CPU runs give worst co-polarized
-S11 of about -81.1 dB for mode 1 and -62.4 dB for mode 2, with co-polarized S21
-near 0 dB. These values describe the supplied voxel model and sampled band;
-tracking confidence alone does not guarantee that reflection accuracy for
-other anchor spacings, meshes, or terminations.
+The automatic circular-pair and anisotropic-crossing demonstrations are
+:ref:`eigenmode-example-8` and :ref:`eigenmode-example-9` in the tracking guide.
 
 Direct eigenmode ports inside an HSG subgrid
 --------------------------------------------
@@ -1952,6 +1403,9 @@ transported real power. Check masks and conditioning, move bins away from
 the exact singularity, and refine anchors. Neither more frequency bins nor
 a finite output number certifies accuracy.
 
+Troubleshooting
+===============
+
 Accuracy checklist
 ------------------
 
@@ -1972,10 +1426,95 @@ Accuracy checklist
   with automatic tracking, inspect the detected groups and their polarizations.
   Do not use a fixed single anchor to conceal an incorrect physical channel label.
 
+Common warning and error messages
+---------------------------------
+
+The excerpts below omit port IDs, frequencies, and other run-specific values.
+Inspect the geometry-only field plots and the affected frequency range before
+changing the model.
+
+.. list-table:: Messages and suggested fixes
+   :header-rows: 1
+   :widths: 40 60
+
+   * - Warning or error excerpt
+     - Suggested fix
+   * - ``anchor mode overlap ... below the warning threshold`` or
+       ``The broadband anchor modes cannot be tracked reliably``
+     - Inspect neighbouring anchor profiles, mode ordering, and cutoff.
+       Add closer frequency anchors. For crossings or degenerate modes,
+       use ``tracking="auto"``; with legacy tracking, declare the actual
+       degenerate groups. Use a single frequency only when a fixed modal
+       basis is appropriate for the intended simulation.
+   * - ``Automatic mode tracking ... is unresolved between ...``
+     - Inspect the tracked fields and numerical validity near that interval.
+       Refine anchor spacing and mesh resolution, and check that the aperture
+       contains the whole mode. Check the candidate coverage using the
+       diagnostics described in :doc:`eigenmode_tracking`. A single anchor
+       selects a fixed basis; it does not resolve an unidentified branch.
+   * - ``unbound_suspect confinement diagnostics``
+     - Inspect the field near the aperture edge and the reported reason.
+       For an open dielectric guide, enlarge the transverse window and check
+       convergence with window size and mesh spacing. Check whether the mode
+       remains guided near cutoff. Numerically valid anchors can still
+       represent a poorly confined field.
+   * - ``Eigenmode anchors do not cover the significant excitation spectrum``
+       or ``anchor frequencies do not cover the significant waveform spectrum``
+     - Use per-port ``anchors="auto"``, widen explicit anchors to cover the
+       pulse spectrum, or narrow the pulse bandwidth. For a finite band,
+       ``EigenmodeExcitation(..., waveform="auto")`` supplies a validated
+       bandpass waveform. Measurement frequencies alone do not define the
+       full excitation spectrum.
+   * - ``waveform has significant DC or Nyquist content``
+     - Use ``waveform="auto"`` or a band-limited custom pulse whose spectrum
+       lies above zero and below the temporal Nyquist frequency. Check the
+       sampled waveform and spectrum; the reported endpoint bins are discarded.
+   * - ``waveform has zero or non-finite spectral energy`` or
+       ``no usable positive-frequency spectral energy``
+     - Check waveform amplitude, finite sample values, source timing, and
+       recording duration. Ensure the pulse occurs within the run and contains
+       positive-frequency energy away from DC and Nyquist.
+   * - ``Eigenmode receiver ... is not next to a PML`` or
+       ``not next to the ... PML interface``
+     - Provide a uniform guide continuation into a nonzero PML and place the
+       port at the indicated interface, or use the appropriate virtual-guide
+       termination. Check PML thickness and reflection convergence. During a
+       geometry-only inspection this warning concerns the subsequent driven run.
+   * - ``A positive-direction eigenmode source must be at least one cell inside
+       the lower domain boundary``
+     - Move the source plane inward by at least one cell so its staggered
+       magnetic-field plane fits inside the grid. Also check the aperture bounds
+       and any PML or subgrid clearance requirements.
+   * - ``Yee stencil must lie strictly inside the subgrid working region``
+     - Move the entire aperture inward, including its adjacent magnetic plane,
+       or enlarge the subgrid working region. Keep the stencil away from the
+       coupling surface and auxiliary/PML region. See the HSG notes above.
+   * - ``Eigenmode port ... is already defined`` or ``references unknown waveform``
+     - Give each port a unique number and define the referenced waveform before
+       its excitation. Keep the band, ports, waveform, and excitations in the
+       same owning grid.
+   * - ``Degenerate modal group has rank loss or ill-conditioned fields``
+     - With legacy tracking, verify that the declared group contains distinct
+       modes from the same physical degenerate subspace. Inspect cutoff and
+       field profiles, then refine the mesh and anchors. Automatic tracking
+       can detect groups without a manual declaration.
+   * - ``Two-direction sequences and per-mode/per-group mode_polarizations mappings are deprecated``
+     - Prefer one global transverse direction when its inferred orthogonal
+       partner matches the intended basis. Both trackers retain explicit shared
+       pairs, preserving their signs and nonorthogonal directions; mappings
+       require legacy tracking. These compatibility forms will be removed in
+       gprMax 5.0; see :doc:`eigenmode_tracking` for migration and phase conventions.
+   * - ``Mode polarization must be transverse to the port normal``
+     - Supply one nonzero direction in the port's transverse plane, such as
+       ``mode_polarizations="y"`` for a z-normal port. See
+       :doc:`eigenmode_tracking` for the polarization convention.
+
 The numerical limitations, convergence considerations, and validation
 evidence are collected in :doc:`eigenmode_port_theory`.
 
 .. seealso::
 
-   :doc:`eigenmode_port_theory` derives the modal operators, tracking,
-   broadband source synthesis, and measurement equations.
+   :doc:`eigenmode_port_theory` derives the modal operators, broadband source
+   synthesis, and measurement equations. :doc:`eigenmode_tracking` explains
+   tracking inputs and examples; :doc:`eigenmode_tracking_theory` derives
+   branch assignment and symmetry-based basis construction.

@@ -101,9 +101,10 @@ class TestDiscretisationProperties:
 class TestSetPmlThickness:
     """PML thickness bookkeeping.
 
-    Only the forms that actually work are pinned: a scalar and a 6-element
-    sequence. The 1-element branch and the 2-to-5-element lengths are both
-    broken in ways recorded in the analogy doc's Observations.
+    A scalar or a 1-element sequence sets all six faces; a 6-element
+    sequence maps in documented order. Anything else is a ``ValueError`` —
+    the method validates fully before mutating, so a rejected call leaves
+    the previous thickness in place.
     """
 
     def test_constructor_default_is_ten(self):
@@ -149,6 +150,47 @@ class TestSetPmlThickness:
         g = make_grid(arrays=False)
         g.set_pml_thickness((1, 2, 3, 4, 5, 6))
         assert all(isinstance(v, int) for v in g.pmls["thickness"].values())
+
+    def test_one_element_sequence_sets_all_six(self, make_grid):
+        g = make_grid(arrays=False)
+        g.set_pml_thickness((7,))
+        assert all(v == 7 for v in g.pmls["thickness"].values())
+
+    def test_list_forms_are_accepted(self, make_grid):
+        g = make_grid(arrays=False)
+        g.set_pml_thickness([3])
+        assert all(v == 3 for v in g.pmls["thickness"].values())
+        g.set_pml_thickness([1, 2, 3, 4, 5, 6])
+        assert g.pmls["thickness"]["xmax"] == 4
+
+    @pytest.mark.parametrize("bad", [(), (1, 2), (1, 2, 3), (1, 2, 3, 4, 5), (1,) * 7])
+    def test_wrong_length_raises_and_keeps_previous(self, make_grid, bad):
+        g = make_grid(arrays=False)
+        before = dict(g.pmls["thickness"])
+        with pytest.raises(ValueError):
+            g.set_pml_thickness(bad)
+        assert dict(g.pmls["thickness"]) == before
+
+    @pytest.mark.parametrize("bad", [True, False, "10", b"10", 4.0, None, (1.5,) * 6])
+    def test_non_integer_type_raises_and_keeps_previous(self, make_grid, bad):
+        g = make_grid(arrays=False)
+        before = dict(g.pmls["thickness"])
+        with pytest.raises(ValueError):
+            g.set_pml_thickness(bad)
+        assert dict(g.pmls["thickness"]) == before
+
+    def test_bool_inside_sequence_raises(self, make_grid):
+        g = make_grid(arrays=False)
+        with pytest.raises(ValueError):
+            g.set_pml_thickness((1, True, 3, 4, 5, 6))
+
+    @pytest.mark.parametrize("bad", [-1, (-1,), (1, 2, 3, 4, 5, -1), [0, 0, 0, 0, 0, -2]])
+    def test_negative_thickness_raises_and_keeps_previous(self, make_grid, bad):
+        g = make_grid(arrays=False)
+        before = dict(g.pmls["thickness"])
+        with pytest.raises(ValueError):
+            g.set_pml_thickness(bad)
+        assert dict(g.pmls["thickness"]) == before
 
 
 class TestAddSource:

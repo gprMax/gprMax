@@ -42,12 +42,24 @@ class TestRatioValidation:
 
     @pytest.mark.parametrize("ratio", [2, 4, 6, 8])
     def test_even_ratios_are_rejected(self, subgrid_kwargs, ratio):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="positive odd integer"):
             SubGridHSGGrid(**{**subgrid_kwargs, "ratio": ratio})
 
     def test_zero_ratio_is_rejected(self, subgrid_kwargs):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="positive odd integer"):
             SubGridHSGGrid(**{**subgrid_kwargs, "ratio": 0})
+
+    @pytest.mark.parametrize("ratio", [-5, -3, -1])
+    def test_negative_odd_ratios_are_rejected(self, subgrid_kwargs, ratio):
+        """``-3 % 2 == 1`` in Python, so a parity-only check lets negative
+        odds through to silently corrupt sizes."""
+        with pytest.raises(ValueError, match="positive odd integer"):
+            SubGridHSGGrid(**{**subgrid_kwargs, "ratio": ratio})
+
+    @pytest.mark.parametrize("ratio", [True, False, 3.5, 3.0, "3", None])
+    def test_non_integer_ratios_are_rejected(self, subgrid_kwargs, ratio):
+        with pytest.raises(ValueError, match="positive odd integer"):
+            SubGridHSGGrid(**{**subgrid_kwargs, "ratio": ratio})
 
 
 class TestRequiredKwargs:

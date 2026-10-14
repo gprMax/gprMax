@@ -17,6 +17,7 @@
 
 import logging
 from abc import ABC, abstractmethod
+from numbers import Integral
 
 import numpy as np
 
@@ -29,11 +30,15 @@ class SubGridBaseGrid(FDTDGrid, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-        self.ratio = kwargs["ratio"]
-
-        if self.ratio % 2 == 0:
-            logger.exception("Subgrid Error: Only odd ratios are supported")
-            raise ValueError
+        ratio = kwargs["ratio"]
+        if (
+            isinstance(ratio, bool)
+            or not isinstance(ratio, Integral)
+            or int(ratio) < 1
+            or int(ratio) % 2 == 0
+        ):
+            raise ValueError(f"Subgrid ratio must be a positive odd integer, got {ratio!r}")
+        self.ratio = int(ratio)
 
         # ratio=1 is an equal-resolution embedded region rather than a
         # refining subgrid. It uses the HSG ownership/coupling machinery, but

@@ -1,0 +1,12 @@
+{
+  "geometry_only_snapshots": true,
+  "time_stepping": false,
+  "excitation": false,
+  "parameter_sweep": "Undriven FDFD modes; axial permittivity at fixed20GHz",
+  "source_sha256": {
+    "examples\\features\\eigenmode_tracking\\example_11\\tracked_modes.py": "8753272671d792b9010f7c59c151fb211d946ff55ac87cf2fd15e5f476b86be2"
+  },
+  "dispersion_plot_postprocessing_sha256": {
+    "examples/features/eigenmode_tracking/plot_results.py": "029934c2e7bc4ea4f88c8b1d2ada3f3dca60cdfb762a2f30ee221203ebbdb16f"
+  }
+}

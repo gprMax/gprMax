@@ -173,6 +173,11 @@ Optional command-line arguments are:
 * ``-fft`` to include the waveform's power spectrum, calculated using the FFT.
 * ``-save`` to save a PNG without opening a plot window.
 
+.. note::
+   ``impulse`` previews also require a positive placeholder ``freq`` (for
+   example ``1``), matching the ``#waveform`` command. The value is not used
+   in the impulse samples.
+
 
 Definitions of the built-in waveforms and example plots are shown using the parameters: amplitude of one, centre frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
 

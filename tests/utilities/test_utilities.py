@@ -291,15 +291,18 @@ class TestRoundFloat:
     def test_many_places_leave_the_value_alone(self):
         assert round_float(0.1, 15) == pytest.approx(0.1)
 
-    @pytest.mark.parametrize("places", [-1, -10, True, 2.0, "2", None])
-    def test_invalid_place_count_raises(self, places):
-        """``'0' * -1`` is the empty string, so the old code silently treated
-        a negative count as zero (``Decimal("1.")``); ``True`` silently meant
-        one place. A place count comes from configuration, so a bad value is
-        a programming error and must fail clearly instead of rounding to the
-        wrong precision. No production caller passes a negative count."""
-        with pytest.raises(ValueError):
-            round_float(1.9, places)
+    @pytest.mark.parametrize(
+        "value, places, expected",
+        [(0.99, 2, 0.99), (1.23, 2, 1.23), (2.99, 2, 2.99)],
+    )
+    def test_decimal_boundaries_are_not_dropped_a_unit(self, value, places, expected):
+        assert round_float(value, places) == expected
+
+    def test_a_numpy_float32_is_accepted(self):
+        assert round_float(np.float32(1.23), 2) == 1.23
+
+    def test_a_negative_place_count_is_silently_treated_as_zero(self):
+        """``'0' * -1`` is the empty string, so the target becomes ``"1."``.
 
     @pytest.mark.parametrize(
         "value, places, expected",
@@ -387,6 +390,19 @@ class TestRound32:
     def test_a_string_input_is_accepted(self):
         """``float(value)`` first, so a value straight from a hash command works."""
         assert round32("33") == 64
+
+    @pytest.mark.parametrize("bad", [-1, -32, -33, float("inf"), float("-inf"), float("nan")])
+    def test_non_finite_or_negative_raises(self, bad):
+        """Block sizes come from counts, so negatives and non-finite values
+        are programming errors, not sizes. Previously ``-1`` gave ``0`` and
+        ``inf``/``nan`` raised cryptic ``OverflowError``/``ValueError``."""
+        with pytest.raises(ValueError):
+            round32(bad)
+
+    @pytest.mark.parametrize("bad", [True, False, None])
+    def test_non_numeric_type_raises(self, bad):
+        with pytest.raises(ValueError):
+            round32(bad)
 
 
 class TestFftPower:

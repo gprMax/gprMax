@@ -162,7 +162,7 @@ def test_opencl_pml_uses_each_fields_larger_spatial_history(
             assert expected_range.stop != max(history.size for history in histories)
         ranges.append(expected_range.stop)
 
-        assert len(args) == 27
+        assert len(args) == 28
         assert all(isinstance(value, np.int32) for value in args[:13])
         assert tuple(args[:6]) == tuple(electric_bounds if family == "E" else bounds)
         assert tuple(args[6:12]) == histories[0].shape[1:] + histories[1].shape[1:]
@@ -176,6 +176,8 @@ def test_opencl_pml_uses_each_fields_larger_spatial_history(
         assert all(actual is expected for actual, expected in zip(args[13:26], expected_buffers))
         assert isinstance(args[26], np.float64)
         assert args[26] == (0.001, 0.002, 0.004)["xyz".index(direction[0])]
+        assert isinstance(args[27], np.int32)
+        assert args[27] == slab.pmc_mask == 0
     assert ranges[0] != ranges[1]  # E's padded normal dimension is one larger
 
 
@@ -260,7 +262,16 @@ def test_all_opencl_pml_templates_guard_each_spatial_history(
         assert f"size_tjk{index}=rem{index}%phi{index}_plane;" in compact
         assert f"intj{index}=(int)(jk{index}/(size_t)NZ_PHI{index});" in compact
         assert f"intk{index}=(int)(jk{index}%(size_t)NZ_PHI{index});" in compact
-        assert f"if(p{index}==0&&i{index}<nx&&j{index}<ny&&k{index}<nz)" in compact
+        components = [axis for axis in "xyz" if axis != direction[0]]
+        padded = components[2 - index] if family == "electric" else components[index - 1]
+        extents = {
+            axis: f"n{axis}" + (f"+((PMC_MASK>>{'xyz'.index(axis)})&1)" if axis == padded else "")
+            for axis in "xyz"
+        }
+        assert (
+            f"if(p{index}==0&&i{index}<{extents['x']}&&"
+            f"j{index}<{extents['y']}&&k{index}<{extents['z']})"
+        ) in compact
         for axis, coordinate in zip("xyz", "ijk"):
             if axis == direction[0] and direction.endswith("minus"):
                 offset = (
