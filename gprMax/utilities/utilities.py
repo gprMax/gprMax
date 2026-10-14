@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import textwrap
+from numbers import Integral
 from shutil import get_terminal_size
 from time import perf_counter as timer_fn
 from typing import Union
@@ -169,6 +170,8 @@ def round_float(value: float, decimalplaces: int) -> float:
     Returns:
         rounded: Rounded value.
     """
+    if isinstance(decimalplaces, bool) or not isinstance(decimalplaces, Integral) or decimalplaces < 0:
+        raise ValueError(f"decimalplaces must be a non-negative integer, got {decimalplaces!r}")
     precision = f"1.{'0' * decimalplaces}"
     return float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
 
