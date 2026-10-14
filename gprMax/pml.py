@@ -984,6 +984,20 @@ class MetalPML(PML):
         """Sets the command queue for the PML."""
         self.queue = queue
 
+    def _dispatch(self, encoder, pipeline, phi1_shape, phi2_shape):
+        """Dispatches one thread per cell of the larger of two PHI arrays.
+
+        The kernels map each thread to one PHI cell and bounds-check against
+        the slab, as CUDAPML.set_blocks_per_grid() assumes, so a launch over
+        the whole grid only adds threads that do no work.
+        """
+        nthreads = int(max(np.prod(phi1_shape[1:]), np.prod(phi2_shape[1:])))
+        metal = self.G.metal
+        encoder.dispatchThreads_threadsPerThreadgroup_(
+            metal.MTLSizeMake(nthreads, 1, 1),
+            metal.MTLSizeMake(min(nthreads, pipeline.maxTotalThreadsPerThreadgroup()), 1, 1),
+        )
+
     def update_electric(self):
         """Updates electric field components with the PML correction on the GPU using Metal."""
         xs, xf, ys, yf, zs, zf = self._electric_update_bounds()
@@ -1026,8 +1040,7 @@ class MetalPML(PML):
         cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.pmc_mask).tobytes(), 4, 27)
 
-        # Dispatch threads using grid's thread configuration
-        cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
+        self._dispatch(cmpencoder, self.psoE, self.EPhi1_shape, self.EPhi2_shape)
 
         cmpencoder.endEncoding()
         self.queue.submit(cmdbuffer)
@@ -1073,8 +1086,7 @@ class MetalPML(PML):
         cmpencoder.setBytes_length_atIndex_(d_bytes, len(d_bytes), 26)
         cmpencoder.setBytes_length_atIndex_(np.int32(self.pmc_mask).tobytes(), 4, 27)
 
-        # Dispatch threads using grid's thread configuration
-        cmpencoder.dispatchThreads_threadsPerThreadgroup_(self.G.tptg, self.G.tgs)
+        self._dispatch(cmpencoder, self.psoH, self.HPhi1_shape, self.HPhi2_shape)
 
         cmpencoder.endEncoding()
         self.queue.submit(cmdbuffer)

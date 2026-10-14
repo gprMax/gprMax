@@ -21,15 +21,19 @@ The Metal solver committed every command buffer and immediately waited for
 it, so each iteration made one blocking CPU-GPU round trip per update stage
 and per PML slab. MetalCommandQueue.submit() now commits without waiting,
 and MetalCommandQueue.synchronise() waits only before the host touches
-device memory.
+device memory. MetalPML also launched one thread per cell of the whole grid
+for every slab update; it now launches one thread per cell of the slab.
 
 Like the other Metal dispatch tests, these use fake Metal objects.
 """
 
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
+from gprMax import config
+from gprMax.pml import MetalPML
 from gprMax.updates import metal_updates as metal_updates_module
 from gprMax.updates.metal_updates import MetalCommandQueue, MetalUpdates
 
@@ -128,3 +132,85 @@ def test_finalise_synchronises_before_reading_receivers(monkeypatch):
     updates.finalise()
 
     assert events == ["synchronise", "dtoh_rx_array"]
+
+
+class _Encoder:
+    def __init__(self):
+        self.dispatch = None
+        self.ended = False
+
+    def setComputePipelineState_(self, pipeline):
+        pass
+
+    def setBytes_length_atIndex_(self, data, length, index):
+        pass
+
+    def setBuffer_offset_atIndex_(self, buffer, offset, index):
+        pass
+
+    def dispatchThreads_threadsPerThreadgroup_(self, grid_size, group_size):
+        self.dispatch = (grid_size, group_size)
+
+    def endEncoding(self):
+        self.ended = True
+
+
+def _metal_pml(log):
+    """An x-slab PML whose PHI arrays have unequal shapes, on a 100^3 grid."""
+    pml = MetalPML.__new__(MetalPML)
+    pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf = 0, 10, 0, 100, 0, 100
+    pml.thickness = 10
+    pml.d = 0.002
+    pml.pmc_mask = 0
+    pml.EPhi1_shape = (1, 10, 100, 101)
+    pml.EPhi2_shape = (1, 10, 101, 100)
+    pml.HPhi1_shape = (1, 10, 101, 100)
+    pml.HPhi2_shape = (1, 10, 100, 101)
+    pml.ERA = np.zeros((2, 10))
+    for name in (
+        "EPhi1",
+        "EPhi2",
+        "ERA",
+        "ERB",
+        "ERE",
+        "ERF",
+        "HPhi1",
+        "HPhi2",
+        "HRA",
+        "HRB",
+        "HRE",
+        "HRF",
+    ):
+        setattr(pml, f"{name}_dev", object())
+    pml.psoE = pml.psoH = SimpleNamespace(maxTotalThreadsPerThreadgroup=lambda: 1024)
+    pml._electric_update_bounds = lambda: (0, 10, 0, 100, 0, 100)
+
+    encoder = _Encoder()
+    command = SimpleNamespace(computeCommandEncoder=lambda: encoder, commit=lambda: None)
+    pml.queue = SimpleNamespace(
+        commandBuffer=lambda: command, submit=lambda submitted: log.append(submitted)
+    )
+    pml.G = SimpleNamespace(
+        nx=100,
+        ny=100,
+        nz=100,
+        metal=SimpleNamespace(MTLSizeMake=lambda x, y, z: (x, y, z)),
+        **{f"{name}_dev": object() for name in ("ID", "Ex", "Ey", "Ez", "Hx", "Hy", "Hz")},
+    )
+    return pml, encoder, command
+
+
+@pytest.mark.parametrize("update", ["update_electric", "update_magnetic"])
+def test_metal_pml_launches_one_thread_per_slab_cell(update, monkeypatch):
+    monkeypatch.setattr(
+        config, "sim_config", SimpleNamespace(dtypes={"float_or_double": np.float32})
+    )
+    submitted = []
+    pml, encoder, command = _metal_pml(submitted)
+
+    getattr(pml, update)()
+
+    # The larger PHI array has 10 * 101 * 100 cells; the grid has 101^3.
+    assert encoder.dispatch == ((10 * 101 * 100, 1, 1), (1024, 1, 1))
+    assert encoder.ended
+    assert submitted == [command]
