@@ -143,6 +143,57 @@ class TestCalculateDt2D:
         assert g.dt == pytest.approx(cfl_limit(*DL_ANISO))
 
 
+class TestCalculateDtLegacyRegression:
+    """Exact legacy CFL values pinned against the pre-PR flooring.
+
+    ``FDTDGrid.calculate_dt()`` preserves the historical
+    ``Decimal(float)``/``ROUND_FLOOR`` rounding at ``prec - 1`` places,
+    independently of the ``str()``-based correction in
+    ``utilities.round_float()``. The literals below were derived from that
+    legacy flooring and verified by ``repr()``/``hex()`` equality — they are
+    deliberately not computed through ``round_float()`` or ``round_value()``.
+    Each test exercises the real ``calculate_dt()`` method.
+    """
+
+    def test_3d_isotropic_1mm_exact(self, make_grid):
+        g = make_grid(dl=0.001, arrays=False)
+        g.calculate_dt()
+        assert g.dt == 1.92583320154647e-12
+
+    def test_3d_anisotropic_exact(self, make_grid):
+        g = make_grid(dl=DL_ANISO, arrays=False)
+        g.calculate_dt()
+        assert g.dt == 2.911586124504738e-12
+
+    def test_2d_tmx_anisotropic_exact(self, make_grid, grid_config):
+        """The TMx case the ``str()`` correction would otherwise shift.
+
+        Raw CFL float is ``5.966975933730233e-12``; legacy flooring gives
+        ``5.966975933730232e-12``.
+        """
+        grid_config.model_config.mode = "2D TMx"
+        g = make_grid(dl=DL_ANISO, arrays=False)
+        g.calculate_dt()
+        assert g.dt == 5.966975933730232e-12
+
+    def test_2d_tmy_anisotropic_exact(self, make_grid, grid_config):
+        grid_config.model_config.mode = "2D TMy"
+        g = make_grid(dl=DL_ANISO, arrays=False)
+        g.calculate_dt()
+        assert g.dt == 3.236047052742506e-12
+
+    def test_2d_tmz_anisotropic_exact(self, make_grid, grid_config):
+        grid_config.model_config.mode = "2D TMz"
+        g = make_grid(dl=DL_ANISO, arrays=False)
+        g.calculate_dt()
+        assert g.dt == 2.983487966865116e-12
+
+    def test_3d_isotropic_7p5mm_exact(self, make_grid):
+        g = make_grid(dl=0.0075, arrays=False)
+        g.calculate_dt()
+        assert g.dt == 1.444374901159853e-11
+
+
 class TestCalculateCurrents:
     """``calculate_Ix/Iy/Iz`` sum the magnetic field around a Yee contour.
 

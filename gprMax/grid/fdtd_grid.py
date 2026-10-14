@@ -2014,7 +2014,12 @@ class FDTDGrid:
         # Round down time step to nearest float with precision one less than
         # hardware maximum. Avoids inadvertently exceeding the CFL due to
         # binary representation of floating point number.
-        self.dt = round_value(self.dt, decimalplaces=decimal.getcontext().prec - 1)
+        # Preserve legacy CFL rounding so the updated helper doesn't change time steps.
+        places = decimal.getcontext().prec - 1
+        quantum = decimal.Decimal("1." + "0" * places)
+        self.dt = float(
+            decimal.Decimal(self.dt).quantize(quantum, rounding=decimal.ROUND_FLOOR)
+        )
 
     def calculate_Ix(self, x: int, y: int, z: int) -> float:
         """Calculates the x-component of current at a grid position.
