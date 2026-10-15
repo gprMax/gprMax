@@ -17,7 +17,6 @@
 
 import logging
 import numbers
-from numbers import Integral
 
 import numpy as np
 
@@ -822,6 +821,7 @@ class RangeMaterial:
         """
 
         _validate_bin_count(nbins, self.ID)
+        nbins = int(nbins)
 
         material_ids = []
 
