@@ -33,16 +33,17 @@ everywhere else in this class (e.g.
 `if self.gpu is not None: self.general["solver"] = "cuda"`).
 
 The unit tests below exercise the extracted helper directly (no need to
-construct a full SimulationConfig/detect real hardware). The two
-integration tests build a real SimulationConfig with a minimal fake args
-Namespace, confirming the guard actually fires from __init__ before any
-of the rest of the (much larger) constructor runs.
+construct a full SimulationConfig/detect real hardware). The constructor
+tests use the application's argument defaults and confirm that every pair
+of accelerators is rejected by this guard before hardware discovery.
 """
-from types import SimpleNamespace
+import argparse
 
 import pytest
 
+from gprMax import config
 from gprMax.config import SimulationConfig, _multiple_accelerators_requested
+from gprMax.gprMax import args_defaults
 
 
 @pytest.mark.parametrize(
@@ -68,27 +69,34 @@ def test_multiple_accelerators_requested(non_cpu_solvers, expected):
 
 
 def _make_args(**overrides):
-    defaults = dict(
-        geometry_fixed=False,
-        geometry_only=False,
-        gpu=None,
-        mpi=None,
-        n=1,
-        opencl=None,
-        metal=None,
-        outputfile="out",
-        taskfarm=False,
-        write_processed=False,
-    )
+    # Match the API/CLI contract, including restart and Scene defaults, without
+    # mutating the application's shared defaults or duplicating its argument list.
+    defaults = dict(args_defaults, inputfile="model.in", outputfile="out")
     defaults.update(overrides)
-    return SimpleNamespace(**defaults)
+    return argparse.Namespace(**defaults)
 
 
-def test_two_bool_solvers_rejected_via_real_init():
-    with pytest.raises(ValueError):
-        SimulationConfig(_make_args(gpu=True, opencl=True))
+@pytest.mark.parametrize("solvers", [("gpu", "opencl"), ("gpu", "metal"), ("opencl", "metal")])
+@pytest.mark.parametrize(
+    "values",
+    [
+        pytest.param((True, True), id="bool"),
+        pytest.param(([[0]], [[0]]), id="list"),
+        pytest.param((True, [[0]]), id="bool-list"),
+        pytest.param(([[0]], True), id="list-bool"),
+        pytest.param((False, False), id="false-is-not-none"),
+    ],
+)
+def test_two_solvers_rejected_via_real_init(solvers, values, monkeypatch, caplog):
+    def unexpected_hardware_probe(*args, **kwargs):
+        pytest.fail("Conflicting accelerators must be rejected before hardware discovery")
 
+    for probe in ("get_host_info", "detect_cuda_gpus", "detect_opencl", "detect_metal"):
+        monkeypatch.setattr(config, probe, unexpected_hardware_probe)
 
-def test_two_list_solvers_rejected_via_real_init():
-    with pytest.raises(ValueError):
-        SimulationConfig(_make_args(gpu=[[0]], opencl=[[0]]))
+    with caplog.at_level("ERROR", logger="gprMax.config"):
+        with pytest.raises(ValueError):
+            SimulationConfig(_make_args(**dict(zip(solvers, values))))
+
+    # Another validation failure must not accidentally make this test pass.
+    assert "You cannot use combinations of CUDA, OpenCl and Apple Metal solvers simultaneously." in caplog.text

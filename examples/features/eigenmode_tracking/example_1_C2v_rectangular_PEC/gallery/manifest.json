@@ -1,0 +1,98 @@
+{
+  "started_utc": "2026-10-12T17:50:04.806241+00:00",
+  "modes": 16,
+  "spacing_mm": 0.25,
+  "verification": "fast",
+  "excitation": false,
+  "time_stepping": false,
+  "geometry_only": true,
+  "source_sha256": {
+    "gallery.py": "a6cbc940cd8198568040b8fd617ac66fe5508064fc2c847efa18eccbc30acac2",
+    "plot_results.py": "914a6ba591dcc146de56d75eb52b5690dccf3d58c97407dc516534dad3eaa78a"
+  },
+  "status": "complete",
+  "case": {
+    "case": "pec_rectangular",
+    "mode_count": 16,
+    "anchor_count": 5,
+    "detected_symmetry": "c2v",
+    "symmetry_groups": [
+      {
+        "modes": [
+          2,
+          3
+        ],
+        "applied": "c2v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          4,
+          5
+        ],
+        "applied": "c2v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          6,
+          7
+        ],
+        "applied": "c2v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          9,
+          10
+        ],
+        "applied": "c2v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          11,
+          12
+        ],
+        "applied": "c2v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          13,
+          14
+        ],
+        "applied": "c2v",
+        "attempts": []
+      },
+      {
+        "modes": [
+          15,
+          16,
+          17,
+          18
+        ],
+        "applied": "c2v",
+        "attempts": []
+      }
+    ],
+    "automatic_groups": "2,3;4,5;6,7;9,10;11,12;13,14;15,16,17,18",
+    "maximum_residual": 1.0002066984499842e-12,
+    "minimum_real_neff": 0.5116120655109513,
+    "plots": [
+      "pec_rectangular_dispersion.png",
+      "pec_rectangular_E_modes.png",
+      "pec_rectangular_H_modes.png"
+    ]
+  },
+  "anchors_Hz": [
+    39000000000.0,
+    39500000000.0,
+    40000000000.0,
+    40500000000.0,
+    41000000000.0
+  ],
+  "dispersion_plot_postprocessing_sha256": {
+    "examples/features/eigenmode_tracking/plot_results.py": "029934c2e7bc4ea4f88c8b1d2ada3f3dca60cdfb762a2f30ee221203ebbdb16f"
+  }
+}

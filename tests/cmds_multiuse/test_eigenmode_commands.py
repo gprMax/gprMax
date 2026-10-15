@@ -369,10 +369,25 @@ def test_hash_ports_require_one_band_and_excitation():
         process_multicmds(commands)
 
 
-def test_grid_rejects_port_definitions_without_excitation():
+def test_grid_rejects_port_definitions_without_excitation(monkeypatch):
+    monkeypatch.setattr(config, 'sim_config', SimpleNamespace(geometry_only=False))
     grid = FDTDGrid()
     grid.eigenmodeband = object()
     grid.eigenmodeportdefs[1] = object()
 
     with pytest.raises(ValueError, match="at least one EigenmodeExcitation"):
         grid._eigenmode_port_grid_init()
+
+@pytest.mark.parametrize('geometry_only', (False, True))
+def test_hash_undriven_ports_require_geometry_inspection(monkeypatch, geometry_only):
+    monkeypatch.setattr(config, 'sim_config', SimpleNamespace(geometry_only=geometry_only))
+    commands = defaultdict(lambda: None)
+    commands['#eigenmode_band'] = ['inspection 40e9 42e9 5']
+    commands['#eigenmode_port'] = ['1 0 0 0 0 1 1 + 16 auto']
+    if geometry_only:
+        objects = process_multicmds(commands)
+        assert any(isinstance(obj, EigenmodePort) for obj in objects)
+        assert not any(isinstance(obj, EigenmodeExcitation) for obj in objects)
+    else:
+        with pytest.raises(ValueError, match='at least one #eigenmode_excitation'):
+            process_multicmds(commands)

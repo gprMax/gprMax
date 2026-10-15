@@ -2,6 +2,51 @@
 Release notes
 *************
 
+Unreleased / next release
+=========================
+
+PMC symmetry boundaries and PML
+-------------------------------
+
+* Fixed missing PML corrections where an upper PMC symmetry boundary meets
+  a perpendicular PML. These intersections could produce incorrect fields
+  and late-time instability. Electric and magnetic corrections now include
+  the required staggered boundary samples on CPU/MPI, CUDA, OpenCL and Metal;
+  ordinary PMLs and internal MPI rank boundaries retain their existing extents.
+
+Eigenmode tracking
+------------------
+
+* Automatic tracking now resolves longitudinal families and symmetry subgroups
+  before selecting polarization within each eligible doublet. Crossing recovery
+  excludes spatially unresolved reference candidates, even when their
+  eigenproblem residual is small.
+
+* Shared two-direction ``mode_polarizations`` inputs remain supported in both
+  legacy and automatic tracking during the deprecation period, including the
+  Python and hash-command forms. Both directions and their signs are preserved;
+  valid nonorthogonal pairs remain available. Per-mode/per-group mappings
+  require legacy tracking. These forms emit a visible deprecation warning and
+  will be removed in **gprMax 5.0**. Prefer one global direction when its inferred
+  orthogonal partner matches the intended basis. For a +z-normal port, ``"y"``
+  implies y/-x and is not phase-equivalent to an explicit y/+x pair. See
+  :doc:`eigenmode_tracking` for compatibility and migration examples.
+
+* Residual acceptance limits change: the general ``residual_tolerance`` default
+  increases from ``1e-8`` to ``1e-7``. Mixed-mode acceptance, previously limited
+  to a fixed ``1e-9``, now uses the configurable tolerance, including legacy
+  degenerate groups. At the default this is a 100-fold relaxation of the mixed
+  eigen-residual limit, alongside additional reconstructed Maxwell-residual
+  checks where available. Higher-order modes and lossy metallic-waveguide modes
+  can have larger numerical residuals, so the previous limits could reject
+  otherwise admissible modes. The new ``1e-7`` limit remains a stringent
+  residual requirement while accommodating these cases; spatial resolution,
+  field consistency, degeneracy, propagation, and power checks still apply.
+  To retain the previous mixed-mode limit, explicitly
+  set ``EigenmodeTrackingConfig(residual_tolerance=1e-9)``; this also tightens
+  the other residual checks. The degeneracy and propagation-branch constraints
+  still apply. See :doc:`eigenmode_tracking_theory`.
+
 4.0.1 (Caol Ila)
 ================
 

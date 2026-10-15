@@ -330,7 +330,9 @@ def test_metal_pmc_dispatch_uses_expected_scalar_and_buffer_slots(monkeypatch):
     updates.grid.tptg = "threads"
     encoder = _FakeMetalEncoder()
     command = _FakeMetalCommand(encoder)
-    updates.cmdqueue = SimpleNamespace(commandBuffer=lambda: command)
+    updates.cmdqueue = SimpleNamespace(
+        commandBuffer=lambda: command, submit=lambda buffer: buffer.commit()
+    )
     updates.pso_electric_pmc = SimpleNamespace(
         maxTotalThreadsPerThreadgroup=lambda: 128
     )
@@ -350,4 +352,4 @@ def test_metal_pmc_dispatch_uses_expected_scalar_and_buffer_slots(monkeypatch):
     assert encoder.buffers[15] == (updates.grid.Hz_dev, 0)
     assert encoder.pipeline is updates.pso_electric_pmc
     assert encoder.dispatch == ("threads", (128, 1, 1))
-    assert encoder.ended and command.committed and command.waited
+    assert encoder.ended and command.committed and not command.waited

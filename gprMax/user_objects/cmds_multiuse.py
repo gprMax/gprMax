@@ -2672,14 +2672,18 @@ class EigenmodePort(GridUserObject):
         degenerate: optional legacy mode pair or disjoint groups tracked as subspaces;
             ignored when ``tracking="auto"``.
         mode_polarizations: optional global transverse E axis or real three-vector
-            shared by the first member of every degenerate pair; the second uses
-            positive port normal cross that direction. Two directions explicitly set
-            both members of every pair. Mappings from absolute mode indices
-            to directions require tracking="legacy" and declared pairs.
+            shared by the first member of every resolved doublet; the second uses
+            positive port normal cross that direction. Automatic tracking resolves
+            subgroups before polarization; legacy tracking uses declared pairs.
+            Shared two-direction sequences in both trackers and mode/group
+            mappings in legacy tracking emit a deprecation warning and will
+            be removed in gprMax 5.0. Explicit pairs retain both signs and
+            valid nonorthogonal directions.
             None preserves the current assignment. Physical selection requires a
             3D cross-section and independent transverse directions.
         tracking: ``"legacy"`` (default) or experimental ``"auto"`` branch
-            tracking, enabled at the user's discretion.
+            tracking, including automatic symmetry detection and selection
+            for eligible degenerate spans.
         verification: ``"full"`` or ``"fast"`` quality checks for automatic tracking.
         tracking_config: optional :class:`gprMax.EigenmodeTrackingConfig` or mapping.
     """
@@ -2779,12 +2783,6 @@ class EigenmodePort(GridUserObject):
             else normalize_groups(self.kwargs.get("degenerate"), modes)
         )
         polarization_input = self.kwargs.get("mode_polarizations")
-        if tracking == "auto" and hasattr(polarization_input, "items"):
-            raise ValueError(
-                f"{self.params_str()} mode_polarizations mappings require tracking='legacy' "
-                "and declared degenerate pairs. With tracking='auto', use None, one "
-                "direction (e.g. 'y'), or two directions (e.g. ('y', 'x')) for every pair."
-            )
         mode_polarizations = normalize_polarizations(
             polarization_input, degenerate, normal_axis, invariant_axis,
             unresolved=tracking == "auto" and not degenerate,
@@ -3165,8 +3163,8 @@ def _validate_eigenmode_dft_frequencies(label, frequencies):
         raise ValueError(f"{label} DFT frequencies must be unique and strictly increasing.")
 
 
-def build_passive_virtual_eigenmode_ports(grid):
-    """Build monitor runtimes when every modal port is passive and virtual."""
+def build_passive_eigenmode_ports(grid):
+    """Build undriven ports for geometry inspection or passive virtual guides."""
 
     band = grid.eigenmodeband
     band.significant_range = (band.fmin, band.fmax)

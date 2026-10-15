@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import textwrap
+from numbers import Integral
 from shutil import get_terminal_size
 from time import perf_counter as timer_fn
 from typing import Union
@@ -169,8 +170,11 @@ def round_float(value: float, decimalplaces: int) -> float:
     Returns:
         rounded: Rounded value.
     """
+    if isinstance(decimalplaces, bool) or not isinstance(decimalplaces, Integral) or decimalplaces < 0:
+        raise ValueError(f"decimalplaces must be a non-negative integer, got {decimalplaces!r}")
     precision = f"1.{'0' * decimalplaces}"
-    return float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
+    # str() first: Decimal(0.99) is 0.98999... and would floor to 0.98.
+    return float(d.Decimal(str(value)).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
 
 
 def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:
@@ -198,7 +202,15 @@ def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:
 
 def round32(value):
     """Rounds up to nearest multiple of 32."""
-    return int(32 * np.ceil(float(value) / 32))
+    if isinstance(value, (bool, np.bool_)):
+        raise ValueError(f"round32 requires a numeric value, got {value!r}")
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"round32 requires a numeric value, got {value!r}") from exc
+    if not np.isfinite(number) or number < 0:
+        raise ValueError(f"round32 requires a finite value >= 0, got {value!r}")
+    return int(32 * np.ceil(number / 32))
 
 
 def fft_power(waveform, dt):

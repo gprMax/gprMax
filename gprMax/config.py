@@ -329,6 +329,10 @@ class SimulationConfig:
         """
 
         self.args = args
+        # Resolve the requested run and Scene counts before hardware discovery
+        # or building any models. Study preflight has already resolved n/i.
+        self._set_model_start_end()
+        self._set_scenes()
 
         # Validate declarations before hardware discovery or any model build.
         # A false flag must never silently select a main-grid-only solve for
@@ -503,17 +507,73 @@ class SimulationConfig:
         if hasattr(args, "autotranslate"):
             self.autotranslate_subgrid_coordinates: bool = args.autotranslate
 
-        # Scenes parameter may not exist if user enters via CLI
-        self.scenes: List[Optional[Scene]]
-        if hasattr(args, "scenes") and args.scenes is not None:
-            self.scenes = args.scenes
-        else:
-            self.scenes = [None] * self.number_of_models
-
         # Set more complex parameters
         self._set_precision()
         self._set_input_file_path()
-        self._set_model_start_end()
+
+    def _set_scenes(self):
+        """Resolve singleton repetition without changing geometry reuse.
+
+        Keep supplied multi-Scene lists intact, including repeated references.
+        Hash input retains one empty slot per run so each rebuild reparses it.
+        """
+        scenes = getattr(self.args, "scenes", None)
+        count = self.args.n
+        self.scenes: List[Optional[Scene]]
+        if scenes is None:
+            self.scenes = [None] * count
+            return
+        supplied = len(scenes)
+        if supplied == 0:
+            raise ValueError("scenes must contain at least one Scene; an empty list cannot be run.")
+        fixed = self.args.geometry_fixed
+        if not fixed and 1 < supplied < count:
+            raise ValueError(
+                f"Requested n={count} model runs, but only {supplied} Scene entries were supplied. "
+                "Supply one Scene to repeat its definition, or at least one Scene entry per run. "
+                "A list of multiple Scenes is not automatically repeated."
+            )
+        self.scenes = [scenes[0]] * count if supplied == 1 and count > 1 else scenes
+
+        if fixed:
+            if any(scene is not scenes[0] for scene in scenes[1:]):
+                logger.warning(
+                    "geometry_fixed=True builds only the first Scene; additional distinct "
+                    "Scenes will not be used. Disable geometry reuse to run those definitions."
+                )
+        elif supplied > count:
+            logger.warning(
+                f"Supplied {supplied} Scene entries but requested n={count}: only the first "
+                f"{count} will run. Select the desired Scenes explicitly or adjust n."
+            )
+
+        if count <= 1 or getattr(self.args, "study", None) is not None:
+            return
+        first = scenes[0]
+        if not isinstance(first, Scene) or (
+            not fixed and any(scene is not first for scene in self.scenes[:count])
+        ):
+            return
+        if not fixed:
+            logger.warning(
+                f"The same Scene definition will be rebuilt for each of the {count} runs. "
+                "Source/receiver stepping will be applied normally. Consider geometry_fixed=True "
+                "only if geometry and materials remain unchanged and the model supports reuse."
+            )
+
+        from gprMax.user_objects.cmds_singleuse import RxSteps, SrcSteps
+
+        stepping = any(
+            isinstance(command, (SrcSteps, RxSteps)) and any(value != 0 for value in command.step_size)
+            for command in first.single_use_objects
+        )
+        if not stepping:
+            logger.warning(
+                f"Requested {count} runs of the same Scene with no nonzero SrcSteps/RxSteps "
+                "or Study declared. These runs appear to repeat the same simulation, unless "
+                "random or user-defined construction changes it. Use n=1 if only one solve is "
+                "intended; geometry_fixed=True alone does not make the solves different."
+            )
 
     def set_model_device(self, deviceID):
         """Specify pycuda/pyopencl/pyobjc object for model.
@@ -609,9 +669,12 @@ class SimulationConfig:
 
     def _set_model_start_end(self):
         """Sets range for number of models to run (internally 0 index)."""
-        if self.args.n <= 0:
-            logger.error(f"Number of models (n={self.args.n}) must be greater than zero.")
-            raise ValueError
+        if (
+            not isinstance(self.args.n, (int, np.integer))
+            or isinstance(self.args.n, (bool, np.bool_))
+            or self.args.n <= 0
+        ):
+            raise ValueError(f"Number of models n={self.args.n!r} must be a positive integer.")
 
         # `is not None` (not a truthy check) - `i` is documented as a
         # 1-indexed "model number to start/restart from", so i=0 is
@@ -619,9 +682,12 @@ class SimulationConfig:
         # ALSO treat a legitimately-supplied i=0 identically to "i not
         # given at all" (None), silently ignoring it instead of erroring.
         if self.args.i is not None:
-            if self.args.i <= 0:
-                logger.error(f"Model start/restart number (i={self.args.i}) must be greater than zero.")
-                raise ValueError
+            if (
+                not isinstance(self.args.i, (int, np.integer))
+                or isinstance(self.args.i, (bool, np.bool_))
+                or self.args.i <= 0
+            ):
+                raise ValueError(f"Model start/restart number i={self.args.i!r} must be a positive integer.")
             modelstart = self.args.i - 1
             modelend = modelstart + self.args.n
         else:

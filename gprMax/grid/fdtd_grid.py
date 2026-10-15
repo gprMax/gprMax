@@ -20,6 +20,7 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
+from numbers import Integral
 from types import SimpleNamespace
 from typing import Any, Iterable, List, Optional, Tuple, Union
 
@@ -300,19 +301,41 @@ class FDTDGrid:
         self.dl[2] = value
 
     def set_pml_thickness(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
-        if isinstance(thickness, int):
+        if isinstance(thickness, (bool, str, bytes)):
+            raise ValueError("PML thickness requires integer cell counts")
+        if isinstance(thickness, Integral):
+            thickness_values = (int(thickness),)
+        else:
+            try:
+                thickness_values = tuple(thickness)
+            except TypeError as exc:
+                raise ValueError(
+                    "PML thickness requires either one or six integer cell counts"
+                ) from exc
+
+        if len(thickness_values) not in (1, 6):
+            raise ValueError("PML thickness requires either one or six parameter(s)")
+        if any(isinstance(t, bool) or not isinstance(t, Integral) for t in thickness_values):
+            raise ValueError("PML thickness requires integer cell counts")
+        thickness_values = tuple(int(t) for t in thickness_values)
+
+        # A negative thickness is not rejected without this check -
+        # _build_pmls() only constructs a slab when `thickness > 0`, so a
+        # negative value would silently behave like 0 (no PML on that face)
+        # instead of raising an error for a nonsensical request.
+        if any(t < 0 for t in thickness_values):
+            raise ValueError("PML thickness requires the thickness to be zero or greater")
+
+        if len(thickness_values) == 1:
             for key in PML.boundaryIDs:
-                self.pmls["thickness"][key] = int(thickness)
-        elif len(thickness) == 1:
-            for key in PML.boundaryIDs:
-                self.pmls["thickness"][key] = int(thickness[0])
-        elif len(thickness) == 6:
-            self.pmls["thickness"]["x0"] = int(thickness[0])
-            self.pmls["thickness"]["y0"] = int(thickness[1])
-            self.pmls["thickness"]["z0"] = int(thickness[2])
-            self.pmls["thickness"]["xmax"] = int(thickness[3])
-            self.pmls["thickness"]["ymax"] = int(thickness[4])
-            self.pmls["thickness"]["zmax"] = int(thickness[5])
+                self.pmls["thickness"][key] = thickness_values[0]
+        else:
+            self.pmls["thickness"]["x0"] = thickness_values[0]
+            self.pmls["thickness"]["y0"] = thickness_values[1]
+            self.pmls["thickness"]["z0"] = thickness_values[2]
+            self.pmls["thickness"]["xmax"] = thickness_values[3]
+            self.pmls["thickness"]["ymax"] = thickness_values[4]
+            self.pmls["thickness"]["zmax"] = thickness_values[5]
 
     def add_fractal_volume(
         self,
@@ -1347,14 +1370,15 @@ class FDTDGrid:
         if self.eigenmodeportdefs and self.eigenmodeband is None:
             raise ValueError("Eigenmode ports require exactly one EigenmodeBand.")
         if self.eigenmodeportdefs and not self.eigenmodeexcitations:
-            if set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs):
+            if (not getattr(config.sim_config, 'geometry_only', False)
+                    and set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs)):
                 raise ValueError(
                     "Eigenmode ports require at least one EigenmodeExcitation, unless "
-                    "every port has a passive VirtualWaveguide."
+                    "every port has a passive VirtualWaveguide or the run is geometry-only."
                 )
-            from gprMax.user_objects.cmds_multiuse import build_passive_virtual_eigenmode_ports
+            from gprMax.user_objects.cmds_multiuse import build_passive_eigenmode_ports
 
-            build_passive_virtual_eigenmode_ports(self)
+            build_passive_eigenmode_ports(self)
         elif self.eigenmodeportdefs and not (self.eigenmodesources or self.eigenmodereceivers):
             from gprMax.user_objects.cmds_multiuse import build_eigenmode_runtime_ports
 
@@ -2013,7 +2037,12 @@ class FDTDGrid:
         # Round down time step to nearest float with precision one less than
         # hardware maximum. Avoids inadvertently exceeding the CFL due to
         # binary representation of floating point number.
-        self.dt = round_value(self.dt, decimalplaces=decimal.getcontext().prec - 1)
+        # Preserve legacy CFL rounding so the updated helper doesn't change time steps.
+        places = decimal.getcontext().prec - 1
+        quantum = decimal.Decimal("1." + "0" * places)
+        self.dt = float(
+            decimal.Decimal(self.dt).quantize(quantum, rounding=decimal.ROUND_FLOOR)
+        )
 
     def calculate_Ix(self, x: int, y: int, z: int) -> float:
         """Calculates the x-component of current at a grid position.
@@ -2249,7 +2278,9 @@ class FDTDGrid:
                     # Limit each FFT separately to four pulse widths. Mutating
                     # 'iterations' here would truncate later, longer waveforms
                     # purely because a shorter pulse was declared first.
-                    waveform.calculate_coefficients()
+                    # validate() exists only on Waveform.
+                    if isinstance(waveform, Waveform):
+                        waveform.validate()
                     max_iterations = round_value(4 * waveform.chi / self.dt)
                     sample_count = min(iterations, max_iterations)
                     if sample_count < 2:

@@ -95,6 +95,9 @@ class _FakeCommandQueue:
         self.buffers_created.append(buf)
         return buf
 
+    def submit(self, command):
+        command.commit()
+
 
 class _FakePSO:
     def maxTotalThreadsPerThreadgroup(self):

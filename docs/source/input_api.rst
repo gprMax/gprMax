@@ -65,7 +65,7 @@ This example is used to give an introduction to the gprMax Python API.
 
 1. Import the gprMax module.
 2. Objects for the model are created from the gprMax module by passing object parameters as key=value arguments. The adjacent ``.in`` model shows their equivalent positional hash commands.
-3. Create a :class:`gprMax.scene.Scene` object. The scene is a container for all the objects required in a simulation. Simulations with multiple models, e.g. A-scans, should have a separate scene for each model (A-scan). Each scene must contain the essential functions and objects required for that particular model.
+3. Create a :class:`gprMax.scene.Scene` object. The scene is a container for all the objects required to define a model. Supply separate Scenes when model definitions differ, or repeat one Scene definition for a stepped acquisition as described below. Each Scene must contain the essential functions and objects required for that model.
 4. Add objects are to the scene.
 5. Run the simulation.
 
@@ -147,6 +147,58 @@ A minimal three-dimensional scene contains the three essential model objects:
     scene.add(gprMax.TimeWindow(time=12e-9))
 
     gprMax.run(scenes=[scene], n=1, outputfile='minimal_model')
+
+Repeated runs and Scene selection
+=================================
+
+``n`` is the number of solves requested in one ``gprMax.run()`` call. It defaults
+to 1 and is not inferred from the number of supplied Scenes. A single Scene
+can be repeated without duplicating its entry in the list:
+
+.. code-block:: python
+
+    # Equivalent alternatives: each rebuilds the same definition 60 times.
+    gprMax.run(scenes=[scene], n=60, outputfile='survey')
+    # gprMax.run(scenes=[scene] * 60, n=60, outputfile='survey')
+
+``SrcSteps`` and ``RxSteps`` apply on both rebuilt and geometry-reused runs.
+Positions are calculated from their original position and the run index; for
+an ordinary run, the indices are 0 through ``n - 1``. ``SrcSteps`` moves Hertzian
+and magnetic dipoles, not complete antenna geometry or arbitrary terminal
+feeds. ``RxSteps`` moves public receivers, not source-bound internal receivers.
+
+With ``geometry_fixed=False`` (the default), each solve gets a newly built
+model. Repeating a Scene logs a rebuilding-cost warning. If no nonzero stepping
+or Study is declared, a further warning explains that the simulations appear
+identical; random or user-defined construction may still change a rebuilt
+model. ``geometry_fixed=True`` avoids rebuilding but does not itself make
+successive solves different. Use it only when the geometry, materials and
+selected source types support reuse; existing stateful-source restrictions
+still apply. For controlled variations and source-state resets, see
+:doc:`studies`.
+
+A list containing multiple entries supplies one definition per requested run.
+It is not cycled or repeated automatically. Too few entries are rejected
+before any model is built; excess entries are ignored with a warning. Select
+the desired models explicitly:
+
+.. code-block:: python
+
+    selected = [scene_b, scene_c]
+    gprMax.run(scenes=selected, n=len(selected), outputfile='selected')
+    gprMax.run(scenes=[scene_b], outputfile='only_b')
+
+With ``geometry_fixed=True``, only the first Scene is built; additional
+distinct Scenes are ignored with a warning. A Study requires exactly one Scene
+and supplies its own case count and geometry-reuse policy.
+
+The restart argument ``i`` is a one-based model number, not a Scene selector or
+a time-step checkpoint. For example, ``i=7, n=3`` runs models 7 through 9, with
+stepping indices 6 through 8. A supplied multi-Scene list describes those three
+runs in order. All Scenes in a call share its run counter; independent
+acquisitions with different counts or reuse policies should use separate
+``gprMax.run()`` calls and distinct output prefixes. Hash input files retain
+their existing per-run reprocessing behaviour when geometry is not reused.
 
 General functions
 =================

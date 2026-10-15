@@ -29,6 +29,8 @@ from numpy.testing import assert_allclose
 import gprMax
 import gprMax.config as config
 from gprMax.cuda_opencl import knl_eigenmode, knl_virtual_waveguide
+from gprMax.eigenmode_ports import DFT_PHASE_REANCHOR_INTERVAL
+from gprMax.updates import cuda_updates, metal_updates, opencl_updates
 from gprMax.updates.cuda_updates import CUDAUpdates
 from gprMax.updates.metal_updates import MetalUpdates
 from gprMax.updates.opencl_updates import OpenCLUpdates
@@ -222,6 +224,27 @@ def _broadband_virtual_waveguide_scene():
     return scene
 
 
+def _long_broadband_virtual_waveguide_scene():
+    """Broadband case that runs past the DFT phase re-anchors at 1024 and 2048.
+
+    The automatic band transitions give a pulse that has decayed long before
+    the first re-anchor, so a re-anchor that went wrong could not change the
+    DFTs. Narrower 1 GHz transitions stretch the pulse past both re-anchors:
+    then a re-anchor applied one iteration late exceeds the tolerances by more
+    than an order of magnitude.
+    """
+
+    scene = _broadband_virtual_waveguide_scene()
+    time_window = next(
+        obj for obj in scene.single_use_objects if isinstance(obj, gprMax.TimeWindow)
+    )
+    time_window.time = None
+    time_window.iterations = 2600
+    band = next(obj for obj in scene.grid_objects if isinstance(obj, gprMax.EigenmodeBand))
+    band.kwargs["transition"] = 1e9
+    return scene
+
+
 def _active_and_passive_virtual_waveguide_scene():
     """Finite guide segment joined to active and passive auxiliary guides."""
 
@@ -327,6 +350,69 @@ def test_device_virtual_waveguide_broadband_matches_cpu(tmp_path, request, backe
     device = _port_results(device_path)
     incident_scale = max(float(np.max(np.abs(cpu["incident"]))), 1e-20)
     for name in cpu:
+        absolute_tolerance = 5e-5 if name == "S" else 5e-5 * incident_scale
+        assert_allclose(device[name], cpu[name], rtol=5e-4, atol=absolute_tolerance)
+
+
+@pytest.mark.integration
+@pytest.mark.gpu
+@pytest.mark.slow
+@pytest.mark.parametrize("backend", ["cuda", "opencl", "metal"])
+def test_device_virtual_waveguide_matches_cpu_across_phase_reanchors(
+    tmp_path, request, monkeypatch, backend
+):
+    device_options, device_precision = _device_options(request, backend)
+    updates_module = {"cuda": cuda_updates, "opencl": opencl_updates, "metal": metal_updates}[
+        backend
+    ]
+    # Metal submits command buffers without waiting for them, so record its
+    # queues to check that none has work in flight when the host re-anchors.
+    metal_queues = []
+    initialise_queue = metal_updates.MetalCommandQueue.__init__
+
+    def recording_initialise_queue(self, queue):
+        initialise_queue(self, queue)
+        metal_queues.append(self)
+
+    monkeypatch.setattr(metal_updates.MetalCommandQueue, "__init__", recording_initialise_queue)
+
+    reanchor = updates_module.reanchor_device_eigenmode_monitor
+    reanchored_at = []
+    in_flight = []
+
+    def recording_reanchor(monitor, grid, backend):
+        if monitor._next_iteration % DFT_PHASE_REANCHOR_INTERVAL == 0:
+            reanchored_at.append(monitor._next_iteration)
+            in_flight.append(sum(len(queue._submitted) for queue in metal_queues))
+        reanchor(monitor, grid, backend)
+
+    monkeypatch.setattr(updates_module, "reanchor_device_eigenmode_monitor", recording_reanchor)
+
+    cpu_path = tmp_path / "cpu_virtual_long_broadband"
+    device_path = tmp_path / f"{backend}_virtual_long_broadband"
+    gprMax.run(
+        scenes=[_long_broadband_virtual_waveguide_scene()],
+        outputfile=cpu_path,
+        cpu_precision="double",
+        hide_progress_bars=True,
+        log_level=30,
+    )
+    gprMax.run(
+        scenes=[_long_broadband_virtual_waveguide_scene()],
+        outputfile=device_path,
+        gpu_precision=device_precision,
+        hide_progress_bars=True,
+        log_level=30,
+        **device_options,
+    )
+
+    assert reanchored_at == [1024, 2048]
+    assert in_flight == [0, 0]
+    cpu = _port_results(cpu_path)
+    device = _port_results(device_path)
+    incident_scale = max(float(np.max(np.abs(cpu["incident"]))), 1e-20)
+    for name in cpu:
+        assert np.isfinite(device[name]).all()
         absolute_tolerance = 5e-5 if name == "S" else 5e-5 * incident_scale
         assert_allclose(device[name], cpu[name], rtol=5e-4, atol=absolute_tolerance)
 

@@ -367,6 +367,25 @@ class TestHertzianDipoleCalculateWaveformValues:
         assert np.all(src.waveformvalues_halfdt == 2.0)
 
 
+class TestNonWaveformExcitationPassthrough:
+    def test_object_without_validate_is_sampled_unchanged(self, fake_grid):
+        class BandpassLike:
+            ID = "wf"
+
+            @staticmethod
+            def calculate_value(time, dt):
+                return 1.0
+
+        G = fake_grid(iterations=5, dt=1.0, waveforms=[BandpassLike()])
+        src = _make_hertzian(polarisation="z")
+        src.start = 0.0
+        src.stop = G.timewindow
+
+        src.calculate_waveform_values(G)
+
+        assert np.all(src.waveformvalues_halfdt == 1.0)
+
+
 class TestHertzianDipoleUpdateElectric:
     @pytest.mark.parametrize(
         "polarisation, field_idx",
@@ -808,6 +827,10 @@ class TestDpwWaveformPrecomputation:
         class TimeWaveform:
             type = "user"
             freq = 1.0
+
+            @staticmethod
+            def validate():
+                """Mirror Waveform.validate(); fixed parameters are pre-validated."""
 
             @staticmethod
             def calculate_value(time, dt):

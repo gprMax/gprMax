@@ -8,16 +8,15 @@ implemented here under gprMax's GPL license.
 
 import logging
 import numbers
-from copy import copy
+import warnings
+from copy import copy, deepcopy
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 _CONDITION_LIMIT = 1e8
-# User-selected unit directions must be at least ~11.4 degrees from collinearity.
 _POLARIZATION_CONDITION_LIMIT = 10.0
 _DEGENERACY_TOLERANCE = 1e-8
-_RESIDUAL_TOLERANCE = 1e-9
 _SUBSPACE_PIVOT_TOLERANCE = 1e-12
 logger = logging.getLogger(__name__)
 
@@ -255,16 +254,177 @@ def _reorder_solver_modes(solver, public_candidates):
         solver._set_modal_fields()
 
 
+def _project_cluster(reference, candidate):
+    """Recover reference directions using the entire candidate span.
+
+    Projection preserves each reference subgroup, including for nonorthogonal
+    groups. Global orthogonalization would mix their identities again.
+    """
+    span = _orthonormal(candidate)
+    projected = span @ (span.conj().T @ reference)
+    _orthonormal(projected)  # Reject collapse of two references onto one span.
+    transform = np.linalg.lstsq(candidate, projected, rcond=None)[0]
+    return transform, projected
+
+
+def _recover_crossing_subspaces(solvers, frequencies, centre, impedance, config):
+    """Recover mixed coincidences from adjacent, resolved field spans.
+
+    Use the least-degenerate anchor as the transport seed, preserving the user's
+    reference anchor for public labels. No TE/TM or spatial symmetry is assumed.
+    Raw-column subsets reproducing established projectors and persistent
+    degeneracies retain their solver fields. All accepted rotations are
+    recorded before reordering.
+    """
+    gap = min(config.cluster_gap, _DEGENERACY_TOLERANCE)
+    groups = [_persistent_groups(s.eigenvalues, gap) for s in solvers]
+    seed = min(range(len(solvers)), key=lambda k: (
+        sum(len(g) * (len(g) - 1) for g in groups[k]),
+        abs(frequencies[k] - frequencies[centre]), k,
+    ))
+    records = []
+    recovered_groups = [[] for _ in solvers]
+    for path in (range(seed + 1, len(solvers)), range(seed - 1, -1, -1)):
+        previous = seed
+        for current in path:
+            reference = solvers[previous]
+            solver = solvers[current]
+            old = _tracking_vectors(reference, impedance)
+            reference_resolved = getattr(reference, "spatially_resolved", None)
+            if reference_resolved is not None:
+                reference_resolved = np.asarray(reference_resolved)
+            # An exact eigenpair can still be spatially unresolved on the Yee
+            # grid; it must not define the directions of a recovered cluster.
+            old_valid = tuple(i for i in range(reference.num_modes)
+                              if np.all(np.isfinite(old[:, i]))
+                              and (reference_resolved is None or reference_resolved[i])
+                              and solver_mode_residual(reference, i) <= config.residual_tolerance)
+            for group in groups[current]:
+                if len(group) < 2 or any(
+                    not np.isfinite(solver_mode_residual(solver, i))
+                    or solver_mode_residual(solver, i) > config.residual_tolerance for i in group
+                ):
+                    continue
+                columns = np.asarray(group)
+                # Equal squared eigenvalues alone do not permit mixing forward
+                # and backward branches, or resolved and unresolved Yee modes.
+                roots = np.asarray(solver.complex_neff)[columns]
+                if (not np.all(np.isfinite(roots)) or
+                        np.ptp(roots.real) > gap * max(1., np.max(abs(roots))) or
+                        np.ptp(roots.imag) > gap * max(1., np.max(abs(roots)))):
+                    continue
+                resolved = getattr(solver, "spatially_resolved", None)
+                if resolved is not None and not np.all(np.asarray(resolved)[columns]):
+                    continue
+                new = _tracking_vectors(solver, impedance)
+                try:
+                    selected = _span_members(new[:, columns], old, old_valid, config.subspace_margin)
+                    if selected is None or selected[1] < config.tracking_overlap:
+                        continue
+                    members = np.asarray(selected[0])
+                    old_values = np.asarray(reference.eigenvalues)[members]
+                    assigned, _ = _assign_step(
+                        old[:, members], new[:, columns], old_values,
+                        np.asarray(solver.eigenvalues)[columns], config, old_values,
+                    )
+                    continuing = any(set(members) == set(g) for g in recovered_groups[previous])
+                    if np.all(assigned >= 0) and not continuing:
+                        subgroups = _persistent_groups(old_values, gap)
+                        if len(subgroups) == 1:
+                            continue
+                        # Assignment tolerates appreciable cross-group mixing.
+                        # At a merged cluster, compare each assigned span with
+                        # its established span projected into the whole cluster.
+                        span = _orthonormal(new[:, columns])
+                        projected = span @ (span.conj().T @ old[:, members])
+                        projector_error = 0.0
+                        for subgroup in subgroups:
+                            indices = np.asarray(subgroup)
+                            target = _orthonormal(projected[:, indices])
+                            actual = _orthonormal(new[:, columns[assigned[indices]]])
+                            projector_error = max(projector_error, np.linalg.norm(
+                                target - actual @ (actual.conj().T @ target), 2))
+                        if projector_error <= 1e-8:
+                            continue
+                    electric, magnetic = zip(*[_solver_mode_fields(solver, i) for i in group])
+                    frame = _frame(electric, magnetic, impedance)
+                    transform, projected = _project_cluster(old[:, members], frame)
+                    # Keep slots close to their original fields where possible;
+                    # the following association determines public branch labels.
+                    scores = abs(new[:, columns].conj().T @ projected) ** 2
+                    rows, order = linear_sum_assignment(-scores)
+                    transform = transform[:, order[np.argsort(rows)]]
+                    residual = _residuals(solver, tuple(i + 1 for i in group), transform)
+                    if (not np.all(np.isfinite(residual)) or
+                            np.max(residual) > config.residual_tolerance):
+                        continue
+                    proposal = copy(solver)
+                    names = ("Eu", "Ev", "Ew", "Hu", "Hv", "Hw") if hasattr(solver, "Eu") else (
+                        "Et", "Ea", "Ew", "Ht", "Ha", "Hw")
+                    for name in names:
+                        fields = np.asarray(getattr(solver, name)).copy()
+                        fields[..., columns] = fields[..., columns] @ transform
+                        setattr(proposal, name, fields)
+                    # Field residuals are conservative bounds after mixing.
+                    # Include eigenvalue spread because Maxwell reconstruction
+                    # uses a slightly different root for each numerical mode.
+                    stored_field_residual = getattr(solver, "field_residuals", None)
+                    field_residual = (residual if stored_field_residual is None
+                                      else np.asarray(stored_field_residual)[columns])
+                    spread = np.max(abs(roots[:, None] - roots)) / max(1., np.max(abs(roots)))
+                    bound = np.sqrt(len(group)) * np.linalg.cond(transform) * (np.max(field_residual) + 2 * spread)
+                    if hasattr(proposal, "mode_tracking_field_operators"):
+                        bound = float(np.max(proposal.tracking_field_residuals(columns)))
+                    if not np.isfinite(bound) or bound > config.residual_tolerance:
+                        continue
+                    if hasattr(proposal, "_normalize_modes_to_power"):
+                        before = np.linalg.norm(_frame(*zip(*[
+                            _solver_mode_fields(proposal, i) for i in group]), impedance), axis=0)
+                        proposal._normalize_modes_to_power()
+                        after = np.linalg.norm(_frame(*zip(*[
+                            _solver_mode_fields(proposal, i) for i in group]), impedance), axis=0)
+                        transform *= (after / before)[None, :]
+                    if hasattr(proposal, "Eu"):
+                        proposal.eigenvectors = np.column_stack([
+                            np.concatenate((proposal.Eu[..., i].ravel(order="F"),
+                                            proposal.Ev[..., i].ravel(order="F")))
+                            for i in range(proposal.num_modes)])
+                    elif getattr(proposal, "eigenvectors", None) is not None:
+                        proposal.eigenvectors = np.asarray(proposal.eigenvectors).copy()
+                        proposal.eigenvectors[..., columns] = proposal.eigenvectors[..., columns] @ transform
+                    for name, values in (("field_residuals", np.full(len(group), bound)),
+                                         ("eigenpair_residuals", residual)):
+                        original = getattr(solver, name, None)
+                        if original is not None:
+                            updated = np.asarray(original).copy()
+                            updated[columns] = values
+                            setattr(proposal, name, updated)
+                    if hasattr(proposal, "_set_modal_fields"):
+                        proposal._set_modal_fields()
+                except (ValueError, np.linalg.LinAlgError):
+                    continue
+                solver.__dict__.update(proposal.__dict__)
+                recovered_groups[current].append(group)
+                records.append(dict(anchor=int(current), reference_anchor=int(previous),
+                                    candidate_indices=columns.copy(), reference_indices=members.copy(),
+                                    transform=transform.copy(), overlap=float(selected[1]),
+                                    residual=residual.copy(), field_residual_bound=float(bound)))
+            previous = current
+    return tuple(records)
+
+
 def track_solver_bank(owner, frequencies, solvers, mode_count):
     """Track and reorder a solver bank so public labels retain their identity."""
     config = owner.tracking_config
     frequencies = np.asarray(frequencies, dtype=float)
-    solvers = tuple(solvers)
+    original_solvers = tuple(solvers)
+    solvers = tuple(copy(solver) for solver in original_solvers)
     centre_frequency = owner.fallback_frequency
     if centre_frequency is None:
         centre_frequency = 0.5 * (frequencies[0] + frequencies[-1])
     centre = min(range(len(frequencies)), key=lambda i: (abs(frequencies[i] - centre_frequency), frequencies[i]))
     impedance = float(owner._tracking_impedance)
+    recovery = _recover_crossing_subspaces(solvers, frequencies, centre, impedance, config)
     centre_values = np.asarray(solvers[centre].eigenvalues)
     seed_indices = set(range(mode_count))
     if not owner.degenerate:
@@ -359,14 +519,17 @@ def track_solver_bank(owner, frequencies, solvers, mode_count):
     if owner.mode_polarizations:
         owner.mode_polarizations = normalize_polarizations(
             owner.mode_polarizations,
-            owner.degenerate,
+            (),
             owner.normal_axis,
             owner.invariant_axis,
+            unresolved=True,
+            warn_deprecated=False,
         )
     owner.tracking_diagnostics = {
         "schema_version": 1,
         "source_revision": "8c617a2",
-        "group_assignment_policy": "persistent_subgroups_v1",
+        "group_assignment_policy": "projected_subgroups_v2",
+        "subspace_recovery": recovery,
         "reference_anchor": int(centre),
         "candidate_indices": original_mapping,
         "overlaps": overlaps,
@@ -378,6 +541,10 @@ def track_solver_bank(owner, frequencies, solvers, mode_count):
         "unresolved_intervals": (),
     }
     owner._auto_numerical_valid = public_valid
+    # Commit only after the complete bank has passed association. A failed
+    # refinement attempt must leave the cached eigensolver fields untouched.
+    for original, tracked in zip(original_solvers, solvers):
+        original.__dict__.update(tracked.__dict__)
     return mapping
 
 
@@ -813,15 +980,20 @@ def normalize_groups(value, modes):
     return tuple(result)
 
 
-def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False):
-    """Normalize one/two shared directions or explicit per-mode directions.
+def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, unresolved=False,
+                            warn_deprecated=True):
+    """Normalize global polarization or deprecated legacy pair/mapping forms.
 
-    The inferred partner is n_positive cross first, independent of the port's
-    propagation sign. Automatic tracking expands it after detecting groups.
+    Automatic groups accept shared directions; mappings require legacy groups.
     """
     if value is None:
         return {}
     mapping = hasattr(value, "items")
+    sequence = isinstance(value, (tuple, list)) or (isinstance(value, np.ndarray) and value.ndim > 0)
+    shared_pair = not mapping and sequence and len(value) == 2
+    if unresolved and mapping:
+        raise ValueError("Automatic mode_polarizations accepts shared directions; "
+                         "per-mode or per-group direction mappings require tracking='legacy'.")
     if (not mapping or value) and invariant_axis is not None:
         raise ValueError("Physical mode_polarizations require a 3D port cross-section.")
 
@@ -843,43 +1015,59 @@ def normalize_polarizations(value, groups, normal_axis, invariant_axis=None, *, 
         vector[normal_axis] = 0
         return tuple(float(value) for value in vector / np.linalg.norm(vector))
 
+    def pair_directions(directions):
+        is_sequence = isinstance(directions, (tuple, list)) or (
+            isinstance(directions, np.ndarray) and directions.ndim > 0)
+        is_pair = is_sequence and len(directions) == 2
+        if is_pair:
+            return tuple(normalize_direction(direction) for direction in directions)
+        primary = normalize_direction(directions)
+        partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
+        return primary, partner
+
+    def validate_pair(directions):
+        if np.linalg.cond(np.asarray(directions).T) > _POLARIZATION_CONDITION_LIMIT:
+            raise ValueError(
+                "Requested polarization directions are linearly dependent or ill-conditioned. "
+                "Choose clearly distinct transverse directions: condition number must be at most 10."
+            )
+
     if mapping:
-        result = {_index(mode): normalize_direction(direction) for mode, direction in value.items()}
+        result = {}
+        for label, direction in value.items():
+            if isinstance(label, tuple):
+                group = tuple(_index(mode) for mode in label)
+                if len(group) != 2 or group not in groups:
+                    raise ValueError("Polarization group mappings must name a declared two-mode pair.")
+                entries = zip(group, pair_directions(direction))
+            else:
+                entries = ((_index(label), normalize_direction(direction)),)
+            for mode, direction in entries:
+                if mode in result:
+                    raise ValueError("Repeated polarization label.")
+                result[mode] = direction
     else:
-        sequence = isinstance(value, (tuple, list)) or (isinstance(value, np.ndarray) and value.ndim > 0)
-        shared_pair = sequence and len(value) == 2
-        if shared_pair:
-            primary, partner = (normalize_direction(direction) for direction in value)
-            if np.linalg.cond(np.asarray((primary, partner)).T) > _POLARIZATION_CONDITION_LIMIT:
-                raise ValueError(
-                    "Requested polarization directions are linearly dependent or ill-conditioned. "
-                    "Choose clearly distinct transverse directions: condition number must be "
-                    "at most 10 (about 11.4 degrees away from parallel or antiparallel)."
-                )
-        else:
-            primary = normalize_direction(value)
-            partner = tuple(float(v) for v in np.cross(np.eye(3)[normal_axis], primary))
-        if unresolved:
-            return (primary, partner) if shared_pair else primary
-        if not groups or any(len(group) != 2 for group in groups):
+        primary, partner = pair_directions(value)
+        validate_pair((primary, partner))
+        if not unresolved and (not groups or any(len(group) != 2 for group in groups)):
             raise ValueError("A shared mode polarization requires degenerate two-mode pairs.")
         result = {mode: direction for group in groups for mode, direction in zip(group, (primary, partner))}
-    if not unresolved and not set(result).issubset({item for group in groups for item in group}):
+    if not unresolved and not set(result).issubset({mode for group in groups for mode in group}):
         raise ValueError("mode_polarizations must belong to a declared degenerate group.")
-    for group in groups:
+    for group in (() if unresolved else groups):
         if set(group).intersection(result):
             if len(group) != 2 or not set(group).issubset(result):
-                raise ValueError(
-                    "Physical polarization mappings require both members of a two-mode pair."
-                )
-            matrix = np.asarray([result[item] for item in group]).T
-            if np.linalg.cond(matrix) > _POLARIZATION_CONDITION_LIMIT:
-                raise ValueError(
-                    "Requested polarization directions are linearly dependent or ill-conditioned. "
-                    "Choose clearly distinct transverse directions: condition number must be "
-                    "at most 10 (about 11.4 degrees away from parallel or antiparallel)."
-                )
-    return result
+                raise ValueError("Physical polarization mappings require both members of a two-mode pair.")
+            validate_pair([result[mode] for mode in group])
+    if warn_deprecated and (mapping or shared_pair):
+        warnings.warn(
+            "Two-direction sequences and per-mode/per-group mode_polarizations mappings "
+            "are deprecated and will be removed in gprMax 5.0. Prefer one global transverse "
+            "direction when its automatically inferred orthogonal partner matches the intended "
+            "basis. Explicit direction signs and nonorthogonal pairs are preserved until removal.",
+            FutureWarning, stacklevel=2,
+        )
+    return ((primary, partner) if shared_pair else primary) if unresolved else result
 
 
 def parse_port_options(tokens):
@@ -917,10 +1105,8 @@ def parse_port_options(tokens):
                     tuple(int(v) for v in group.split(",")) for group in value.split(";")
                 )
             elif ":" not in value:
-                directions = [
-                    tuple(float(v) for v in entry.split(",")) if "," in entry else entry
-                    for entry in value.split(";")
-                ]
+                directions = [tuple(float(v) for v in entry.split(",")) if "," in entry else entry
+                              for entry in value.split(";")]
                 if len(directions) > 2:
                     raise ValueError("Supply one or two shared polarization directions.")
                 options[key] = directions[0] if len(directions) == 1 else tuple(directions)
@@ -928,15 +1114,13 @@ def parse_port_options(tokens):
                 directions = {}
                 for entry in value.split(";"):
                     label, vector = entry.split(":", 1)
-                    label = int(label)
+                    label = tuple(int(v) for v in label.split(",")) if "," in label else int(label)
                     if label in directions:
-                        raise ValueError("Repeated polarization label")
-                    directions[label] = (
-                        tuple(float(v) for v in vector.split(",")) if "," in vector else vector
-                    )
+                        raise ValueError("Repeated polarization label.")
+                    directions[label] = tuple(float(v) for v in vector.split(",")) if "," in vector else vector
                 options[key] = directions
         except (ValueError, TypeError) as exc:
-            raise ValueError(f"Invalid eigenmode port {key}: {value!r}.") from exc
+            raise ValueError(f"Invalid eigenmode port {key}: {value!r}. {exc}") from exc
     return positional, options
 
 
@@ -970,21 +1154,22 @@ def _canonical_subspace_transform(frame):
     basis = []
     available = set(range(span.shape[0]))
     for _ in range(rank):
-        strengths = {}
-        for coordinate in available:
-            candidate = span @ span[coordinate].conj()
-            if basis:
-                existing = np.column_stack(basis)
-                candidate -= existing @ (existing.conj().T @ candidate)
-            strengths[coordinate] = float(np.linalg.norm(candidate))
-        strongest = max(strengths.values())
+        # The span is orthonormal, so projected-vector norms can be evaluated
+        # in its small coefficient space without forming every full field.
+        coefficients = span.conj().T.copy()
+        if basis:
+            existing = np.column_stack(basis)
+            reduced_basis = span.conj().T @ existing
+            coefficients -= reduced_basis @ (reduced_basis.conj().T @ coefficients)
+        strengths = np.linalg.norm(coefficients, axis=0)
+        strongest = max(strengths[coordinate] for coordinate in available)
         # Symmetric apertures can give several mathematically equal pivots.
         # Choose the lowest coordinate among numerical ties so BLAS rounding
         # cannot swap the two oriented modes between platforms or raw gauges.
         coordinate = min(
             coordinate
-            for coordinate, strength in strengths.items()
-            if strongest - strength <= _SUBSPACE_PIVOT_TOLERANCE
+            for coordinate in available
+            if strongest - strengths[coordinate] <= _SUBSPACE_PIVOT_TOLERANCE
         )
         candidate = span @ span[coordinate].conj()
         if basis:
@@ -1081,7 +1266,14 @@ def _residuals(solver, group, transform):
 
 def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anchor_h, propagating):
     """Align declared groups in place; never change solved propagation constants."""
+    residual_limit = owner.tracking_config.residual_tolerance
+    explicit_polarizations = bool(owner.mode_polarizations)
+    automatic = getattr(owner, "tracking", "legacy") == "auto"
+    requested_polarizations = owner.mode_polarizations if automatic else None
     owner.degenerate_diagnostics = []
+    owner.polarization_diagnostics = []
+    owner.symmetry_diagnostics = []
+    owner.symmetry_detection = None
     owner._degenerate_masks = {}
     owner._degenerate_overlaps = {}
     owner._degenerate_guard_trimmed = {}
@@ -1094,9 +1286,9 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
         used = np.flatnonzero(active)
         if not len(used) or np.any(np.diff(used) != 1):
             raise ValueError(f"{context} requires one contiguous propagating anchor range.")
-        explicit_physical = group[0] in owner.mode_polarizations
+        explicit_physical = not automatic and group[0] in owner.mode_polarizations
         automatic_axes = False
-        if not explicit_physical and len(group) == 2 and owner.invariant_axis is None:
+        if not automatic and not explicit_physical and len(group) == 2 and owner.invariant_axis is None:
             automatic_axes = True
             for k in used:
                 electric = [anchor_e[k][position] for position in positions]
@@ -1159,14 +1351,34 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
                 eigenvalues=eigenvalues.copy(),
             )
             outside = [i for i in range(len(solver.eigenvalues)) if i + 1 not in group]
-            if outside and np.any(
-                abs(np.asarray(solver.eigenvalues)[outside, None] - eigenvalues)
-                <= _DEGENERACY_TOLERANCE * max(1.0, float(np.max(abs(eigenvalues))))
-            ):
-                raise ValueError(
-                    f"{context} at {frequencies[k]:g} Hz has a degenerate partner "
-                    "outside the declared group. Include every partner in modes and degenerate."
+            partners = [i + 1 for i in outside if np.any(
+                abs(solver.eigenvalues[i] - eigenvalues)
+                <= _DEGENERACY_TOLERANCE * max(1.0, float(np.max(abs(eigenvalues))))) ]
+            if partners:
+                tracked = getattr(owner, "tracking_diagnostics", None) or {}
+                established = group in tracked.get("automatic_degenerate_groups", ())
+                trajectories = np.asarray([s.eigenvalues[:max(mode_indices)] for s in solvers])
+                independent = established and all(
+                    label in mode_indices and np.any(
+                        abs(trajectories[:, label - 1] - trajectories[:, group[0] - 1])
+                        > _DEGENERACY_TOLERANCE * np.maximum(
+                            1., abs(trajectories[:, group[0] - 1]))) for label in partners
                 )
+                if not independent:
+                    raise ValueError(
+                        f"{context} at {frequencies[k]:g} Hz has a degenerate partner "
+                        "outside the declared group. Include every partner in modes and degenerate."
+                    )
+                diagnostic["crossing_partners"] = np.asarray(partners)
+                if active[k]:
+                    all_positions = [mode_indices.index(label) for label in (*group, *partners)]
+                    ce = [anchor_e[k][p] for p in all_positions]
+                    ch = [anchor_h[k][p] for p in all_positions]
+                    _, pre = _orthonormal(_frame(ce, ch, float(owner._tracking_impedance)), transformation=True)
+                    eigenpower = np.linalg.eigvalsh(_power(owner, grid, _mix(ce, pre), _mix(ch, pre)))
+                    if not np.all(np.isfinite(eigenpower)) or eigenpower[0] <= eigenpower[-1] / _CONDITION_LIMIT:
+                        raise ValueError(f"{context} has no independent positive-power basis at the crossing.")
+                    diagnostic["crossing_power_condition"] = float(eigenpower[-1] / eigenpower[0])
             diagnostics.append(diagnostic)
             if not active[k]:
                 continue
@@ -1239,10 +1451,10 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
             transforms[k] = transform
             frames[k] = frame @ transform
             residual = _residuals(solver, group, transform)
-            if not np.all(np.isfinite(residual)) or np.max(residual) > _RESIDUAL_TOLERANCE:
+            if not np.all(np.isfinite(residual)) or np.max(residual) > residual_limit:
                 raise ValueError(
                     f"{context} at {frequencies[k]:g} Hz has mixed-mode eigen-residual "
-                    f"{np.max(residual):g}; use independent modes or improve the eigensolve."
+                    f"{np.max(residual):g}, exceeding the mixing limit {residual_limit:g}."
                 )
         overlaps = np.full(max(0, len(frequencies) - 1), np.nan)
         guard_trimmed = False
@@ -1323,10 +1535,10 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
             e, h = raw[k]
             transform = transforms[k]
             residual = _residuals(solvers[k], group, transform)
-            if not np.all(np.isfinite(residual)) or np.max(residual) > _RESIDUAL_TOLERANCE:
+            if not np.all(np.isfinite(residual)) or np.max(residual) > residual_limit:
                 raise ValueError(
                     f"{context} at {frequencies[k]:g} Hz has mixed-mode eigen-residual "
-                    f"{np.max(residual):g}; use independent modes or improve the eigensolve."
+                    f"{np.max(residual):g}, exceeding the mixing limit {residual_limit:g}."
                 )
             e, h = _mix(e, transform), _mix(h, transform)
             for j, p in enumerate(positions):
@@ -1344,6 +1556,7 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
             dict(
                 modes=group,
                 physical=physical,
+                polarization_directions=tuple(owner.mode_polarizations[item] for item in group) if physical else (),
                 orientation=orientation,
                 reference_anchor=reference,
                 overlaps=overlaps,
@@ -1352,7 +1565,166 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
         )
 
 
+    if automatic:
+        from gprMax.eigenmode_symmetry import align_symmetry_subspaces
+        align_symmetry_subspaces(owner, grid, frequencies, solvers, mode_indices, anchor_e, anchor_h)
+        if explicit_polarizations:
+            _polarize_resolved_pairs(owner, grid, solvers, mode_indices, anchor_e, anchor_h,
+                                    requested_polarizations)
+
+
+def _polarize_resolved_pairs(owner, grid, solvers, modes, electric, magnetic, requested):
+    """Apply directions within resolved doublets, never across their parent span."""
+    from gprMax.eigenmode_symmetry import _validate_measurement_basis
+
+    resolved = {tuple(record['modes']): record['blocks'] for record in owner.symmetry_diagnostics}
+    pairs = [tuple(block) for parent in owner.degenerate_diagnostics
+             for block in resolved.get(tuple(parent['modes']), (parent['modes'],))
+             if len(block) == 2]
+    if not pairs:
+        raise ValueError('mode_polarizations requires a resolved two-mode subspace; '
+                         'the detected groups contain no eligible doublet.')
+    directions = normalize_polarizations(requested, pairs, owner.normal_axis, owner.invariant_axis,
+                                        warn_deprecated=False)
+    trial_e, trial_h = [list(row) for row in electric], [list(row) for row in magnetic]
+    parents = deepcopy(owner.degenerate_diagnostics)
+    records = []
+    changed_anchors = set()
+    for pair in pairs:
+        if pair[0] not in directions:
+            continue
+        positions = [modes.index(label) for label in pair]
+        parent = next(p for p in parents if set(pair).issubset(p['modes']))
+        local = [parent['modes'].index(label) for label in pair]
+        wanted = np.asarray([directions[label] for label in pair]).T[list(owner.transverse_axes)]
+        record = dict(modes=pair, directions=np.asarray([directions[label] for label in pair]), anchors={})
+        previous_frame = None
+        for k, anchor in enumerate(parent['anchors']):
+            if not anchor['active']:
+                continue
+            e, h = [trial_e[k][p] for p in positions], [trial_h[k][p] for p in positions]
+            moments = _moments(owner, grid, e)
+            scale = np.asarray([sum(np.sum(abs(f[a])) for a in owner.transverse_axes)
+                                for f in e]) * np.prod(grid.dl[list(owner.transverse_axes)])
+            condition = np.linalg.cond(moments)
+            if (not np.isfinite(condition) or condition > _CONDITION_LIMIT
+                    or np.any(np.linalg.norm(moments, axis=0) <= 1e-12 * scale)):
+                raise ValueError(f'mode_polarizations: resolved pair {pair} has zero or ill-conditioned '
+                                 'integrated transverse E; use automatic field orientation.')
+            transform = np.linalg.solve(moments, wanted)
+            ee, hh = _mix(e, transform), _mix(h, transform)
+            frame = _frame(ee, hh, float(owner._tracking_impedance))
+            overlaps = np.ones(2)
+            if previous_frame is not None:
+                overlaps = abs(np.sum(previous_frame.conj() * frame, axis=0))**2 / (
+                    np.sum(abs(previous_frame)**2, axis=0) * np.sum(abs(frame)**2, axis=0))
+                if not np.all(np.isfinite(overlaps)) or np.min(overlaps) < owner.tracking_config.tracking_overlap:
+                    raise ValueError('Explicit subgroup polarization requires closer anchors for channel continuity.')
+            previous_frame = frame
+            norms = np.real(np.diag(_power(owner, grid, ee, hh)))
+            if not np.all(np.isfinite(norms)) or np.any(norms <= 0):
+                raise ValueError(f'mode_polarizations: resolved pair {pair} has invalid power.')
+            transform /= np.sqrt(norms)[None, :]
+            ee, hh = _mix(e, transform), _mix(h, transform)
+            for j, p in enumerate(positions):
+                trial_e[k][p], trial_h[k][p] = ee[j], hh[j]
+            rotation = np.eye(len(parent['modes']), dtype=complex)
+            rotation[np.ix_(local, local)] = transform
+            total = anchor['transform'] @ rotation
+            residual = _residuals(solvers[k], parent['modes'], total)
+            if not np.all(np.isfinite(residual)) or np.max(residual) > owner.tracking_config.residual_tolerance:
+                raise ValueError('Explicit subgroup polarization fails the mixed eigen-residual check.')
+            if hasattr(solvers[k], 'mode_tracking_field_operators'):
+                check = copy(solvers[k])
+                indices = np.asarray(parent['modes']) - 1
+                for name in ('Eu', 'Ev', 'Ew', 'Hu', 'Hv', 'Hw'):
+                    fields = getattr(check, name).copy()
+                    fields[..., indices] = fields[..., indices] @ total
+                    setattr(check, name, fields)
+                field_residual = np.max(check.tracking_field_residuals(indices))
+                if not np.isfinite(field_residual) or field_residual > owner.tracking_config.residual_tolerance:
+                    raise ValueError('Explicit subgroup polarization fails the Maxwell residual check.')
+            pp = [modes.index(label) for label in parent['modes']]
+            power = _power(owner, grid, [trial_e[k][p] for p in pp], [trial_h[k][p] for p in pp])
+            anchor.update(transform=total, residual=residual, power_gram=power)
+            record['anchors'][k] = dict(transform=transform, moment_condition=condition, channel_overlaps=overlaps)
+            changed_anchors.add(k)
+        parent['orientation'] = 'explicit_resolved_pairs'
+        parent['physical'] = all(label in directions for label in parent['modes'])
+        if parent['physical']:
+            parent['polarization_directions'] = tuple(directions[label] for label in parent['modes'])
+        records.append(record)
+    for k in changed_anchors:
+        _validate_measurement_basis(owner, grid, trial_e[k], trial_h[k])
+    # Publish only when every pair and anchor passes, keeping failed requests atomic.
+    for k in range(len(electric)):
+        electric[k][:], magnetic[k][:] = trial_e[k], trial_h[k]
+    owner.degenerate_diagnostics = parents
+    owner.polarization_diagnostics = records
+
+
 def write_diagnostics(group, owner):
+    if getattr(owner, 'polarization_diagnostics', None):
+        root = group.create_group('polarization_subspaces')
+        root.attrs['TransformationConvention'] = 'final pair fields = symmetry-aligned pair fields @ transform'
+        for i, record in enumerate(owner.polarization_diagnostics):
+            output = root.create_group(str(i+1))
+            output.attrs['ModeIndices'] = record['modes']
+            output['requested_directions'] = record['directions']
+            for k, values in record['anchors'].items():
+                anchor = output.create_group(f'anchor{k}')
+                for key, value in values.items():
+                    anchor[key] = value
+    detection = getattr(owner, "symmetry_detection", None)
+    if detection is not None:
+        import json
+        root = group.create_group("symmetry_detection")
+        root.attrs["Method"] = "native_yee_material_masks_v1"
+        root.attrs["Requested"] = "auto"
+        root.attrs["Detected"] = detection['detected']
+        root.attrs["Details"] = json.dumps(detection)
+        root.attrs["MaterialRelativeTolerance"] = 1e-10
+        root.attrs["MaterialAbsoluteTolerance"] = 1e-12
+    if getattr(owner, "symmetry_diagnostics", None):
+        root = group.create_group("symmetry_subspaces")
+        root.attrs["Method"] = "longitudinal_symmetry_and_axis_orientation_v3"
+        root.attrs['BasisConvention'] = 'Certified symmetry basis before any explicit subgroup polarization'
+        for i, record in enumerate(owner.symmetry_diagnostics):
+            output = root.create_group(str(i+1))
+            output.attrs["ParentModes"] = record['modes']
+            output.attrs["Blocks"] = ';'.join(','.join(map(str,b)) for b in record['blocks'])
+            output.attrs["Generators"] = np.asarray(record['generators'], dtype='S')
+            output.attrs["Irreps"] = np.asarray(record.get('irreps', ()), dtype='S')
+            output.attrs['IrrepConvention'] = 'Source-block symmetry content; + denotes combined irreps. Original irreducible basis is stored per anchor.'
+            output.attrs["ReferenceAnchorIndex"] = record['reference_anchor']
+            for k, values in record['anchors'].items():
+                anchor = output.create_group(f"anchor{k}")
+                for name in ('transform', 'residual', 'power', 'closure', 'leakage', 'field_residual', 'representations'):
+                    anchor[name] = values[name]
+                if values.get('irreducible_basis') is not None:
+                    ib = anchor.create_group('irreducible_basis')
+                    basis = values['irreducible_basis']
+                    ib['transform'] = basis['transform']
+                    ib.attrs['Irreps'] = np.asarray(basis['irreps'],dtype='S')
+                    ib.attrs['Columns'] = ';'.join(','.join(map(str,c)) for c in basis['columns'])
+                if values.get('axis_sensitive'):
+                    axis = anchor.create_group('axis_sensitive')
+                    axis.attrs['Records'] = json.dumps(values['axis_sensitive'],default=lambda x:x.tolist())
+                if values.get('longitudinal') is not None:
+                    longitudinal = anchor.create_group('longitudinal')
+                    record = values['longitudinal']
+                    longitudinal.attrs['Applied'] = record['applied']
+                    longitudinal.attrs['Reason'] = record['reason']
+                    longitudinal['scores'] = record['scores']
+                if values.get('orientation'):
+                    oriented = anchor.create_group('orientation')
+                    oriented.attrs['Method'] = 'electric_moment_then_mirror_parity_v1'
+                    oriented.attrs['MirrorConvention'] = 'vector parity under u and v reflection; doublets ordered u-odd then u-even'
+                    for j, record in enumerate(values['orientation']):
+                        block = oriented.create_group(str(j+1))
+                        block.attrs['Method'] = record['method']
+                        for name in ('parity', 'parity_residual', 'moment_relative_min', 'channel_overlaps'):
+                            block[name] = record[name]
     diagnostics = getattr(owner, "tracking_diagnostics", None)
     if diagnostics is not None:
         root = group.create_group("mode_tracking")
@@ -1366,6 +1738,16 @@ def write_diagnostics(group, owner):
             diagnostics.get("verification_solve_count", 0)
         )
         root["candidate_indices"] = diagnostics["candidate_indices"]
+        root.attrs["CandidateIndexConvention"] = "post_recovery_solver_slots; see subspace_recovery"
+        recovered = diagnostics.get("subspace_recovery", ())
+        if recovered:
+            recovery_group = root.create_group("subspace_recovery")
+            for index, record in enumerate(recovered):
+                entry = recovery_group.create_group(str(index))
+                for name in ("anchor", "reference_anchor", "overlap", "field_residual_bound"):
+                    entry.attrs[name] = record[name]
+                for name in ("candidate_indices", "reference_indices", "transform", "residual"):
+                    entry[name] = record[name]
         root["tracking_overlaps"] = diagnostics["overlaps"]
         root["combined_residuals"] = diagnostics["residuals"]
         root["eigenpair_residuals"] = diagnostics.get(
@@ -1432,11 +1814,11 @@ def write_diagnostics(group, owner):
             output.attrs["TransformationConvention"] = "aligned fields = raw fields @ transform"
             output["subspace_overlaps"] = record["overlaps"]
             if record["physical"]:
-                directions = [
-                    owner.mode_polarizations[item] for item in record["modes"]
-                ]
+                directions = record.get("polarization_directions")
+                if directions is None:
+                    directions = [owner.mode_polarizations[item] for item in record["modes"]]
                 output["polarization_directions"] = directions
-                if record["orientation"] == "explicit":
+                if record["orientation"] in ("explicit", "explicit_resolved_pairs"):
                     output["requested_directions"] = directions
             for k, anchor in enumerate(record["anchors"]):
                 row = output.create_group(f"anchor{k}")
@@ -1447,6 +1829,9 @@ def write_diagnostics(group, owner):
 def aligned_plot_solvers(owner, solvers):
     """Plot copies in the authoritative bank basis without altering raw solves."""
     result = [copy(solver) for solver in solvers]
+    directions = dict(owner.mode_polarizations) if isinstance(owner.mode_polarizations, dict) else {}
+    for record in getattr(owner, 'polarization_diagnostics', ()):
+        directions.update(zip(record['modes'], record['directions']))
     for record in owner.degenerate_diagnostics:
         indices = np.asarray(record["modes"]) - 1
         for k, diagnostic in enumerate(record["anchors"]):
@@ -1459,5 +1844,5 @@ def aligned_plot_solvers(owner, solvers):
                 destination = np.array(getattr(result[k], name), copy=True)
                 destination[..., indices] = field[..., indices] @ diagnostic["transform"]
                 setattr(result[k], name, destination)
-            result[k].mode_polarizations = owner.mode_polarizations
+            result[k].mode_polarizations = directions
     return tuple(result)
