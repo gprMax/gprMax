@@ -1029,31 +1029,36 @@ class CrimMixture:
         material_ids = []
         matrix = next((m for m in G.materials if m.ID == self.matrix_id), None)
         if not matrix:
-            logger.exception(f"{self.ID} material {self.matrix_id!r} does not exist")
-            raise ValueError
+            message = f"{self.ID} material {self.matrix_id!r} does not exist"
+            logger.exception(message)
+            raise ValueError(message)
         if isinstance(matrix, DispersiveMaterial) and matrix.poles > 0:
-            logger.exception(f"{self.ID} matrix material {self.matrix_id!r} must be non-dispersive")
-            raise ValueError
+            message = f"{self.ID} matrix material {self.matrix_id!r} must be non-dispersive"
+            logger.exception(message)
+            raise ValueError(message)
         if matrix.is_pec or matrix.is_pmc:
-            logger.exception(
+            message = (
                 f"{self.ID} matrix material {self.matrix_id!r} cannot be a perfect conductor"
             )
-            raise ValueError
+            logger.exception(message)
+            raise ValueError(message)
 
         dispersive = next((m for m in G.materials if m.ID == self.dispersive_id), None)
         if not dispersive:
-            logger.exception(f"{self.ID} material {self.dispersive_id!r} does not exist")
-            raise ValueError
+            message = f"{self.ID} material {self.dispersive_id!r} does not exist"
+            logger.exception(message)
+            raise ValueError(message)
         if (
             not isinstance(dispersive, DispersiveMaterial)
             or dispersive.type != "debye"
             or dispersive.poles != 1
         ):
-            logger.exception(
+            message = (
                 f"{self.ID} dispersive material {self.dispersive_id!r} must be a "
                 "single-pole Debye material"
             )
-            raise ValueError
+            logger.exception(message)
+            raise ValueError(message)
 
         # CRIM is an electric-permittivity mixing model. Silently copying a
         # magnetic matrix property to every mixture bin would not represent
@@ -1061,11 +1066,12 @@ class CrimMixture:
         # ordinary non-magnetic dielectrics.
         for role, material in (("matrix", matrix), ("dispersive", dispersive)):
             if not np.isclose(material.mr, 1.0) or not np.isclose(material.sm, 0.0):
-                logger.exception(
+                message = (
                     f"{self.ID} {role} material {material.ID!r} must be non-magnetic "
                     "(mr=1 and sm=0)"
                 )
-                raise ValueError
+                logger.exception(message)
+                raise ValueError(message)
 
         properties = (
             matrix.er,
@@ -1076,24 +1082,25 @@ class CrimMixture:
             dispersive.tau[0],
         )
         if not all(np.isfinite(value) for value in properties):
-            logger.exception(f"{self.ID} constituent material properties must be finite")
-            raise ValueError
+            message = f"{self.ID} constituent material properties must be finite"
+            logger.exception(message)
+            raise ValueError(message)
         if matrix.er < 1 or matrix.se < 0:
-            logger.exception(
-                f"{self.ID} matrix material {matrix.ID!r} must have er >= 1 and se >= 0"
-            )
-            raise ValueError
+            message = f"{self.ID} matrix material {matrix.ID!r} must have er >= 1 and se >= 0"
+            logger.exception(message)
+            raise ValueError(message)
         if (
             dispersive.er < 1
             or dispersive.se < 0
             or dispersive.deltaer[0] < 0
             or dispersive.tau[0] <= 0
         ):
-            logger.exception(
+            message = (
                 f"{self.ID} dispersive material {dispersive.ID!r} must define a passive "
                 "single-pole Debye response"
             )
-            raise ValueError
+            logger.exception(message)
+            raise ValueError(message)
 
         eps_matrix = matrix.er
         sigma_matrix = matrix.se
@@ -1128,11 +1135,12 @@ class CrimMixture:
         for f_disp in fracmaterials:
             f_air = 1.0 - self.matrix_fraction - f_disp
             if f_air < 0:
-                logger.exception(
+                message = (
                     f"{self.ID} matrix fraction {self.matrix_fraction:g} plus dispersive "
                     f"fraction {f_disp:g} exceeds 1 (implied air fraction is negative)"
                 )
-                raise ValueError
+                logger.exception(message)
+                raise ValueError(message)
 
             mix = (
                 self.matrix_fraction * eps_matrix**self.a
@@ -1154,13 +1162,14 @@ class CrimMixture:
                 or deltaer < 0
                 or sigma_bin < 0
             ):
-                logger.exception(
+                message = (
                     f"{self.ID} produced a non-passive Debye fit for dispersive fraction "
                     f"{f_disp:g} (er={eri:g}, deltaer={deltaer:g}, se={sigma_bin:g}); "
                     "check the constituent materials, fractions, frequency range, and "
                     "shape factor"
                 )
-                raise ValueError
+                logger.exception(message)
+                raise ValueError(message)
 
             # Create individual materials
             m = DispersiveMaterial(len(G.materials), None)

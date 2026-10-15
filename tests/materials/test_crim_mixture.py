@@ -188,7 +188,7 @@ class TestCrimMixture:
     def test_calculate_properties_rejects_missing_matrix_material(self, fake_grid):
         G = fake_grid(materials=[])
         crim = CrimMixture("c", "nope", 0.6, "alsonope", 0.02, 0.35, 1e6, 3e9)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="does not exist"):
             crim.calculate_properties(1, G)
 
     def test_calculate_properties_rejects_dispersive_material_used_as_matrix(
@@ -197,7 +197,7 @@ class TestCrimMixture:
         water = self._water(make_dispersive)
         G = fake_grid(materials=[water])
         crim = CrimMixture("c", "water", 0.6, "water", 0.02, 0.35, 1e6, 3e9)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="must be non-dispersive"):
             crim.calculate_properties(1, G)
 
     def test_calculate_properties_rejects_non_dispersive_material_used_as_dispersive(
@@ -206,7 +206,7 @@ class TestCrimMixture:
         matrix = make_material(ID="sand", er=5.0)
         G = fake_grid(materials=[matrix])
         crim = CrimMixture("c", "sand", 0.6, "sand", 0.02, 0.35, 1e6, 3e9)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="single-pole Debye"):
             crim.calculate_properties(1, G)
 
     def test_calculate_properties_rejects_multi_pole_dispersive_material(
@@ -218,7 +218,7 @@ class TestCrimMixture:
         )
         G = fake_grid(materials=[matrix, two_pole])
         crim = CrimMixture("c", "sand", 0.6, "water2", 0.02, 0.35, 1e6, 3e9)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="single-pole Debye"):
             crim.calculate_properties(1, G)
 
     def test_calculate_properties_rejects_fractions_exceeding_one(
@@ -229,19 +229,21 @@ class TestCrimMixture:
         G = fake_grid(materials=[matrix, water])
         # matrix (0.8) + dispersive (0.35 upper bound) > 1 -> negative air fraction
         crim = CrimMixture("c", "sand", 0.8, "water", 0.1, 0.35, 1e6, 3e9)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="exceeds 1"):
             crim.calculate_properties(2, G)
 
     @pytest.mark.parametrize(
-        ("matrix_kwargs", "dispersive_kwargs"),
+        ("matrix_kwargs", "dispersive_kwargs", "match"),
         [
-            ({"se": np.inf}, {}),
-            ({"mr": 2.0}, {}),
-            ({}, {"mr": 2.0}),
+            # Infinite conductivity is PEC, which is rejected before the
+            # magnetic check runs.
+            ({"se": np.inf}, {}, "perfect conductor"),
+            ({"mr": 2.0}, {}, "must be non-magnetic"),
+            ({}, {"mr": 2.0}, "must be non-magnetic"),
         ],
     )
     def test_calculate_properties_rejects_unsupported_constituents(
-        self, make_material, make_dispersive, fake_grid, matrix_kwargs, dispersive_kwargs
+        self, make_material, make_dispersive, fake_grid, matrix_kwargs, dispersive_kwargs, match
     ):
         matrix = make_material(ID="matrix", er=4.0, **matrix_kwargs)
         water = make_dispersive(
@@ -255,7 +257,7 @@ class TestCrimMixture:
         G = fake_grid(materials=[matrix, water])
         crim = CrimMixture("mix", "matrix", 0.5, "water", 0.1, 0.2, 1e6, 3e9)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=match):
             crim.calculate_properties(2, G)
 
     @pytest.mark.parametrize(
@@ -277,7 +279,7 @@ class TestCrimMixture:
         G = fake_grid(materials=[matrix, dispersive])
         crim = CrimMixture("mix", "matrix", 0.5, "phase", 0.1, 0.2, 1e6, 3e9)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="passive"):
             crim.calculate_properties(2, G)
 
 
