@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+from numbers import Integral
 
 import numpy as np
 
@@ -769,6 +770,12 @@ class RangeMaterial:
             G: FDTDGrid class describing a grid in a model.
         """
 
+        if isinstance(nbins, bool) or not isinstance(nbins, Integral) or int(nbins) < 1:
+            raise ValueError(
+                f"RangeMaterial '{self.ID}' requires a positive integer nbins, got {nbins!r}"
+            )
+        nbins = int(nbins)
+
         material_ids = []
 
         # Generate a set of relative permittivity bins based on the given range
@@ -814,15 +821,15 @@ class RangeMaterial:
         used_ids = {m.ID for m in G.materials}
 
         # Iterate over the bins
-        for iter in np.arange(nbins):
+        for index in np.arange(nbins):
             # Relative permittivity
-            er = ermaterials[iter]
+            er = ermaterials[index]
             # Effective conductivity
-            se = sigmamaterials[iter]
+            se = sigmamaterials[index]
             # Magnetic permeability
-            mr = mumaterials[iter]
+            mr = mumaterials[index]
             # Magnetic loss
-            sm = romaterials[iter]
+            sm = romaterials[index]
 
             key = (float(er), float(se), float(mr), float(sm))
             material = existing.get(key)
