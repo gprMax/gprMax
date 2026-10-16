@@ -22,7 +22,6 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
-from gprMax.waveforms import Waveform as GprMaxWaveform
 from gprMax.toolboxes.ImpulseResponse import (
     BUILTIN_WAVEFORM_TYPES,
     SourceSampling,
@@ -37,6 +36,7 @@ from gprMax.toolboxes.ImpulseResponse import (
     write_synthesised_output,
 )
 from gprMax.toolboxes.SFCW.processing import SampledSignal, load_receiver, load_source
+from gprMax.waveforms import Waveform as GprMaxWaveform
 
 
 def _source(samples, dt=1e-10, time_offset=0.5e-10, evaluation_offset=None):
@@ -137,6 +137,17 @@ def test_builtin_ricker_uses_half_step_source_evaluation():
     expected = (
         -1.7 * (2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2)) / (2 * zeta)
     )
+    assert_allclose(waveform.samples, expected, rtol=2e-15, atol=2e-15)
+
+
+def test_builtin_gauspulse_uses_half_step_source_evaluation():
+    source = _source(np.r_[1.0, np.zeros(127)], dt=1e-11, time_offset=0.5e-11)
+    waveform = sample_builtin_waveform(source, "gauspulse", 1.7, 500e6, "gauspulse500")
+    times = 0.5 * source.signal.dt + source.signal.dt * np.arange(128)
+    zeta = -((np.pi * 500e6 * 0.5) ** 2) / (4 * np.log(10 ** (-6 / 20)))
+    chi = np.sqrt(-np.log(10 ** (-60 / 20)) / zeta)
+    delay = times - chi
+    expected = 1.7 * np.exp(-zeta * delay**2) * np.cos(2 * np.pi * 500e6 * delay)
     assert_allclose(waveform.samples, expected, rtol=2e-15, atol=2e-15)
 
 
@@ -340,13 +351,14 @@ def _write_impulse_h5(path: Path, *, second_active_source=False):
         field.attrs["Quantity"] = "Ez"
 
 
-def test_batch_synthesis_writes_receiver_compatible_hdf5(tmp_path):
+@pytest.mark.parametrize("waveform_type", ["ricker", "gauspulse"])
+def test_batch_synthesis_writes_receiver_compatible_hdf5(tmp_path, waveform_type):
     impulse_file = tmp_path / "impulse.h5"
     _write_impulse_h5(impulse_file)
     source = load_source_sampling(impulse_file)
-    waveform = sample_builtin_waveform(source, "ricker", 1.0, 300e6, "ricker300")
+    waveform = sample_builtin_waveform(source, waveform_type, 1.0, 300e6, f"{waveform_type}300")
     result = synthesise_output(impulse_file, waveform)
-    output = write_synthesised_output(tmp_path / "ricker.h5", result)
+    output = write_synthesised_output(tmp_path / f"{waveform_type}.h5", result)
 
     stored_source = load_source(output)
     stored_receiver = load_receiver(output)
@@ -358,15 +370,28 @@ def test_batch_synthesis_writes_receiver_compatible_hdf5(tmp_path):
         assert_allclose(file["/impulse_reference/source_samples"], source.signal.samples)
 
 
+def test_cli_process_supports_gauspulse(tmp_path, capsys):
+    from gprMax.toolboxes.ImpulseResponse.cli import main
+
+    impulse_file = tmp_path / "impulse.h5"
+    _write_impulse_h5(impulse_file)
+    ret = main(["process", str(impulse_file), "--waveform", "gauspulse", "1.0", "300e6", "gp1"])
+    assert ret == 0
+    assert (tmp_path / "impulse_waveforms" / "impulse_gp1.h5").exists()
+
+
 def test_named_subset_preserves_identity_and_is_readable_by_plot_and_merge(tmp_path):
-    from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
     from gprMax.toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
+    from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
 
     original = tmp_path / "subset-input.h5"
     _write_impulse_h5(original)
     with h5py.File(original, "r+") as output:
         output.attrs.update(
-            nrx=2, ReceiverOrder="construction", ReceiverOrderSchemaVersion=1, ReceiverLayout="original-layout"
+            nrx=2,
+            ReceiverOrder="construction",
+            ReceiverOrderSchemaVersion=1,
+            ReceiverLayout="original-layout",
         )
         output.move("rxs/rx1", "rxs/rx2")
         output["rxs/rx2"].attrs.update(BuildIndex=1, NameKind="user", Position=(0, 0, 0))
