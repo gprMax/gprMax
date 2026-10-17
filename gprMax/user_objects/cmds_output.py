@@ -531,6 +531,8 @@ class Snapshot(OutputUserObject):
         self.iterations = iterations
         self.time = time
         self.outputs = outputs
+        # True only for a user-supplied count, never for a time-derived one.
+        self._iterations_supplied = iterations is not None
 
     def _calculate_upper_bound(
         self, start: npt.NDArray[np.int32], step: npt.NDArray[np.int32], size: npt.NDArray[np.int32]
@@ -571,14 +573,13 @@ class Snapshot(OutputUserObject):
         if any(discretised_dl < 1):
             raise ValueError(f"{self.params_str()} the step size should not be less than the spatial discretisation.")
 
-        if self.iterations is not None and self.time is not None:
+        if self._iterations_supplied and self.time is not None:
             logger.warning(f"{self.params_str()} Time and iterations were both specified, using 'iterations'")
 
         # Snapshot iteration n is the solver's zero-based electric-field time
         # level: E is at n*dt and H is at (n-1/2)*dt. The solver visits the
-        # range 0 <= n < grid.iterations; keep the resolved iteration local
-        # to avoid treating time as user-specified iterations on scene rebuilds.
-        if self.iterations is not None:
+        # range 0 <= n < grid.iterations.
+        if self._iterations_supplied:
             if isinstance(self.iterations, bool) or not isinstance(self.iterations, Integral):
                 raise ValueError(f"{self.params_str()} iterations must be an integer.")
             iterations = int(self.iterations)
@@ -601,6 +602,9 @@ class Snapshot(OutputUserObject):
                 f"{self.params_str()} snapshot iteration {iterations} is outside the "
                 f"valid range 0 to {grid.iterations - 1}."
             )
+
+        # Write the resolved value back so callers can read it after build.
+        self.iterations = iterations
 
         if self.file_extension is None:
             self.file_extension = SnapshotUser.fileexts[0]
