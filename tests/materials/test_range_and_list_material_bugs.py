@@ -53,6 +53,39 @@ def test_range_material_appends_one_entry_per_bin_even_when_a_later_bin_reuses_a
     assert existing.er == 2.5
 
 
+@pytest.mark.parametrize("bad", [0, -1, True, False, 2.5, "2", None])
+def test_range_material_non_positive_or_non_integer_nbins_raises_valueerror(bad):
+    class _Grid:
+        pass
+
+    grid = _Grid()
+    grid.materials = []
+    rm = RangeMaterial("range1", (1.0, 3.0), (0.0, 0.0), (1.0, 1.0), (0.0, 0.0))
+
+    with pytest.raises(ValueError, match="positive integer nbins"):
+        rm.calculate_properties(bad, grid)
+    # Rejected call leaves previous state alone
+    assert rm.matID == []
+
+
+def test_range_material_numpy_uint64_nbins_works():
+    """A NumPy unsigned int passes validation (it is an integer), but without
+    normalizing to plain int afterwards, np.arange yields float64 indices
+    and indexing fails. The calculation must coerce after validating."""
+    import numpy as np
+
+    class _Grid:
+        pass
+
+    grid = _Grid()
+    grid.materials = []
+    rm = RangeMaterial("range1", (1.0, 3.0), (0.0, 0.0), (1.0, 1.0), (0.0, 0.0))
+    rm.calculate_properties(np.uint64(2), grid)
+
+    assert len(rm.matID) == 2
+    assert all(isinstance(v, int) for v in rm.matID)
+
+
 def test_list_material_missing_material_raises_valueerror_not_attributeerror():
     class _Grid:
         materials = []

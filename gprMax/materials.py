@@ -821,6 +821,7 @@ class RangeMaterial:
         """
 
         _validate_bin_count(nbins, self.ID)
+        nbins = int(nbins)
 
         material_ids = []
 
@@ -867,15 +868,15 @@ class RangeMaterial:
         used_ids = {m.ID for m in G.materials}
 
         # Iterate over the bins
-        for iter in np.arange(nbins):
+        for index in np.arange(nbins):
             # Relative permittivity
-            er = ermaterials[iter]
+            er = ermaterials[index]
             # Effective conductivity
-            se = sigmamaterials[iter]
+            se = sigmamaterials[index]
             # Magnetic permeability
-            mr = mumaterials[iter]
+            mr = mumaterials[index]
             # Magnetic loss
-            sm = romaterials[iter]
+            sm = romaterials[index]
 
             key = (float(er), float(se), float(mr), float(sm))
             material = existing.get(key)
