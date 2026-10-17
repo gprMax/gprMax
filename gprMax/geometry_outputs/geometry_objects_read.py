@@ -145,7 +145,7 @@ class ReadGeometryObject(AbstractContextManager):
             self.grid_view = GridView(grid, start[0], start[1], start[2], stop[0], stop[1], stop[2])
 
     def _resize_cell_axis(self, array: npt.NDArray, spatial_axis_offset: int) -> npt.NDArray:
-        """Broadcasts (1 -> N) or reduces (N -> 1, taking the first layer)
+        """Broadcasts (1 -> N) or reduces (N -> target, taking the first layer)
         `array` along the invariant axis to match `self.target_invariant_size`,
         for a cell-based array (solid, rigidE, rigidH - sized nx/ny/nz, no
         +1 edge padding). No-op if there's no mismatch (including the pure
@@ -164,13 +164,16 @@ class ReadGeometryObject(AbstractContextManager):
             reps = [1] * array.ndim
             reps[axis] = self.target_invariant_size
             return np.tile(array, reps)
-        else:
-            # file_invariant_size > 1, target == 1: every 2D-mode geometry
-            # command in this codebase already keeps the invariant axis's
-            # cells identical (see FractalVolume/FractalSurface/AddGrass),
-            # so any one layer is an equally valid canonical choice - use
-            # the first.
-            return np.take(array, [0], axis=axis)
+
+        # file_invariant_size > 1: geometry commands in this codebase
+        # keep the invariant-axis cells identical (see
+        # FractalVolume/FractalSurface/AddGrass), so any layer is a
+        # valid canonical choice. Use the first layer and repeat it
+        # when the target domain requires two cells for TE mode.
+        canonical = np.take(array, [0], axis=axis)
+        reps = [1] * array.ndim
+        reps[axis] = self.target_invariant_size
+        return np.tile(canonical, reps)
 
     def _resize_edge_axis(self, array: npt.NDArray, spatial_axis_offset: int) -> npt.NDArray:
         """Same as _resize_cell_axis(), but for the ID array, which is
