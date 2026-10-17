@@ -40,6 +40,12 @@ class _ExplicitCFS(_AutomaticCFS):
         self.sigma.max = 456.0
 
 
+class _ZeroExplicitCFS(_AutomaticCFS):
+    def __init__(self):
+        super().__init__()
+        self.sigma.max = 0.0
+
+
 class _NoCollectiveComm:
     """Fail if the coefficient setup attempts an MPI collective."""
 
@@ -76,4 +82,28 @@ def test_mpi_pml_calculates_automatic_sigma_locally(monkeypatch):
 
     assert automatic.calls == [(0.002, 4.0, 2.0)]
     assert explicit.calls == []
+    assert parent_calls == [(4.0, 2.0)]
+
+
+def test_mpi_pml_keeps_explicit_zero_sigma_max(monkeypatch):
+    """An explicit sigmamax=0 must not be replaced by the automatic value.
+
+    The serial PML treats sigma.max None as the only automatic marker, so
+    the MPI variant has to use the same sentinel or it silently ignores a
+    user-specified sigmamax=0.
+    """
+    zero = _ZeroExplicitCFS()
+    pml = _make_pml([zero])
+    parent_calls = []
+
+    monkeypatch.setattr(
+        PML,
+        "calculate_update_coeffs",
+        lambda self, er, mr: parent_calls.append((er, mr)),
+    )
+
+    pml.calculate_update_coeffs(er=4.0, mr=2.0)
+
+    assert zero.calls == []
+    assert zero.sigma.max == 0.0
     assert parent_calls == [(4.0, 2.0)]
