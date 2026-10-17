@@ -696,7 +696,7 @@ class TestTransmissionLineUpdateMagnetic:
 
 class TestDiscretePlaneWaveInit:
     def test_m_array_shape_and_dtype(self):
-        dpw = DiscretePlaneWave(G=None)  # __init__ does not use G
+        dpw = DiscretePlaneWave(G=None)
         assert dpw.m.shape == (4,)
         assert dpw.m.dtype == np.int32
 
@@ -712,12 +712,21 @@ class TestDiscretePlaneWaveInit:
         assert dpw.projections.dtype == np.float64
 
     def test_default_scalar_fields(self):
-        dpw = DiscretePlaneWave(G=None)
+        dpw = DiscretePlaneWave(G=None)  # __init__ does not use G
         assert dpw.materialID is None  # upstream made material optional
         assert dpw.pml_cells == 20
         assert dpw.buffercells_axial == 5
         assert dpw.axial == 0
         assert dpw.speed == c
+
+    def test_unsatisfiable_tolerance_raises_value_error(self, fake_grid):
+        """Raise a clear error when no direction meets the tolerance."""
+        dpw = DiscretePlaneWave(G=None)
+        dpw.theta = 45.0
+        dpw.phi = 23.0
+        dpw.max_angle_diff = 1e-9
+        with pytest.raises(ValueError, match="max_angle_diff"):
+            dpw.initializeDiscretePlaneWave(fake_grid())
 
 
 class TestFindDpwIntegersOptimized:
@@ -766,6 +775,13 @@ class TestFindDpwIntegersOptimized:
         assert math.isnan(angles[0]) and math.isnan(angles[1])
         assert math.isnan(errs[0]) and math.isnan(errs[1])
         assert math.isnan(total_err)
+
+    def test_no_solution_does_not_print_to_stdout(self, capsys):
+        """Do not print a warning directly to stdout."""
+        dpw = DiscretePlaneWave(G=None)
+        m_vec, _, _, _ = self._solve(dpw, theta_deg=37.0, phi_deg=23.0, tol_deg=-1.0)
+        assert m_vec is None
+        assert "No DPW solution" not in capsys.readouterr().out
 
     def test_oblique_uniform_grid_produces_small_integers(self):
         """45/45 oblique on a uniform grid should resolve to a small

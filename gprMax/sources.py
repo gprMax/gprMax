@@ -4905,13 +4905,21 @@ class DiscretePlaneWave(Source):
         if self.m[0] == 0 and self.m[1] == 0 and self.m[2] == 0:
             # Find the integer mappings m_x, m_y, m_z for the DPW using partial fractions
             (
-                self.m[:3],
+                m_vec,
                 self.actual_angles,
                 self.angle_errors,
                 self.total_error,
             ) = self.find_dpw_integers_optimized(
                 self.theta, self.phi, [G.dx, G.dy, G.dz], self.max_angle_diff
             )
+            if m_vec is None:
+                raise ValueError(
+                    f"Discrete plane wave: no integer propagation direction within "
+                    f"max_angle_diff = {self.max_angle_diff:g} degrees for theta = "
+                    f"{self.theta:g}, phi = {self.phi:g} degrees - increase "
+                    "max_angle_diff or adjust the angles"
+                )
+            self.m[:3] = m_vec
 
         # check for axial propagation case where the user wants a plane wave normally incident using grid geometry assuming layered model at best.
         elif self.axial != 0:
@@ -6548,7 +6556,7 @@ class DiscretePlaneWave(Source):
         valid_candidates = [c for c in candidates if c["error"] <= max_total_error_deg]
 
         if not valid_candidates:
-            print("Warning: No DPW solution found within the error tolerance.")
+            logger.warning("No DPW solution found within the error tolerance.")
             return None, (math.nan, math.nan), (math.nan, math.nan), math.nan
 
         # Sort the valid solutions by size (smallest integers first)
