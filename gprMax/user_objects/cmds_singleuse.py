@@ -268,6 +268,14 @@ class Domain(ModelUserObject):
             inf_axis: index of the resolved axis, or None if domain_size
                 had no `inf` axis.
         """
+        for axis, value in enumerate(self.domain_size):
+            if math.isnan(value):
+                raise ValueError(
+                    f"{self} does not accept {value} for the domain size on the "
+                    f"{self._AXIS_NAMES[axis]} axis; use a positive size, or the "
+                    "positive 'inf' marker to request a 2D model"
+                )
+
         inf_axes = [i for i, v in enumerate(self.domain_size) if math.isinf(v)]
 
         if len(inf_axes) > 1:
@@ -325,8 +333,8 @@ class Domain(ModelUserObject):
         # `> 0` (not `!= 0`) also rejects negative cell counts (from a
         # negative raw domain dimension, e.g. p1=(-0.04, 0.04, 0.04) -
         # discretise_static_point() does no sign/bound checking of its
-        # own) and NaN (comparisons with NaN are always False, so
-        # `not (x > 0)` is True for NaN, unlike `x == 0`).
+        # own). NaN never gets here: _resolve_inf_axis() rejects it with
+        # a Domain-specific message.
         if not (model.nx > 0 and model.ny > 0 and model.nz > 0):
             raise ValueError(f"{self} requires at least one cell in every dimension")
 
