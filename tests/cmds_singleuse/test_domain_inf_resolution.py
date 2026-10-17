@@ -71,7 +71,7 @@ def _pml_thickness_for_domain(domain, dl):
     """
     thickness = [3, 3, 3, 3, 3, 3]
     for i, v in enumerate(domain):
-        if math.isinf(v):
+        if not math.isfinite(v):
             small = True
         else:
             small = round(v / dl[i]) <= 2
@@ -213,6 +213,25 @@ def test_te_mode_without_inf_raises(monkeypatch, tmp_path):
 def test_two_inf_axes_raises(monkeypatch, tmp_path):
     with pytest.raises(ValueError, match="at most one axis"):
         _run(monkeypatch, tmp_path, "two_inf", (0.01, INF, INF), mode="TE")
+
+
+def test_negative_inf_domain_size_raises(monkeypatch, tmp_path):
+    """'-inf' is a negative extent, not a 2D marker: it must be rejected
+    rather than silently resolved to a 2-cell axis like positive 'inf'."""
+    with pytest.raises(ValueError, match="-inf"):
+        _run(monkeypatch, tmp_path, "negative_inf", (0.01, 0.01, -INF), mode="TE")
+
+
+def test_negative_inf_domain_size_without_mode_raises(monkeypatch, tmp_path):
+    with pytest.raises(ValueError, match="-inf"):
+        _run(monkeypatch, tmp_path, "negative_inf_no_mode", (0.01, 0.01, -INF))
+
+
+def test_nan_domain_size_raises(monkeypatch, tmp_path):
+    """NaN must fail with a Domain error, not the bare ValueError that
+    round_int() raises for NaN much later."""
+    with pytest.raises(ValueError, match="nan"):
+        _run(monkeypatch, tmp_path, "nan_size", (0.01, 0.01, math.nan))
 
 
 def test_legacy_1cell_auto_detect_tm_unaffected(monkeypatch, tmp_path):
