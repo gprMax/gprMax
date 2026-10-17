@@ -86,12 +86,7 @@ def test_mpi_pml_calculates_automatic_sigma_locally(monkeypatch):
 
 
 def test_mpi_pml_keeps_explicit_zero_sigma_max(monkeypatch):
-    """An explicit sigmamax=0 must not be replaced by the automatic value.
-
-    The serial PML treats sigma.max None as the only automatic marker, so
-    the MPI variant has to use the same sentinel or it silently ignores a
-    user-specified sigmamax=0.
-    """
+    """Ensure an explicit sigmamax=0 is preserved in MPI PML."""
     zero = _ZeroExplicitCFS()
     pml = _make_pml([zero])
     parent_calls = []
