@@ -1107,7 +1107,7 @@ class MPIPML(PML):
             mr: float of average permeability of underlying material
         """
         for cfs in self.CFS:
-            if not cfs.sigma.max:
+            if cfs.sigma.max is None:
                 # MPIGrid has already reduced the material properties over
                 # this slab's face communicator. Every participating rank
                 # therefore has the same er/mr and can calculate the same
