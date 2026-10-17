@@ -261,6 +261,73 @@ class TestSnapshotBuildValidation:
 
         assert by_time.iterations == by_iteration.iterations == 10
 
+    def test_switching_from_time_to_an_assigned_iteration_uses_the_count(
+        self, stub_model, stub_grid
+    ):
+        stub_grid.dt = 1e-12
+        s = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            time=10e-12,
+        )
+        stub_model.add_snapshot.return_value = None
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            s.build(stub_model, stub_grid)
+            s.time = None
+            s.iterations = 50
+            s.build(stub_model, stub_grid)
+
+        assert s.iterations == 50
+        assert stub_model.add_snapshot.call_args.args[4] == 50
+
+    def test_switching_from_iterations_to_time_resolves_from_the_new_time(
+        self, stub_model, stub_grid
+    ):
+        stub_grid.dt = 1e-12
+        s = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            iterations=10,
+        )
+        stub_model.add_snapshot.return_value = None
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            s.build(stub_model, stub_grid)
+            s.iterations = None
+            s.time = 20e-12
+            s.build(stub_model, stub_grid)
+
+        assert s.iterations == 20
+        assert stub_model.add_snapshot.call_args.args[4] == 20
+
+    def test_assigned_iterations_win_over_a_remaining_time(self, stub_model, stub_grid):
+        from gprMax.user_objects import cmds_output
+
+        stub_grid.dt = 1e-12
+        s = Snapshot(
+            p1=(0, 0, 0),
+            p2=(0.05, 0.05, 0.05),
+            dl=(0.001, 0.001, 0.001),
+            filename="x",
+            time=10e-12,
+        )
+        stub_model.add_snapshot.return_value = None
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            s.build(stub_model, stub_grid)
+            s.iterations = 7
+            with patch.object(cmds_output.logger, "warning") as warning:
+                s.build(stub_model, stub_grid)
+
+        assert s.iterations == 7
+        assert stub_model.add_snapshot.call_args.args[4] == 7
+        assert any(
+            "Time and iterations were both specified" in call.args[0]
+            for call in warning.call_args_list
+        )
+
     def test_build_rejects_time_that_maps_outside_the_solver_loop(self, stub_model, stub_grid):
         stub_grid.dt = 1e-12
         s = Snapshot(

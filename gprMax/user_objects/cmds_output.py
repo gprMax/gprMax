@@ -502,6 +502,28 @@ class Snapshot(OutputUserObject):
     def hash(self):
         return "#snapshot"
 
+    @property
+    def iterations(self) -> Optional[int]:
+        """The requested count, or the value the last build resolved from a time."""
+        if self._resolved_iterations is not None:
+            return self._resolved_iterations
+        return self._requested_iterations
+
+    @iterations.setter
+    def iterations(self, value: Optional[int]) -> None:
+        self._requested_iterations = value
+        self._resolved_iterations = None
+
+    @property
+    def time(self) -> Optional[float]:
+        """The snapshot time the user asked for, if any."""
+        return self._requested_time
+
+    @time.setter
+    def time(self, value: Optional[float]) -> None:
+        self._requested_time = value
+        self._resolved_iterations = None
+
     def __init__(
         self,
         p1: Tuple[float, float, float],
@@ -531,8 +553,6 @@ class Snapshot(OutputUserObject):
         self.iterations = iterations
         self.time = time
         self.outputs = outputs
-        # True only for a user-supplied count, never for a time-derived one.
-        self._iterations_supplied = iterations is not None
 
     def _calculate_upper_bound(
         self, start: npt.NDArray[np.int32], step: npt.NDArray[np.int32], size: npt.NDArray[np.int32]
@@ -573,26 +593,28 @@ class Snapshot(OutputUserObject):
         if any(discretised_dl < 1):
             raise ValueError(f"{self.params_str()} the step size should not be less than the spatial discretisation.")
 
-        if self._iterations_supplied and self.time is not None:
+        if self._requested_iterations is not None and self._requested_time is not None:
             logger.warning(f"{self.params_str()} Time and iterations were both specified, using 'iterations'")
 
         # Snapshot iteration n is the solver's zero-based electric-field time
         # level: E is at n*dt and H is at (n-1/2)*dt. The solver visits the
         # range 0 <= n < grid.iterations.
-        if self._iterations_supplied:
-            if isinstance(self.iterations, bool) or not isinstance(self.iterations, Integral):
+        if self._requested_iterations is not None:
+            if isinstance(self._requested_iterations, bool) or not isinstance(
+                self._requested_iterations, Integral
+            ):
                 raise ValueError(f"{self.params_str()} iterations must be an integer.")
-            iterations = int(self.iterations)
+            iterations = int(self._requested_iterations)
 
-        elif self.time is not None:
+        elif self._requested_time is not None:
             if (
-                isinstance(self.time, bool)
-                or not isinstance(self.time, Real)
-                or not np.isfinite(self.time)
-                or self.time < 0
+                isinstance(self._requested_time, bool)
+                or not isinstance(self._requested_time, Real)
+                or not np.isfinite(self._requested_time)
+                or self._requested_time < 0
             ):
                 raise ValueError(f"{self.params_str()} time must be finite and non-negative.")
-            iterations = round_int(float(self.time) / grid.dt)
+            iterations = round_int(float(self._requested_time) / grid.dt)
 
         else:
             raise ValueError(f"{self} specify a time or number of iterations")
@@ -603,8 +625,9 @@ class Snapshot(OutputUserObject):
                 f"valid range 0 to {grid.iterations - 1}."
             )
 
-        # Write the resolved value back so callers can read it after build.
-        self.iterations = iterations
+        # Store the resolved value apart from the request so a time-based
+        # snapshot re-resolves on every rebuild instead of warning each time.
+        self._resolved_iterations = iterations
 
         if self.file_extension is None:
             self.file_extension = SnapshotUser.fileexts[0]
