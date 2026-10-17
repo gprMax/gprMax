@@ -116,7 +116,21 @@ def _write_tm_geometry(tmp_path, monkeypatch):
     return captured["grid"], outfile.with_suffix(".h5"), tmp_path / "tm_export_materials.json"
 
 
-def _write_3d_geometry(tmp_path, monkeypatch):
+def _in_plane_points(axis, lower, upper):
+    """p1/p2 spanning `lower`..`upper` on the two in-plane axes of `axis`;
+    callers fill in the invariant axis themselves."""
+    p1, p2 = [0.0] * 3, [0.0] * 3
+    for i in range(3):
+        if i != axis:
+            p1[i], p2[i] = lower, upper
+    return p1, p2
+
+
+def _write_3d_geometry(tmp_path, monkeypatch, axis=2):
+    """A full 3D export with a dielectric and a magnetic box, both spanning
+    the whole extent of `axis`, so a reduction along that axis (as a 2D read
+    performs) is uniform by construction and matches a directly built TE
+    model."""
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
     scene.add(gprMax.Domain(p1=(0.01, 0.01, 0.01)))
@@ -124,10 +138,14 @@ def _write_3d_geometry(tmp_path, monkeypatch):
     scene.add(gprMax.TimeWindow(time=1e-11))
     scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
     scene.add(gprMax.Material(er=5, se=0, mr=1, sm=0, id="diel"))
+    scene.add(gprMax.Material(er=3, se=0, mr=2, sm=0, id="mag"))
 
-    # The box spans the full z extent, so the export is uniform on z and its
-    # first layer is the canonical one a 2D reduction expects.
-    scene.add(gprMax.Box(p1=(0.003, 0.003, 0.0), p2=(0.007, 0.007, 0.01), material_id="diel"))
+    p1, p2 = _in_plane_points(axis, 0.003, 0.007)
+    p2[axis] = 0.01
+    scene.add(gprMax.Box(p1=tuple(p1), p2=tuple(p2), material_id="diel"))
+    p1, p2 = _in_plane_points(axis, 0.001, 0.003)
+    p2[axis] = 0.01
+    scene.add(gprMax.Box(p1=tuple(p1), p2=tuple(p2), material_id="mag"))
 
     outfile = tmp_path / "full_3d_export"
     scene.add(
@@ -145,6 +163,20 @@ def _write_3d_geometry(tmp_path, monkeypatch):
         hide_progress_bars=True,
     )
     return captured["grid"], outfile.with_suffix(".h5"), tmp_path / "full_3d_export_materials.json"
+
+
+def _te_scene(axis, time=1e-11):
+    """A TE scene whose invariant axis is `axis`, ready for a geometry read."""
+    domain_size = [0.01] * 3
+    domain_size[axis] = INF
+    scene = gprMax.Scene()
+    scene.add(gprMax.DomainMode(mode="TE"))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=tuple(domain_size)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=time))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
+    return scene
 
 
 def test_geometry_objects_read_broadcasts_tm_file_into_te_model(tmp_path, monkeypatch, capsys):
@@ -229,23 +261,22 @@ def test_geometry_objects_read_reduces_te_file_into_tm_model(tmp_path, monkeypat
     assert "reducing" in capsys.readouterr().out
 
 
-def test_geometry_objects_read_reduces_3d_file_into_te_model(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("axis,axis_name", [(0, "x"), (1, "y"), (2, "z")])
+def test_geometry_objects_read_reduces_3d_file_into_te_model(
+    tmp_path, monkeypatch, capsys, axis, axis_name
+):
     """A full 3D export (10 cells on the invariant axis) read into a 2-cell
-    (TE) model must reduce to its canonical layer and fill both TE cells.
+    (TE) model must reduce to its canonical layer and fill both TE cells,
+    for TEx, TEy and TEz alike - including the magnetic box alongside the
+    dielectric one.
 
     The reduction used to assume a 1-cell target, so the rigid arrays kept a
     single layer and assigning the reduced rigidity back into the 2-cell
     target crashed with a shape mismatch.
     """
-    _, geofile, matfile = _write_3d_geometry(tmp_path, monkeypatch)
+    _, geofile, matfile = _write_3d_geometry(tmp_path, monkeypatch, axis)
 
-    scene = gprMax.Scene()
-    scene.add(gprMax.DomainMode(mode="TE"))
-    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
-    scene.add(gprMax.Domain(p1=(0.01, 0.01, INF)))
-    scene.add(gprMax.PMLThickness(thickness=0))
-    scene.add(gprMax.TimeWindow(time=1e-11))
-    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
+    scene = _te_scene(axis)
     scene.add(
         gprMax.GeometryObjectsRead(
             p1=(INF, INF, INF),
@@ -259,16 +290,76 @@ def test_geometry_objects_read_reduces_3d_file_into_te_model(tmp_path, monkeypat
         scenes=[scene],
         n=1,
         geometry_only=True,
-        outputfile=tmp_path / "read_3d_into_te",
+        outputfile=tmp_path / f"read_3d_into_te_{axis_name}",
         hide_progress_bars=True,
     )
     grid = captured["grid"]
 
-    assert grid.solid.shape == (10, 10, 2)
-    assert np.array_equal(grid.solid[:, :, 0], grid.solid[:, :, 1])
+    expected_cells = [10, 10, 10]
+    expected_cells[axis] = 2
+    assert grid.solid.shape == tuple(expected_cells)
+    layer = np.take(grid.solid, 0, axis=axis)
+    assert np.array_equal(layer, np.take(grid.solid, 1, axis=axis))
     diel_material = next(m for m in grid.materials if m.ID.startswith("diel{"))
-    assert np.sum(grid.solid[:, :, 0] == diel_material.numID) == 16
+    mag_material = next(m for m in grid.materials if m.ID.startswith("mag{"))
+    assert np.sum(layer == diel_material.numID) == 16
+    assert np.sum(layer == mag_material.numID) == 4
     assert "reducing" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("axis,axis_name", [(0, "x"), (1, "y"), (2, "z")])
+def test_geometry_objects_read_3d_solves_like_direct_te_build(
+    tmp_path, monkeypatch, axis, axis_name
+):
+    """The strongest check: a 3D export reduced into a TE model must solve
+    to the same receiver trace as the same boxes built directly in TE, for
+    every invariant axis. Material counts alone cannot catch a live-plane
+    mix-up or a wrong two-cell reconstruction; the fields have to match."""
+    import h5py
+
+    _, geofile, matfile = _write_3d_geometry(tmp_path, monkeypatch, axis)
+
+    # A live electric component for this TE orientation: Ey for TEx, Ez for
+    # TEy, Ex for TEz (the field is transverse to the invariant axis).
+    component = "yzx"[axis]
+
+    def _run(use_import):
+        scene = _te_scene(axis, time=1e-10)
+        source = [0.005] * 3
+        receiver = [0.002] * 3
+        source[axis] = receiver[axis] = INF
+        scene.add(
+            gprMax.HertzianDipole(polarisation=component, p1=tuple(source), waveform_id="w")
+        )
+        scene.add(gprMax.Rx(p1=tuple(receiver)))
+        if use_import:
+            scene.add(
+                gprMax.GeometryObjectsRead(
+                    p1=(INF, INF, INF),
+                    geofile=str(geofile),
+                    material_database=matfile.stem,
+                )
+            )
+        else:
+            scene.add(gprMax.Material(er=5, se=0, mr=1, sm=0, id="diel"))
+            scene.add(gprMax.Material(er=3, se=0, mr=2, sm=0, id="mag"))
+            for material_id, lower, upper in (("diel", 0.003, 0.007), ("mag", 0.001, 0.003)):
+                p1, p2 = _in_plane_points(axis, lower, upper)
+                p1[axis] = p2[axis] = INF
+                scene.add(
+                    gprMax.Box(p1=tuple(p1), p2=tuple(p2), material_id=material_id)
+                )
+        outfile = tmp_path / f"solve_3d_into_te_{axis_name}_{'imported' if use_import else 'direct'}"
+        gprMax.run(scenes=[scene], n=1, outputfile=outfile, hide_progress_bars=True)
+        with h5py.File(outfile.with_suffix(".h5")) as f:
+            return f[f"rxs/rx1/E{component}"][:]
+
+    direct = _run(use_import=False)
+    imported = _run(use_import=True)
+
+    assert np.max(np.abs(direct)) > 0
+    assert not np.any(np.isnan(imported))
+    np.testing.assert_allclose(imported, direct)
 
 
 def test_geometry_objects_read_te_to_tm_solves_identically_to_direct_build(tmp_path, monkeypatch):
