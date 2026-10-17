@@ -127,10 +127,8 @@ def _in_plane_points(axis, lower, upper):
 
 
 def _write_3d_geometry(tmp_path, monkeypatch, axis=2):
-    """A full 3D export with a dielectric and a magnetic box, both spanning
-    the whole extent of `axis`, so a reduction along that axis (as a 2D read
-    performs) is uniform by construction and matches a directly built TE
-    model."""
+    """Write a 3D geometry with dielectric and magnetic boxes spanning the
+    invariant axis, so reducing it to a 2D model preserves both materials."""
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
     scene.add(gprMax.Domain(p1=(0.01, 0.01, 0.01)))
@@ -265,15 +263,8 @@ def test_geometry_objects_read_reduces_te_file_into_tm_model(tmp_path, monkeypat
 def test_geometry_objects_read_reduces_3d_file_into_te_model(
     tmp_path, monkeypatch, capsys, axis, axis_name
 ):
-    """A full 3D export (10 cells on the invariant axis) read into a 2-cell
-    (TE) model must reduce to its canonical layer and fill both TE cells,
-    for TEx, TEy and TEz alike - including the magnetic box alongside the
-    dielectric one.
-
-    The reduction used to assume a 1-cell target, so the rigid arrays kept a
-    single layer and assigning the reduced rigidity back into the 2-cell
-    target crashed with a shape mismatch.
-    """
+    """Check that 3D geometry reduction correctly fills both invariant-axis
+    cells in all TE orientations."""
     _, geofile, matfile = _write_3d_geometry(tmp_path, monkeypatch, axis)
 
     scene = _te_scene(axis)
@@ -311,16 +302,13 @@ def test_geometry_objects_read_reduces_3d_file_into_te_model(
 def test_geometry_objects_read_3d_solves_like_direct_te_build(
     tmp_path, monkeypatch, axis, axis_name
 ):
-    """The strongest check: a 3D export reduced into a TE model must solve
-    to the same receiver trace as the same boxes built directly in TE, for
-    every invariant axis. Material counts alone cannot catch a live-plane
-    mix-up or a wrong two-cell reconstruction; the fields have to match."""
+    """Verify that imported 3D geometry produces the same receiver fields
+    as a directly built TE model for all invariant axes."""
     import h5py
 
     _, geofile, matfile = _write_3d_geometry(tmp_path, monkeypatch, axis)
 
-    # A live electric component for this TE orientation: Ey for TEx, Ez for
-    # TEy, Ex for TEz (the field is transverse to the invariant axis).
+    # Select the electric-field component transverse to the invariant axis.
     component = "yzx"[axis]
 
     def _run(use_import):

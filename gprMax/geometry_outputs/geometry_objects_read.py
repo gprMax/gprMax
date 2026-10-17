@@ -165,12 +165,11 @@ class ReadGeometryObject(AbstractContextManager):
             reps[axis] = self.target_invariant_size
             return np.tile(array, reps)
 
-        # file_invariant_size > 1: every 2D-mode geometry command in this
-        # codebase already keeps the invariant axis's cells identical (see
-        # FractalVolume/FractalSurface/AddGrass), so any one layer is an
-        # equally valid canonical choice - use the first. A full 3D export is
-        # expected to be uniform on this axis too, so the canonical layer still
-        # has to be tiled when the target is a 2-cell TE model.
+        # file_invariant_size > 1: geometry commands in this codebase
+        # keep the invariant-axis cells identical (see
+        # FractalVolume/FractalSurface/AddGrass), so any layer is a
+        # valid canonical choice. Use the first layer and repeat it
+        # when the target domain requires two cells for TE mode.
         canonical = np.take(array, [0], axis=axis)
         reps = [1] * array.ndim
         reps[axis] = self.target_invariant_size
