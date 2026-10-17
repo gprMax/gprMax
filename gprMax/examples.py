@@ -21,13 +21,12 @@ from __future__ import annotations
 
 import argparse
 import shutil
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from importlib import resources
 from pathlib import Path
 from typing import Iterator, Optional, Sequence
 
 from gprMax._version import __version__
-
 
 EXAMPLES_PACKAGE = "gprMax._examples"
 
@@ -51,29 +50,30 @@ def _example_source() -> Iterator[Path]:
     use the repository's top-level examples directory as a fallback.
     """
 
-    try:
-        files = getattr(resources, "files", None)
-        if files is not None:
-            root = files(EXAMPLES_PACKAGE)
-            if isinstance(root, Path):
-                yield root
-                return
+    with ExitStack() as stack:
+        try:
+            files = getattr(resources, "files", None)
+            if files is not None:
+                root = files(EXAMPLES_PACKAGE)
+                if isinstance(root, Path):
+                    source = root
+                else:
+                    # Wheels are installed unpacked because gprMax is not zip safe.
+                    # This fallback also supports other importers exposing Traversable
+                    # resources without assuming that their directory is a real path.
+                    source = stack.enter_context(
+                        resources.as_file(root.joinpath("README.rst"))
+                    ).parent
+            else:
+                source = stack.enter_context(resources.path(EXAMPLES_PACKAGE, "README.rst")).parent
+        except (ModuleNotFoundError, FileNotFoundError):
+            source = Path(__file__).resolve().parents[1] / "examples"
+            if not source.is_dir():
+                raise RuntimeError("The installed gprMax examples could not be located") from None
 
-            # Wheels are installed unpacked because gprMax is not zip safe.
-            # This fallback also supports other importers exposing Traversable
-            # resources without assuming that their directory is a real path.
-            with resources.as_file(root.joinpath("README.rst")) as readme:
-                yield readme.parent
-                return
-
-        with resources.path(EXAMPLES_PACKAGE, "README.rst") as readme:
-            yield readme.parent
-            return
-    except (ModuleNotFoundError, FileNotFoundError):
-        source_tree = Path(__file__).resolve().parents[1] / "examples"
-        if not source_tree.is_dir():
-            raise RuntimeError("The installed gprMax examples could not be located") from None
-        yield source_tree
+        # Locate the examples before yielding so that errors raised by the caller are
+        # not mistaken for a missing resource package.
+        yield source
 
 
 def default_destination() -> Path:
@@ -95,7 +95,11 @@ def copy_examples(destination: Optional[Path] = None, *, force: bool = False) ->
         Unrelated files are retained.
     """
 
-    workspace = (Path(destination) if destination is not None else default_destination()).expanduser().resolve()
+    workspace = (
+        (Path(destination) if destination is not None else default_destination())
+        .expanduser()
+        .resolve()
+    )
     target = workspace / "examples"
 
     if target.exists() and not force:
