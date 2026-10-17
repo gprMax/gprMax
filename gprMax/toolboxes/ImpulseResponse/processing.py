@@ -40,6 +40,7 @@ from gprMax.toolboxes.SFCW.processing import (
 
 BUILTIN_WAVEFORM_TYPES = (
     "gaussian",
+    "gauspulse",
     "gaussiandot",
     "gaussiandotnorm",
     "gaussiandotdot",
@@ -231,9 +232,15 @@ def _builtin_values(waveform_type: str, amplitude: float, frequency: float, time
     elif key in {"gaussiandotdot", "gaussiandotdotnorm", "ricker"}:
         chi = np.sqrt(2) / frequency
         zeta = np.pi**2 * frequency**2
+    elif key == "gauspulse":
+        zeta = -((np.pi * frequency * 0.5) ** 2) / (4 * np.log(10 ** (-6 / 20)))
+        chi = np.sqrt(-np.log(10 ** (-60 / 20)) / zeta)
 
     if key == "gaussian":
         result = np.exp(-zeta * (values - chi) ** 2)
+    elif key == "gauspulse":
+        delay = values - chi
+        result = np.exp(-zeta * delay**2) * np.cos(2 * np.pi * frequency * delay)
     elif key in {"gaussiandot", "gaussianprime"}:
         delay = values - chi
         result = -2 * zeta * delay * np.exp(-zeta * delay**2)
