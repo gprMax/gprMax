@@ -116,6 +116,37 @@ def _write_tm_geometry(tmp_path, monkeypatch):
     return captured["grid"], outfile.with_suffix(".h5"), tmp_path / "tm_export_materials.json"
 
 
+def _write_3d_geometry(tmp_path, monkeypatch):
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.01, 0.01, 0.01)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-11))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
+    scene.add(gprMax.Material(er=5, se=0, mr=1, sm=0, id="diel"))
+
+    # The box spans the full z extent, so the export is uniform on z and its
+    # first layer is the canonical one a 2D reduction expects.
+    scene.add(gprMax.Box(p1=(0.003, 0.003, 0.0), p2=(0.007, 0.007, 0.01), material_id="diel"))
+
+    outfile = tmp_path / "full_3d_export"
+    scene.add(
+        gprMax.GeometryObjectsWrite(
+            p1=(0.0, 0.0, 0.0), p2=(0.01, 0.01, 0.01), filename=str(outfile)
+        )
+    )
+
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "write_3d",
+        hide_progress_bars=True,
+    )
+    return captured["grid"], outfile.with_suffix(".h5"), tmp_path / "full_3d_export_materials.json"
+
+
 def test_geometry_objects_read_broadcasts_tm_file_into_te_model(tmp_path, monkeypatch, capsys):
     """A 1-cell-thick (TM) file read into a 2-cell (TE) model must be
     broadcast automatically - the same physical box, no hoop-jumping
@@ -193,6 +224,48 @@ def test_geometry_objects_read_reduces_te_file_into_tm_model(tmp_path, monkeypat
     grid = captured["grid"]
 
     assert grid.solid.shape == (10, 10, 1)
+    diel_material = next(m for m in grid.materials if m.ID.startswith("diel{"))
+    assert np.sum(grid.solid[:, :, 0] == diel_material.numID) == 16
+    assert "reducing" in capsys.readouterr().out
+
+
+def test_geometry_objects_read_reduces_3d_file_into_te_model(tmp_path, monkeypatch, capsys):
+    """A full 3D export (10 cells on the invariant axis) read into a 2-cell
+    (TE) model must reduce to its canonical layer and fill both TE cells.
+
+    The reduction used to assume a 1-cell target, so the rigid arrays kept a
+    single layer and assigning the reduced rigidity back into the 2-cell
+    target crashed with a shape mismatch.
+    """
+    _, geofile, matfile = _write_3d_geometry(tmp_path, monkeypatch)
+
+    scene = gprMax.Scene()
+    scene.add(gprMax.DomainMode(mode="TE"))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.01, 0.01, INF)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-11))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(INF, INF, INF),
+            geofile=str(geofile),
+            material_database=matfile.stem,
+        )
+    )
+
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "read_3d_into_te",
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+
+    assert grid.solid.shape == (10, 10, 2)
+    assert np.array_equal(grid.solid[:, :, 0], grid.solid[:, :, 1])
     diel_material = next(m for m in grid.materials if m.ID.startswith("diel{"))
     assert np.sum(grid.solid[:, :, 0] == diel_material.numID) == 16
     assert "reducing" in capsys.readouterr().out
