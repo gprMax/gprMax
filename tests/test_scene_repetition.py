@@ -100,6 +100,34 @@ def test_distinct_scenes_still_change_the_model(tmp_path):
         np.testing.assert_array_equal(2 * a["rxs/rx1/Ez"][:], b["rxs/rx1/Ez"][:])
 
 
+def test_time_based_snapshot_is_not_reinterpreted_on_rebuild(tmp_path, capsys):
+    """Ensure time-based snapshots do not trigger a false time-and-iterations
+    warning when scenes are rebuilt."""
+    scene = gprMax.Scene()
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.Discretisation(p1=(0.002,) * 3))
+    scene.add(gprMax.TimeWindow(iterations=20))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.Waveform(wave_type="gaussian", amp=1, freq=5e9, id="w"))
+    scene.add(
+        gprMax.Snapshot(
+            p1=(0.0, 0.0, 0.0),
+            p2=(0.02, 0.02, 0.02),
+            dl=(0.002,) * 3,
+            filename="snap",
+            time=1.5e-11,
+        )
+    )
+    capsys.readouterr()
+    gprMax.run(
+        scenes=[scene],
+        n=3,
+        outputfile=tmp_path / "snapshot_rebuild",
+        hide_progress_bars=True,
+    )
+    assert "Time and iterations were both specified" not in capsys.readouterr().out
+
+
 @pytest.mark.parametrize("empty", [False, True])
 def test_invalid_scene_counts_produce_no_partial_outputs(tmp_path, monkeypatch, empty):
     def unexpected_build(*args):

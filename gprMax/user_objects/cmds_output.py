@@ -576,11 +576,12 @@ class Snapshot(OutputUserObject):
 
         # Snapshot iteration n is the solver's zero-based electric-field time
         # level: E is at n*dt and H is at (n-1/2)*dt. The solver visits the
-        # range 0 <= n < grid.iterations.
+        # range 0 <= n < grid.iterations; keep the resolved iteration local
+        # to avoid treating time as user-specified iterations on scene rebuilds.
         if self.iterations is not None:
             if isinstance(self.iterations, bool) or not isinstance(self.iterations, Integral):
                 raise ValueError(f"{self.params_str()} iterations must be an integer.")
-            self.iterations = int(self.iterations)
+            iterations = int(self.iterations)
 
         elif self.time is not None:
             if (
@@ -590,14 +591,14 @@ class Snapshot(OutputUserObject):
                 or self.time < 0
             ):
                 raise ValueError(f"{self.params_str()} time must be finite and non-negative.")
-            self.iterations = round_int(float(self.time) / grid.dt)
+            iterations = round_int(float(self.time) / grid.dt)
 
         else:
             raise ValueError(f"{self} specify a time or number of iterations")
 
-        if self.iterations < 0 or self.iterations >= grid.iterations:
+        if iterations < 0 or iterations >= grid.iterations:
             raise ValueError(
-                f"{self.params_str()} snapshot iteration {self.iterations} is outside the "
+                f"{self.params_str()} snapshot iteration {iterations} is outside the "
                 f"valid range 0 to {grid.iterations - 1}."
             )
 
@@ -629,7 +630,7 @@ class Snapshot(OutputUserObject):
             discretised_lower_bound,
             discretised_upper_bound,
             discretised_dl,
-            self.iterations,
+            iterations,
             self.filename,
             self.file_extension,
             outputs,
