@@ -27,6 +27,9 @@ Validation matrix under test:
   - inf count >1, any mode             -> error (only one axis may be inf)
   - inf count 1, mode TM               -> resolves that axis to 1 cell
   - inf count 1, mode TE               -> resolves that axis to 2 cells
+  - NaN domain_size value              -> error (Domain-specific message)
+  - -inf domain_size value             -> same as inf (the sign of a size
+                                           carries no meaning)
   - inf count 0, mode None/3D          -> unchanged legacy behaviour,
                                            including old-style auto-detected
                                            TM via an explicit 1-cell axis
@@ -215,16 +218,19 @@ def test_two_inf_axes_raises(monkeypatch, tmp_path):
         _run(monkeypatch, tmp_path, "two_inf", (0.01, INF, INF), mode="TE")
 
 
-def test_negative_inf_domain_size_raises(monkeypatch, tmp_path):
-    """'-inf' is a negative extent, not a 2D marker: it must be rejected
-    rather than silently resolved to a 2-cell axis like positive 'inf'."""
-    with pytest.raises(ValueError, match="-inf"):
-        _run(monkeypatch, tmp_path, "negative_inf", (0.01, 0.01, -INF), mode="TE")
+@pytest.mark.parametrize("sign", (-1, 1))
+def test_domain_inf_marker_resolves_the_same_either_sign(monkeypatch, tmp_path, sign):
+    """Both signs mark a 2D domain: the sign of `inf` only carries meaning
+    in coordinates (see resolve_inf_point), never in a domain size."""
+    captured = _run(monkeypatch, tmp_path, f"inf_{sign}", (0.01, 0.01, sign * INF), mode="TE")
+    assert captured["mode"] == "2D TEz"
+    assert (captured["nx"], captured["ny"], captured["nz"]) == (10, 10, 2)
 
 
-def test_negative_inf_domain_size_without_mode_raises(monkeypatch, tmp_path):
-    with pytest.raises(ValueError, match="-inf"):
-        _run(monkeypatch, tmp_path, "negative_inf_no_mode", (0.01, 0.01, -INF))
+def test_negative_inf_without_domain_mode_defaults_to_tm(monkeypatch, tmp_path):
+    captured = _run(monkeypatch, tmp_path, "neg_inf_no_mode", (0.01, 0.01, -INF), mode=None)
+    assert captured["mode"] == "2D TMz"
+    assert (captured["nx"], captured["ny"], captured["nz"]) == (10, 10, 1)
 
 
 def test_nan_domain_size_raises(monkeypatch, tmp_path):
