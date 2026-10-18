@@ -357,6 +357,11 @@ class MPIFractalVolume(FractalVolume):
         self.comm = comm
         self.upper_bound = upper_bound
 
+        # Keep the global object bounds before they are clipped to this
+        # rank's local grid; the replicated grass build needs them.
+        self.unclipped_original_start = self.original_start.copy()
+        self.unclipped_original_stop = self.original_stop.copy()
+
         # Limit the original start and stop to within the local bounds
         self.original_start = np.maximum(self.original_start, 0)
         self.original_stop = np.minimum(self.original_stop, self.upper_bound)
