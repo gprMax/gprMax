@@ -72,6 +72,25 @@ def test_copy_examples_force_updates_files_and_preserves_unrelated_files(tmp_pat
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("error", [FileNotFoundError, ModuleNotFoundError])
+def test_example_source_does_not_handle_errors_raised_by_caller(error):
+    with pytest.raises(error, match="raised by caller"):
+        with examples._example_source():
+            raise error("raised by caller")
+
+
+@pytest.mark.unit
+def test_copy_examples_reports_destination_errors(tmp_path, monkeypatch):
+    def fail_copy(source, target, **kwargs):
+        raise FileNotFoundError(f"could not create {target}")
+
+    monkeypatch.setattr(examples.shutil, "copytree", fail_copy)
+
+    with pytest.raises(FileNotFoundError, match="could not create"):
+        examples.copy_examples(tmp_path / "workspace")
+
+
+@pytest.mark.unit
 def test_examples_cli_lists_and_copies(tmp_path, capsys):
     assert examples.main(["list"]) == 0
     assert "Examples distributed with gprMax" in capsys.readouterr().out
