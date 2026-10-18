@@ -571,6 +571,11 @@ def write_hd5_data(basegrp, grid: FDTDGrid, is_subgrid: bool = False):
             grp.attrs["StudyID"] = rx.study_id
         grp.attrs["Position"] = _global_position(grid, rx.xcoord, rx.ycoord, rx.zcoord, is_subgrid)
         grp.attrs["GridPosition"] = np.asarray(rx.coord, dtype=np.int32)
+        recorded = getattr(rx, "study_record", None)
+        if recorded is not None:
+            grp.attrs["Recorded"] = bool(recorded)
+        if recorded is False:
+            continue
 
         for output in rx.outputs:
             dataset = grp.create_dataset(output, data=rx.outputs[output])
