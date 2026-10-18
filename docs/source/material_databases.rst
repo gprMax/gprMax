@@ -262,11 +262,15 @@ These are three keys in the same JSON database, not numeric grid IDs. The
 scalar base values on that record are display/estimate means, not a substitute
 for the directional constitutive definitions. ``GeometryObjectsRead`` restores
 the referenced materials before the cell record, including dispersion and
-density. Such files require the complete ``ID``, ``rigidE``, and ``rigidH``
-arrays; scalar voxel-only reconstruction would lose the directional model
-and is rejected. Do not load a generated directional record with
-``MaterialFromDatabase`` as an ordinary scalar material. Existing isotropic
-geometry files require no new metadata.
+density. A reference may itself be directional: each outer axis follows the
+same axis of the nested record until it reaches a scalar material, so nested
+records are equivalent to the diagonal tensor formed by their scalar leaves.
+Referenced entries may exist only in the JSON database and need not appear in
+``/material_keys``. Circular references are rejected. Such files require the
+complete ``ID``, ``rigidE``, and ``rigidH`` arrays; scalar voxel-only
+reconstruction would lose the directional model and is rejected. Do not load
+a generated directional record with ``MaterialFromDatabase`` as an ordinary
+scalar material. Existing isotropic geometry files require no new metadata.
 
 Regenerate older anisotropic geometry exports from their input models if they
 lack these directional references: scalar mean cell properties alone do not

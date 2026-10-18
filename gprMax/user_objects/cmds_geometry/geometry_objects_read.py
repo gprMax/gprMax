@@ -299,28 +299,64 @@ class GeometryObjectsRead(GeometryUserObject):
                     f"Geometry material '{database}:{key}' cannot combine surface-impedance "
                     "metadata with directional material references"
                 )
-        key_indices = {key: index for index, key in enumerate(keys)}
-        directional_indices = {}
-        for index, spec in enumerate(specs):
-            if "directional_materials" not in spec.metadata:
-                continue
-            references = spec.metadata["directional_materials"]
+        specs_by_key = dict(zip(keys, specs))
+        invalid_references = "Invalid x/y/z directional material references in geometry database"
+
+        def spec_for(key):
+            if key not in specs_by_key:
+                try:
+                    specs_by_key[key] = load_material_spec(
+                        database, key, search_directory=search_directory
+                    )
+                except (KeyError, ValueError, FileNotFoundError) as exc:
+                    raise ValueError(f"{invalid_references}: {exc}") from exc
+            return specs_by_key[key]
+
+        def references_for(spec):
+            references = spec.metadata.get("directional_materials")
+            if references is None:
+                return None
             if (
                 spec.model != "constant"
                 or not isinstance(references, list)
                 or len(references) != 3
-                or any(not isinstance(key, str) or key not in key_indices for key in references)
+                or any(not isinstance(item, str) or not item for item in references)
             ):
-                raise ValueError(
-                    "Invalid x/y/z directional material references in geometry database"
-                )
-            indices = tuple(key_indices[key] for key in references)
-            if any(
-                specs[item].metadata.get("directional_materials") is not None for item in indices
-            ):
-                raise ValueError("Nested directional material references are not supported")
-            directional_indices[index] = indices
-        if directional_indices:
+                raise ValueError(invalid_references)
+            return tuple(references)
+
+        # Nested references select the same global axis, so flatten them to scalar leaves.
+        tensor_leaves = {}
+        resolving = set()
+
+        def leaves_for(key):
+            if key in tensor_leaves:
+                return tensor_leaves[key]
+            if key in resolving:
+                raise ValueError(f"{invalid_references}: circular reference at '{key}'")
+            resolving.add(key)
+            try:
+                references = references_for(spec_for(key))
+                if references is None:
+                    raise ValueError(f"{invalid_references}: '{key}' is not directional")
+                leaves = []
+                for axis, reference in enumerate(references):
+                    if "directional_materials" in spec_for(reference).metadata:
+                        leaves.append(leaves_for(reference)[axis])
+                    else:
+                        leaves.append(reference)
+            finally:
+                resolving.remove(key)
+            tensor_leaves[key] = tuple(leaves)
+            return tensor_leaves[key]
+
+        directional_leaves = {}
+        for index, spec in enumerate(specs):
+            if "directional_materials" not in spec.metadata:
+                continue
+            references_for(spec)
+            directional_leaves[index] = leaves_for(keys[index])
+        if directional_leaves:
             with h5py.File(geofile, "r") as geometry:
                 if not all(name in geometry for name in ("ID", "rigidE", "rigidH")):
                     raise ValueError(
@@ -328,28 +364,7 @@ class GeometryObjectsRead(GeometryUserObject):
                         "voxel-only scalar reconstruction would lose its anisotropy"
                     )
 
-        # Restore scalar constituents first, even if a cropped export sorted
-        # the cell record before them. Then bind tensors to the resolved local
-        # objects; namespace changes cannot swap their physical definitions.
-        order = [i for i in range(len(keys)) if i not in directional_indices] + list(
-            directional_indices
-        )
-        for index in order:
-            key, spec = keys[index], specs[index]
-            axes = (
-                tuple(grid.materials[material_id_map[item]] for item in directional_indices[index])
-                if index in directional_indices
-                else None
-            )
-            if axes is not None:
-                densities = tuple(material.mass_density for material in axes)
-                expected_density = (
-                    densities[0] if all(value == densities[0] for value in densities) else None
-                )
-                if spec.mass_density != expected_density:
-                    raise ValueError(
-                        "Directional cell density must agree with its three constituents"
-                    )
+        def restore(key, spec, axes):
             original_id = spec.metadata.get("original_id", key)
             if not isinstance(original_id, str) or not original_id:
                 raise ValueError(f"Material '{database}:{key}' metadata original_id is invalid")
@@ -369,8 +384,7 @@ class GeometryObjectsRead(GeometryUserObject):
                 restore_surface_impedance_model(grid, model_id, model_metadata)
                 marker = create_impedance_marker_material(grid, model_id)
                 existing_by_id[marker.ID] = marker
-                material_id_map[index] = marker.numID
-                continue
+                return marker
             if private_role is not None:
                 expected_id = private_impedance_material_id(private_role)
                 if original_id != expected_id:
@@ -378,9 +392,7 @@ class GeometryObjectsRead(GeometryUserObject):
                         f"Material '{database}:{key}' records private role {private_role!r} "
                         f"under ID '{original_id}'"
                     )
-                private = restore_private_impedance_material(grid, private_role)
-                material_id_map[index] = private.numID
-                continue
+                return restore_private_impedance_material(grid, private_role)
             if is_reserved_impedance_id(original_id):
                 raise ValueError(
                     f"Material '{database}:{key}' uses the reserved surface-impedance "
@@ -391,8 +403,7 @@ class GeometryObjectsRead(GeometryUserObject):
             if original is not None and material_matches_spec(
                 original, spec, directional_materials=axes
             ):
-                material_id_map[index] = original.numID
-                continue
+                return original
 
             namespaced = existing_by_id.get(namespaced_id)
             if namespaced is not None:
@@ -401,8 +412,7 @@ class GeometryObjectsRead(GeometryUserObject):
                         f"Geometry material '{namespaced_id}' conflicts with a material already "
                         "defined in the model"
                     )
-                material_id_map[index] = namespaced.numID
-                continue
+                return namespaced
 
             # An unrelated model material may legitimately use the original
             # CAD/material ID with different properties. Keep both by giving
@@ -412,5 +422,32 @@ class GeometryObjectsRead(GeometryUserObject):
             )
             created.type = f"{created.type},\nimported" if created.type else "imported"
             existing_by_id[namespaced_id] = created
-            material_id_map[index] = created.numID
+            return created
+
+        # Restore referenced scalar leaves before binding any tensor record.
+        leaf_materials = {}
+        for index in range(len(keys)):
+            if index in directional_leaves:
+                continue
+            key = keys[index]
+            leaf_materials[key] = restore(key, specs[index], None)
+            material_id_map[index] = leaf_materials[key].numID
+        for leaves in tensor_leaves.values():
+            for key in leaves:
+                if key not in leaf_materials:
+                    leaf_materials[key] = restore(key, spec_for(key), None)
+
+        for key, leaves in tensor_leaves.items():
+            axes = tuple(leaf_materials[leaf] for leaf in leaves)
+            densities = tuple(material.mass_density for material in axes)
+            expected_density = (
+                densities[0] if all(value == densities[0] for value in densities) else None
+            )
+            if spec_for(key).mass_density != expected_density:
+                raise ValueError("Directional cell density must agree with its three constituents")
+
+        for index, leaves in directional_leaves.items():
+            axes = tuple(leaf_materials[leaf] for leaf in leaves)
+            material = restore(keys[index], specs[index], axes)
+            material_id_map[index] = material.numID
         return material_id_map, f"material database {database}"
