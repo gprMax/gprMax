@@ -138,8 +138,8 @@ face.
 .. note::
 
     * A 2D model must have exactly one invariant axis.
-    * Subgrids, symmetry boundaries, transmission-line sources, and magnetic
-      edges are not currently supported in 2D mode.
+    * Subgrids, symmetry boundaries, and transmission-line sources are not
+      currently supported in 2D mode.
     * A source polarisation must be one of the active components for the
       selected plane and mode. gprMax rejects incompatible electric and
       magnetic sources rather than silently creating a zero source.
@@ -1099,9 +1099,10 @@ Allows you to introduce a single magnetic-field edge with specific properties in
 
 For example, an x-directed perfect magnetic conductor is specified with ``#magnetic_edge: 0.5 0.5 0.5 0.7 0.5 0.5 pmc``.
 
-.. note::
-
-    ``#magnetic_edge`` is not currently supported in 2D mode.
+In 2D, the edge must follow an active magnetic-field component: the invariant
+axis in TE mode, or either in-plane axis in TM mode. Use ``inf`` on the
+invariant axis to place a TM edge on the active interior reference layer, or to
+span the reduced thickness for a TE edge. Other orientations are rejected.
 
 #plate:
 -------

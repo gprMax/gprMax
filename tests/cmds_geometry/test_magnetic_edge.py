@@ -52,6 +52,16 @@ def _scene(dl=1e-3):
     return scene
 
 
+def _scene_2d(mode, dl=1e-3):
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(gprMax.DomainMode(mode=mode))
+    scene.add(gprMax.Domain(p1=(0.01, 0.01, INF)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    return scene
+
+
 def test_magnetic_edge_sets_single_hx_edge(monkeypatch, tmp_path):
     # p1->p2 spans x=2mm to 4mm at 1mm resolution: 2 cells, i=2 and i=3
     # (matching exactly how #edge spans multiple cells for the same span).
@@ -103,15 +113,55 @@ def test_magnetic_edge_missing_material_rejected(monkeypatch, tmp_path):
         gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
 
 
-def test_magnetic_edge_rejected_in_2d_mode(monkeypatch, tmp_path):
-    scene = gprMax.Scene()
-    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
-    scene.add(gprMax.TimeWindow(time=1e-12))
-    scene.add(gprMax.DomainMode(mode="TM"))
-    scene.add(gprMax.Domain(p1=(0.01, 0.01, INF)))
-    scene.add(gprMax.MagneticEdge(p1=(0.002, 0.001, INF), p2=(0.004, 0.001, INF), material_id="pmc"))
+@pytest.mark.parametrize(
+    ("p1", "p2", "component", "cells"),
+    [
+        ((0.002, 0.001, INF), (0.004, 0.001, INF), "Hx", [(2, 1, 0), (3, 1, 0)]),
+        ((0.001, 0.002, INF), (0.001, 0.004, INF), "Hy", [(1, 2, 0), (1, 3, 0)]),
+    ],
+)
+def test_magnetic_edge_tm_runs_on_in_plane_axis(monkeypatch, tmp_path, p1, p2, component, cells):
+    scene = _scene_2d("TM")
+    scene.add(gprMax.MagneticEdge(p1=p1, p2=p2, material_id="pmc"))
 
-    with pytest.raises(ValueError, match="not yet supported in 2D mode"):
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    grid = captured["grid"]
+
+    pmc_numid = next(m.numID for m in grid.materials if m.ID == "pmc")
+    idH = grid.IDlookup[component]
+    for i, j, k in cells:
+        assert grid.ID[idH, i, j, k] == pmc_numid
+
+
+def test_magnetic_edge_te_runs_along_invariant_axis(monkeypatch, tmp_path):
+    scene = _scene_2d("TE")
+    scene.add(gprMax.Material(er=3, se=0, mr=1, sm=0, id="diel"))
+    scene.add(gprMax.MagneticEdge(p1=(0.001, 0.001, INF), p2=(0.001, 0.001, INF), material_id="diel"))
+
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    grid = captured["grid"]
+
+    diel_numid = next(m.numID for m in grid.materials if m.ID == "diel")
+    idHz = grid.IDlookup["Hz"]
+    assert grid.ID[idHz, 1, 1, 1] == diel_numid
+    assert grid.ID[idHz, 1, 1, 0] != diel_numid
+
+
+def test_magnetic_edge_rejected_in_tm_along_invariant_axis(monkeypatch, tmp_path):
+    scene = _scene_2d("TM")
+    scene.add(gprMax.MagneticEdge(p1=(0.001, 0.001, 0.0), p2=(0.001, 0.001, 0.001), material_id="pmc"))
+
+    with pytest.raises(ValueError, match="non-invariant axis"):
+        gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+
+
+def test_magnetic_edge_rejected_in_te_along_in_plane_axis(monkeypatch, tmp_path):
+    scene = _scene_2d("TE")
+    scene.add(gprMax.MagneticEdge(p1=(0.001, 0.001, 0.001), p2=(0.003, 0.001, 0.001), material_id="pmc"))
+
+    with pytest.raises(ValueError, match="invariant axis"):
         gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
 
 
