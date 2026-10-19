@@ -29,6 +29,14 @@ from gprMax.geometry_outputs.geometry_objects_read import (
     read_geometry_tag_names,
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.impedance_surfaces import (
+    create_impedance_marker_material,
+    impedance_marker_id,
+    is_reserved_impedance_id,
+    private_impedance_material_id,
+    restore_private_impedance_material,
+    restore_surface_impedance_model,
+)
 from gprMax.material_database import (
     build_material_from_spec,
     load_material_spec,
@@ -115,6 +123,16 @@ class GeometryObjectsRead(GeometryUserObject):
         if not isinstance(averaging, str) or averaging.lower() not in {"y", "n"}:
             raise ValueError(f"{self.params_str()} averaging must be 'y', 'n', True, or False")
         return averaging.lower() == "y"
+
+    def declares_surface_impedance(self) -> bool:
+        """Return whether the paired geometry database exports SIBC models."""
+
+        try:
+            geofile = self._resolve_geofile()
+        except FileNotFoundError:
+            return False
+        with h5py.File(geofile, "r") as geometry:
+            return bool(geometry.attrs.get("ContainsSurfaceImpedance", 0))
 
     def declared_geometry_tags(self) -> tuple[str, ...]:
         """Read the compact tag catalogue before destination map allocation."""
@@ -266,6 +284,21 @@ class GeometryObjectsRead(GeometryUserObject):
         specs = [
             load_material_spec(database, key, search_directory=search_directory) for key in keys
         ]
+        for key, spec in zip(keys, specs):
+            model_metadata = spec.metadata.get("surface_impedance_model")
+            private_role = spec.metadata.get("impedance_private_role")
+            if model_metadata is None and private_role is None:
+                continue
+            if model_metadata is not None and private_role is not None:
+                raise ValueError(
+                    f"Geometry material '{database}:{key}' cannot be both a surface "
+                    "impedance and a private coefficient row"
+                )
+            if "directional_materials" in spec.metadata:
+                raise ValueError(
+                    f"Geometry material '{database}:{key}' cannot combine surface-impedance "
+                    "metadata with directional material references"
+                )
         key_indices = {key: index for index, key in enumerate(keys)}
         directional_indices = {}
         for index, spec in enumerate(specs):
@@ -320,6 +353,39 @@ class GeometryObjectsRead(GeometryUserObject):
             original_id = spec.metadata.get("original_id", key)
             if not isinstance(original_id, str) or not original_id:
                 raise ValueError(f"Material '{database}:{key}' metadata original_id is invalid")
+            model_metadata = spec.metadata.get("surface_impedance_model")
+            private_role = spec.metadata.get("impedance_private_role")
+            if model_metadata is not None:
+                if not isinstance(model_metadata, dict):
+                    raise ValueError(
+                        f"Material '{database}:{key}' surface-impedance metadata is invalid"
+                    )
+                model_id = model_metadata.get("ID")
+                if not isinstance(model_id, str) or original_id != impedance_marker_id(model_id):
+                    raise ValueError(
+                        f"Material '{database}:{key}' records marker ID '{original_id}' "
+                        "without a matching surface-impedance model ID"
+                    )
+                restore_surface_impedance_model(grid, model_id, model_metadata)
+                marker = create_impedance_marker_material(grid, model_id)
+                existing_by_id[marker.ID] = marker
+                material_id_map[index] = marker.numID
+                continue
+            if private_role is not None:
+                expected_id = private_impedance_material_id(private_role)
+                if original_id != expected_id:
+                    raise ValueError(
+                        f"Material '{database}:{key}' records private role {private_role!r} "
+                        f"under ID '{original_id}'"
+                    )
+                private = restore_private_impedance_material(grid, private_role)
+                material_id_map[index] = private.numID
+                continue
+            if is_reserved_impedance_id(original_id):
+                raise ValueError(
+                    f"Material '{database}:{key}' uses the reserved surface-impedance "
+                    "namespace without round-trip metadata; re-export the geometry"
+                )
             namespaced_id = f"{original_id}{{{namespace}}}"
             original = existing_by_id.get(original_id)
             if original is not None and material_matches_spec(
