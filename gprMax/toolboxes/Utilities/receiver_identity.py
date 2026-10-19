@@ -54,7 +54,7 @@ class ReceiverCatalogue(dict):
 def receiver_catalogue(grid) -> dict[str, ReceiverIdentity]:
     """Snapshot identities in one grid namespace; safe after the file closes."""
     if "rxs" not in grid:
-        return {}
+        return ReceiverCatalogue({})
     groups = {f"rxs/{key}": group for key, group in grid["rxs"].items() if isinstance(group, h5py.Group)}
     names = Counter(text(g.attrs.get("Name", "")) for g in groups.values())
     studies = Counter(text(g.attrs.get("StudyID", "")) for g in groups.values())
@@ -163,12 +163,16 @@ def match_receiver(reference: ReceiverIdentity, catalogue) -> ReceiverIdentity:
 
 def matching_receiver_path(reference_filename, reference_path, filename) -> str:
     """Match within the reference receiver's grid, including subgrids."""
-    grid_path, _, leaf = str(reference_path).rpartition("/rxs/")
-    if not leaf:
+    cleaned = "/" + str(reference_path).replace("\\", "/").strip("/")
+    grid_path, sep, leaf = cleaned.rpartition("/rxs/")
+    if not sep or not leaf or "/" in leaf:
         raise ValueError(f"Not a public receiver path: {reference_path!r}")
+    grid_target = grid_path or "/"
     with h5py.File(reference_filename, "r") as source, h5py.File(filename, "r") as target:
-        reference = select_receiver(receiver_catalogue(source[grid_path or "/"]), f"rxs/{leaf}")
-        if (grid_path or "/") not in target:
-            raise ValueError(f"Receiver grid {grid_path or '/'} is not present in {filename}")
-        match = match_receiver(reference, receiver_catalogue(target[grid_path or "/"]))
+        if grid_target not in source:
+            raise ValueError(f"Receiver grid {grid_target} is not present in {reference_filename}")
+        if grid_target not in target:
+            raise ValueError(f"Receiver grid {grid_target} is not present in {filename}")
+        reference = select_receiver(receiver_catalogue(source[grid_target]), f"rxs/{leaf}")
+        match = match_receiver(reference, receiver_catalogue(target[grid_target]))
         return f"{grid_path}/{match.path}"
