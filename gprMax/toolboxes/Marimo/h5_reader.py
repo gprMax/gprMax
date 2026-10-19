@@ -26,7 +26,11 @@ from typing import Any
 import h5py
 import numpy as np
 
-from gprMax.toolboxes.Utilities.receiver_identity import natural_key, receiver_catalogue
+from gprMax.toolboxes.Utilities.receiver_identity import (
+    natural_key,
+    receiver_catalogue,
+    receiver_recorded,
+)
 from gprMax.toolboxes.Utilities.trace_time import receiver_time_offset
 
 # ComponentMap: {"Ez": np.ndarray, "Hx": np.ndarray, ...}
@@ -39,6 +43,7 @@ ReceiverInfo = dict[str, Any]
 #   "position":   list[float]      e.g. [0.14, 0.17, 0.0]
 #   "components": ComponentMap
 #   "component_meta": dict[str, dict[str, float | str]]
+#   "recorded":   bool             False when a study case set record=false
 # }
 
 # FileMeta: root-level attributes from the HDF5 file
@@ -225,6 +230,15 @@ def list_receivers(file_data: FileData) -> list[str]:
     return list(file_data["receivers"].keys())
 
 
+def list_recorded_receivers(file_data: FileData) -> list[str]:
+    """Return receiver keys that carry trace data, excluding record=false ones."""
+    return [
+        key
+        for key, info in file_data["receivers"].items()
+        if info.get("recorded", True)
+    ]
+
+
 def get_trace(
     file_data: FileData,
     component: str,
@@ -388,6 +402,7 @@ def _read_receivers(f: h5py.File) -> dict[str, ReceiverInfo]:
             "position": position,
             "components": components,
             "component_meta": component_meta,
+            "recorded": receiver_recorded(rx_group),
         }
 
     return receivers

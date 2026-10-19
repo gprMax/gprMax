@@ -54,8 +54,14 @@ def process_trace(
     even when another file assigns that receiver a different key.
     """
     rxs = list_receivers(file_data)
-    rx = preferred_receiver if preferred_receiver is not None else (rxs[0] if rxs else "rx1")
     receiver_infos = file_data.get("receivers", {})
+    recorded_rxs = [
+        key for key in rxs if receiver_infos.get(key, {}).get("recorded", True)
+    ]
+    if preferred_receiver is not None:
+        rx = preferred_receiver
+    else:
+        rx = recorded_rxs[0] if recorded_rxs else (rxs[0] if rxs else "rx1")
     names = Counter(info.get("name", "") for info in receiver_infos.values())
     identities = {
         f"rxs/{key}": info.get(
@@ -76,6 +82,12 @@ def process_trace(
             return {"ok": False, "reason": str(error), "known_components": []}
     if rx not in rxs:
         return {"ok": False, "reason": f"receiver {rx!r} is missing", "known_components": []}
+    if rx not in recorded_rxs:
+        return {
+            "ok": False,
+            "reason": f"receiver {rx!r} was not recorded (Recorded=False)",
+            "known_components": [],
+        }
     comps = list_components(file_data, rx)
 
     if not comps:

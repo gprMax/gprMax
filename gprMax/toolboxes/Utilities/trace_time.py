@@ -36,6 +36,16 @@ def _nearest_attribute(group, name):
         group = group.parent
 
 
+def _within_merged_output(group):
+    """Walk up from a dataset's group to the owning grid itself."""
+    while True:
+        if group.attrs.get("MergedOutput"):
+            return True
+        if group.name == "/":
+            return False
+        group = group.parent
+
+
 def read_time_history(dataset, *, allow_matrix=False):
     """Read a real history with validated sampling and source-specific length.
 
@@ -111,6 +121,13 @@ def read_time_history(dataset, *, allow_matrix=False):
     offset = float(fallback if offset is None else offset)
     if not np.isfinite(offset):
         raise ValueError(f"Invalid sample-zero time offset for {dataset.name}")
-    if not np.all(np.isfinite(values)):
-        raise ValueError(f"Trace data contain NaN or infinite values: {dataset.name}")
+    finite = np.isfinite(values)
+    if not finite.all():
+        # A merged B-scan stores an unrecorded input as a whole NaN column, never as zeros.
+        tolerated = False
+        if allow_matrix and values.ndim == 2 and _within_merged_output(group):
+            column_missing = ~finite.all(axis=0)
+            tolerated = np.array_equal(finite, np.tile(~column_missing, (values.shape[0], 1)))
+        if not tolerated:
+            raise ValueError(f"Trace data contain NaN or infinite values: {dataset.name}")
     return TimeHistory(values, dt, offset)

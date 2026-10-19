@@ -21,11 +21,14 @@ import argparse
 import json
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
 import gprMax
 from gprMax.studies import Study, preflight_study_args
+from gprMax.toolboxes.Plotting import plot_Ascan, plot_Bscan
+from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
 
 
 def _scene(
@@ -190,6 +193,72 @@ def test_study_record_false_keeps_layout_and_skips_receiver_data(tmp_path):
         resolved = json.loads(muted["study/resolved_case"][()].decode())
         assert resolved["objects"]["rx_2"]["record"] is False
         assert resolved["objects"]["rx_1"]["record"] is True
+
+
+@pytest.mark.integration
+def test_muted_study_trace_stays_out_of_plots_and_merges_as_nan(tmp_path, monkeypatch):
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(0.001, 0.001, 0.001)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=4e-10))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=5e9, id="wave"))
+    source = gprMax.HertzianDipole(polarisation="z", p1=(0.01, 0.01, 0.01), waveform_id="wave")
+    scene.add(source)
+    scene.add(gprMax.Rx(p1=(0.014, 0.01, 0.01), id="first"))
+    scene.add(gprMax.Rx(p1=(0.016, 0.01, 0.01), id="second"))
+    study = gprMax.GPRStudy(
+        [
+            gprMax.StudyCase("all", [gprMax.ObjectState(source, scale=1.0)]),
+            gprMax.StudyCase(
+                "mute_second",
+                [
+                    gprMax.ObjectState(source, scale=1.0),
+                    gprMax.ObjectState("rx_2", record=False),
+                ],
+            ),
+        ]
+    )
+    gprMax.run(
+        scenes=[scene],
+        study=study,
+        outputfile=tmp_path / "selective",
+        hide_progress_bars=True,
+        log_level=30,
+    )
+    recorded, muted = tmp_path / "selective1.h5", tmp_path / "selective2.h5"
+
+    figures = []
+    monkeypatch.setattr(plot_Ascan, "handle_plot_output", lambda _plt, fig, *a, **k: figures.append(fig))
+    monkeypatch.setattr(plot_Bscan, "handle_plot_output", lambda _plt, fig, *a, **k: figures.append(fig))
+    try:
+        with pytest.warns(UserWarning, match="was not recorded"):
+            plot_Ascan.mpl_plot(muted, outputs=["Ez"], show=False)
+        assert len(figures) == 1
+    finally:
+        plt.close("all")
+
+    samples, _ = plot_Bscan.gather_receiver_outputs(muted, "Ez")
+    assert samples.shape[1] == 1
+
+    merged = merge_files([recorded, muted], tmp_path / "selective_merged.h5")
+    data, _ = get_output_data(merged, 1, "Ez", receiver_name="second")
+    assert np.isfinite(data[:, 0]).all()
+    assert np.isnan(data[:, 1]).all()
+    with h5py.File(merged, "r") as handle:
+        assert "Recorded" not in handle["rxs/rx2"].attrs
+        np.testing.assert_array_equal(handle["trace_metadata/rxs/rx2/Recorded"], [True, False])
+
+    figures.clear()
+    samples, dt, offset = plot_Bscan.gather_receiver_outputs(merged, "Ez", return_time_offset=True)
+    try:
+        plot_Bscan.mpl_plot(merged, samples, dt, 1, "Ez", show=False, time_offset=offset)
+        assert len(figures) == 1
+    finally:
+        plt.close("all")
+
+    with pytest.raises(ValueError, match="was not recorded"):
+        get_output_data(muted, 2, "Ez")
 
 
 @pytest.mark.integration

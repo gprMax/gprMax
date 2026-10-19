@@ -2684,7 +2684,9 @@ active by default; a source omitted from that case, or listed with
 ``active=false``, is inactive. A receiver omitted from a case remains at its
 baseline position and is still recorded. Setting ``record=false`` keeps the
 receiver at its requested position but writes ``Recorded=0`` and no field
-datasets for that case; its public receiver slot is unchanged.
+datasets for that case; its public receiver slot is unchanged. Plotting and
+merge tools skip such a receiver or store its packed column as NaN rather
+than zeros.
 
 For a ``port`` study, every ``#voltage_source`` must have finite, non-zero
 resistance and a unique automatic port ID. The CSV must contain

@@ -25,7 +25,7 @@ import numpy as np
 from gprMax.utilities.utilities import handle_plot_output
 
 from ..Utilities.outputfiles_merge import get_output_data
-from ..Utilities.receiver_identity import natural_key
+from ..Utilities.receiver_identity import natural_key, receiver_recorded
 from ..Utilities.trace_time import receiver_time_offset
 
 
@@ -33,10 +33,16 @@ def gather_receiver_outputs(filename, rxcomponent, *, return_time_offset=False):
     """Gather one component from all receivers without duplicating rx1."""
     with h5py.File(filename, "r") as output:
         nrx = int(output.attrs["nrx"])
-        receivers = sorted(output.get("rxs", {}), key=natural_key)
+        receivers = [
+            key
+            for key in sorted(output.get("rxs", {}), key=natural_key)
+            if receiver_recorded(output["rxs"][key])
+        ]
 
     if nrx == 0:
         raise ValueError(f"No receivers found in {filename}")
+    if not receivers:
+        raise ValueError(f"No recorded receivers found in {filename}; every receiver has Recorded=false")
 
     traces = []
     dt = None
@@ -91,12 +97,12 @@ def mpl_plot(
 
     file = Path(filename)
     outputdata = np.asarray(outputdata)
-    if (
-        outputdata.ndim != 2
-        or 0 in outputdata.shape
-        or not np.all(np.isfinite(outputdata))
-        or np.iscomplexobj(outputdata)
-    ):
+    if outputdata.ndim != 2 or 0 in outputdata.shape or np.iscomplexobj(outputdata):
+        raise ValueError("A B-scan must be a nonempty finite real time-by-trace matrix")
+    # A merged scan stores an unrecorded input as a whole NaN column, never as scattered gaps.
+    finite = np.isfinite(outputdata)
+    missing = ~finite.all(axis=0)
+    if not np.array_equal(finite, np.tile(~missing, (outputdata.shape[0], 1))):
         raise ValueError("A B-scan must be a nonempty finite real time-by-trace matrix")
     if not np.isfinite(dt) or dt <= 0:
         raise ValueError("B-scan sample interval must be finite and positive")
@@ -114,8 +120,8 @@ def mpl_plot(
         facecolor="w",
         edgecolor="w",
     )
-    colour_limit = np.amax(np.abs(outputdata))
-    if colour_limit == 0:
+    colour_limit = np.nanmax(np.abs(outputdata))
+    if not np.isfinite(colour_limit) or colour_limit == 0:
         colour_limit = 1
 
     plt.imshow(
@@ -229,9 +235,17 @@ if __name__ == "__main__":
     else:
         with h5py.File(args.outputfile, "r") as f:
             nrx = int(f.attrs["nrx"])
-            receivers = sorted(f.get("rxs", {}), key=natural_key)
+            receivers = [
+                key
+                for key in sorted(f.get("rxs", {}), key=natural_key)
+                if receiver_recorded(f["rxs"][key])
+            ]
         if nrx == 0:
             raise ValueError(f"No receivers found in {args.outputfile}")
+        if not receivers:
+            raise ValueError(
+                f"No recorded receivers found in {args.outputfile}; every receiver has Recorded=false"
+            )
         for key in receivers:
             rx = int(key.removeprefix("rx"))
             outputdata, dt, offset = get_output_data(

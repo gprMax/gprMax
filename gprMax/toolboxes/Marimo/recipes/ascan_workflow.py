@@ -23,7 +23,7 @@ def _():
         get_trace,
         get_unit_label,
         list_components,
-        list_receivers,
+        list_recorded_receivers,
         load_file,
     )
     from gprMax.toolboxes.Marimo.hyperbola import C_M_PER_NS, ricker_delay, travel_time
@@ -53,7 +53,7 @@ def _():
         get_unit_label,
         go,
         list_components,
-        list_receivers,
+        list_recorded_receivers,
         load_file,
         mo,
         np,
@@ -551,9 +551,11 @@ def _(Path, format_metadata_text, get_progress, load_file, mo):
 
 # ── Component picker, built from what is actually in the file ─────────────
 @app.cell
-def _(list_components, list_receivers, mo, result):
-    _rxs = list_receivers(result)
-    _rx = _rxs[0] if _rxs else "rx1"
+def _(list_components, list_recorded_receivers, mo, result):
+    _rxs = list_recorded_receivers(result)
+    if not _rxs:
+        mo.stop(True, mo.md("This output has no recorded receivers (record=false)."))
+    _rx = _rxs[0]
     _comps = list_components(result, _rx) or ["Ez"]
 
     component = mo.ui.dropdown(
@@ -584,7 +586,7 @@ def _(
     get_trace,
     get_unit_label,
     go,
-    list_receivers,
+    list_recorded_receivers,
     mo,
     np,
     predicted,
@@ -592,7 +594,7 @@ def _(
     show_predicted,
     use_gain,
 ):
-    _rxs = list_receivers(result)
+    _rxs = list_recorded_receivers(result)
     _rx = _rxs[0] if _rxs else "rx1"
     _comp = component.value
     _raw = get_trace(result, _comp, _rx)

@@ -20,7 +20,7 @@ def _():
         format_metadata_text,
         get_unit_label,
         list_components,
-        list_receivers,
+        list_recorded_receivers,
         load_file,
     )
     from gprMax.toolboxes.Marimo.processing import (
@@ -441,7 +441,7 @@ def _():
         discover_bases,
         find_trace_files,
         list_components,
-        list_receivers,
+        list_recorded_receivers,
         load_file,
         mo,
         np,
@@ -587,7 +587,7 @@ def _(mo):
 # means this only reruns when directory/base actually change.
 @app.cell
 def _(
-    base_selector, directory_input, find_trace_files, list_components, list_receivers, load_file, mo
+    base_selector, directory_input, find_trace_files, list_components, list_recorded_receivers, load_file, mo
 ):
     _known_comps = ["Ez"]
     _known_rx = ["rx1"]
@@ -596,7 +596,7 @@ def _(
     if _files:
         try:
             _fdata = load_file(_files[0][1])
-            _known_rx = list_receivers(_fdata) or _known_rx
+            _known_rx = list_recorded_receivers(_fdata) or _known_rx
             _known_comps = list_components(_fdata, _known_rx[0]) or _known_comps
         except (FileNotFoundError, OSError, KeyError):
             pass  # file may still be mid-write — the poll cell retries it
@@ -1047,14 +1047,14 @@ def _(mo):
 # this must not depend on the assemble cell's output, since the assemble
 # cell depends on these widgets.
 @app.cell
-def _(file_picker, list_components, list_receivers, load_file, mo):
+def _(file_picker, list_components, list_recorded_receivers, load_file, mo):
     _known_comps = ["Ez"]
     _known_rx = ["rx1"]
 
     if file_picker.value:
         try:
             _fdata = load_file(file_picker.value[0].path)
-            _known_rx = list_receivers(_fdata) or _known_rx
+            _known_rx = list_recorded_receivers(_fdata) or _known_rx
             _known_comps = list_components(_fdata, _known_rx[0]) or _known_comps
         except (FileNotFoundError, OSError, KeyError):
             pass

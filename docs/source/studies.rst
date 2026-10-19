@@ -162,6 +162,13 @@ apply before reusing a study in another run. A receiver with
 but its group stores ``Recorded=0`` and no field datasets. Omitted receivers
 remain recorded at their baseline position.
 
+Python readers treat a missing ``Recorded`` attribute as recorded, so files
+from ordinary runs and older releases are unaffected. The plotting, merge,
+export and Marimo tools raise or skip a muted receiver explicitly instead of
+reading its missing datasets as zeros. When ``outputfiles_merge`` combines
+runs with different selections, unrecorded columns are stored as NaN and the
+per-input flags are kept in ``trace_metadata/rxs/rxN/Recorded``.
+
 For a complete acquisition that users can edit in a spreadsheet, see the
 :ref:`CSV B-scan example <bscan_csv_study>`. A Python model can use that same
 schedule with ``gprMax.Study.from_csv('gpr', 'path/to/cases.csv')`` and pass
