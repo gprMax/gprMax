@@ -42,7 +42,7 @@ CASES = {
 }
 
 
-def _scene(output, case):
+def _scene(output, case, seed=17):
     import gprMax
 
     scene = gprMax.Scene()
@@ -67,17 +67,17 @@ def _scene(output, case):
             seed=42,
         )
     )
-    scene.add(
-        gprMax.AddGrass(
-            p1=case["grass"][0],
-            p2=case["grass"][1],
-            frac_dim=1.5,
-            limits=case["limits"],
-            n_blades=100,
-            fractal_box_id="my_fractal_box",
-            seed=17,
-        )
+    grass = dict(
+        p1=case["grass"][0],
+        p2=case["grass"][1],
+        frac_dim=1.5,
+        limits=case["limits"],
+        n_blades=100,
+        fractal_box_id="my_fractal_box",
     )
+    if seed is not None:
+        grass["seed"] = seed
+    scene.add(gprMax.AddGrass(**grass))
     scene.add(
         gprMax.GeometryObjectsWrite(
             p1=(0, 0, 0),
@@ -92,17 +92,51 @@ def _dump(self, outputdir, name):
     self.grid_view.initialise_materials(include_solid=True)
     ID = self.grid_view.map_to_view_materials(self.grid_view.get_ID())
     data = self.grid_view.map_to_view_materials(self.grid_view.get_solid()).astype(np.int16)
-    info = {}
+    info = {"seed": ""}
     if hasattr(self.grid_view, "comm"):
         slices = self.grid_view.get_3d_output_slice()
-        info = {
-            "start": np.array([section.start for section in slices], dtype=np.int64),
-            "global_size": np.array(self.grid_view.global_size, dtype=np.int64),
-        }
+        info.update(
+            start=np.array([section.start for section in slices], dtype=np.int64),
+            global_size=np.array(self.grid_view.global_size, dtype=np.int64),
+        )
+    surface = next(
+        (
+            surface
+            for volume in self.grid.fractalvolumes
+            for surface in volume.fractalsurfaces
+            if surface.ID == "grass"
+        ),
+        None,
+    )
+    if surface is not None:
+        # Blade tops are absolute coordinates, so the maps from every rank
+        # must agree wherever the decomposition cuts through the blades.
+        info["seed"] = "" if surface.seed is None else str(surface.seed)
+        info["heights"] = surface.fractalsurface
     np.savez(outputdir / f"{name}.npz", data=data, ID=ID, **info)
 
 
-def _run(outputdir, case, partition=None):
+def _environment():
+    env = os.environ.copy()
+    env.update(
+        PYTHONPATH=str(ROOT) + os.pathsep + env.get("PYTHONPATH", ""),
+        MPI4PY_RC_INITIALIZE="1",
+        OMP_NUM_THREADS="1",
+        OPENBLAS_NUM_THREADS="1",
+        MKL_NUM_THREADS="1",
+        OMPI_MCA_rmaps_base_oversubscribe="1",
+    )
+    return env
+
+
+def _launch(command):
+    result = subprocess.run(
+        command, env=_environment(), cwd=ROOT, text=True, capture_output=True, timeout=300
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def _run(outputdir, case, partition=None, seed=17):
     import gprMax
     from gprMax.geometry_outputs.geometry_objects import GeometryObject, MPIGeometryObject
 
@@ -114,7 +148,7 @@ def _run(outputdir, case, partition=None):
         self, outputdir, f"rank_{self.grid_view.comm.rank}"
     )
     gprMax.run(
-        scenes=[_scene(outputdir, case)],
+        scenes=[_scene(outputdir, case, seed)],
         geometry_only=True,
         mpi=partition,
         outputfile=str(outputdir / "run"),
@@ -151,25 +185,43 @@ def _reconstruct(serial_dir, distributed_dir):
 )
 def test_grass_geometry_matches_serial_under_mpi(tmp_path, case, partition):
     serial, distributed = tmp_path / "serial", tmp_path / "mpi"
-    env = os.environ.copy()
-    env.update(
-        PYTHONPATH=str(ROOT) + os.pathsep + env.get("PYTHONPATH", ""),
-        MPI4PY_RC_INITIALIZE="1",
-        OMP_NUM_THREADS="1",
-        OPENBLAS_NUM_THREADS="1",
-        MKL_NUM_THREADS="1",
-        OMPI_MCA_rmaps_base_oversubscribe="1",
-    )
     script = str(Path(__file__).resolve())
     for output, mpi in ((serial, None), (distributed, partition)):
         command = [sys.executable, script, str(output), "--case", case]
         if mpi is not None:
             command = [MPIEXEC, "-n", str(int(np.prod(mpi))), *command, "--partition"]
             command += [str(value) for value in mpi]
-        result = subprocess.run(
-            command, env=env, cwd=ROOT, text=True, capture_output=True, timeout=300
-        )
-        assert result.returncode == 0, result.stdout + result.stderr
+        _launch(command)
+    expected, actual = _reconstruct(serial, distributed)
+    assert actual.min() >= 0, "some cells were not covered by the decomposition"
+    assert np.array_equal(expected, actual)
+
+
+@pytest.mark.skipif(
+    MPIEXEC is None or importlib.util.find_spec("mpi4py") is None,
+    reason="requires MPI and mpi4py",
+)
+def test_grass_geometry_is_shared_across_ranks_without_seed(tmp_path):
+    distributed = tmp_path / "mpi"
+    script = str(Path(__file__).resolve())
+    partition = (1, 3, 1)
+    command = [MPIEXEC, "-n", str(int(np.prod(partition))), sys.executable, script]
+    command += [str(distributed), "--case", "ycross", "--no-seed"]
+    command += ["--partition", *[str(value) for value in partition]]
+    _launch(command)
+
+    dumps = [np.load(path) for path in sorted(distributed.glob("rank_*.npz"))]
+    seeds = {str(dump["seed"].item()) for dump in dumps}
+    assert len(seeds) == 1, f"ranks resolved different grass seeds: {sorted(seeds)}"
+    seed = seeds.pop()
+    assert seed, "no seed was shared between the ranks"
+    # Every rank builds the whole grass surface, so the blade height maps
+    # must agree even where the decomposition cuts through the blades.
+    assert all(np.array_equal(dump["heights"], dumps[0]["heights"]) for dump in dumps)
+
+    serial = tmp_path / "serial"
+    command = [sys.executable, script, str(serial), "--case", "ycross", "--seed", seed]
+    _launch(command)
     expected, actual = _reconstruct(serial, distributed)
     assert actual.min() >= 0, "some cells were not covered by the decomposition"
     assert np.array_equal(expected, actual)
@@ -180,5 +232,12 @@ if __name__ == "__main__":
     parser.add_argument("outputdir", type=Path)
     parser.add_argument("--case", choices=sorted(CASES), required=True)
     parser.add_argument("--partition", type=int, nargs=3)
+    parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--no-seed", action="store_true")
     args = parser.parse_args()
-    _run(args.outputdir, CASES[args.case], tuple(args.partition) if args.partition else None)
+    _run(
+        args.outputdir,
+        CASES[args.case],
+        tuple(args.partition) if args.partition else None,
+        None if args.no_seed else args.seed,
+    )

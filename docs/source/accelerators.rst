@@ -227,7 +227,9 @@ Grass can be split across MPI ranks regardless of the domain decomposition.
 Every rank generates the whole grass surface, and blades and roots are stamped
 from a volume mask replicated across the ranks, so the geometry built matches a
 serial run. Any rough surface or surface water modifications of the same
-fractal box must be defined before ``#add_grass`` in the model.
+fractal box must be defined before ``#add_grass`` in the model. Note that every
+rank assembles the complete grass volume mask during the model build, so the
+memory used by grass does not reduce with the number of MPI tasks.
 
 Task farm
 ---------

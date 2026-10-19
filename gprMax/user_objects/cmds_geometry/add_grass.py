@@ -84,6 +84,13 @@ class AddGrass(GeometryUserObject):
             )
             seed = None
 
+        # Every rank draws the whole grass geometry, so an omitted seed must
+        # be drawn once on the coordinator and shared instead of relying on
+        # each rank's own entropy.
+        if seed is None and getattr(grid, "is_distributed", False):
+            seed = int(np.random.default_rng().integers(0, 2**32)) if grid.is_coordinator() else None
+            seed = grid.comm.bcast(seed, root=grid.COORDINATOR_RANK)
+
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
         if volumes:
