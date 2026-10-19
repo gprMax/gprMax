@@ -220,9 +220,21 @@ class TestValidation:
         with pytest.raises(ValueError):
             make_sim_config(show_progress_bars=True, hide_progress_bars=True)
 
-    def test_mpi_with_subgrids_is_rejected(self, make_sim_config):
-        with pytest.raises(ValueError):
-            make_sim_config(mpi=[2], subgrid=True)
+    def test_single_rank_mpi_with_subgrids_is_rejected_with_a_message(self, make_sim_config):
+        """One rank has no boundary to straddle, so no geometry is needed."""
+        with pytest.raises(ValueError, match="cannot yet be coupled"):
+            make_sim_config(mpi=[1, 1, 1], subgrid=True)
+
+    def test_mpi_with_subgrids_is_deferred_to_the_geometry_preflight(
+        self, make_sim_config, monkeypatch
+    ):
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(
+            "gprMax.mpi_support.require_mpi",
+            lambda feature: SimpleNamespace(COMM_WORLD=SimpleNamespace(rank=0)),
+        )
+        assert make_sim_config(mpi=[2], subgrid=True) is not None
 
     def test_subgrid_with_cuda_is_accepted(self, make_sim_config):
         """Sub-gridding runs on CUDA. The subgrid block overrides
@@ -241,7 +253,6 @@ class TestValidation:
         [
             {"taskfarm": True, "geometry_fixed": True},
             {"show_progress_bars": True, "hide_progress_bars": True},
-            {"mpi": [2], "subgrid": True},
         ],
     )
     def test_rejections_raise_a_bare_value_error(self, make_sim_config, kwargs):

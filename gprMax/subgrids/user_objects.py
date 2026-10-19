@@ -24,6 +24,7 @@ import numpy as np
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.subgrids.mpi_preflight import validate_subgrid_against_mpi
 from gprMax.subgrids.subgrid_hsg import SubGridHSG as SubGridHSGUser
 from gprMax.user_inputs import MainGridUserInput
 from gprMax.user_objects.user_objects import (
@@ -126,6 +127,22 @@ class SubGridBase(ModelUserObject):
         p2 = self.kwargs["p2"]
 
         uip = self._create_uip(model.G)
+        # Pre-flight: on a domain-decomposed grid, validate the subgrid's
+        # coupling region against the rank boundaries using *global*
+        # indices, before rank-local clipping and before any allocation.
+        if getattr(model.G, "is_distributed", False) is True:
+            import gprMax.config as config
+
+            validate_subgrid_against_mpi(
+                name=self.kwargs["id"],
+                i0=uip.discretise_static_point(p1),
+                i1=uip.discretise_static_point(p2),
+                is_os_sep=self.kwargs["is_os_sep"],
+                interpolation=self.kwargs["interpolation"],
+                dispersive_averaging=config.get_model_config().dispersive_averaging,
+                global_size=model.G.global_size,
+                mpi_tasks=model.G.mpi_tasks,
+            )
         _, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
 
         self.set_discretisation(sg, model.G)
