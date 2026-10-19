@@ -23,6 +23,8 @@ mechanics tests).
 """
 from pathlib import Path
 
+import h5py
+import numpy as np
 import pytest
 
 import gprMax
@@ -186,3 +188,83 @@ def test_magnetic_edge_text_command_parses_correctly(monkeypatch, tmp_path: Path
     pmc_numid = next(m.numID for m in grid.materials if m.ID == "pmc")
     idHx = grid.IDlookup["Hx"]
     assert grid.ID[idHx, 2, 1, 1] == pmc_numid
+
+
+def _pmc_sheet_scene(mode, wall):
+    scene = gprMax.Scene()
+    scene.add(gprMax.DomainMode(mode=mode))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.16, 0.24, INF)))
+    scene.add(gprMax.TimeWindow(time=1.6e-9))
+    scene.add(gprMax.Waveform(wave_type="ricker", amp=1, freq=10e9, id="w"))
+    scene.add(
+        gprMax.DiscretePlaneWaveAngles(
+            p1=(0.020, 0.030, INF),
+            p2=(0.140, 0.210, INF),
+            theta=90,
+            phi=0,
+            psi=90 if mode == "TM" else 0,
+            waveform_id="w",
+        )
+    )
+    field = "Ez" if mode == "TM" else "Ey"
+    scene.add(gprMax.Rx(p1=(0.035, 0.120, INF), outputs=[field], id="front"))
+    scene.add(gprMax.Rx(p1=(0.135, 0.120, INF), outputs=[field], id="back"))
+    if wall:
+        if mode == "TM":
+            # Freezes the Hy component tangential to the x-normal sheet.
+            scene.add(
+                gprMax.MagneticEdge(
+                    p1=(0.130, 0.010, INF), p2=(0.130, 0.230, INF), material_id="pmc"
+                )
+            )
+        else:
+            # In TE one invariant-axis edge per cross-line cell spans the 2-cell thickness.
+            for j in range(10, 230):
+                scene.add(
+                    gprMax.MagneticEdge(
+                        p1=(0.130, j * 1e-3, INF),
+                        p2=(0.130, j * 1e-3, INF),
+                        material_id="pmc",
+                    )
+                )
+    return scene
+
+
+def _run_pmc_sheet(mode, wall, tmp_path, label):
+    outputfile = tmp_path / label
+    gprMax.run(
+        scenes=[_pmc_sheet_scene(mode, wall)],
+        n=1,
+        outputfile=outputfile,
+        cpu_precision="double",
+        hide_progress_bars=True,
+    )
+    return outputfile.with_suffix(".h5")
+
+
+@pytest.mark.parametrize("mode", ("TM", "TE"))
+def test_pmc_sheet_reflection_is_unit_and_transmission_zero(tmp_path, mode):
+    """Normal incidence on a PMC sheet: E reflects with coefficient +1 and the gated field behind is zero."""
+    field = "Ez" if mode == "TM" else "Ey"
+    with h5py.File(_run_pmc_sheet(mode, False, tmp_path, f"{mode}_free")) as f:
+        dt = f.attrs["dt"]
+        incident_front = f[f"rxs/rx1/{field}"][:]
+        incident_back = f[f"rxs/rx2/{field}"][:]
+    with h5py.File(_run_pmc_sheet(mode, True, tmp_path, f"{mode}_wall")) as f:
+        total_front = f[f"rxs/rx1/{field}"][:]
+        total_back = f[f"rxs/rx2/{field}"][:]
+
+    times = np.arange(len(incident_front)) * dt
+    incident_window = (times > 0.10e-9) & (times < 0.45e-9)
+    reflected_window = (times > 0.75e-9) & (times < 1.15e-9)
+    transmitted_window = (times > 0.45e-9) & (times < 0.75e-9)
+
+    incident = incident_front[incident_window]
+    reflected = (total_front - incident_front)[reflected_window]
+    coefficient = np.max(np.correlate(reflected, incident, mode="full"))
+    coefficient /= np.max(np.correlate(incident, incident, mode="full"))
+    assert coefficient == pytest.approx(1, abs=0.03)
+
+    transmitted = np.max(np.abs(total_back[transmitted_window]))
+    assert transmitted < 1e-4 * np.max(np.abs(incident_back[transmitted_window]))
