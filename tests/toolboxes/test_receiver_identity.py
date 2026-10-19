@@ -1,14 +1,17 @@
 """Identity-routing regressions: same receivers, deliberately permuted rxN."""
 
 from dataclasses import replace
+from pathlib import Path
 
 import h5py
 import numpy as np
 import pytest
 
 from gprMax.toolboxes.Utilities.receiver_identity import (
+    ReceiverCatalogue,
     ReceiverIdentity,
     match_receiver,
+    matching_receiver_path,
     receiver_catalogue,
     select_receiver,
 )
@@ -184,6 +187,66 @@ def test_legacy_comparison_matches_receiver_not_group_number(permuted):
 
     _, differences = diff_output_files(*permuted)
     np.testing.assert_array_equal(differences, 0)
+
+
+def test_matching_receiver_path_supports_relative_and_subgrid_paths(permuted, tmp_path):
+    reference, target = permuted
+    root_paths = [
+        "/rxs/rx1",
+        "rxs/rx1",
+        "/rxs/rx1/",
+        "rxs/rx1/",
+        Path("/rxs/rx1"),
+        Path("rxs/rx1"),
+    ]
+    for path in root_paths:
+        assert matching_receiver_path(reference, path, target) == "/rxs/rx2"
+
+    sub_ref = write_output(tmp_path / "sub_ref.h5", ("zulu", "alpha"), new=True, subgrid=True)
+    sub_tgt = write_output(tmp_path / "sub_tgt.h5", ("alpha", "zulu"), subgrid=True)
+    subgrid_paths = [
+        "/subgrids/fine/rxs/rx1",
+        "subgrids/fine/rxs/rx1",
+        "/subgrids/fine/rxs/rx1/",
+        "subgrids/fine/rxs/rx1/",
+        Path("/subgrids/fine/rxs/rx1"),
+        Path("subgrids/fine/rxs/rx1"),
+    ]
+    for path in subgrid_paths:
+        assert matching_receiver_path(sub_ref, path, sub_tgt) == "/subgrids/fine/rxs/rx2"
+
+
+def test_matching_receiver_path_validates_path_and_grid(permuted, tmp_path):
+    reference, target = permuted
+    for bad_path in (
+        "not_a_receiver",
+        "/rxs/",
+        "rxs/",
+        "",
+        "/rxs/rx1/Ez",
+        "/subgrids/fine/rxs/rx1/Ez",
+    ):
+        with pytest.raises(ValueError, match="Not a public receiver path"):
+            matching_receiver_path(reference, bad_path, target)
+
+    with pytest.raises(ValueError, match="Receiver grid /subgrids/missing is not present in"):
+        matching_receiver_path(reference, "/subgrids/missing/rxs/rx1", target)
+
+    sub_ref = write_output(tmp_path / "sub_ref_missing.h5", new=True, subgrid=True)
+    with pytest.raises(ValueError, match="Receiver grid /subgrids/fine is not present in"):
+        matching_receiver_path(sub_ref, "/subgrids/fine/rxs/rx1", target)
+
+
+def test_receiver_catalogue_empty_grid(tmp_path):
+    empty_file = tmp_path / "empty.h5"
+    with h5py.File(empty_file, "w") as output:
+        output.attrs.update(Title="empty")
+        catalogue = receiver_catalogue(output)
+        assert isinstance(catalogue, ReceiverCatalogue)
+        assert len(catalogue) == 0
+        assert catalogue.names == {}
+        assert catalogue.studies == {}
+        assert catalogue.ordinals == {}
 
 
 def test_reframe_resolves_paths_after_files_exist(permuted, monkeypatch):
