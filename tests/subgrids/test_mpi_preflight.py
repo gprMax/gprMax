@@ -82,20 +82,31 @@ class TestFootprint:
 
 
 class TestValidator:
+    
     def test_single_rank_cannot_straddle_but_is_still_unsupported(self, monkeypatch):
-        with pytest.raises(MPISubgridConfigurationError, match="cannot yet be coupled"):
+        with pytest.raises(MPISubgridConfigurationError) as exc:
             check((45, 45, 45), (55, 55, 55), (1, 1, 1))
-        monkeypatch.setattr(mpi_preflight, "SUBGRIDS_ON_MPI_SOLVER_SUPPORTED", True)
-        check((45, 45, 45), (55, 55, 55), (1, 1, 1))  # nothing to straddle
+
+        msg = str(exc.value)
+        assert "not currently supported with MPI domain decomposition" in msg
+        assert "Omit --mpi" in msg
+
+        monkeypatch.setattr(
+            mpi_preflight, "SUBGRIDS_ON_MPI_SOLVER_SUPPORTED", True
+        )
+        check((45, 45, 45), (55, 55, 55), (1, 1, 1))
 
     def test_straddling_subgrid_fails_with_a_descriptive_message(self):
         with pytest.raises(MPISubgridConfigurationError) as exc:
             check((45, 20, 20), (55, 30, 30), (2, 1, 1), name="gpr_patch")
+
         msg = str(exc.value)
         assert "gpr_patch" in msg
         assert "x = 50" in msg
         assert "straddles an MPI subdomain boundary" in msg
         assert "(2, 1, 1)" in msg
+        assert "not currently supported with MPI domain decomposition" in msg
+        assert "Omit --mpi" in msg
 
     def test_error_is_a_value_error(self):
         """Callers that catch ``ValueError`` (the repo convention) still work."""
@@ -127,12 +138,55 @@ class TestValidator:
             check((10, 10, 45), (20, 20, 55), (1, 1, 2))
 
     def test_subgrid_inside_one_rank_is_still_rejected_while_solver_lacks_support(self):
-        with pytest.raises(MPISubgridConfigurationError, match="cannot yet be coupled"):
+        with pytest.raises(MPISubgridConfigurationError) as exc:
             check((10, 10, 10), (20, 20, 20), (2, 1, 1))
+
+        msg = str(exc.value)
+        assert "not currently supported with MPI domain decomposition" in msg
+        assert "complete coupling region lies" in msg
+        assert "Omit --mpi" in msg
 
     def test_subgrid_inside_one_rank_passes_once_solver_supports_it(self, monkeypatch):
         monkeypatch.setattr(mpi_preflight, "SUBGRIDS_ON_MPI_SOLVER_SUPPORTED", True)
         check((10, 10, 10), (20, 20, 20), (2, 1, 1))
+    
+    @pytest.mark.parametrize(
+        "i0, i1, tasks",
+        [
+            ((45, 20, 20), (55, 30, 30), (2, 1, 1)),
+            ((45, 20, 20), (55, 30, 30), (1, 2, 1)),
+            ((45, 20, 20), (55, 30, 30), (1, 1, 2)),
+        ],
+    )
+    def test_ratio_one_subgrid_crossing_reports_mpi_limitation(
+        self, i0, i1, tasks
+    ):
+        with pytest.raises(MPISubgridConfigurationError) as exc:
+            validate_subgrid_against_mpi(
+                "ratio_one_patch", i0, i1, 1, 1, False, SIZE, tasks
+            )
+
+        msg = str(exc.value)
+        assert "not currently supported with MPI domain decomposition" in msg
+        assert "Omit --mpi" in msg
+    
+    def test_ratio_one_subgrid_inside_one_rank_reports_mpi_limitation(self):
+        with pytest.raises(MPISubgridConfigurationError) as exc:
+            validate_subgrid_against_mpi(
+                "ratio_one_patch",
+                (10, 10, 10),
+                (20, 20, 20),
+                1,
+                1,
+                False,
+                SIZE,
+                (2, 1, 1),
+            )
+
+        msg = str(exc.value)
+        assert "not currently supported with MPI domain decomposition" in msg
+        assert "complete coupling region lies" in msg
+        assert "Omit --mpi" in msg
 
 
 class TestFailsDuringConstruction:

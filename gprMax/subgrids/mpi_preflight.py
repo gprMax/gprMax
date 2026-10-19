@@ -60,7 +60,9 @@ def find_straddled_boundaries(lo, hi, global_size, mpi_tasks) -> List[Tuple[int,
 def validate_subgrid_against_mpi(
     name, i0, i1, is_os_sep, interpolation, dispersive_averaging, global_size, mpi_tasks
 ) -> None:
-    lo, hi = coupling_footprint(i0, i1, is_os_sep, interpolation, dispersive_averaging)
+    lo, hi = coupling_footprint(
+        i0, i1, is_os_sep, interpolation, dispersive_averaging
+    )
     hits = find_straddled_boundaries(lo, hi, global_size, mpi_tasks)
     decomposition = (
         f"{tuple(int(t) for t in mpi_tasks)} MPI ranks over "
@@ -73,19 +75,40 @@ def validate_subgrid_against_mpi(
             f"contain the rank boundary at {AXES[a]} = {b}"
             for a, b in hits
         )
+
+        cause = ""
+        if dispersive_averaging:
+            lo_without_dispersive, hi_without_dispersive = coupling_footprint(
+                i0, i1, is_os_sep, interpolation, False
+            )
+            hits_without_dispersive = find_straddled_boundaries(
+                lo_without_dispersive, hi_without_dispersive,
+                global_size, mpi_tasks
+            )
+            if not hits_without_dispersive:
+                cause = (
+                    " dispersive averaging expands the coupling region "
+                    "across the MPI boundary."
+                )
+
         raise MPISubgridConfigurationError(
-            f"Subgrid {name!r} straddles an MPI subdomain boundary ({decomposition}).\n"
+            f"Subgrid '{name}' straddles an MPI subdomain boundary "
+            f"({decomposition}).\n"
             f"{crossings}\n"
-            "The subgrid's coupling region (working region + IS/OS separation + precursor and "
-            "interpolation halo"
-            + (" + dispersive averaging stencil" if dispersive_averaging else "")
-            + ") must lie wholly inside one rank. Move or shrink the subgrid, change the --mpi "
-            "decomposition so no boundary crosses it, or run without MPI domain decomposition."
-        )
+            f"{cause}"
+            + (
+                " Dispersive averaging is enabled."
+                if dispersive_averaging and not cause
+                else ""
+            )
+            + " Subgrids are not currently supported with MPI domain "
+            "decomposition. Omit --mpi to run this subgrid."
+)
 
     if not SUBGRIDS_ON_MPI_SOLVER_SUPPORTED:
         raise MPISubgridConfigurationError(
-            f"Subgrid {name!r} lies inside a single MPI rank ({decomposition}), but subgrids "
-            "cannot yet be coupled to an MPI domain-decomposed main grid. Run without MPI "
-            "domain decomposition (omit --mpi) to use subgrids."
+            f"Subgrid '{name}': the complete coupling region lies "
+            "within a single rank, but subgrids are not currently "
+            "supported with MPI domain decomposition. "
+            "Omit --mpi to run this subgrid."
         )
