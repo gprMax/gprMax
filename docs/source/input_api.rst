@@ -498,9 +498,9 @@ Cell-centred geometry tags
 --------------------------
 
 The volumetric commands ``Box``, ``Sphere``, ``Cylinder``, ``Cone``,
-``CylindricalSector``, ``Ellipsoid``, a ``Triangle`` with non-zero thickness,
-and ``FractalBox`` accept the optional keyword ``tag``. A tag is semantic
-metadata independent of the electromagnetic material, for example
+``CylindricalSector``, ``Ellipsoid``, ``Helix``, a ``Triangle`` with non-zero
+thickness, and ``FractalBox`` accept the optional keyword ``tag``. A tag is
+semantic metadata independent of the electromagnetic material, for example
 ``tag='cranial_bone'``. Reusing the same string on several primitives makes
 them one semantic region without retaining a list of the individual
 primitives.
@@ -620,6 +620,26 @@ Magnetic Edge
 Ellipsoid
 ---------
 .. autoclass:: gprMax.user_objects.cmds_geometry.ellipsoid.Ellipsoid
+
+Helix
+-----
+.. autoclass:: gprMax.user_objects.cmds_geometry.helix.Helix
+
+.. code-block:: python
+
+    scene.add(gprMax.Helix(
+        p1=(0.06, 0.06, 0.005),
+        p2=(0.06, 0.06, 0.045),
+        coil_radius=8e-3,
+        pitch=5e-3,
+        turns=4.0,
+        wire_radius=1.5e-3,
+        handedness='r',
+        material_id='pec',
+    ))
+
+See :doc:`helix` for the centreline definition, resolution requirement, and
+hash-command form.
 
 Plate
 -----
