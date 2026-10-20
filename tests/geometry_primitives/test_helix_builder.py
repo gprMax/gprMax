@@ -15,13 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
-"""Unit tests for the helical-wire rasteriser ``build_helix``.
+"""Direct tests for the helical-wire rasteriser ``build_helix``.
 
-The builder sweeps a sphere of ``wire_radius`` along a sampled helical
-centreline. With ``pitch=0`` and an integer number of turns the centreline is
-an exact circle, so the swept volume is a torus and can be compared against
-an independent analytic rasterisation. Handedness, capsulation continuity,
-degenerate parameters and tag writing are pinned separately.
+With ``pitch=0`` and an integer number of turns the centreline is a circle, so
+the swept volume is a torus and can be checked against an analytic
+rasterisation. Handedness, continuity, degenerate parameters, and tag writing
+are tested separately.
 """
 
 import numpy as np

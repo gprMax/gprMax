@@ -1107,7 +1107,7 @@ cdef inline double point_segment_distance2(
     double bz,
     double segment2
 ) noexcept nogil:
-    """Return the squared distance from a point to a finite segment."""
+    """Squared distance from a point to segment AB; the projection is clamped to the endpoints."""
 
     cdef double abx = bx - ax
     cdef double aby = by - ay
@@ -1155,23 +1155,30 @@ cpdef Py_ssize_t build_helix(
     object tag_data=None,
     unsigned int tag_id=0
 ):
-    """Builds a helical wire by sweeping a sphere along a sampled centreline.
+    """Rasterises a helical wire by sweeping a sphere along the centreline.
+
+    Consecutive capsule segments overlap by at most half a cell, so the wire
+    stays connected without any cell being written twice. Material, rigid, and
+    tag updates therefore happen once per occupied cell.
 
     Args:
-        x1, y1, z1: floats for the coordinates of the helix base centre.
-        x2, y2, z2: floats for a point defining the helix axis direction.
-        coil_radius: float for the radius of the helical centreline.
-        pitch: float for the axial advance per complete turn.
-        turns: float for the number of complete turns.
-        wire_radius: float for the radius of the circular wire cross-section.
-        right_handed: bint for the handedness of the helix.
-        dx, dy, dz: floats for spatial discretisation.
-        numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
-        averaging: bint for whether material property averaging will occur for
-                    the object.
-        pec_x, pec_y, pec_z: bints for whether the x/y/z-direction material is
-                    PEC (or PEC-equivalent) - see build_voxel().
-        solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
+        x1, y1, z1: coordinates of the helix base centre.
+        x2, y2, z2: coordinates of a point on the helix axis; only the
+                    direction is used.
+        coil_radius: radius of the helical centreline.
+        pitch: axial advance per complete turn.
+        turns: number of turns, which may be fractional.
+        wire_radius: radius of the circular wire cross-section.
+        right_handed: whether the winding follows the right-hand rule about
+                    the axis.
+        dx, dy, dz: spatial discretisation.
+        numID, numIDx, numIDy, numIDz: material IDs for the solid array and
+                    the x/y/z directional components.
+        averaging: whether dielectric smoothing applies to occupied cells.
+        pec_x, pec_y, pec_z: whether each directional component is a perfect
+                    electric conductor; build_voxel() uses these for rigidE
+                    and rigidH.
+        solid, rigidE, rigidH, ID: target grid arrays.
     """
 
     cdef Py_ssize_t i, j, k, s, nx, ny, nz, samples

@@ -5,10 +5,9 @@ Helical wire geometry
 ********************************************
 
 ``Helix`` builds a circular-cross-section wire whose centreline is a helix.
-It is useful for coiled antennas, springs, and other helical conductors. The
-helix starts at ``p1`` and advances along the axis from ``p1`` towards ``p2``.
-Only the direction of ``p2`` is used; its distance from ``p1`` does not affect
-the geometry. In the Python API the object is
+The helix starts at ``p1`` and advances along the axis from ``p1`` towards
+``p2``. Only the direction of ``p2`` is used; its distance from ``p1`` does
+not affect the geometry. In the Python API the object is
 :class:`gprMax.user_objects.cmds_geometry.helix.Helix`; the equivalent hash
 command is ``#helix``.
 
@@ -18,11 +17,11 @@ Geometry
 The helix centreline is a right circular helix of radius ``coil_radius``
 around the axis. ``pitch`` is the axial advance per complete turn and
 ``turns`` is the number of turns, so the axial length is ``pitch * turns``.
-``turns`` may be fractional. A ``pitch`` of zero produces a closed ring of
-``turns`` overlapping loops stacked in the same plane. Handedness is selected
-with ``handedness='r'`` (right-handed) or ``handedness='l'`` (left-handed),
-case insensitively. The wire cross-section has radius ``wire_radius`` and the
-axis orientation is unrestricted.
+``turns`` may be fractional. With ``pitch`` zero the wire closes into
+``turns`` loops in the plane through ``p1``. Handedness is selected with
+``handedness='r'`` (right-handed) or ``handedness='l'`` (left-handed), case
+insensitively. The wire cross-section has radius ``wire_radius`` and the axis
+orientation is unrestricted.
 
 The object follows the same ordered overwrite semantics as other volume
 primitives: later objects replace earlier ones in shared cells, dielectric

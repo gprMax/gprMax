@@ -15,21 +15,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
-"""Check ``Helix`` against the official three-turn MATLAB reference geometry.
+"""Compare the ``Helix`` rasterisation with the official MATLAB reference model.
 
-``testing/other_codes/matlab_mom/antenna_helix_fs/helix_antenna_gprmax.py``
-approximates the same helix with 15-degree PEC cylinder chords of radius one
-cell. The primitive sweeps a sphere along the smooth centreline instead, so
-the two rasterisations cannot be voxel-identical when the wire is only one
-cell thick: a chord sags up to 0.19 cells off the centreline, which flips
-about 17% of the surface cells at that radius. The test therefore pins the
-shared geometry (extent and occupancy) and a containment floor rather than an
-exact mask match.
-
-``build_helix`` starts its winding on the +y side of the axis, while the
-reference chain starts on +x, so the chain mask is rotated 90 degrees about
-the axis before comparison. The rotation is exact on the cell grid because
-the axis lies on a grid plane.
+The reference replaces the wire with 15-degree PEC cylinder chords of radius
+one cell. A chord sags up to 0.19 cells from the smooth centreline, so the
+masks cannot match exactly at that wire thickness; the test therefore checks
+extent, cell count, and bidirectional containment. The reference starts its
+winding on +x and ``build_helix`` on +y, so the chain is rotated 90 degrees
+about the axis; the axis lies on a grid plane, which makes that rotation exact.
 """
 
 import importlib.util

@@ -35,11 +35,12 @@ logger = logging.getLogger(__name__)
 
 
 class Helix(GeometryUserObject):
-    """Introduces a helical wire into the model.
+    """Helical wire of circular cross-section around the axis from p1 to p2.
 
-    The helix centreline starts at ``p1`` and advances along the axis from
-    ``p1`` towards ``p2``. Only the direction of ``p2`` is used, so its
-    distance from ``p1`` does not affect the geometry.
+    The centreline starts at ``p1`` and advances towards ``p2``; only the
+    direction of ``p2`` matters. The axial length is ``pitch * turns``, and
+    with ``pitch`` zero the wire closes into ``turns`` loops in the plane of
+    the base.
 
     Attributes:
         p1: list of the coordinates (x,y,z) of the centre of the helix base.

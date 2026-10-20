@@ -15,12 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
-"""End-to-end tests for the ``Helix`` geometry user object.
+"""End-to-end scene tests for ``Helix``.
 
-These drive the real ``gprMax.run`` scene pipeline (discretisation, material
-resolution, averaging, geometry tags and rasterisation) and inspect the
-captured grid, complementing the direct Cython-level tests in
-``tests/geometry_primitives/test_helix_builder.py``.
+These run the real ``gprMax.run`` pipeline (discretisation, materials,
+averaging, tags, rasterisation) and inspect the captured grid; the Cython
+builder is tested directly in ``tests/geometry_primitives/test_helix_builder.py``.
 """
 
 import numpy as np

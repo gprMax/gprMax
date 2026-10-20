@@ -15,12 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
-"""Serial/MPI partition parity for the ``Helix`` geometry object.
+"""Serial/MPI parity for ``Helix``.
 
-A helix is built from global-coordinate points, then rasterised into each
-rank's local frame. Each rank writes only its uniquely-owned cells into a
-global buffer; the stitched result must be bit-identical to the serial
-``solid`` array, which catches any local-frame rounding or ownership bug.
+Each rank builds in its local frame and writes only its owned cells into a
+global buffer; stitching the ranks must reproduce the serial ``solid`` array
+exactly.
 """
 
 import argparse
