@@ -253,9 +253,43 @@ class FractalBox(GeometryUserObject):
                         if surface.fractalrange[1] > self.volume.zf:
                             self.volume.zf = surface.fractalrange[1]
 
+                # MPI grass is stamped from a mask replicated on every rank,
+                # since blades and roots can straddle rank boundaries. That
+                # needs the extended global bounds, so capture start/stop
+                # before generate_fractal_volume() clips them locally.
+                global_grass = (
+                    getattr(grid, "is_distributed", False)
+                    and grid.comm.Get_size() > 1
+                    and any(surface.ID == "grass" for surface in self.volume.fractalsurfaces)
+                )
+                if global_grass:
+                    first_grass = next(
+                        index
+                        for index, surface in enumerate(self.volume.fractalsurfaces)
+                        if surface.ID == "grass"
+                    )
+                    if any(
+                        surface.ID != "grass"
+                        for surface in self.volume.fractalsurfaces[first_grass:]
+                    ):
+                        raise ValueError(
+                            f"{self.__str__()} in an MPI decomposition requires every rough "
+                            "surface or surface water command to be defined before #add_grass."
+                        )
+                    preclip_start = self.volume.start.copy()
+                    preclip_stop = self.volume.stop.copy()
+
                 # If there is only 1 bin then a normal material is being used,
                 # otherwise a mixing model
+                volume_ready = True
                 if self.volume.nbins == 1:
+                    if global_grass:
+                        # A single-material volume never goes through the
+                        # distributed generator, which is where start/stop
+                        # normally get clipped to this rank.
+                        self.volume.start = np.maximum(self.volume.start, 0)
+                        self.volume.stop = np.minimum(self.volume.stop, grid.size)
+                        self.volume.stop = np.maximum(self.volume.stop, self.volume.start)
                     self.volume.fractalvolume = np.ones(
                         (self.volume.nx, self.volume.ny, self.volume.nz),
                         dtype=config.sim_config.dtypes["float_or_double"],
@@ -268,22 +302,32 @@ class FractalBox(GeometryUserObject):
                     )
                     self.volume.fractalvolume *= materialnumID
                 else:
-                    if not self.volume.generate_fractal_volume():
+                    volume_ready = self.volume.generate_fractal_volume()
+                    if not volume_ready and not global_grass:
                         return
-                    for i in range(0, self.volume.nx):
-                        for j in range(0, self.volume.ny):
-                            for k in range(0, self.volume.nz):
-                                numberinbin = self.volume.fractalvolume[i, j, k]
-                                self.volume.fractalvolume[i, j, k] = self.volume.material_ids[
-                                    int(numberinbin)
-                                ]
+                    if volume_ready:
+                        for i in range(0, self.volume.nx):
+                            for j in range(0, self.volume.ny):
+                                for k in range(0, self.volume.nz):
+                                    numberinbin = self.volume.fractalvolume[i, j, k]
+                                    self.volume.fractalvolume[i, j, k] = self.volume.material_ids[
+                                        int(numberinbin)
+                                    ]
 
-                self.volume.generate_volume_mask()
+                if volume_ready:
+                    self.volume.generate_volume_mask()
 
                 # Apply any rough surfaces and add any surface water to the
                 # 3D mask array
                 # TODO: Allow extract of rough surface profile (to print/file?)
                 for surface in self.volume.fractalsurfaces:
+                    if global_grass and surface.ID == "grass":
+                        # Stamped across every rank from the replicated mask
+                        # after the local rough surface/water passes.
+                        continue
+                    if not volume_ready:
+                        # Rank does not own any part of the extended volume.
+                        continue
                     if surface.surfaceID == "xminus":
                         surface.fractalrange = (
                             max(surface.fractalrange[0], 0),
@@ -756,6 +800,11 @@ class FractalBox(GeometryUserObject):
                                             k -= 1
                                         root += 1
 
+                if global_grass:
+                    self._stamp_grass_global(grid, preclip_start, preclip_stop)
+                    if not volume_ready:
+                        return
+
                 # In 2D TE mode the invariant axis is 2 cells thick. The
                 # rough-surface/water mask assignment above is already
                 # invariant (it thresholds against fractalsurface, which
@@ -870,3 +919,162 @@ class FractalBox(GeometryUserObject):
                 # fractalsurfaces branch above - fractalvolume is fully
                 # consumed by this point and never read again.
                 self.volume.fractalvolume = None
+
+    def _stamp_grass_global(self, grid: FDTDGrid, preclip_start, preclip_stop):
+        """Stamps grass blades and roots across every MPI rank.
+
+        Every rank holds the whole grass surface but only its own slice of
+        the volume mask. The serial blade/root loops are replayed against a
+        mask assembled from all ranks' slices, so the geometry is identical
+        to a serial run; each rank then keeps only its own slice for local
+        voxelisation.
+
+        Args:
+            grid: Grid being built.
+            preclip_start, preclip_stop: Local extended volume bounds
+                captured before generate_fractal_volume() clipped them.
+        """
+
+        lower_extent = grid.lower_extent
+        local_mask = getattr(self.volume, "mask", None)
+        local_start = self.volume.start + lower_extent
+        local_stop = self.volume.stop + lower_extent
+        # Clipped local bounds cannot be shifted by this rank's lower_extent
+        # into a shared origin - an object crossing a rank's negative face
+        # is clipped to zero there. Every item therefore carries its own
+        # global bounds and the union origin is derived from them.
+        payload = grid.comm.allgather(
+            (
+                local_mask,
+                local_start,
+                local_stop,
+                preclip_start + lower_extent,
+                preclip_stop + lower_extent,
+                self.volume.unclipped_original_stop + lower_extent,
+            )
+        )
+
+        global_start = np.min(np.stack([item[3] for item in payload]), axis=0)
+        global_stop = np.max(np.stack([item[4] for item in payload]), axis=0)
+        original_stop = np.max(np.stack([item[5] for item in payload]), axis=0)
+
+        global_mask = np.zeros(global_stop - global_start, dtype=np.int8)
+        for mask, start, stop, _, _, _ in payload:
+            if mask is None or np.any(stop <= start):
+                continue
+            destination = start - global_start
+            global_mask[
+                destination[0] : destination[0] + stop[0] - start[0],
+                destination[1] : destination[1] + stop[1] - start[1],
+                destination[2] : destination[2] + stop[2] - start[2],
+            ] = mask
+
+        for surface in self.volume.fractalsurfaces:
+            if surface.ID == "grass":
+                self._stamp_grass_surface(
+                    surface, grid, global_mask, global_start, global_stop, original_stop
+                )
+
+        if local_mask is not None and np.all(local_stop > local_start):
+            destination = local_start - global_start
+            local_mask[...] = global_mask[
+                destination[0] : destination[0] + local_stop[0] - local_start[0],
+                destination[1] : destination[1] + local_stop[1] - local_start[1],
+                destination[2] : destination[2] + local_stop[2] - local_start[2],
+            ]
+
+    def _stamp_grass_surface(
+        self, surface, grid: FDTDGrid, mask, volume_start, volume_stop, original_stop
+    ):
+        """Replays one grass surface's serial blade/root loops on a global
+        mask. Coordinates and the mask are all in global indices.
+        """
+
+        lower_extent = grid.lower_extent
+        normal = "xyz".index(surface.surfaceID[0])
+        dims = [axis for axis in range(3) if axis != normal]
+        first, second = dims
+        fractalrange = (
+            surface.fractalrange[0] + lower_extent[normal],
+            surface.fractalrange[1] + lower_extent[normal],
+        )
+        g = surface.grass[0]
+
+        te_axis = None
+        mode = config.get_model_config().mode
+        if mode.startswith("2D TE"):
+            invariant_axis = "xyz".index(mode[-1])
+            if surface.size[invariant_axis] == 2:
+                te_axis = surface._te_invariant_inplane_index(invariant_axis)
+
+        shape = np.array(mask.shape)
+        index = np.zeros(3, dtype=np.int64)
+
+        # Build the blades of the grass
+        blade = 0
+        for u in range(surface.start[first], surface.stop[first]):
+            for v in range(surface.start[second], surface.stop[second]):
+                # Height-map entries already hold normal-axis coordinates in
+                # the global frame (see AddGrass.build).
+                height_map = surface.fractalsurface[u - surface.start[first], v - surface.start[second]]
+                if height_map <= 0:
+                    continue
+                height = 0
+                for w in range(volume_start[normal], int(fractalrange[1])):
+                    index[normal] = w - volume_start[normal]
+                    index[first] = u + lower_extent[first] - volume_start[first]
+                    index[second] = v + lower_extent[second] - volume_start[second]
+                    if w < height_map and mask[tuple(index)] != 1:
+                        offset_first, offset_second = g.calculate_blade_geometry(blade, height)
+                        uu = int(u + lower_extent[first] - volume_start[first] + offset_first)
+                        vv = int(v + lower_extent[second] - volume_start[second] + offset_second)
+                        if (
+                            uu < 0
+                            or uu >= shape[first]
+                            or vv < 0
+                            or vv >= shape[second]
+                            or (te_axis == 0 and offset_first != 0)
+                            or (te_axis == 1 and offset_second != 0)
+                        ):
+                            break
+                        index[first] = uu
+                        index[second] = vv
+                        mask[tuple(index)] = 3
+                        height += 1
+                blade += 1
+
+        # Build the roots of the grass
+        root = 0
+        for u in range(surface.start[first], surface.stop[first]):
+            for v in range(surface.start[second], surface.stop[second]):
+                height_map = surface.fractalsurface[u - surface.start[first], v - surface.start[second]]
+                if height_map <= 0:
+                    continue
+                depth = 0
+                w = volume_stop[normal] - 1
+                while w > volume_start[normal]:
+                    index[normal] = w - volume_start[normal]
+                    index[first] = u + lower_extent[first] - volume_start[first]
+                    index[second] = v + lower_extent[second] - volume_start[second]
+                    if (
+                        w > original_stop[normal] - (height_map - original_stop[normal])
+                        and mask[tuple(index)] == 1
+                    ):
+                        offset_first, offset_second = g.calculate_root_geometry(root, depth)
+                        uu = int(u + lower_extent[first] - volume_start[first] + offset_first)
+                        vv = int(v + lower_extent[second] - volume_start[second] + offset_second)
+                        if (
+                            uu < 0
+                            or uu >= shape[first]
+                            or vv < 0
+                            or vv >= shape[second]
+                            or (te_axis == 0 and offset_first != 0)
+                            or (te_axis == 1 and offset_second != 0)
+                        ):
+                            break
+                        index[first] = uu
+                        index[second] = vv
+                        mask[tuple(index)] = 3
+                        depth += 1
+                    w -= 1
+                root += 1
