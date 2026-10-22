@@ -83,10 +83,15 @@ class GeometryObjectsRead(GeometryUserObject):
             contains an integer array which defines the geometry.
         material_database: database name, without ``.json``, for a keyed
             geometry file. The JSON file must be beside the HDF5 file.
-        averaging: optional ``"y"``/``"n"`` flag controlling interface
-            averaging when a voxel-only file is reconstructed. The default
-            is ``"n"``. Files containing complete ``/ID``, ``/rigidE``, and
-            ``/rigidH`` arrays are authoritative and ignore this option.
+        averaging (str): Optional flag controlling interface averaging when a
+            voxel-only file is reconstructed. One of 'y' or 'n'. The default
+            is ``"n"``. The Python API also accepts ``True`` and ``False``. Files
+            containing complete ``/ID``, ``/rigidE``, and ``/rigidH`` arrays are
+            authoritative and ignore this option.
+        matfile (str): Legacy text material file. No longer accepted: if given,
+            gprMax raises an error explaining how to convert the HDF5/text pair with
+            ``python -m gprMax.toolboxes.MaterialDatabase convert-geometry`` and use
+            ``material_database`` instead. Optional (default None).
     """
 
     @property
