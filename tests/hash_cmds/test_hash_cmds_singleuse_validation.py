@@ -54,7 +54,7 @@ def test_arity_errors_name_the_command(singlecmds_template, command, value):
 
 
 def test_arity_is_checked_before_numeric_conversion(singlecmds_template):
-    with pytest.raises(ValueError, match=r"#dx_dy_dz requires 3 parameters"):
+    with pytest.raises(ValueError, match=r"#dx_dy_dz requires exactly 3 parameters"):
         _parse(singlecmds_template, "#dx_dy_dz", "abc")
 
 
@@ -95,7 +95,7 @@ def test_time_window_rejects_non_numeric_value(singlecmds_template):
 
 
 def test_time_window_rejects_multiple_values(singlecmds_template):
-    with pytest.raises(ValueError, match=r"#time_window requires 1 parameter"):
+    with pytest.raises(ValueError, match=r"#time_window requires exactly one parameter"):
         _parse(singlecmds_template, "#time_window", "1e-9 2e-9")
 
 

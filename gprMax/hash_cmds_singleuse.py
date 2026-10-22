@@ -39,7 +39,8 @@ def _split(command, value, count):
     tokens = value.split()
     if len(tokens) != count:
         noun = "parameter" if count == 1 else "parameters"
-        raise ValueError(f"{command} requires {count} {noun}; got {len(tokens)}")
+        number = "one" if count == 1 else str(count)
+        raise ValueError(f"{command} requires exactly {number} {noun}; got {len(tokens)}")
     return tokens
 
 
@@ -160,7 +161,7 @@ def process_singlecmds(singlecmds, *, input_dir=None):
     if singlecmds[cmd] is not None:
         tokens = singlecmds[cmd].split()
         if len(tokens) not in (1, 6):
-            raise ValueError(f"{cmd} requires one or six parameters; got {len(tokens)}")
+            raise ValueError(f"{cmd} requires exactly one or six parameters; got {len(tokens)}")
         thickness = tuple(_integers(cmd, tokens))
         if len(thickness) == 1:
             scene_objects.append(PMLThickness(thickness=thickness[0]))
