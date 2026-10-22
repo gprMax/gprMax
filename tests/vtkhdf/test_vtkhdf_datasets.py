@@ -499,6 +499,21 @@ class TestPartialWrites:
 
         assert stored[2, 0] == 9.0
 
+    def test_a_tuple_shape_is_flipped_like_an_array(self, make_vtkhdf_file, tmp_path):
+        """The transposed path already converted a tuple via ``np.flip``."""
+        with make_vtkhdf_file() as handler:
+            handler._write_dataset(
+                "VTKHDF/Block",
+                np.array([[9.0]]),
+                shape=(2, 3),
+                offset=np.array([0, 2]),
+            )
+
+        with h5py.File(tmp_path / "model.vtkhdf", "r") as f:
+            stored = f["VTKHDF/Block"][()]
+
+        assert stored.shape == (3, 2) and stored[2, 0] == 9.0
+
     def test_a_partial_write_without_the_transpose_uses_the_given_order(
         self, make_vtkhdf_file, tmp_path
     ):
@@ -648,6 +663,49 @@ class TestFieldData:
         _, datasets = read_h5(path)
 
         assert list(datasets["VTKHDF/FieldData/Steps"]) == [0, 9, 0]
+
+    def test_a_tuple_shape_writes_the_full_dataset(self, make_vtkhdf_file, read_h5):
+        """``shape`` may be a tuple; ``all(tuple == tuple)`` raised ``TypeError``."""
+        with make_vtkhdf_file() as handler:
+            handler.add_field_data("Steps", np.array([1, 2, 3]), shape=(3,))
+            path = handler.filename
+
+        _, datasets = read_h5(path)
+
+        assert list(datasets["VTKHDF/FieldData/Steps"]) == [1, 2, 3]
+
+    def test_a_tuple_shape_supports_a_partial_write(self, make_vtkhdf_file, read_h5):
+        with make_vtkhdf_file() as handler:
+            handler.add_field_data("Steps", np.array([9]), shape=(3,), offset=np.array([1]))
+            path = handler.filename
+
+        _, datasets = read_h5(path)
+
+        assert list(datasets["VTKHDF/FieldData/Steps"]) == [0, 9, 0]
+
+    def test_a_two_dimensional_tuple_shape_places_the_block(self, make_vtkhdf_file, tmp_path):
+        """No transpose for field data, so the block lands at the given offset."""
+        with make_vtkhdf_file() as handler:
+            handler.add_field_data(
+                "Table", np.array([[9, 8]]), shape=(2, 3), offset=np.array([1, 1])
+            )
+
+        with h5py.File(tmp_path / "model.vtkhdf", "r") as f:
+            stored = f["VTKHDF/FieldData/Table"][()]
+
+        assert np.array_equal(stored, [[0, 0, 0], [0, 9, 8]])
+
+    def test_a_larger_tuple_shape_without_an_offset_raises(self, make_vtkhdf_file):
+        with make_vtkhdf_file() as handler:
+            with pytest.raises(ValueError, match="Offset must not be None"):
+                handler.add_field_data("Steps", np.array([1, 2]), shape=(5,))
+
+    def test_a_tuple_shape_of_the_wrong_rank_raises(self, make_vtkhdf_file):
+        with make_vtkhdf_file() as handler:
+            with pytest.raises(ValueError, match="same number of dimensions"):
+                handler.add_field_data(
+                    "Steps", np.array([1, 2]), shape=(5, 5), offset=np.array([0, 0])
+                )
 
 
 pytestmark = pytest.mark.unit

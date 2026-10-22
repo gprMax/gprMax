@@ -387,6 +387,10 @@ class VtkHdfFile(AbstractContextManager):
             dtype = h5py.string_dtype(encoding="ascii", length=length)
             data = data.astype(dtype)
 
+        # Ensure shape is a numpy array (it may be given as a tuple)
+        if shape is not None:
+            shape = np.asarray(shape)
+
         # VTKHDF stores datasets using ZYX ordering rather than XYZ
         if xyz_data_ordering:
             data = data.transpose()
