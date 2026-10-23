@@ -109,6 +109,26 @@
         "metadata": {"type": "object"}
       },
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {"required": ["builtin"], "properties": {"builtin": {"enum": ["pec", "pmc"]}}},
+          "then": {"properties": {"averagable": {"const": false}}}
+        },
+        {
+          "if": {
+            "required": ["base"],
+            "properties": {
+              "base": {
+                "anyOf": [
+                  {"required": ["electric_conductivity_s_per_m"], "properties": {"electric_conductivity_s_per_m": {"const": "inf"}}},
+                  {"required": ["magnetic_conductivity_s_per_m"], "properties": {"magnetic_conductivity_s_per_m": {"const": "inf"}}}
+                ]
+              }
+            }
+          },
+          "then": {"properties": {"averagable": {"const": false}}}
+        }
+      ],
       "oneOf": [
         {"required": ["alias"]},
         {

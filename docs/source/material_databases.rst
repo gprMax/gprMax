@@ -152,6 +152,9 @@ and the general inclusive pole representation used internally by gprMax.
 Field names carry units explicitly; for example a Debye pole uses
 ``relative_permittivity_difference`` and ``relaxation_time_s``. Perfect
 conductors use the ``builtin`` model rather than non-standard JSON infinity.
+Perfect conductors, whether ``builtin`` or with ``"inf"`` conductivity, do
+not participate in dielectric smoothing: ``averagable`` may be omitted or
+``false`` for them, and ``true`` is rejected.
 The optional ``mass_density_kg_per_m3`` field is finite and strictly positive.
 It is retained as cell-centred physical metadata and does not participate in
 electromagnetic material averaging. When omitted, density is unspecified;
