@@ -22,7 +22,7 @@ import pytest
 from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
 
 
-def _write_output(filename, offset=0, iterations=3, dtype=np.float64, record=True):
+def _write_output(filename, offset=0, iterations=3, dtype=np.float64, record=True, trace_offset=0.0):
     with h5py.File(filename, "w") as output:
         output.attrs["Title"] = "merge test"
         output.attrs["Iterations"] = iterations
@@ -38,7 +38,7 @@ def _write_output(filename, offset=0, iterations=3, dtype=np.float64, record=Tru
         if record:
             field = receiver.create_dataset("Ez", data=np.asarray(np.arange(iterations) + offset, dtype=dtype))
             field.attrs["SampleInterval"] = 1e-10
-            field.attrs["TimeSampleOffset"] = 0.0
+            field.attrs["TimeSampleOffset"] = trace_offset
             field.attrs["Quantity"] = "Ez"
         else:
             receiver.attrs["Recorded"] = False
@@ -301,3 +301,40 @@ def test_merge_templates_from_first_recorded_input(tmp_path):
     with h5py.File(merged, "r") as output:
         assert "Recorded" not in output["rxs/rx1"].attrs
         np.testing.assert_array_equal(output["trace_metadata/rxs/rx1/Recorded"], [False, True])
+
+
+def test_merge_rejects_invalid_first_recorded_trace_after_muted_input(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5"]
+    _write_output(files[0], record=False)
+    _write_output(files[1], offset=1)
+    with h5py.File(files[1], "r+") as output:
+        del output["rxs/rx1/Ez"]
+        field = output["rxs/rx1"].create_dataset("Ez", data=np.asarray([1.0]))
+        field.attrs.update(SampleInterval=1e-10, TimeSampleOffset=0.0, Quantity="Ez")
+
+    with pytest.raises(ValueError, match="shape \\(1,\\); expected \\(3,\\)"):
+        merge_files(files)
+
+
+def test_merge_rejects_later_recorded_trace_after_muted_input(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5", tmp_path / "model3.h5"]
+    _write_output(files[0], record=False)
+    _write_output(files[1], offset=1)
+    _write_output(files[2], offset=2, trace_offset=0.5e-10)
+
+    with pytest.raises(ValueError, match="TimeSampleOffset differs"):
+        merge_files(files)
+
+
+def test_merge_rejects_short_later_trace_after_muted_input(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5", tmp_path / "model3.h5"]
+    _write_output(files[0], record=False)
+    _write_output(files[1], offset=1)
+    _write_output(files[2], offset=2)
+    with h5py.File(files[2], "r+") as output:
+        del output["rxs/rx1/Ez"]
+        field = output["rxs/rx1"].create_dataset("Ez", data=np.asarray([1.0]))
+        field.attrs.update(SampleInterval=1e-10, TimeSampleOffset=0.0, Quantity="Ez")
+
+    with pytest.raises(ValueError, match="shape \\(1,\\); expected \\(3,\\)"):
+        merge_files(files)

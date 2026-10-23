@@ -195,15 +195,36 @@ def test_merged_nan_columns_are_plottable_but_never_zero(tmp_path, monkeypatch):
     muted = receiver_file(tmp_path / "muted.h5", ("A",), muted=("A",))
     merged = merge_files([recorded, muted], tmp_path / "merged.h5")
 
-    data, _ = get_output_data(merged, 1, "Ez")
+    data, dt = get_output_data(merged, 1, "Ez")
     np.testing.assert_array_equal(data[:, 0], 10)
     assert np.isnan(data[:, 1]).all()
 
     figures = []
     monkeypatch.setattr(plot_Bscan, "handle_plot_output", lambda _plt, fig, *a, **k: figures.append(fig))
     try:
+        plot_Bscan.mpl_plot(merged, data, dt, 1, "Ez", show=False)
         samples, dt, offset = plot_Bscan.gather_receiver_outputs(merged, "Ez", return_time_offset=True)
-        plot_Bscan.mpl_plot(merged, samples, dt, 1, "Ez", show=False, time_offset=offset)
+        plot_Bscan.mpl_plot(
+            merged, samples, dt, 1, "Ez", show=False, trace_group="gathered", time_offset=offset
+        )
+        assert len(figures) == 2
+    finally:
+        plt.close("all")
+
+
+def test_leading_muted_column_is_plottable(tmp_path, monkeypatch):
+    muted = receiver_file(tmp_path / "muted.h5", ("A",), muted=("A",))
+    recorded = receiver_file(tmp_path / "recorded.h5", ("A",))
+    merged = merge_files([muted, recorded], tmp_path / "merged.h5")
+
+    data, dt = get_output_data(merged, 1, "Ez")
+    assert np.isnan(data[:, 0]).all()
+    np.testing.assert_array_equal(data[:, 1], 10)
+
+    figures = []
+    monkeypatch.setattr(plot_Bscan, "handle_plot_output", lambda _plt, fig, *a, **k: figures.append(fig))
+    try:
+        plot_Bscan.mpl_plot(merged, data, dt, 1, "Ez", show=False)
         assert len(figures) == 1
     finally:
         plt.close("all")
@@ -221,6 +242,49 @@ def test_trace_reader_rejects_partial_nan_in_merged_output(tmp_path):
     with h5py.File(path, "r") as output:
         with pytest.raises(ValueError, match="NaN or infinite"):
             read_time_history(output["rxs/rx1/Ez"], allow_matrix=True)
+
+
+def test_merged_nan_requires_unrecorded_metadata(tmp_path):
+    recorded = receiver_file(tmp_path / "recorded.h5", ("A",))
+    muted = receiver_file(tmp_path / "muted.h5", ("A",), muted=("A",))
+    merged = merge_files([recorded, muted], tmp_path / "merged.h5")
+    with h5py.File(merged, "r+") as output:
+        output["rxs/rx1/Ez"][:, 0] = np.nan
+    with pytest.raises(ValueError, match="NaN or infinite"):
+        get_output_data(merged, 1, "Ez")
+
+
+@pytest.mark.parametrize("bad_value", [np.inf, -np.inf])
+def test_merged_infinite_columns_are_rejected(tmp_path, bad_value):
+    recorded = receiver_file(tmp_path / "recorded.h5", ("A",))
+    muted = receiver_file(tmp_path / "muted.h5", ("A",), muted=("A",))
+    merged = merge_files([recorded, muted], tmp_path / "merged.h5")
+    with h5py.File(merged, "r+") as output:
+        output["rxs/rx1/Ez"][:, 1] = bad_value
+    with h5py.File(merged, "r") as output:
+        with pytest.raises(ValueError, match="NaN or infinite"):
+            read_time_history(output["rxs/rx1/Ez"], allow_matrix=True)
+    with pytest.raises(ValueError, match="NaN or infinite"):
+        get_output_data(merged, 1, "Ez")
+    samples = np.full((8, 2), 10.0)
+    samples[:, 1] = bad_value
+    with pytest.raises(ValueError, match="NaN or infinite"):
+        plot_Bscan.mpl_plot(merged, samples, 1e-10, 1, "Ez", show=False)
+
+
+def test_merged_nan_port_history_is_rejected(tmp_path):
+    path = tmp_path / "ports.h5"
+    values = np.full((8, 2), np.nan)
+    with h5py.File(path, "w") as output:
+        output.attrs.update(Iterations=8, dt=1e-10, MergedOutput=True)
+        output.create_group("ports/feed")["Vtotal"] = values
+    with h5py.File(path, "r") as output:
+        with pytest.raises(ValueError, match="NaN or infinite"):
+            read_time_history(output["ports/feed/Vtotal"], allow_matrix=True)
+    with pytest.raises(ValueError, match="NaN or infinite"):
+        get_output_data(path, 1, "Vtotal", trace_group="ports/feed")
+    with pytest.raises(ValueError, match="NaN or infinite"):
+        plot_Bscan.mpl_plot(path, values, 1e-10, 1, "Vtotal", trace_group="ports/feed", show=False)
 
 
 def test_trace_collection_explains_muted_receiver(tmp_path):

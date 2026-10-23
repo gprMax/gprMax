@@ -252,7 +252,9 @@ def test_muted_study_trace_stays_out_of_plots_and_merges_as_nan(tmp_path, monkey
     figures.clear()
     samples, dt, offset = plot_Bscan.gather_receiver_outputs(merged, "Ez", return_time_offset=True)
     try:
-        plot_Bscan.mpl_plot(merged, samples, dt, 1, "Ez", show=False, time_offset=offset)
+        plot_Bscan.mpl_plot(
+            merged, samples, dt, 1, "Ez", show=False, trace_group="gathered", time_offset=offset
+        )
         assert len(figures) == 1
     finally:
         plt.close("all")
