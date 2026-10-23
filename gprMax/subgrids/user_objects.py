@@ -202,39 +202,37 @@ class SubGridBase(ModelUserObject):
 class SubGridHSG(SubGridBase):
     """Huygens Surface subgridding (HSG) user object.
 
-    Attributes:
-        p1: list of the position of the lower left corner of the Inner Surface
-            (x, y, z) in the main grid.
-        p2: list of the position of the upper right corner of the Inner Surface
-            (x, y, z) in the main grid.
-        ratio: int of the ratio of the main grid spatial step to the sub-grid
-                spatial step. Must be an odd integer. ``ratio=1`` selects an
-                equal-resolution embedded region: field values are transferred
-                directly, without temporal or spatial interpolation, filtering,
-                or a subgrid-boundary PML. It inherits the precision of the
-                main CPU or CUDA grid.
-        id: required nonempty string identifier, unique within the Scene.
+    Args:
+        p1 (tuple of three floats): Position (x, y, z) of the lower left corner of
+            the Inner Surface in the main grid, in metres. Required.
+        p2 (tuple of three floats): Position (x, y, z) of the upper right corner of
+            the Inner Surface in the main grid, in metres. Required.
+        ratio (int): Ratio of the main grid spatial step to the sub-grid spatial
+            step. Must be an odd integer. Defaults to 3. ``ratio=1`` selects an
+            equal-resolution embedded region: field values are transferred
+            directly, without temporal or spatial interpolation, filtering, or a
+            subgrid-boundary PML. It inherits the precision of the main CPU or
+            CUDA grid.
+        id (str): Required nonempty string identifier, unique within the Scene.
             Path separators, NUL, '.' and '..' are not allowed.
-        is_os_sep: int for the number of main grid cells between the Inner
-                    Surface and the Outer Surface. Defaults to 3.
-        pml_separation: retained for API compatibility, but the HSG formulation
-                        fixes the number of sub-grid cells between the Outer
-                        Surface and the PML at ``ratio // 2 + 2``. Any supplied
-                        value is therefore ignored. Using a different value is
-                        experimental and requires changing the formulation.
-        subgrid_pml_thickness: int for the thickness of the PML on each of the
-                                6 sides of the sub-grid. Defaults to 6. Ignored
-                                when ``ratio=1``.
-        interpolation: int for the degree of the interpolation scheme used for
-                        spatial interpolation of the fields at the Inner
-                        Surface on CPU and CUDA. FITPACK spline degrees 1–5
-                        are supported when each coarse precursor axis has more
-                        samples than the degree. Defaults to linear (1), the
-                        standard HSG choice. Higher degrees are experimental;
-                        matching the CPU does not guarantee stability. Ignored when
-                        ``ratio=1``, where transfer is direct.
-        filter: boolean to turn on the 3-pole filter. Increases numerical
-                stability. Defaults to True. Ignored when ``ratio=1``.
+        is_os_sep (int): Number of main grid cells between the Inner Surface and
+            the Outer Surface. Defaults to 3.
+        pml_separation (int): Retained for API compatibility, but the HSG
+            formulation fixes the number of sub-grid cells between the Outer
+            Surface and the PML at ``ratio // 2 + 2``. Any supplied value is
+            therefore ignored. Using a different value is experimental and
+            requires changing the formulation.
+        subgrid_pml_thickness (int): Thickness of the PML on each of the 6 sides
+            of the sub-grid. Defaults to 6. Ignored when ``ratio=1``.
+        interpolation (int): Degree of the interpolation scheme used for spatial
+            interpolation of the fields at the Inner Surface on CPU and CUDA.
+            FITPACK spline degrees 1–5 are supported when each coarse precursor
+            axis has more samples than the degree. Defaults to linear (1), the
+            standard HSG choice. Higher degrees are experimental; matching the CPU
+            does not guarantee stability. Ignored when ``ratio=1``, where transfer
+            is direct.
+        filter (bool): Turn on the 3-pole filter. Increases numerical stability.
+            Defaults to True. Ignored when ``ratio=1``.
     """
 
     @property

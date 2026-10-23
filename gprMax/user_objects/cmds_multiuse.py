@@ -300,7 +300,7 @@ class ExcitationFile(GridUserObject):
 class Waveform(GridUserObject):
     """Create waveform to use with sources in the model.
 
-    Attributes:
+    Args:
         wave_type (str): Waveform type. One of 'gaussian', 'gauspulse',
             'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot',
             'gaussiandotdotnorm', 'ricker', 'gaussianprime',
@@ -320,6 +320,11 @@ class Waveform(GridUserObject):
         id (str): Identifier of the waveform.
         user_values: Optional 1D array of amplitude values to use with
             user waveform.
+        user_func (callable): Optional function of time for a 'user' waveform. It
+            takes one float, the time in seconds, and returns the waveform value
+            as a finite number. Give exactly one of ``user_func`` and
+            ``user_values``; omit ``user_func`` when it is not used (it has no
+            None default).
         user_time: Optional 1D array of time values to use with user
             waveform.
         kind (int | str | None): Optional string or int, see
@@ -601,6 +606,35 @@ class SurfaceImpedance(GridUserObject):
     retained hosts, including loss and electric dispersion, with each constituent uniformly
     extruded through the slab. Virtual apertures advance independent bulk
     polarization and surface-current histories with the coupled electric field.
+
+    Args:
+        id (str): Identifier of the surface impedance, used as the ``material_id``
+            of geometry objects. Must not clash with a material identifier or
+            another surface impedance, and must not start with ``__impedance_``.
+        resistance (float or None): Constant, frequency-independent surface
+            resistance (ohms). Must be positive; ``float('inf')`` selects a perfect
+            magnetic conductor. Give exactly one of ``resistance``, ``preset`` or
+            ``conductivity`` (default None).
+        preset (str or None): Named bulk metal whose surface impedance is fitted.
+            One of 'aluminium', 'copper', 'gold', 'molybdenum', 'palladium',
+            'silver', 'tungsten' or 'zinc' (case-insensitive; the element symbols
+            and 'aluminum' are also accepted). Resistivities are reference values
+            at 293 K (default None).
+        conductivity (float or None): Bulk conductivity (siemens per metre) of a
+            good conductor whose surface impedance is fitted (default None).
+        fit_frequency_range (sequence of floats or None): Frequency band
+            ``(fmin, fmax)`` (Hz) over which a ``preset`` or ``conductivity`` is
+            fitted, with 0 < fmin < fmax <= 300 GHz. Required for those forms and
+            not accepted with ``resistance`` (default None).
+        fit_order (int or str): Number of Foster poles to fit, from 1 to 64, or
+            ``'auto'`` to try increasing pole counts until the fit reaches
+            ``fit_tolerance`` (default ``'auto'``). Not accepted with ``resistance``.
+        fit_tolerance (float): Target maximum relative error of the fitted surface
+            impedance over the band. Must be positive (default 2e-3). Not accepted
+            with ``resistance``.
+        plot_fit (bool): Write a PNG plot of the fitted surface impedance next to
+            the output file during a full run; the plot is always written in a
+            geometry-only run. Not accepted with ``resistance`` (default False).
     """
 
     @property
@@ -996,7 +1030,7 @@ class VoltageSource(GridUserObject):
     cannot provide that port output because its complete Ampere loop lies
     partly outside the grid.
 
-    Attributes:
+    Args:
         polarisation: string required for polarisation of the source x, y, z.
         p1: tuple required for position of source x, y, z.
         resistance: float required for internal resistance (Ohms) of
@@ -1005,8 +1039,11 @@ class VoltageSource(GridUserObject):
         start: float optional to delay start time (secs) of source.
         stop: float optional to time (secs) to remove source.
         id: optional HDF5 port identifier. If omitted, ``portN`` is assigned.
-        spectrum_limit: minimum cells per shortest material wavelength
-            (default 10), or ``"nyquist"`` for the full research spectrum.
+        spectrum_limit (float or str): Minimum number of cells per shortest
+            material wavelength that sets the highest frequency kept in the port
+            output spectrum, at least 3 (values below 10 give a warning), or
+            ``'nyquist'`` to keep the full spectrum up to the Nyquist frequency
+            (default 10).
         reference_impedance: float optional wave-reference impedance (Ohms)
             for a hard source. The default is 50 Ohms. This final argument
             is not accepted for a finite-resistance source, whose physical
@@ -1844,7 +1881,7 @@ class MagneticFrillSource(GridUserObject):
         formulation is supported by the CPU, CUDA, OpenCL, and Metal solvers,
         and by the CPU and CUDA subgrid updaters.
 
-    Attributes:
+    Args:
         polarisation: string required for polarisation of the source - x, y,
                         or z (the antenna axis the source drives current
                         along, following the same electrical sign convention
@@ -1859,8 +1896,10 @@ class MagneticFrillSource(GridUserObject):
         start: float optional delay before the incident waveform starts (secs).
         stop: float optional time at which the incident waveform stops (secs).
             The coaxial terminal relation remains active afterwards.
-        spectrum_limit: minimum cells per shortest material wavelength
-            (default 10), or ``"nyquist"`` for the full research spectrum.
+        spectrum_limit (float or str): Minimum number of cells per shortest
+            material wavelength that sets the highest frequency kept in the
+            source's automatic port output spectrum, at least 3, or ``'nyquist'``
+            to keep the full spectrum up to the Nyquist frequency (default 10).
     """
 
     @property
@@ -2562,7 +2601,7 @@ class EigenmodeBand(GridUserObject):
     within that range. The combined list is sorted from low to high, with
     repeated values included only once.
 
-    Attributes:
+    Args:
         id: unique identifier for the shared eigenmode band.
         fmin: lower direct-DFT frequency in Hz.
         fmax: upper direct-DFT frequency in Hz.
@@ -2572,8 +2611,11 @@ class EigenmodeBand(GridUserObject):
             equally spaced frequencies selected by points.
         transition: positive transition width in Hz for an automatically
             generated bandpass waveform, or ``"auto"`` (default).
-        spectral_threshold: relative spectral threshold used to determine
-            significant excitation support. The default is ``1e-3``.
+        spectral_threshold (float): Relative spectral threshold used to determine
+            significant excitation support: frequencies where the waveform's
+            spectrum magnitude is at least this fraction of its peak count as
+            excited, and the port anchors are checked to cover them. Must lie
+            between zero and one, exclusive (default ``1e-3``).
     """
 
     @property
@@ -2657,20 +2699,26 @@ class EigenmodeBand(GridUserObject):
 class EigenmodePort(GridUserObject):
     """Define a modal port plane with its own anchor-frequency policy.
 
-    Attributes:
+    Args:
         port: positive, one-based port number.
         p1: first physical ``(x, y, z)`` corner of the port plane.
         p2: opposite physical ``(x, y, z)`` corner of the port plane.
-        direction: launch/monitor direction normal to the plane, ``+`` or
-            ``-``.
+        direction (str): Launch/monitor direction along the port normal. One of
+            '+' or '-'. For an x-normal port, ``'+'`` launches toward increasing x.
+            Point both port directions into the device for the usual S-parameter
+            convention.
         modes: positive integer mode count or an increasing sequence of
             one-based mode indices.
         anchors: ``"auto"`` (default), one frequency, or an increasing
             sequence of modal-solve anchor frequencies in Hz.
-        plot_fields: optionally force or suppress modal-field plots. ``None``
-            retains the geometry-only default.
-        degenerate: optional legacy mode pair or disjoint groups tracked as subspaces;
-            ignored when ``tracking="auto"``.
+        plot_fields (bool or None): ``True`` forces the port's modal-field plots
+            (PNG files) in every run, ``False`` suppresses them. ``None`` writes
+            them only in geometry-only runs (default None).
+        degenerate (sequence of int, sequence of sequences of int, or None): Legacy
+            tracking only: one group of mode indices such as ``(1, 2)``, or
+            disjoint groups such as ``((1, 2), (3, 4))``, tracked as subspaces.
+            Each group needs at least two distinct modes, all listed in ``modes``.
+            Ignored with automatic tracking (default None, no groups).
         mode_polarizations: optional global transverse E axis or real three-vector
             shared by the first member of every resolved doublet; the second uses
             positive port normal cross that direction. Automatic tracking resolves
@@ -2681,11 +2729,20 @@ class EigenmodePort(GridUserObject):
             valid nonorthogonal directions.
             None preserves the current assignment. Physical selection requires a
             3D cross-section and independent transverse directions.
-        tracking: ``"legacy"`` (default) or experimental ``"auto"`` branch
-            tracking, including automatic symmetry detection and selection
-            for eligible degenerate spans.
-        verification: ``"full"`` or ``"fast"`` quality checks for automatic tracking.
-        tracking_config: optional :class:`gprMax.EigenmodeTrackingConfig` or mapping.
+        tracking (str): Mode tracking method. One of 'legacy' or 'auto'.
+            ``'legacy'`` keeps solver ordering and manual ``degenerate`` groups;
+            the experimental ``'auto'`` adds branch tracking, automatic degeneracy
+            detection and symmetry-based basis selection for eligible degenerate
+            spans (default ``'legacy'``).
+        verification (str): Quality checks for automatic tracking. One of 'full'
+            or 'fast'. ``'full'`` adds finer-mesh and open-window verification
+            solves; ``'fast'`` checks residuals and edge fields only (default
+            ``'full'``).
+        tracking_config (EigenmodeTrackingConfig, mapping or None): Numerical
+            thresholds and solve limits for automatic tracking, as a
+            :class:`gprMax.EigenmodeTrackingConfig` or a mapping of its field names
+            to values; omitted fields keep their defaults (default None, all
+            defaults).
     """
 
     @property
@@ -2824,12 +2881,19 @@ class VirtualWaveguide(GridUserObject):
     source or act as a passive matched receiver.
 
     Args:
-        port: One-based eigenmode-port number.
-        length_cells: Total virtual-guide length in cells. Default 30.
-        pml_cells: PML thickness at the remote end. Default 12.
-        source_clearance_cells: Cells between an active internal source plane
-            and the PML. Default 6.
-        pml_profile: Optional reusable PML profile ID.
+        port (int): One-based number of a preceding ``EigenmodePort``. Each port
+            can have only one virtual waveguide.
+        length_cells (int): Total virtual-guide length in cells. Must be at least
+            ``pml_cells + source_clearance_cells + 3`` (default 30).
+        pml_cells (int): PML thickness at the remote end, in cells. At least 2
+            (default 12).
+        source_clearance_cells (int): Number of cells between an active internal
+            source plane and the PML. At least 1 (default 6).
+        pml_profile (str or None): Identifier of a reusable PML profile, which
+            must have a formulation set by ``PMLFormulation`` with that ``id``
+            (``PMLCFS`` with that ``profile_id`` can add CFS parameters). If
+            omitted, the domain PML formulation and CFS parameters are used
+            (default None).
     """
 
     @property
@@ -2918,17 +2982,24 @@ class EigenmodeExcitation(GridUserObject):
 
     Args:
         port: One-based ``EigenmodePort`` number.
-        mode: One of the modes monitored by that port.
+        mode (int): One-based index of one of the modes monitored by that port.
+            Each port and mode pair can be driven only once.
         waveform: Shared waveform ID, or ``'auto'`` for the bandpass pulse.
-        amplitude: Non-zero modal amplitude scale. Mutually exclusive with
-            ``power``.
-        power: Optional relative incident-power scale; applies amplitude
-            ``sqrt(power)``.
+        amplitude (float): Finite, non-zero modal amplitude scale. Mutually
+            exclusive with ``power`` (default 1.0).
+        power (float): Positive relative incident-power scale; applies amplitude
+            ``sqrt(power)``. Mutually exclusive with ``amplitude`` (default not
+            set, so ``amplitude`` is used).
         phase_deg: Constant spectral phase in degrees.
         delay_s: True time delay in seconds, applied as
             ``exp(-1j * 2*pi*f*delay_s)``.
-        plot_waveform: Write or suppress this drive's waveform/DFT plot. The
-            default writes it only for geometry-only runs.
+        plot_waveform (bool or None): ``True`` writes this drive's waveform and
+            DFT plot (PNG file), ``False`` suppresses it; ``None`` writes it only
+            for geometry-only runs (default None).
+        frequency (float): Accepted but not used by this object: the modal-solve
+            frequencies (Hz) come from the port's ``anchors``.
+        frequencies (sequence of floats): Accepted but not used by this object:
+            the modal-solve frequencies (Hz) come from the port's ``anchors``.
     """
 
     @property
@@ -4064,10 +4135,10 @@ class MaterialFromDatabase(GridUserObject):
     file named ``<database>.json`` beside the input file, or in the current
     working directory for a direct Python API model.
 
-    Attributes:
-        database: official or local database name.
-        material: material entry key in the database.
-        id: optional local material ID; defaults to ``material``. This can
+    Args:
+        database (str): Name of an official database or of a local JSON database.
+        material (str): Key of the material entry in the database.
+        id (str or None): Optional local material ID; defaults to ``material``. This can
             provide a model-specific name, avoid a collision, or match the
             material name expected by imported geometry. '+' is reserved for
             internally generated material IDs.
@@ -5129,15 +5200,20 @@ class PMLSlab(GridUserObject):
     CPU models may partition a slab normally or transversely; every rank stores
     only its local PML history while retaining the complete global CFS profile.
 
-    Attributes:
+    Args:
         p1: lower physical ``(x, y, z)`` corner of the slab.
         p2: upper physical ``(x, y, z)`` corner of the slab.
-        maximum_face: face at maximum stretching: ``x0``, ``xmax``, ``y0``,
-            ``ymax``, ``z0``, or ``zmax``.
-        profile_id: optional reusable PML profile. If omitted, the global PML
-            formulation and CFS parameters are used.
-        build_pec: create the five enclosing PEC plates. The default is
-            ``True``.
+        maximum_face (str): Face at maximum stretching, which also sets the
+            absorption axis (case-insensitive). One of 'x0', 'xmax', 'y0', 'ymax',
+            'z0' or 'zmax'. The slab must be at least two cells thick along that
+            axis.
+        profile_id (str or None): Identifier of a reusable PML profile, set up
+            with ``PMLFormulation`` (``id``) and optionally ``PMLCFS``
+            (``profile_id``). If omitted, the global PML formulation and CFS
+            parameters are used (default None).
+        build_pec (bool): Create the five enclosing PEC plates (the four
+            transverse faces and the maximum-stretch face). ``False`` leaves the
+            enclosure to you (default ``True``).
         id: optional unique slab identifier. If omitted, gprMax generates one.
     """
 
