@@ -22,12 +22,22 @@ Pederkoff's `stl-to-voxel
 Installation
 ------------
 
-STEP reading and tessellation require OpenCascade's Python bindings. Install
-them from conda-forge in the environment used to run gprMax:
+STEP reading and tessellation require OpenCascade's Python bindings. Either
+of two bindings works. With pip, the ``step`` extra installs the OCP wheels
+(``cadquery-ocp-novtk``, which do not include VTK):
+
+.. code-block:: console
+
+    pip install "gprMax[step]"
+
+or, in a conda environment, install pythonocc-core from conda-forge:
 
 .. code-block:: console
 
     conda install -c conda-forge pythonocc-core
+
+pythonocc-core is used when both are installed. Both give the same components,
+names, colours and voxels.
 
 NumPy and h5py are already gprMax dependencies. PyVista is optional and is
 only required for direct ``.vti`` export and interactive voxel visualisation:
@@ -107,7 +117,30 @@ This creates:
 * ``conversion.json`` -- dimensions, origin, component mapping and voxel
   counts.
 
-Use ``--no-vtk`` if PyVista is not installed.
+Use ``--no-vtk`` if PyVista is not installed. The command also prints the
+grid origin and the ``GeometryObjectsRead`` position that keeps the CAD
+coordinates (see `gprMax import`_).
+
+Rotating the model
+------------------
+
+``--rotate RX RY RZ`` rotates the whole STEP model by angles in degrees about
+the fixed x, y and z axes before it is voxelised, for example to align a part
+with the grid or to tilt an antenna:
+
+.. code-block:: console
+
+    python -m gprMax.toolboxes.STEPtoVoxel convert model.stp materials.csv output \
+        --voxel-size 0.0001 0.0001 0.0001 --rotate 0 0 30
+
+The rotations are applied in the order given by ``--rotate-order`` (default
+``xyz``: x first, then y, then z). ``--rotate-about bbox`` (the default) turns
+the model about the centre of its bounding box; ``--rotate-about origin``
+turns it about the CAD origin. CAD markers and reference geometry are rotated
+with the solids. The rotation is recorded in ``conversion.json``. In Python,
+pass ``rotate_deg``, ``rotate_about`` and ``rotate_order`` to
+``ConversionConfig``. Use the same options for ``inspect`` and ``prepare`` to
+see the rotated dimensions.
 
 STEP files describe geometry and component names, but do not provide the
 electromagnetic constitutive properties required by gprMax. The assignment
@@ -181,7 +214,10 @@ gprMax import
 The CAD coordinates are translated into a local voxel grid. The
 ``origin_m`` entry in ``conversion.json`` records the original CAD-space
 lower corner, while ``p1`` specifies where that local grid is inserted into
-the gprMax domain:
+the gprMax domain. ``origin_m`` is a whole number of cells, so
+``p1 = origin_m`` reproduces the CAD position exactly; model coordinates are
+then CAD coordinates, as long as they are non-negative and inside the domain
+(gprMax domains start at zero). Any other ``p1`` moves the whole model:
 
 .. code-block:: python
 

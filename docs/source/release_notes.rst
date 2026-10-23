@@ -68,6 +68,24 @@ Eigenmode tracking
   the other residual checks. The degeneracy and propagation-branch constraints
   still apply. See :doc:`eigenmode_tracking_theory`.
 
+STEPtoVoxel
+-----------
+
+* STEP files can be read with OpenCascade installed by pip:
+  ``pip install "gprMax[step]"`` installs cadquery-ocp as an alternative to
+  conda's pythonocc-core. Both give the same components, names, colours and voxels.
+  See :doc:`inc_STEPtoVoxel`.
+
+* ``--rotate RX RY RZ``, ``--rotate-about`` and ``--rotate-order`` (and the
+  matching ``ConversionConfig`` fields) rotate the model before voxelisation.
+  ``convert`` also prints the ``GeometryObjectsRead`` position that keeps the
+  CAD coordinates.
+
+* Assembly parts that are not split into several solids keep their assembly
+  placement in the reported CAD bounding boxes, and in the voxels when the
+  model is rotated. With pythonocc-core, CAD colours are now read; every part
+  was previously reported grey.
+
 4.0.1 (Caol Ila)
 ================
 

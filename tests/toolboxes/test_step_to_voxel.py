@@ -649,6 +649,8 @@ def test_cli_convert_missing_file_reports_clean_parser_error(tmp_path, capsys):
         (["--supersample", "0"], "supersample must be at least one"),
         (["--voxel-size", "-1", "1", "1"], "voxel_size must contain three positive values"),
         (["--voxel-size", "0", "1", "1"], "voxel_size must contain three positive values"),
+        (["--rotate", "nan", "0", "0"], "rotate_deg must contain three finite angles"),
+        (["--rotate-order", "xxz"], "rotate_order must be an ordering of x, y and z"),
     ],
 )
 def test_cli_config_validation_common_options(
@@ -683,3 +685,46 @@ def test_cli_config_validation_prepare_group_tolerance(tmp_path, capsys, toleran
     captured = capsys.readouterr()
     assert "grouping_relative_tolerance must be between zero and one" in captured.err
     assert "Traceback" not in captured.err
+
+
+def test_cli_convert_passes_rotation_and_prints_placement(tmp_path, monkeypatch, capsys):
+    received = {}
+
+    def fake_convert_step(step_file, materials_csv, output_dir, config, *, write_vtk):
+        received["config"] = config
+        return SimpleNamespace(
+            geometry_file=tmp_path / "out" / "geometry.h5",
+            materials_file=tmp_path / "out" / "materials.json",
+            markers_file=tmp_path / "out" / "markers.json",
+            vtk_file=None,
+            reference_geometry_cad_file=None,
+            shape=(10, 20, 30),
+            origin=(0.002, -0.0011000000000000001, 0.0),
+            spacing=(1e-4, 1e-4, 1e-4),
+        )
+
+    monkeypatch.setattr(cli, "convert_step", fake_convert_step)
+    argv = ["convert", "model.stp", "materials.csv", str(tmp_path / "out"), "--no-vtk"]
+    argv += ["--rotate", "0", "0", "30", "--rotate-about", "origin", "--rotate-order", "zyx"]
+
+    assert cli.main(argv) == 0
+
+    config = received["config"]
+    assert config.rotate_deg == (0.0, 0.0, 30.0)
+    assert config.rotate_about == "origin"
+    assert config.rotate_order == "zyx"
+    output = capsys.readouterr().out
+    assert "origin_xyz=(0.002, -0.0011, 0) m" in output
+    assert "GeometryObjectsRead p1 = (0.002, -0.0011, 0) m" in output
+    geometry_file = tmp_path / "out" / "geometry.h5"
+    assert f"#geometry_objects_read: 0.002 -0.0011 0 {geometry_file} materials" in output
+    assert "choose a p1 that moves negative coordinates inside" in output
+
+
+def test_cli_rotation_defaults_leave_the_model_unrotated():
+    args = cli.build_parser().parse_args(["inspect", "model.stp"])
+    config = cli._config(args)
+
+    assert config.rotate_deg == (0.0, 0.0, 0.0)
+    assert config.rotate_about == "bbox"
+    assert config.rotate_order == "xyz"
