@@ -36,6 +36,7 @@ and the optional ``mpi4py_fft`` package.
 import numpy as np
 import pytest
 
+from gprMax.fractals import fractal_surface
 from gprMax.fractals.fractal_surface import FractalSurface
 
 SEED = 42
@@ -238,5 +239,38 @@ class TestGenerateFractalSurface:
         assert np.amin(surface.fractalsurface) == pytest.approx(4.0)
         assert np.amax(surface.fractalsurface) == pytest.approx(12.0)
 
+    @pytest.mark.parametrize("extent", [(5, 6), (7, 7), (1, 8)])
+    def test_spectral_filter_is_centred_on_dc(self, monkeypatch, extent):
+        # Distance must be zero at DC and equal for k and -k, otherwise odd
+        # or 1-cell extents get a lopsided, non-Hermitian filter.
+        filt = captured_filter(monkeypatch, extent)
+        mirrored = np.roll(filt[::-1, ::-1], 1, axis=(0, 1))
+        assert filt[0, 0].real == pytest.approx(1.0 / 0.9)
+        assert np.allclose(filt, mirrored)
+
+    def test_single_cell_axis_adds_no_distance(self, monkeypatch):
+        # A 1-cell in-plane axis (2D TM faces, the TE shadow) only has k = 0,
+        # so |k| = 1 along the other axis must be divided by exactly 1 ** D.
+        filt = captured_filter(monkeypatch, (1, 8))
+        assert filt[0, 1].real == pytest.approx(1.0)
+
 
 pytestmark = pytest.mark.unit
+
+
+def captured_filter(monkeypatch, extent):
+    """The kernel's per-coefficient multiplier (1 / B) for the v1 and
+    weighting a surface of this extent actually passes it."""
+    kernel = fractal_surface.generate_fractal2D
+    calls = []
+
+    def spy(*args):
+        calls.append(args)
+        kernel(*args)
+
+    monkeypatch.setattr(fractal_surface, "generate_fractal2D", spy)
+    make_surface(ys=0, yf=extent[0], zs=0, zf=extent[1]).generate_fractal_surface()
+    ones = np.ones(extent, dtype=np.complex128)
+    filt = np.zeros(extent, dtype=np.complex128)
+    kernel(*calls[0][:10], ones, filt)
+    return filt
