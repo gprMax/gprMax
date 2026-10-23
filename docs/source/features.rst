@@ -15,6 +15,17 @@ There is now a **Python API**, which includes all the functionality of the input
 2. gprMax objects can be used directly within functions, classes, modules and packages. In this way, collections of components can be defined, reused, and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
 3. The API can interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters.
 
+Reinforcement meshes
+====================
+
+Reinforced-concrete models can use a two-layer orthogonal rebar mesh. The
+command generates an upper layer running along x and a lower layer running
+along y from a slab volume, bar spacing, diameter, cover, and layer separation.
+Each bar is an ordinary circular cylinder, so the result uses the same
+material averaging, geometry tags, Yee-cell rasterisation, and parallel
+construction as other volumetric primitives. See :doc:`rebar_mesh` for layout
+equations, discretisation guidance, and Python and hash-command examples.
+
 Two-dimensional TM and TE modes
 ===============================
 

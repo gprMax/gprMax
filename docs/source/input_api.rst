@@ -585,6 +585,33 @@ Cylinder
 --------
 .. autoclass:: gprMax.user_objects.cmds_geometry.cylinder.Cylinder
 
+Rebar Mesh
+----------
+.. autoclass:: gprMax.user_objects.cmds_geometry.rebar_mesh.RebarMesh
+.. autoclass:: gprMax.user_objects.cmds_geometry.rebar_mesh.RebarSegment
+
+A reinforcement mesh occupies the box between ``p1`` and ``p2``. The upper
+layer runs along x, the lower layer runs along y, and ``spacing`` may be a
+single value or an ``(x, y)`` pair. The generated bars are available through
+``bars``; each :class:`gprMax.user_objects.cmds_geometry.rebar_mesh.RebarSegment`
+reports its ends, diameter, layer, axis, and length.
+
+.. code-block:: python
+
+    scene.add(gprMax.RebarMesh(
+        p1=(0.02, 0.02, 0.02),
+        p2=(0.22, 0.16, 0.10),
+        spacing=(0.04, 0.04),
+        diameter=0.008,
+        cover=0.02,
+        layer_spacing=0.04,
+        material_id='pec',
+        tag='reinforcement',
+    ))
+
+Use ``material_ids=('steel_x', 'steel_y', 'steel_z')`` for uniaxial material
+properties. The mesh is a 3D geometry object and rejects 2D TM/TE models.
+
 Cylindrical Sector
 ------------------
 .. autoclass:: gprMax.user_objects.cmds_geometry.cylindrical_sector.CylindricalSector

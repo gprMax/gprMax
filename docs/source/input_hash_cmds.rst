@@ -1216,6 +1216,46 @@ For example, to specify a cylinder with its axis in the y direction, a length of
 
     * Cylinder objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
 
+#rebar_mesh:
+-------------
+
+Allows you to introduce a two-layer orthogonal reinforcement mesh into a rectangular volume. The command is available in 3D models only. The syntax for isotropic material properties is:
+
+.. code-block:: none
+
+    #rebar_mesh: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 str1 [c1 [tag_name]]
+
+* ``f1 f2 f3`` and ``f4 f5 f6`` are opposite corners of the reinforced volume.
+* ``f7`` and ``f8`` are the centre-to-centre bar spacings measured along the x and y axes.
+* ``f9`` is the bar diameter.
+* ``f10`` is the clear cover from the top and side faces.
+* ``f11`` is the vertical centre-to-centre distance between the two layers. A value of zero places both layers at the same height.
+* ``str1`` is a material identifier that must already exist, or one of the built-in materials.
+* ``c1`` is an optional ``y`` or ``n`` dielectric-smoothing flag.
+* ``tag_name`` is an optional geometry tag.
+
+The upper layer runs along x and the lower layer runs along y. Bars are generated at the requested spacing, starting one cover distance plus one radius from each side. Bar ends are one cover distance from the volume faces. The top bar centreline is one cover distance and one radius below the top face.
+
+Uniaxial anisotropic materials use the x, y, and z material identifiers followed by the same optional smoothing marker and tag:
+
+.. code-block:: none
+
+    #rebar_mesh: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 strx stry strz [c1 [tag_name]]
+
+For example, to insert a steel mesh into a concrete slab:
+
+.. code-block:: none
+
+    #rebar_mesh: 0.02 0.02 0.02 0.22 0.16 0.10 0.04 0.04 0.008 0.02 0.04 pec
+
+.. note::
+
+    * Spacing must be at least one bar diameter. ``f11`` must be zero or at least one diameter.
+    * Define the surrounding concrete or host volume before ``#rebar_mesh`` so that the bars overwrite it.
+    * A zero layer spacing makes the two orthogonal layers intersect at the same height.
+    * The generated bars are ordinary circular cylinders. Hooks, bends, welded joints, and non-orthogonal reinforcement are not generated.
+    * Cell-centred tags apply to every occupied bar cell.
+    * The command is rejected in 2D TM and TE models.
 
 #cylindrical_sector:
 --------------------
