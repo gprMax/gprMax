@@ -17,7 +17,8 @@
 
 import logging
 import math
-from numbers import Integral
+import os
+from numbers import Integral, Real
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -29,6 +30,26 @@ from gprMax.user_objects.user_objects import GridUserObject, ModelUserObject
 from gprMax.utilities.host_info import set_omp_threads
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_real_triple(user_object, values, label):
+    try:
+        items = tuple(values)
+    except TypeError as exc:
+        raise ValueError(f"{user_object} requires three {label}") from exc
+
+    if len(items) != 3:
+        raise ValueError(f"{user_object} requires three {label}")
+    if any(isinstance(value, bool) or not isinstance(value, Real) for value in items):
+        raise ValueError(f"{user_object} requires numeric {label}")
+    return items
+
+
+def _validate_step_size(user_object, step_size):
+    values = _validate_real_triple(user_object, step_size, "step sizes")
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError(f"{user_object} requires finite step sizes")
+    return values
 
 
 class Title(ModelUserObject):
@@ -86,13 +107,16 @@ class Discretisation(ModelUserObject):
         self.discretisation = p1
 
     def build(self, model: Model):
-        if not np.all(np.isfinite(self.discretisation)) or any(d <= 0 for d in self.discretisation):
+        discretisation = _validate_real_triple(self, self.discretisation, "spatial steps")
+        if not all(math.isfinite(value) for value in discretisation) or any(
+            value <= 0 for value in discretisation
+        ):
             raise ValueError(
                 f"{self} discretisation requires a finite spatial step greater than zero "
                 "in all dimensions"
             )
 
-        model.dl = np.array(self.discretisation, dtype=np.float64)
+        model.dl = np.array(discretisation, dtype=np.float64)
         logger.info(f"Spatial discretisation: {model.dl[0]:g} x {model.dl[1]:g} x {model.dl[2]:g}m")
 
 
@@ -127,6 +151,8 @@ class DomainMode(ModelUserObject):
                 (case-insensitive).
         """
         super().__init__(mode=mode)
+        if not isinstance(mode, str):
+            raise ValueError(f"{self} requires the mode to be a string")
         self.requested_mode = mode.upper()
 
     def build(self, model: Model):
@@ -176,6 +202,8 @@ class MagneticAveraging(ModelUserObject):
             mode: 'harmonic' (default) or 'arithmetic' (case-insensitive).
         """
         super().__init__(mode=mode)
+        if not isinstance(mode, str):
+            raise ValueError(f"{self} requires the mode to be a string")
         self.mode = mode.lower()
 
     def build(self, model: Model):
@@ -305,6 +333,7 @@ class Domain(ModelUserObject):
         return tuple(domain_size), axis
 
     def build(self, model: Model):
+        self.domain_size = _validate_real_triple(self, self.domain_size, "domain sizes")
         requested_mode = config.get_model_config().requested_2d_mode
 
         # `inf` with no `#domain_mode` declared at all defaults to TM (the
@@ -460,7 +489,9 @@ class TimeStepStabilityFactor(ModelUserObject):
     def validate(self):
         """Validate the requested factor before applying any automatic cap."""
         if (
-            not np.isfinite(self.stability_factor)
+            isinstance(self.stability_factor, bool)
+            or not isinstance(self.stability_factor, Real)
+            or not math.isfinite(self.stability_factor)
             or self.stability_factor <= 0
             or self.stability_factor > 1
         ):
@@ -508,11 +539,15 @@ class TimeWindow(ModelUserObject):
 
     def build(self, model: Model):
         if self.time is not None:
-            if np.isfinite(self.time) and self.time > 0:
-                model.timewindow = self.time
-                model.iterations = int(np.ceil(self.time / model.dt)) + 1
-            else:
+            if (
+                isinstance(self.time, bool)
+                or not isinstance(self.time, Real)
+                or not math.isfinite(self.time)
+                or self.time <= 0
+            ):
                 raise ValueError(f"{self} time must be finite and greater than zero")
+            model.timewindow = self.time
+            model.iterations = int(np.ceil(self.time / model.dt)) + 1
         elif self.iterations is not None:
             if (
                 isinstance(self.iterations, bool)
@@ -835,15 +870,16 @@ class SrcSteps(ModelUserObject):
         self.step_size = p1
 
     def build(self, model: Model):
+        step_size = _validate_step_size(self, self.step_size)
         uip = self._create_uip(model.G)
         mode = config.get_model_config().mode
-        if mode.startswith("2D") and self.step_size[("xyz".index(mode[-1]))] != 0:
+        if mode.startswith("2D") and step_size[("xyz".index(mode[-1]))] != 0:
             raise ValueError(
                 f"{self.params_str()} cannot step sources along the invariant axis in 2D "
                 f"mode ('{mode}') - only run 1 (step 0) is at the interior reference layer; "
                 "any later run would move sources onto the forced-dead outer wall."
             )
-        model.srcsteps = uip.discretise_static_point(self.step_size)
+        model.srcsteps = uip.discretise_static_point(step_size)
 
         logger.info(
             f"Simple sources will step {model.srcsteps[0] * model.dx:g}m, "
@@ -879,15 +915,16 @@ class RxSteps(ModelUserObject):
         self.step_size = p1
 
     def build(self, model: Model):
+        step_size = _validate_step_size(self, self.step_size)
         uip = self._create_uip(model.G)
         mode = config.get_model_config().mode
-        if mode.startswith("2D") and self.step_size[("xyz".index(mode[-1]))] != 0:
+        if mode.startswith("2D") and step_size[("xyz".index(mode[-1]))] != 0:
             raise ValueError(
                 f"{self.params_str()} cannot step receivers along the invariant axis in 2D "
                 f"mode ('{mode}') - only run 1 (step 0) is at the interior reference layer; "
                 "any later run would move receivers onto the forced-dead outer wall."
             )
-        model.rxsteps = uip.discretise_static_point(self.step_size)
+        model.rxsteps = uip.discretise_static_point(step_size)
 
         logger.info(
             f"All receivers will step {model.rxsteps[0] * model.dx:g}m, "
@@ -915,6 +952,8 @@ class OutputDir(ModelUserObject):
 
     def __init__(self, dir: str):
         super().__init__(dir=dir)
+        if not isinstance(dir, (str, os.PathLike)):
+            raise ValueError(f"{self} requires a directory path")
         self.output_dir = dir
 
     def build(self, model: Model):

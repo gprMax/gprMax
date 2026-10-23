@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
-import logging
+import math
 from pathlib import Path
 
 from .user_objects.cmds_singleuse import (
@@ -34,7 +34,40 @@ from .user_objects.cmds_singleuse import (
     Title,
 )
 
-logger = logging.getLogger(__name__)
+
+def _split(command, value, count):
+    tokens = value.split()
+    if len(tokens) != count:
+        noun = "parameter" if count == 1 else "parameters"
+        number = "one" if count == 1 else str(count)
+        raise ValueError(f"{command} requires exactly {number} {noun}; got {len(tokens)}")
+    return tokens
+
+
+def _numbers(command, tokens):
+    values = []
+    for index, token in enumerate(tokens, start=1):
+        try:
+            values.append(float(token))
+        except ValueError as exc:
+            raise ValueError(f"{command} parameter {index} is not a number: {token!r}") from exc
+    return values
+
+
+def _integers(command, tokens):
+    values = []
+    for index, token in enumerate(tokens, start=1):
+        try:
+            values.append(int(token))
+        except ValueError as exc:
+            raise ValueError(f"{command} parameter {index} is not an integer: {token!r}") from exc
+    return values
+
+
+def _finite(command, values):
+    for index, value in enumerate(values, start=1):
+        if not math.isfinite(value):
+            raise ValueError(f"{command} parameter {index} must be finite: {value!r}")
 
 
 def process_singlecmds(singlecmds, *, input_dir=None):
@@ -52,11 +85,9 @@ def process_singlecmds(singlecmds, *, input_dir=None):
 
     scene_objects = []
 
-    # Check validity of command parameters in order needed
     cmd = "#title"
     if singlecmds[cmd] is not None:
-        title = Title(name=str(singlecmds[cmd]))
-        scene_objects.append(title)
+        scene_objects.append(Title(name=str(singlecmds[cmd])))
 
     cmd = "#output_dir"
     if singlecmds[cmd] is not None:
@@ -65,158 +96,90 @@ def process_singlecmds(singlecmds, *, input_dir=None):
         directory = Path(singlecmds[cmd])
         if input_dir is not None and not directory.is_absolute():
             directory = Path(input_dir) / directory
-        output_dir = OutputDir(dir=str(directory))
-        scene_objects.append(output_dir)
+        scene_objects.append(OutputDir(dir=str(directory)))
 
     # Number of threads for CPU-based (OpenMP) parallelised parts of code
     cmd = "#omp_threads"
     legacy_cmd = "#num_threads"
     if singlecmds[cmd] is not None and singlecmds[legacy_cmd] is not None:
-        message = f"{cmd} and its legacy alias {legacy_cmd} cannot both be specified"
-        logger.error(message)
-        raise ValueError(message)
+        raise ValueError(f"{cmd} and its legacy alias {legacy_cmd} cannot both be specified")
 
     selected_cmd = cmd if singlecmds[cmd] is not None else legacy_cmd
     if singlecmds[selected_cmd] is not None:
-        tmp = tuple(int(x) for x in singlecmds[selected_cmd].split())
-        if len(tmp) != 1:
-            logger.exception(
-                f"{selected_cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use"
-            )
-            raise ValueError
-
-        omp_threads = OMPThreads(n=tmp[0])
-        scene_objects.append(omp_threads)
+        tokens = _split(selected_cmd, singlecmds[selected_cmd], 1)
+        scene_objects.append(OMPThreads(n=_integers(selected_cmd, tokens)[0]))
 
     cmd = "#dx_dy_dz"
     if singlecmds[cmd] is not None:
-        tmp = [float(x) for x in singlecmds[cmd].split()]
-        if len(tmp) != 3:
-            logger.exception(f"{cmd} requires exactly three parameters")
-            raise ValueError
-
-        dl = (tmp[0], tmp[1], tmp[2])
-        discretisation = Discretisation(p1=dl)
-        scene_objects.append(discretisation)
+        tokens = _split(cmd, singlecmds[cmd], 3)
+        scene_objects.append(Discretisation(p1=tuple(_numbers(cmd, tokens))))
 
     cmd = "#domain_mode"
     if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            logger.exception(f"{cmd} requires exactly one parameter, either 'TM', 'TE' or '3D'")
-            raise ValueError
-
-        domain_mode = DomainMode(mode=tmp[0])
-        scene_objects.append(domain_mode)
+        tokens = _split(cmd, singlecmds[cmd], 1)
+        scene_objects.append(DomainMode(mode=tokens[0]))
 
     cmd = "#magnetic_averaging"
     if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            logger.exception(f"{cmd} requires exactly one parameter, either 'harmonic' or 'arithmetic'")
-            raise ValueError
-
-        magnetic_averaging = MagneticAveraging(mode=tmp[0])
-        scene_objects.append(magnetic_averaging)
+        tokens = _split(cmd, singlecmds[cmd], 1)
+        scene_objects.append(MagneticAveraging(mode=tokens[0]))
 
     cmd = "#dispersive_averaging"
     if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1 or tmp[0].lower() not in ("y", "n"):
-            logger.exception(f"{cmd} requires exactly one parameter, either 'y' or 'n'")
-            raise ValueError
-
-        dispersive_averaging = DispersiveAveraging(enabled=tmp[0].lower() == "y")
-        scene_objects.append(dispersive_averaging)
+        tokens = _split(cmd, singlecmds[cmd], 1)
+        if tokens[0].lower() not in ("y", "n"):
+            raise ValueError(f"{cmd} requires 'y' or 'n'; got {tokens[0]!r}")
+        scene_objects.append(DispersiveAveraging(enabled=tokens[0].lower() == "y"))
 
     cmd = "#domain"
     if singlecmds[cmd] is not None:
-        tmp = [float(x) for x in singlecmds[cmd].split()]
-        if len(tmp) != 3:
-            logger.exception(f"{cmd} requires exactly three parameters")
-            raise ValueError
-
-        p1 = (tmp[0], tmp[1], tmp[2])
-        domain = Domain(p1=p1)
-        scene_objects.append(domain)
+        tokens = _split(cmd, singlecmds[cmd], 3)
+        scene_objects.append(Domain(p1=tuple(_numbers(cmd, tokens))))
 
     cmd = "#time_step_stability_factor"
     if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            message = f"{cmd} requires exactly one parameter"
-            logger.error(message)
-            raise ValueError(message)
-
-        tmp = tuple(float(x) for x in tmp)
-        tsf = TimeStepStabilityFactor(f=tmp[0])
-        scene_objects.append(tsf)
+        tokens = _split(cmd, singlecmds[cmd], 1)
+        scene_objects.append(TimeStepStabilityFactor(f=_numbers(cmd, tokens)[0]))
 
     cmd = "#time_window"
     if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            logger.exception(
-                f"{cmd} requires exactly one parameter to specify the "
-                f"time window. Either in seconds or number of iterations."
-            )
-            raise ValueError
-        tmp = tmp[0].lower()
-
-        # If number of iterations given
+        token = _split(cmd, singlecmds[cmd], 1)[0]
         try:
-            tmp = int(tmp)
-            tw = TimeWindow(iterations=tmp)
-        # If real floating point value given
+            iterations = int(token)
         except ValueError:
-            tmp = float(tmp)
-            tw = TimeWindow(time=tmp)
-
-        scene_objects.append(tw)
+            try:
+                time = float(token)
+            except ValueError as exc:
+                raise ValueError(
+                    f"{cmd} requires seconds or an iteration count; got {token!r}"
+                ) from exc
+            scene_objects.append(TimeWindow(time=time))
+        else:
+            scene_objects.append(TimeWindow(iterations=iterations))
 
     cmd = "#pml_cells"
     if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) not in [1, 6]:
-            logger.exception(f"{cmd} requires either one or six parameter(s)")
-            raise ValueError
-
-        if len(tmp) == 1:
-            pml_thickness = PMLThickness(thickness=int(tmp[0]))
+        tokens = singlecmds[cmd].split()
+        if len(tokens) not in (1, 6):
+            raise ValueError(f"{cmd} requires exactly one or six parameters; got {len(tokens)}")
+        thickness = tuple(_integers(cmd, tokens))
+        if len(thickness) == 1:
+            scene_objects.append(PMLThickness(thickness=thickness[0]))
         else:
-            pml_thickness = PMLThickness(
-                thickness=(
-                    int(tmp[0]),
-                    int(tmp[1]),
-                    int(tmp[2]),
-                    int(tmp[3]),
-                    int(tmp[4]),
-                    int(tmp[5]),
-                )
-            )
-
-        scene_objects.append(pml_thickness)
+            scene_objects.append(PMLThickness(thickness=thickness))
 
     cmd = "#src_steps"
     if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 3:
-            logger.exception(f"{cmd} requires exactly three parameters")
-            raise ValueError
-
-        p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
-        src_steps = SrcSteps(p1=p1)
-        scene_objects.append(src_steps)
+        tokens = _split(cmd, singlecmds[cmd], 3)
+        step_size = tuple(_numbers(cmd, tokens))
+        _finite(cmd, step_size)
+        scene_objects.append(SrcSteps(p1=step_size))
 
     cmd = "#rx_steps"
     if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 3:
-            logger.exception(f"{cmd} requires exactly three parameters")
-            raise ValueError
-
-        p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
-        rx_steps = RxSteps(p1=p1)
-        scene_objects.append(rx_steps)
+        tokens = _split(cmd, singlecmds[cmd], 3)
+        step_size = tuple(_numbers(cmd, tokens))
+        _finite(cmd, step_size)
+        scene_objects.append(RxSteps(p1=step_size))
 
     return scene_objects
