@@ -70,7 +70,7 @@ class EigenmodeFieldOutput(OutputUserObject):
     ``filename`` is a basename in the run output directory; ``ports`` defaults
     to all prepared physical ports. No field time stepping is required.
 
-    Attributes:
+    Args:
         filename (str): Basename, without directory components, of the file
             written in the run output directory as ``<filename>.modes.h5``.
             Must be unique among eigenmode field outputs. Default ``'port_modes'``.
@@ -108,7 +108,7 @@ class EigenmodeFieldOutput(OutputUserObject):
 class NetworkPort(OutputUserObject):
     """Request port quantities for a rational-network terminal.
 
-    Attributes:
+    Args:
         terminal_id (str): ID of an existing ``NetworkTerminal``. It is also the
             port ID in the HDF5 output. Each terminal can have one ``NetworkPort``.
         reference_impedance (float): Positive power-wave reference impedance in
@@ -216,15 +216,17 @@ class SAR(OutputUserObject):
     Lossless permeability alone adds no magnetic heating.
 
     Args:
-        frequencies (sequence of floats): Strictly increasing positive
+        frequencies (float or sequence of floats): Strictly increasing positive
             frequencies in Hz. A single value is also accepted.
         waveform_id (str or None): ID of the waveform attached to a
             source-normalised excitation. Required for ``'waveform'``,
             ``'current_moment'`` and ``'incident_flux'`` normalisation;
             unused for port-power normalisation. Default None.
-        tags (sequence of str): Geometry tag names (the ``tag`` of geometry
-            objects) over which SAR is calculated; a single tag string is also
-            accepted. At least one tag, without duplicates, is needed.
+        tags (str, sequence of str or None): Geometry tag names (the ``tag`` of
+            geometry objects) over which SAR is calculated; a single tag string
+            is also accepted. At least one tag, without duplicates, is needed:
+            the default None selects no tags and is rejected when the model is
+            built.
         id (str): Unique HDF5 output identifier. Default ``'sar1'``.
         target_amplitude (float): Peak phasor amplitude represented by the
             normalised source spectrum. Default 1.
@@ -385,11 +387,12 @@ class Radiometry(OutputUserObject):
     loss. Lossless permeability alone adds no magnetic heating.
 
     Args:
-        frequencies (sequence of floats): Strictly increasing positive
+        frequencies (float or sequence of floats): Strictly increasing positive
             frequencies in Hz. A single value is also accepted.
-        tags (sequence of str): Geometry tag names (the ``tag`` of geometry
-            objects) to evaluate; a single tag string is also accepted.
-            At least one tag, without duplicates, is needed.
+        tags (str, sequence of str or None): Geometry tag names (the ``tag`` of
+            geometry objects) to evaluate; a single tag string is also accepted.
+            At least one tag, without duplicates, is needed: the default None
+            selects no tags and is rejected when the model is built.
         waveform_id (str or None): ID of the waveform. Required for waveform,
             current-moment, and incident-flux normalisation; unused for
             port-power normalisation. Default None.
@@ -515,7 +518,11 @@ class Snapshot(OutputUserObject):
     """Obtains information about the electromagnetic fields within a volume
         of the model at a given time instant.
 
-    Attributes:
+    A snapshot added to an HSG subgrid uses that grid's spatial and temporal
+    discretisation. Its output origin is expressed in global model
+    coordinates.
+
+    Args:
         p1 (tuple of three floats): Lower left (x, y, z) coordinates of the
             volume of the snapshot in metres.
         p2 (tuple of three floats): Upper right (x, y, z) coordinates of the
@@ -535,13 +542,9 @@ class Snapshot(OutputUserObject):
             used when ``iterations`` is not given. A time is mapped to the
             nearest full time step. Magnetic fields retain their native
             half-step staggering. Default None.
-        outputs (sequence of str): Field components to store, any selection
-            from ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``, ``'Hy'`` and ``'Hz'``.
-            Default None: all six.
-
-    A snapshot added to an HSG subgrid uses that grid's spatial and temporal
-    discretisation. Its output origin is expressed in global model
-    coordinates.
+        outputs (sequence of str or None): Field components to store, any
+            selection from ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``, ``'Hy'`` and
+            ``'Hz'``. Default None: all six.
     """
 
     @property
@@ -839,25 +842,37 @@ def _ksir_array_points(p1, p2, dl, real_dtype):
 class NTFFSurface(OutputUserObject):
     """Define a reusable Yee-aligned field-transformation surface.
 
-    The cuboidal surface must lie inside the non-PML region of the main grid,
-    in a homogeneous exterior, and enclose the radiating source (or the
-    complete TFSF box and scatterer).
+    The cuboidal surface is defined on the main grid; a subgrid must be
+    either strictly enclosed by it or disjoint from it. Its field samples
+    must not enter the PML. It must strictly enclose the complete TFSF box
+    of any discrete plane wave (and the scatterer), and every other
+    impressed source except one admitted through an omitted face.
 
-    Attributes:
+    The homogeneous-background transforms (``KSIRFrequencyTransform``,
+    ``NTFFFrequencyTransform``, the KSIR time-domain receivers and the
+    ``NTFFTimeFarField`` requests) need a surface lying in one lossless,
+    non-dispersive material; the two frequency transforms also need the
+    region between the surface and the PML to be that same material. The
+    layered transforms (``NTFFLayeredFrequencyTransform`` and
+    ``NTFFLayeredTimeTransform``) may use a surface that crosses the layer
+    interfaces declared in their ``NTFFLayeredBackground``.
+
+    Args:
         p1 (tuple of three floats): Lower (x, y, z) coordinates of the surface
             in metres.
         p2 (tuple of three floats): Upper (x, y, z) coordinates of the surface
             in metres.
         id (str): Unique surface identifier, referred to by the transforms and
             time-domain requests. Must not contain ``/``.
-        origin (tuple of three floats): Reference (x, y, z) coordinates in
+        origin (tuple of three floats or None): Reference (x, y, z) coordinates in
             metres used as the phase origin of the transforms and as the centre
             of spherical observation coordinates. Default None: the centre of
             the completed surface.
-        omit_faces (sequence of str): Faces left out of the frequency-domain
-            Huygens/equivalent-current integral, any of ``'x0'``, ``'xmax'``,
-            ``'y0'``, ``'ymax'``, ``'z0'`` and ``'zmax'``; a single face name
-            is also accepted. No duplicates, and at least one face must remain.
+        omit_faces (str, sequence of str or None): Faces left out of the
+            frequency-domain Huygens/equivalent-current integral, any of
+            ``'x0'``, ``'xmax'``, ``'y0'``, ``'ymax'``, ``'z0'`` and ``'zmax'``;
+            a single face name is also accepted, and None means no faces.
+            No duplicates, and at least one face must remain.
             Default ``()``: a closed surface. KSIR commands and the transient
             equivalent-current transform need a closed surface; a layered
             time transform may omit only a face lying on its terminal PEC plane.
@@ -950,7 +965,7 @@ class NTFFLayeredBackground(OutputUserObject):
     adjacent interface. It is analytical propagation metadata and does not
     build the corresponding PEC FDTD geometry.
 
-    Attributes:
+    Args:
         id (str): Unique background identifier, referred to by the layered
             transforms.
         axis (str): Axis normal to the layers. One of 'x', 'y' or 'z'.
@@ -1033,7 +1048,7 @@ class KSIRFrequencyTransform(OutputUserObject):
     This is the KSIR frequency transform. Fields are accumulated during time
     stepping; field histories are not kept.
 
-    Attributes:
+    Args:
         surface_id (str): ID of a closed ``NTFFSurface`` whose fields are transformed.
         id (str): Transform identifier, referred to by ``KSIRFrequencyRx``, ``KSIRFarField`` and
             ``KSIRAntennaPorts`` objects.
@@ -1171,7 +1186,7 @@ class NTFFFrequencyTransform(KSIRFrequencyTransform):
     The transform gives far-zone quantities only and is consumed by
     ``NTFFFarField``, ``NTFFFarFieldArray`` and ``NTFFAntennaPorts``.
 
-    Attributes:
+    Args:
         surface_id (str): ID of an ``NTFFSurface`` whose fields are transformed.
         id (str): Transform identifier, referred to by ``NTFFFarField`` and
             ``NTFFAntennaPorts`` objects.
@@ -1207,7 +1222,7 @@ class NTFFLayeredFrequencyTransform(NTFFFrequencyTransform):
     consumed by ``NTFFFarField``, ``NTFFFarFieldArray`` and
     ``NTFFAntennaPorts``.
 
-    Attributes:
+    Args:
         surface_id (str): ID of an ``NTFFSurface`` whose fields are transformed.
         id (str): Transform identifier, referred to by ``NTFFFarField`` and
             ``NTFFAntennaPorts`` objects.
@@ -1300,7 +1315,7 @@ class NTFFLayeredTimeTransform(OutputUserObject):
     by Capoglu. Conductive, dispersive, evanescent, and exact-grazing cases
     must use :class:`NTFFLayeredFrequencyTransform`.
 
-    Attributes:
+    Args:
         surface_id (str): ID of the ``NTFFSurface`` whose fields are transformed.
             It must be closed, except that one face lying exactly on the terminal
             PEC plane of the background may be omitted.
@@ -1409,15 +1424,15 @@ class _NTFFRequest(OutputUserObject):
 class KSIRTimeRx(_NTFFRequest):
     """Request exact advanced-time KSIR fields at Cartesian point(s).
 
-    Attributes:
-        position (tuple of three floats): (x, y, z) coordinates of the point in
-            metres; a sequence of such points is also accepted. Points must lie
-            strictly outside the completed surface and may lie outside the model
-            domain.
+    Args:
+        position (tuple of three floats or sequence of tuples): (x, y, z)
+            coordinates of the point in metres; a sequence of such points is
+            also accepted. Points must lie strictly outside the completed
+            surface and may lie outside the model domain.
         surface_id (str): ID of a closed ``NTFFSurface``.
         id (str or None): Output identifier, unique among the time-domain
             receivers on the same surface. Default None: ``rx1``, ``rx2``, ...
-        outputs (sequence of str): Cartesian field components to record,
+        outputs (sequence of str or None): Cartesian field components to record,
             any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``, ``'Hy'`` and ``'Hz'``.
             Default None: all six.
         time_origin (str): One of 'simulation' or 'first_arrival'.
@@ -1490,7 +1505,7 @@ class KSIRTimeRxArray(KSIRTimeRx):
 
     All points share one output ID.
 
-    Attributes:
+    Args:
         p1 (tuple of three floats): Lower (x, y, z) coordinates of the point
             array in metres.
         p2 (tuple of three floats): Upper (x, y, z) coordinates of the point
@@ -1501,7 +1516,7 @@ class KSIRTimeRxArray(KSIRTimeRx):
         surface_id (str): ID of a closed ``NTFFSurface``.
         id (str or None): Output identifier, unique among the time-domain
             receivers on the same surface. Default None: ``rx1``, ``rx2``, ...
-        outputs (sequence of str): Cartesian field components to record,
+        outputs (sequence of str or None): Cartesian field components to record,
             any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``, ``'Hy'`` and ``'Hz'``.
             Default None: all six.
         time_origin (str): One of 'simulation' or 'first_arrival'.
@@ -1537,19 +1552,22 @@ class KSIRTimeRxSpherical(KSIRTimeRx):
     The radius is explicit because the result is the actual finite-distance
     field, not a range-normalised one.
 
-    Attributes:
-        r (float): Radius in metres from the surface reference origin (the
-            ``origin`` of the ``NTFFSurface``, by default its centre); positive.
-            A single value or a sequence of values (broadcast with theta and phi)
-            is accepted.
-        theta (float): Polar angle in degrees, measured from +z, from 0 to 180.
-            A single value or a sequence of values is accepted.
-        phi (float): Azimuth angle in degrees, measured from +x towards +y.
-            A single value or a sequence of values is accepted.
+    Args:
+        r (float or sequence of floats): Positive radius in metres from the
+            surface reference origin (the ``origin`` of the ``NTFFSurface``, by
+            default its centre). A single value or a sequence of values is
+            accepted; ``r``, ``theta`` and ``phi`` are broadcast together, one
+            point per element.
+        theta (float or sequence of floats): Polar angle in degrees, measured
+            from +z, from 0 to 180. A single value or a sequence of values is
+            accepted.
+        phi (float or sequence of floats): Azimuth angle in degrees, measured
+            from +x towards +y. A single value or a sequence of values is
+            accepted.
         surface_id (str): ID of a closed ``NTFFSurface``.
         id (str or None): Output identifier, unique among the time-domain
             receivers on the same surface. Default None: ``rx1``, ``rx2``, ...
-        outputs (sequence of str): Spherical field components to record,
+        outputs (sequence of str or None): Spherical field components to record,
             any of ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``, ``'Htheta'`` and ``'Hphi'``.
             Default None: all six.
         time_origin (str): One of 'simulation' or 'first_arrival'.
@@ -1613,16 +1631,16 @@ class KSIRTimeRxSpherical(KSIRTimeRx):
 class KSIRFrequencyRx(_NTFFRequest):
     """Request exact finite-distance frequency-domain Cartesian fields.
 
-    Attributes:
-        position (tuple of three floats): (x, y, z) coordinates of the point in
-            metres; a sequence of such points is also accepted. Points must lie
-            strictly outside the completed surface and may lie outside the model
-            domain.
+    Args:
+        position (tuple of three floats or sequence of tuples): (x, y, z)
+            coordinates of the point in metres; a sequence of such points is
+            also accepted. Points must lie strictly outside the completed
+            surface and may lie outside the model domain.
         transform_id (str): ID of a ``KSIRFrequencyTransform``
             (equivalent-current transforms cannot be used).
         id (str or None): Output identifier, unique among the receivers of the
             same transform. Default None: ``rx1``, ``rx2``, ...
-        outputs (sequence of str): Cartesian field components to record,
+        outputs (sequence of str or None): Cartesian field components to record,
             any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``, ``'Hy'`` and ``'Hz'``.
             Default None: all six.
     """
@@ -1674,7 +1692,7 @@ class KSIRFrequencyRxArray(KSIRFrequencyRx):
 
     All points share one output ID.
 
-    Attributes:
+    Args:
         p1 (tuple of three floats): Lower (x, y, z) coordinates of the point
             array in metres.
         p2 (tuple of three floats): Upper (x, y, z) coordinates of the point
@@ -1686,7 +1704,7 @@ class KSIRFrequencyRxArray(KSIRFrequencyRx):
             (equivalent-current transforms cannot be used).
         id (str or None): Output identifier, unique among the receivers of the
             same transform. Default None: ``rx1``, ``rx2``, ...
-        outputs (sequence of str): Cartesian field components to record,
+        outputs (sequence of str or None): Cartesian field components to record,
             any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``, ``'Hy'`` and ``'Hz'``.
             Default None: all six.
     """
@@ -1707,20 +1725,23 @@ class KSIRFrequencyRxArray(KSIRFrequencyRx):
 class KSIRFrequencyRxSpherical(KSIRFrequencyRx):
     """Request exact finite-distance frequency-domain spherical fields.
 
-    Attributes:
-        r (float): Radius in metres from the surface reference origin (the
-            ``origin`` of the ``NTFFSurface``, by default its centre); positive.
-            A single value or a sequence of values (broadcast with theta and phi)
-            is accepted.
-        theta (float): Polar angle in degrees, measured from +z, from 0 to 180.
-            A single value or a sequence of values is accepted.
-        phi (float): Azimuth angle in degrees, measured from +x towards +y.
-            A single value or a sequence of values is accepted.
+    Args:
+        r (float or sequence of floats): Positive radius in metres from the
+            surface reference origin (the ``origin`` of the ``NTFFSurface``, by
+            default its centre). A single value or a sequence of values is
+            accepted; ``r``, ``theta`` and ``phi`` are broadcast together, one
+            point per element.
+        theta (float or sequence of floats): Polar angle in degrees, measured
+            from +z, from 0 to 180. A single value or a sequence of values is
+            accepted.
+        phi (float or sequence of floats): Azimuth angle in degrees, measured
+            from +x towards +y. A single value or a sequence of values is
+            accepted.
         transform_id (str): ID of a ``KSIRFrequencyTransform``
             (equivalent-current transforms cannot be used).
         id (str or None): Output identifier, unique among the receivers of the
             same transform. Default None: ``rx1``, ``rx2``, ...
-        outputs (sequence of str): Spherical field components to record,
+        outputs (sequence of str or None): Spherical field components to record,
             any of ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``, ``'Htheta'`` and ``'Hphi'``.
             Default None: all six.
     """
@@ -1776,7 +1797,7 @@ class KSIRFarField(_NTFFRequest):
     full-sphere quadrature even when only a cut is requested. Gain and
     efficiency require a :class:`KSIRAntennaPorts` association.
 
-    Attributes:
+    Args:
         theta (float or sequence of floats): Polar angle in degrees, measured
             from +z, from 0 to 180: a single value or a sequence of values,
             paired element-wise (broadcast) with phi, one direction per pair.
@@ -1786,7 +1807,7 @@ class KSIRFarField(_NTFFRequest):
         transform_id (str): ID of a ``KSIRFrequencyTransform``.
         id (str or None): Output identifier, unique among the far-field requests
             of the same transform. Default None: ``ff1``, ``ff2``, ...
-        outputs (sequence of str): Quantities to store. Field components (range
+        outputs (sequence of str or None): Quantities to store. Field components (range
             normalised): any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``,
             ``'Hy'``, ``'Hz'``, ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``,
             ``'Htheta'`` and ``'Hphi'``.
@@ -1854,7 +1875,7 @@ class KSIRFarField(_NTFFRequest):
 class KSIRFarFieldArray(KSIRFarField):
     """Request a theta/phi product grid of range-normalized far fields.
 
-    Attributes:
+    Args:
         theta_start (float): First theta angle of the grid in degrees. Polar angle
             from +z, within 0 to 180.
         theta_stop (float): Last theta angle in degrees (inclusive), not less than
@@ -1868,7 +1889,7 @@ class KSIRFarFieldArray(KSIRFarField):
         transform_id (str): ID of a ``KSIRFrequencyTransform``.
         id (str or None): Output identifier, unique among the far-field requests
             of the same transform. Default None: ``ff1``, ``ff2``, ...
-        outputs (sequence of str): Quantities to store. Field components (range
+        outputs (sequence of str or None): Quantities to store. Field components (range
             normalised): any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``,
             ``'Hy'``, ``'Hz'``, ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``,
             ``'Htheta'`` and ``'Hphi'``.
@@ -1942,7 +1963,7 @@ class NTFFFarField(KSIRFarField):
     Exterior efficiency requires an :class:`NTFFAntennaPorts` association;
     exterior power and conventional directivity do not.
 
-    Attributes:
+    Args:
         theta (float or sequence of floats): Polar angle in degrees, measured
             from +z, from 0 to 180: a single value or a sequence of values,
             paired element-wise (broadcast) with phi, one direction per pair.
@@ -1953,7 +1974,7 @@ class NTFFFarField(KSIRFarField):
             ``NTFFLayeredFrequencyTransform``.
         id (str or None): Output identifier, unique among the far-field requests
             of the same transform. Default None: ``ff1``, ``ff2``, ...
-        outputs (sequence of str): Quantities to store. Field components (range
+        outputs (sequence of str or None): Quantities to store. Field components (range
             normalised): any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``,
             ``'Hy'``, ``'Hz'``, ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``,
             ``'Htheta'`` and ``'Hphi'``.
@@ -1981,7 +2002,7 @@ class NTFFFarField(KSIRFarField):
 class NTFFFarFieldArray(KSIRFarFieldArray):
     """Request an equivalent-current theta/phi far-field product grid.
 
-    Attributes:
+    Args:
         theta_start (float): First theta angle of the grid in degrees. Polar angle
             from +z, within 0 to 180.
         theta_stop (float): Last theta angle in degrees (inclusive), not less than
@@ -1996,7 +2017,7 @@ class NTFFFarFieldArray(KSIRFarFieldArray):
             ``NTFFLayeredFrequencyTransform``.
         id (str or None): Output identifier, unique among the far-field requests
             of the same transform. Default None: ``ff1``, ``ff2``, ...
-        outputs (sequence of str): Quantities to store. Field components (range
+        outputs (sequence of str or None): Quantities to store. Field components (range
             normalised): any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``,
             ``'Hy'``, ``'Hz'``, ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``,
             ``'Htheta'`` and ``'Hphi'``.
@@ -2026,7 +2047,7 @@ class NTFFTimeFarField(KSIRFarField):
 
     The results are range-normalized far-zone waveforms.
 
-    Attributes:
+    Args:
         theta (float or sequence of floats): Polar angle in degrees, measured
             from +z, from 0 to 180: a single value or a sequence of values,
             paired element-wise (broadcast) with phi, one direction per pair.
@@ -2034,10 +2055,10 @@ class NTFFTimeFarField(KSIRFarField):
             from +x towards +y: a single value or a sequence of values, paired
             with theta.
         surface_id (str): ID of a closed ``NTFFSurface`` in a homogeneous
-            lossless background.
+            lossless, non-dispersive background.
         id (str or None): Output identifier, unique among the far-field requests
             of the same surface. Default None: ``ff1``, ``ff2``, ...
-        outputs (sequence of str): Quantities to store. Field components (range
+        outputs (sequence of str or None): Quantities to store. Field components (range
             normalised): any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``,
             ``'Hy'``, ``'Hz'``, ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``,
             ``'Htheta'`` and ``'Hphi'``.
@@ -2089,7 +2110,7 @@ class NTFFTimeFarField(KSIRFarField):
 class NTFFTimeFarFieldArray(NTFFTimeFarField):
     """Request a theta/phi grid of 1997 time-domain far fields.
 
-    Attributes:
+    Args:
         theta_start (float): First theta angle of the grid in degrees. Polar angle
             from +z, within 0 to 180.
         theta_stop (float): Last theta angle in degrees (inclusive), not less than
@@ -2101,10 +2122,10 @@ class NTFFTimeFarFieldArray(NTFFTimeFarField):
             phi_start and an integer number of steps from it.
         phi_step (float): Positive phi increment in degrees.
         surface_id (str): ID of a closed ``NTFFSurface`` in a homogeneous
-            lossless background.
+            lossless, non-dispersive background.
         id (str or None): Output identifier, unique among the far-field requests
             of the same surface. Default None: ``ff1``, ``ff2``, ...
-        outputs (sequence of str): Quantities to store. Field components (range
+        outputs (sequence of str or None): Quantities to store. Field components (range
             normalised): any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``,
             ``'Hy'``, ``'Hz'``, ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``,
             ``'Htheta'`` and ``'Hphi'``.
@@ -2155,7 +2176,7 @@ class NTFFLayeredTimeFarField(KSIRFarField):
 
     Directions must be non-grazing and propagating in every layer.
 
-    Attributes:
+    Args:
         theta (float or sequence of floats): Polar angle in degrees, measured
             from +z, from 0 to 180: a single value or a sequence of values,
             paired element-wise (broadcast) with phi, one direction per pair.
@@ -2165,7 +2186,7 @@ class NTFFLayeredTimeFarField(KSIRFarField):
         transform_id (str): ID of an ``NTFFLayeredTimeTransform``.
         id (str or None): Output identifier, unique among the far-field requests
             of the same transform. Default None: ``ff1``, ``ff2``, ...
-        outputs (sequence of str): Quantities to store. Field components (range
+        outputs (sequence of str or None): Quantities to store. Field components (range
             normalised): any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``,
             ``'Hy'``, ``'Hz'``, ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``,
             ``'Htheta'`` and ``'Hphi'``.
@@ -2225,7 +2246,7 @@ class NTFFLayeredTimeFarField(KSIRFarField):
 class NTFFLayeredTimeFarFieldArray(NTFFLayeredTimeFarField):
     """Request a theta/phi product grid from a layered time transform.
 
-    Attributes:
+    Args:
         theta_start (float): First theta angle of the grid in degrees. Polar angle
             from +z, within 0 to 180.
         theta_stop (float): Last theta angle in degrees (inclusive), not less than
@@ -2239,7 +2260,7 @@ class NTFFLayeredTimeFarFieldArray(NTFFLayeredTimeFarField):
         transform_id (str): ID of an ``NTFFLayeredTimeTransform``.
         id (str or None): Output identifier, unique among the far-field requests
             of the same transform. Default None: ``ff1``, ``ff2``, ...
-        outputs (sequence of str): Quantities to store. Field components (range
+        outputs (sequence of str or None): Quantities to store. Field components (range
             normalised): any of ``'Ex'``, ``'Ey'``, ``'Ez'``, ``'Hx'``,
             ``'Hy'``, ``'Hz'``, ``'Er'``, ``'Etheta'``, ``'Ephi'``, ``'Hr'``,
             ``'Htheta'`` and ``'Hphi'``.

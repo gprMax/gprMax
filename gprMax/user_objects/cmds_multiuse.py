@@ -300,7 +300,7 @@ class ExcitationFile(GridUserObject):
 class Waveform(GridUserObject):
     """Create waveform to use with sources in the model.
 
-    Attributes:
+    Args:
         wave_type (str): Waveform type. One of 'gaussian', 'gauspulse',
             'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot',
             'gaussiandotdotnorm', 'ricker', 'gaussianprime',
@@ -323,7 +323,8 @@ class Waveform(GridUserObject):
         user_func (callable): Optional function of time for a 'user' waveform. It
             takes one float, the time in seconds, and returns the waveform value
             as a finite number. Give exactly one of ``user_func`` and
-            ``user_values``.
+            ``user_values``; omit ``user_func`` when it is not used (it has no
+            None default).
         user_time: Optional 1D array of time values to use with user
             waveform.
         kind (int | str | None): Optional string or int, see
@@ -606,7 +607,7 @@ class SurfaceImpedance(GridUserObject):
     extruded through the slab. Virtual apertures advance independent bulk
     polarization and surface-current histories with the coupled electric field.
 
-    Attributes:
+    Args:
         id (str): Identifier of the surface impedance, used as the ``material_id``
             of geometry objects. Must not clash with a material identifier or
             another surface impedance, and must not start with ``__impedance_``.
@@ -1029,7 +1030,7 @@ class VoltageSource(GridUserObject):
     cannot provide that port output because its complete Ampere loop lies
     partly outside the grid.
 
-    Attributes:
+    Args:
         polarisation: string required for polarisation of the source x, y, z.
         p1: tuple required for position of source x, y, z.
         resistance: float required for internal resistance (Ohms) of
@@ -1880,7 +1881,7 @@ class MagneticFrillSource(GridUserObject):
         formulation is supported by the CPU, CUDA, OpenCL, and Metal solvers,
         and by the CPU and CUDA subgrid updaters.
 
-    Attributes:
+    Args:
         polarisation: string required for polarisation of the source - x, y,
                         or z (the antenna axis the source drives current
                         along, following the same electrical sign convention
@@ -2600,7 +2601,7 @@ class EigenmodeBand(GridUserObject):
     within that range. The combined list is sorted from low to high, with
     repeated values included only once.
 
-    Attributes:
+    Args:
         id: unique identifier for the shared eigenmode band.
         fmin: lower direct-DFT frequency in Hz.
         fmax: upper direct-DFT frequency in Hz.
@@ -2698,7 +2699,7 @@ class EigenmodeBand(GridUserObject):
 class EigenmodePort(GridUserObject):
     """Define a modal port plane with its own anchor-frequency policy.
 
-    Attributes:
+    Args:
         port: positive, one-based port number.
         p1: first physical ``(x, y, z)`` corner of the port plane.
         p2: opposite physical ``(x, y, z)`` corner of the port plane.
@@ -2713,11 +2714,11 @@ class EigenmodePort(GridUserObject):
         plot_fields (bool or None): ``True`` forces the port's modal-field plots
             (PNG files) in every run, ``False`` suppresses them. ``None`` writes
             them only in geometry-only runs (default None).
-        degenerate (sequence of int): Legacy tracking only: one group of mode
-            indices such as ``(1, 2)``, or disjoint groups such as
-            ``((1, 2), (3, 4))``, tracked as subspaces. Each group needs at least
-            two distinct modes, all listed in ``modes``. Ignored with automatic
-            tracking (default None, no groups).
+        degenerate (sequence of int, sequence of sequences of int, or None): Legacy
+            tracking only: one group of mode indices such as ``(1, 2)``, or
+            disjoint groups such as ``((1, 2), (3, 4))``, tracked as subspaces.
+            Each group needs at least two distinct modes, all listed in ``modes``.
+            Ignored with automatic tracking (default None, no groups).
         mode_polarizations: optional global transverse E axis or real three-vector
             shared by the first member of every resolved doublet; the second uses
             positive port normal cross that direction. Automatic tracking resolves
@@ -2737,10 +2738,11 @@ class EigenmodePort(GridUserObject):
             or 'fast'. ``'full'`` adds finer-mesh and open-window verification
             solves; ``'fast'`` checks residuals and edge fields only (default
             ``'full'``).
-        tracking_config (dict or None): Numerical thresholds and solve limits for
-            automatic tracking, as a :class:`gprMax.EigenmodeTrackingConfig` or a
-            mapping of its field names to values; omitted fields keep their
-            defaults (default None, all defaults).
+        tracking_config (EigenmodeTrackingConfig, mapping or None): Numerical
+            thresholds and solve limits for automatic tracking, as a
+            :class:`gprMax.EigenmodeTrackingConfig` or a mapping of its field names
+            to values; omitted fields keep their defaults (default None, all
+            defaults).
     """
 
     @property
@@ -4133,10 +4135,10 @@ class MaterialFromDatabase(GridUserObject):
     file named ``<database>.json`` beside the input file, or in the current
     working directory for a direct Python API model.
 
-    Attributes:
+    Args:
         database (str): Name of an official database or of a local JSON database.
         material (str): Key of the material entry in the database.
-        id (str): Optional local material ID; defaults to ``material``. This can
+        id (str or None): Optional local material ID; defaults to ``material``. This can
             provide a model-specific name, avoid a collision, or match the
             material name expected by imported geometry. '+' is reserved for
             internally generated material IDs.
@@ -5198,7 +5200,7 @@ class PMLSlab(GridUserObject):
     CPU models may partition a slab normally or transversely; every rank stores
     only its local PML history while retaining the complete global CFS profile.
 
-    Attributes:
+    Args:
         p1: lower physical ``(x, y, z)`` corner of the slab.
         p2: upper physical ``(x, y, z)`` corner of the slab.
         maximum_face (str): Face at maximum stretching, which also sets the

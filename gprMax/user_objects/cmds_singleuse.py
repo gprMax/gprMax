@@ -34,9 +34,11 @@ logger = logging.getLogger(__name__)
 class Title(ModelUserObject):
     """Title of the model.
 
-    Attributes:
+    Args:
         name (str): Title of the model, saved in the output file(s). It may contain
             spaces. Required.
+
+    Attributes:
         title (str): Model title.
     """
 
@@ -65,11 +67,13 @@ class Title(ModelUserObject):
 class Discretisation(ModelUserObject):
     """Spatial discretisation of the model in the x, y, and z dimensions.
 
-    Attributes:
+    Args:
         p1 (tuple of three floats): Spatial step, the cell size (dx, dy, dz), in the
             x, y and z directions, in metres. Each must be finite and greater than
             zero. Required.
-        discretisation (tuple): Spatial discretisation of the model
+
+    Attributes:
+        discretisation (tuple of three floats): Spatial discretisation of the model
             (x, y, z)
     """
 
@@ -112,11 +116,14 @@ class DomainMode(ModelUserObject):
     model can be switched between 2D and 3D by changing this command's
     argument alone, without having to remove the command.
 
-    Attributes:
+    Args:
         mode (str): Requested domain mode (case-insensitive). One of 'TM', 'TE' or
             '3D'. Required. Without this object the model is 3D, unless the domain
             uses ``inf`` on one axis, in which case gprMax defaults to TM.
-        requested_mode (str): Requested domain mode, "TM", "TE" or "3D".
+
+    Attributes:
+        requested_mode (str): Requested domain mode in upper case, "TM", "TE" or
+            "3D".
     """
 
     @property
@@ -240,10 +247,12 @@ class DispersiveAveraging(ModelUserObject):
 class Domain(ModelUserObject):
     """Size of the model.
 
-    Attributes:
+    Args:
         p1 (tuple of three floats): Domain size (x, y, z) of the model, in metres.
             One axis may be ``inf`` to build a 2D model (see DomainMode). Required.
-        domain_size (tuple): Extent of the model domain (x, y, z).
+
+    Attributes:
+        domain_size (tuple of three floats): Extent of the model domain (x, y, z).
     """
 
     @property
@@ -446,10 +455,12 @@ class TimeStepStabilityFactor(ModelUserObject):
     A Scene declaring SurfaceImpedance caps the effective factor at 0.99
     before time-dependent objects are built, preserving smaller user values.
 
-    Attributes:
+    Args:
         f (float): Factor to multiply the time step at the CFL limit by. Must be
             finite, greater than zero and not more than 1. Required. Without this
             object gprMax uses the time step at the CFL limit (factor 1).
+
+    Attributes:
         stability_factor (float): Factor to multiply time step by.
     """
 
@@ -556,10 +567,12 @@ class OMPThreads(ModelUserObject):
     Usually this should match the number of physical CPU cores
     available.
 
-    Attributes:
+    Args:
         n (int): Number of OpenMP threads to use, at least 1. Required. Without this
             object gprMax uses the ``OMP_NUM_THREADS`` environment variable if set,
             otherwise all available physical CPU cores.
+
+    Attributes:
         omp_threads (int): Number of OpenMP threads.
     """
 
@@ -742,28 +755,36 @@ class PMLProps(ModelUserObject):
     At least a formulation or a thickness (all six sides, if not ``thickness``)
     must be set.
 
+    Args:
+        formulation (str or None): Formulation used for all PMLs. One of 'HORIPML'
+            or 'MRIPML'. Optional (default None, formulation left unchanged).
+        thickness (int or None): Thickness of the PML, in cells, on all six sides
+            of the model domain. Takes precedence over the individual sides.
+            Optional (default None).
+        x0 (int or None): Thickness of the PML, in cells, on the lower x side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        y0 (int or None): Thickness of the PML, in cells, on the lower y side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        z0 (int or None): Thickness of the PML, in cells, on the lower z side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        xmax (int or None): Thickness of the PML, in cells, on the upper x side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        ymax (int or None): Thickness of the PML, in cells, on the upper y side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        zmax (int or None): Thickness of the PML, in cells, on the upper z side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+
     Attributes:
-        formulation (str): Formulation used for all PMLs. One of 'HORIPML' or
-            'MRIPML'. Optional (default None, formulation left unchanged).
-        thickness (int): Thickness of the PML, in cells, on all six sides of the
-            model domain. Takes precedence over the individual sides. Optional
-            (default None).
-        x0 (int): Thickness of the PML, in cells, on the lower x side. Optional
-            (default None); used only when all six sides are given.
-        y0 (int): Thickness of the PML, in cells, on the lower y side. Optional
-            (default None); used only when all six sides are given.
-        z0 (int): Thickness of the PML, in cells, on the lower z side. Optional
-            (default None); used only when all six sides are given.
-        xmax (int): Thickness of the PML, in cells, on the upper x side. Optional
-            (default None); used only when all six sides are given.
-        ymax (int): Thickness of the PML, in cells, on the upper y side. Optional
-            (default None); used only when all six sides are given.
-        zmax (int): Thickness of the PML, in cells, on the upper z side. Optional
-            (default None); used only when all six sides are given.
-        pml_formulation (PMLFormulation): User object to set the PML
-            formulation.
-        pml_thickness (PMLThickness): User object to set the PML
-            thickness.
+        pml_formulation (PMLFormulation or None): User object to set the PML
+            formulation, or None if no formulation was given.
+        pml_thickness (PMLThickness or None): User object to set the PML
+            thickness, or None if no thickness was given.
     """
 
     @property
@@ -847,11 +868,13 @@ class PMLProps(ModelUserObject):
 class SrcSteps(ModelUserObject):
     """Move the location of all simple sources.
 
-    Attributes:
+    Args:
         p1 (tuple of three floats): (dx, dy, dz) increments, in metres, to move all
             simple sources (HertzianDipole, MagneticDipole) by for each model run.
             In a 2D model the step along the invariant axis must be zero. Required.
-        step_size (Tuple[float]): Increment (x, y, z) to move all
+
+    Attributes:
+        step_size (tuple of three floats): Increment (x, y, z) to move all
             simple sources by for each step.
     """
 
@@ -894,11 +917,13 @@ class SrcSteps(ModelUserObject):
 class RxSteps(ModelUserObject):
     """Move the location of all receivers.
 
-    Attributes:
+    Args:
         p1 (tuple of three floats): (dx, dy, dz) increments, in metres, to move all
             receivers by for each model run. In a 2D model the step along the
             invariant axis must be zero. Required.
-        step_size (Tuple[float]): Increment (x, y, z) to move all
+
+    Attributes:
+        step_size (tuple of three floats): Increment (x, y, z) to move all
             receivers by for each step.
     """
 
@@ -941,10 +966,12 @@ class RxSteps(ModelUserObject):
 class OutputDir(ModelUserObject):
     """Set the directory where output file(s) will be stored.
 
-    Attributes:
+    Args:
         dir (str): Path to the directory for the output file(s); it is created if it
             does not exist. Required. Without this object outputs are written beside
             the input file, or as set by ``outputfile`` in ``gprMax.run``.
+
+    Attributes:
         output_dir (str): File path to directory. Relative Python API paths
             are resolved against the working directory at build time. Hash
             commands resolve them against the top-level input file instead.
