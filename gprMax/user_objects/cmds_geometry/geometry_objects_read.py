@@ -178,6 +178,12 @@ class GeometryObjectsRead(GeometryUserObject):
         p1 = uip.resolve_inf_point(p1, role="lower")
         discretised_p1 = uip.discretise_point(p1)
         p2 = uip.round_to_grid_static_point(p1)
+        if not np.allclose(p1, p2, rtol=0.0, atol=1e-6 * np.min(uip.grid.dl)):
+            logger.warning(
+                f"{self.__str__()} p1 ({p1[0]:g}, {p1[1]:g}, {p1[2]:g}) m is not on a cell "
+                f"corner; the geometry is placed at the nearest one, ({p2[0]:g}, {p2[1]:g}, "
+                f"{p2[2]:g}) m"
+            )
 
         mode = config.get_model_config().mode
         invariant_axis = None
@@ -207,10 +213,17 @@ class GeometryObjectsRead(GeometryUserObject):
             target_invariant_size=target_invariant_size,
         ) as f:
             if not f.has_valid_discritisation():
+                file_dl = f.file_handler.attrs["dx_dy_dz"]
+                file_dl = (
+                    "not recorded"
+                    if isinstance(file_dl, h5py.Empty)
+                    else " x ".join(f"{value:.9g}" for value in np.ravel(file_dl)) + " m"
+                )
+                model_dl = " x ".join(f"{value:.9g}" for value in grid.dl)
                 raise ValueError(
                     f"{self.__str__()} requires the spatial resolution "
-                    "of the geometry objects file to match the spatial "
-                    "resolution of the model"
+                    f"of the geometry objects file ({file_dl}) to match the "
+                    f"model's ({model_dl} m)"
                 )
 
             if f.has_rigid_arrays() and f.has_ID_array():

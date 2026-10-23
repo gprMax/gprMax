@@ -104,7 +104,7 @@ def make_grid_from_bbox(
 
     The lower bound is snapped down on a zero-origin voxel lattice. Values
     within 1e-9 voxel units of an integer are snapped to that integer first,
-    so round-off just below a lattice plane does not add a lower cell.
+    so round-off at a lattice plane adds neither a lower nor an upper cell.
     Origin and spacing are stored as float64.
     """
     vmin_world = np.asarray(vmin_world, dtype=np.float64)
@@ -130,9 +130,16 @@ def make_grid_from_bbox(
     k = np.floor(scaled_min).astype(np.int64)
     origin = (k - pad) * dxyz
 
-    # Ensure vmax fits with padding
-    extent_from_origin = (vmax_world - origin) + pad * dxyz
-    nxyz = np.ceil(extent_from_origin / dxyz).astype(np.int64)
+    # Ensure vmax fits with padding. Snap round-off at an upper lattice plane
+    # as at the lower one, so an on-lattice bound does not add an empty cell.
+    scaled_extent = (vmax_world - origin) / dxyz + pad
+    nearest = np.rint(scaled_extent)
+    scaled_extent = np.where(
+        np.isclose(scaled_extent, nearest, rtol=0.0, atol=1e-9),
+        nearest,
+        scaled_extent,
+    )
+    nxyz = np.ceil(scaled_extent).astype(np.int64)
     nxyz = np.maximum(nxyz, 1)
 
     return GridSpec(

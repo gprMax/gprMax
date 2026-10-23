@@ -14,6 +14,27 @@ PMC symmetry boundaries and PML
   the required staggered boundary samples on CPU/MPI, CUDA, OpenCL and Metal;
   ordinary PMLs and internal MPI rank boundaries retain their existing extents.
 
+STLtoVoxel and geometry import
+------------------------------
+
+* **STLtoVoxel cells now match the STL:** the converter fills the cells whose
+  centres are inside each closed surface, on a grid whose lower corner is a
+  whole number of cells from the origin, using STEPtoVoxel's voxeliser.
+  Previously objects were 8--21 % too large and shifted by up to one cell
+  (a 20 mm cube at 2 mm gave 1101 cells instead of 1000). Converted files
+  therefore differ in cell count and grid shape; re-convert STL geometry used
+  in existing models and place it with the printed ``p1``.
+* STLtoVoxel writes the grid origin as ``origin_xyz`` and prints the
+  ``GeometryObjectsRead`` ``p1`` that keeps the STL coordinates. New options
+  ``--rotate``, ``--rotate-about``, ``--scale``, ``--translate``,
+  ``--supersample`` and ``--pad-cells``; the settings are recorded in the
+  ``conversion_settings`` attribute. The ``parallel`` argument of the
+  ``convert`` functions is deprecated and ignored.
+* Imported-geometry grids from STLtoVoxel, STEPtoVoxel and GeometryImport no
+  longer gain an empty upper cell when a bound lies on a cell face.
+* ``GeometryObjectsRead`` names both cell sizes when the file's resolution
+  differs from the model's, and warns when ``p1`` is rounded to a cell corner.
+
 Eigenmode tracking
 ------------------
 
