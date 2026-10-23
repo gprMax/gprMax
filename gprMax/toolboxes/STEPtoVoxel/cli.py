@@ -26,6 +26,9 @@ def _config(args: argparse.Namespace) -> ConversionConfig:
         sweep_axis=args.sweep_axis,
         material_grouping=getattr(args, "group_mode", "exact"),
         grouping_relative_tolerance=getattr(args, "group_tolerance", 0.01),
+        rotate_deg=tuple(args.rotate),
+        rotate_about=args.rotate_about,
+        rotate_order=args.rotate_order,
     )
 
 
@@ -50,6 +53,25 @@ def _common(parser: argparse.ArgumentParser) -> None:
         choices=("auto", "x", "y", "z"),
         default="auto",
         help="internal slice direction; auto uses the shortest grid dimension",
+    )
+    parser.add_argument(
+        "--rotate",
+        nargs=3,
+        type=float,
+        metavar=("RX", "RY", "RZ"),
+        default=(0.0, 0.0, 0.0),
+        help="rotate the model by these angles in degrees about the x, y and z axes",
+    )
+    parser.add_argument(
+        "--rotate-about",
+        choices=("bbox", "origin"),
+        default="bbox",
+        help="rotation pivot: the centre of the model's bounding box (default) or the CAD origin",
+    )
+    parser.add_argument(
+        "--rotate-order",
+        default="xyz",
+        help="order in which the rotations are applied (default: xyz, x first)",
     )
 
 
@@ -152,4 +174,11 @@ def main(argv: list[str] | None = None) -> int:
     if result.reference_geometry_cad_file:
         print(f"Wrote CAD-coordinate VTK reference geometry: {result.reference_geometry_cad_file}")
     print(f"Grid: {result.shape}; spacing={result.spacing}")
+    p1 = [f"{value:.12g}" for value in result.origin]
+    database = result.materials_file.stem
+    print(f"Grid origin (CAD coordinates): origin_xyz=({', '.join(p1)}) m")
+    print(f"Place it at its CAD position with GeometryObjectsRead p1 = ({', '.join(p1)}) m,")
+    print(f"or #geometry_objects_read: {' '.join(p1)} {result.geometry_file} {database}")
+    if any(value < 0 for value in result.origin):
+        print("gprMax domains start at 0: choose a p1 that moves negative coordinates inside.")
     return 0

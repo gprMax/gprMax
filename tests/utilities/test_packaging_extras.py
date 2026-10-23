@@ -30,6 +30,7 @@ OPTIONAL_REQUIREMENTS = {
     "metal": ("pyobjc-framework-metal",),
     "accelerators": ("pycuda", "pyopencl", "pyobjc-framework-metal"),
     "marimo": ("marimo", "plotly", "kaleido"),
+    "step": ("cadquery-ocp-novtk",),
 }
 
 SUPPORTED_PYTHON = ">=3.11,<3.14"

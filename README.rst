@@ -344,8 +344,10 @@ Install only the optional features you need, into the same selected Python:
     $ python -m pip install "gprMax[cuda]"
     $ python -m pip install "gprMax[opencl]"
     $ python -m pip install "gprMax[metal]"
+    $ python -m pip install "gprMax[step]"
 
-These extras install Python bindings only. MPI, CUDA, OpenCL, and Metal still
+The ``step`` extra installs OpenCascade for the STEPtoVoxel toolbox. The other
+extras install Python bindings only. MPI, CUDA, OpenCL, and Metal still
 require compatible system runtimes and hardware as described below and in
 the `accelerator documentation
 <https://docs.gprmax.com/en/latest/accelerators.html>`_.

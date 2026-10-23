@@ -80,6 +80,12 @@ class ConversionConfig:
     metres; by default the parser requests metre-valued CAD coordinates.
     ``pad_cells`` counts whole cells on each side. If linear deflection is
     omitted, the parser receives half the smallest voxel size.
+
+    ``rotate_deg`` rotates the whole STEP model before voxelisation, by angles
+    in degrees about the fixed x, y and z axes through a pivot. The rotations
+    are applied in ``rotate_order`` (by default x first, then y, then z). The
+    pivot is the centre of the model's bounding box (``rotate_about="bbox"``)
+    or the CAD origin (``"origin"``).
     """
 
     voxel_size: tuple[float, float, float] = (1e-3, 1e-3, 1e-3)
@@ -94,6 +100,9 @@ class ConversionConfig:
     angular_deflection: float = 0.1
     relative_deflection: bool = False
     force_units_to_metres: bool = True
+    rotate_deg: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    rotate_about: str = "bbox"
+    rotate_order: str = "xyz"
 
     def __post_init__(self) -> None:
         if (
@@ -114,6 +123,12 @@ class ConversionConfig:
             raise ValueError("material_grouping must be none, exact, or similar")
         if not 0 < self.grouping_relative_tolerance < 1:
             raise ValueError("grouping_relative_tolerance must be between zero and one")
+        if len(self.rotate_deg) != 3 or not np.isfinite(self.rotate_deg).all():
+            raise ValueError("rotate_deg must contain three finite angles")
+        if self.rotate_about not in {"bbox", "origin"}:
+            raise ValueError("rotate_about must be bbox or origin")
+        if sorted(self.rotate_order) != ["x", "y", "z"]:
+            raise ValueError("rotate_order must be an ordering of x, y and z, such as xyz")
 
 
 @dataclass(frozen=True)
@@ -157,8 +172,9 @@ def _parser_config(config: ConversionConfig):
     except ImportError as exc:
         if exc.name and (exc.name == "OCC" or exc.name.startswith("OCC.")):
             raise RuntimeError(
-                "STEPtoVoxel requires pythonocc-core. Install it in a compatible "
-                "conda environment, for example: conda install -c conda-forge pythonocc-core"
+                "STEPtoVoxel requires OpenCascade's Python bindings: either "
+                'pip install "gprMax[step]" (cadquery-ocp), or '
+                "conda install -c conda-forge pythonocc-core"
             ) from exc
         raise
 
@@ -170,6 +186,10 @@ def _parser_config(config: ConversionConfig):
         linear_deflection=linear_deflection,
         angular_deflection=config.angular_deflection,
         is_relative_deflection=config.relative_deflection,
+        enable_global_rotation=any(float(angle) != 0.0 for angle in config.rotate_deg),
+        rotate_deg=tuple(float(angle) for angle in config.rotate_deg),
+        rotate_about={"bbox": "bbox_global", "origin": "origin"}[config.rotate_about],
+        rotate_order=config.rotate_order,
     )
 
 
@@ -655,6 +675,11 @@ def convert_step(
         "resolved_sweep_axis": resolve_sweep_axis(grid.nxyz, config.sweep_axis),
         "material_grouping": config.material_grouping,
         "grouping_relative_tolerance": config.grouping_relative_tolerance,
+        "rotation": {
+            "rotate_deg": [float(angle) for angle in config.rotate_deg],
+            "rotate_about": config.rotate_about,
+            "rotate_order": config.rotate_order,
+        },
         "markers_file": markers_file.name,
         "markers": marker_records,
         "components": _component_records(parts),
