@@ -91,6 +91,14 @@ def test_grid_lattice_snap_is_stable_at_roundoff_scale():
     assert grid.origin_world[0] == pytest.approx(0.001)
 
 
+def test_grid_upper_bound_on_a_lattice_plane_adds_no_empty_cell():
+    # (0.05 - 0.03) / 0.002 is 10.000000000000002 in floating point.
+    grid = make_grid_from_bbox(np.full(3, 0.03), np.full(3, 0.05), dx=0.002, pad=1)
+
+    np.testing.assert_array_equal(grid.nxyz, (12, 12, 12))
+    np.testing.assert_allclose(grid.origin_world, 0.028)
+
+
 def test_shared_writer_omits_tags_when_none_exist(tmp_path):
     path = tmp_path / "geometry.h5"
     write_geometry_hdf5(path, np.zeros((2, 1, 1), dtype=np.int16), (1e-3, 1e-3, 1e-3))
