@@ -27,6 +27,7 @@ import pytest
 
 import gprMax
 import gprMax.model as model_mod
+from gprMax.user_objects.cmds_geometry import helix as helix_module
 
 DL = 2e-3
 P1 = (0.012, 0.012, 0.004)
@@ -57,6 +58,8 @@ def _scene(**overrides):
         material_id="diel",
     )
     kwargs.update(overrides)
+    if "material_ids" in kwargs:
+        kwargs.pop("material_id")
 
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(DL, DL, DL)))
@@ -65,6 +68,29 @@ def _scene(**overrides):
     scene.add(gprMax.PMLThickness(thickness=0))
     scene.add(gprMax.Material(er=3, se=0, mr=1, sm=0, id="diel"))
     scene.add(gprMax.Helix(**kwargs))
+    return scene
+
+
+def _review_scene(wire_radius, discretisation=(1e-3, 1e-3, 1e-3), material_id="pec"):
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=discretisation))
+    scene.add(gprMax.Domain(p1=(0.064, 0.064, 0.064)))
+    scene.add(gprMax.TimeWindow(iterations=1))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    if material_id != "pec":
+        scene.add(gprMax.Material(er=3, se=0, mr=1, sm=0, id=material_id))
+    scene.add(
+        gprMax.Helix(
+            p1=(0.032, 0.032, 0.008),
+            p2=(0.032, 0.032, 0.048),
+            coil_radius=0.008,
+            pitch=0.006,
+            turns=2.5,
+            wire_radius=wire_radius,
+            handedness="r",
+            material_id=material_id,
+        )
+    )
     return scene
 
 
@@ -181,6 +207,50 @@ def test_rejected_in_2d_mode(monkeypatch, tmp_path, mode):
 def test_underresolved_wire_rejected(monkeypatch, tmp_path):
     with pytest.raises(ValueError, match="wire diameter"):
         _run(monkeypatch, tmp_path, "thin", _scene(wire_radius=0.5e-3))
+
+
+@pytest.mark.parametrize("wire_radius", (0.0005, 0.0006))
+def test_disconnected_pec_helix_rejected(monkeypatch, tmp_path, wire_radius):
+    with pytest.raises(ValueError, match="disconnected PEC Yee-edge components"):
+        _run(monkeypatch, tmp_path, f"disconnected_{wire_radius}", _review_scene(wire_radius))
+
+
+def test_anisotropic_disconnected_pec_helix_rejected(monkeypatch, tmp_path):
+    scene = _review_scene(0.0008, discretisation=(1e-3, 2e-3, 2e-3))
+    with pytest.raises(ValueError, match="under-resolved"):
+        _run(monkeypatch, tmp_path, "anisotropic", scene)
+
+
+def test_connected_pec_wire_below_smallest_cell_accepted(monkeypatch, tmp_path):
+    grid = _run(monkeypatch, tmp_path, "small_pec", _review_scene(0.0009))
+
+    assert np.count_nonzero(_occupied_cells(grid)) > 0
+
+
+def test_anisotropic_non_pec_wire_warns(monkeypatch, tmp_path):
+    warnings = []
+    monkeypatch.setattr(helix_module.logger, "warning", warnings.append)
+    scene = _review_scene(0.00075, discretisation=(1e-3, 2e-3, 2e-3), material_id="diel")
+    _run(monkeypatch, tmp_path, "anisotropic_warning", scene)
+
+    assert any("largest grid cell size" in message for message in warnings)
+
+
+def test_directional_pec_wire_warns_connectivity_unchecked(monkeypatch, tmp_path):
+    warnings = []
+    monkeypatch.setattr(helix_module.logger, "warning", warnings.append)
+    scene = _scene(material_ids=("pec", "pec", "diel"))
+    _run(monkeypatch, tmp_path, "directional_pec", scene)
+
+    assert any("only some material directions are PEC" in message for message in warnings)
+
+
+def test_pec_tag_is_written_to_helix_cells(monkeypatch, tmp_path):
+    grid = _run(monkeypatch, tmp_path, "pec_tagged", _scene(material_id="pec", tag="wire"))
+
+    tags = grid.geometry_tag_map.data
+    assert np.count_nonzero(tags) == np.count_nonzero(_occupied_cells(grid))
+    assert np.count_nonzero(tags) > 0
 
 
 def test_invalid_handedness_rejected(monkeypatch, tmp_path):

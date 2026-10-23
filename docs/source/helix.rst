@@ -29,8 +29,21 @@ smoothing is controlled with ``averaging`` (``y`` or ``n``), and the optional
 ``tag`` writes semantic metadata to occupied cells. A helix can be given one
 isotropic material with ``material_id`` or three directional materials with
 ``material_ids``. Because a helix is not invariant along either transverse
-axis it can only be used in 3D models. The wire must be resolved by the mesh:
-the wire diameter should be at least the smallest grid cell size.
+axis it can only be used in 3D models.
+
+When the helix material is PEC in all three directions, the rasterised PEC
+Yee-edge network is checked after construction, including across MPI
+partitions. If the requested wire radius produces more than one connected
+edge component, the helix is rejected as under-resolved. The check uses the
+actual ``dx``, ``dy`` and ``dz`` and never changes ``wire_radius``.
+
+For a helix that is not PEC in all three directions, the wire diameter must
+be at least the smallest grid cell size. If it is smaller than the largest
+grid cell size, an explicit under-resolution warning is issued. Connectivity
+does not imply geometric accuracy: a connected one-cell-thick wire can still
+be a coarse approximation of the requested cross-section. If only some
+material directions are PEC, PEC connectivity is not checked and a warning is
+issued.
 
 Python API
 ==========

@@ -34,6 +34,56 @@ from gprMax.user_objects.user_objects import GeometryUserObject
 logger = logging.getLogger(__name__)
 
 
+def _pec_yee_edge_components(grid, occupancy, edge_ids):
+    """Count connected components in the PEC Yee-edge network."""
+    offset = np.zeros(3, dtype=np.int64)
+    if getattr(grid, "is_distributed", False) is True:
+        offset = np.asarray(grid.lower_extent, dtype=np.int64)
+    ox, oy, oz = (int(value) for value in offset)
+    local_edges = set()
+    for cell in np.argwhere(occupancy):
+        i, j, k = (int(value) for value in cell)
+        for dj in (0, 1):
+            for dk in (0, 1):
+                if grid.ID[0, i, j + dj, k + dk] == edge_ids[0]:
+                    a = (i + ox, j + dj + oy, k + dk + oz)
+                    local_edges.add((a, (a[0] + 1, a[1], a[2])))
+        for di in (0, 1):
+            for dk in (0, 1):
+                if grid.ID[1, i + di, j, k + dk] == edge_ids[1]:
+                    a = (i + di + ox, j + oy, k + dk + oz)
+                    local_edges.add((a, (a[0], a[1] + 1, a[2])))
+        for di in (0, 1):
+            for dj in (0, 1):
+                if grid.ID[2, i + di, j + dj, k] == edge_ids[2]:
+                    a = (i + di + ox, j + dj + oy, k + oz)
+                    local_edges.add((a, (a[0], a[1], a[2] + 1)))
+
+    groups = [(int(np.count_nonzero(occupancy)), local_edges)]
+    if getattr(grid, "is_distributed", False) is True:
+        groups = grid.comm.allgather(groups[0])
+    cells = sum(count for count, _ in groups)
+    if cells == 0:
+        return 0, 0
+
+    edges = set().union(*(edge_set for _, edge_set in groups))
+    parent = {}
+
+    def find(node):
+        parent.setdefault(node, node)
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = parent[node]
+        return node
+
+    for a, b in edges:
+        root_a, root_b = find(a), find(b)
+        if root_a != root_b:
+            parent[root_b] = root_a
+
+    return len({find(node) for edge in edges for node in edge}), cells
+
+
 class Helix(GeometryUserObject):
     """Helical wire of circular cross-section around the axis from p1 to p2.
 
@@ -143,16 +193,6 @@ class Helix(GeometryUserObject):
             raise ValueError(message)
         handedness = handedness.lower()
 
-        cell_size = min(grid.dx, grid.dy, grid.dz)
-        if 2 * wire_radius < cell_size:
-            message = (
-                f"{self.__str__()} the wire diameter {2 * wire_radius:g}m is "
-                f"smaller than the grid cell size {cell_size:g}m. Increase the "
-                "wire radius or reduce the discretisation."
-            )
-            logger.error(message)
-            raise ValueError(message)
-
         try:
             averagehelix = check_averaging(self.kwargs["averaging"])
         except KeyError:
@@ -203,7 +243,21 @@ class Helix(GeometryUserObject):
             pec_z = materials[2].is_pec
             numID = create_directional_material(grid, materials).numID
 
+        fully_pec = pec_x and pec_y and pec_z
+        cell_size = min(grid.dx, grid.dy, grid.dz)
+        if not fully_pec and 2 * wire_radius < cell_size:
+            message = (
+                f"{self.__str__()} the wire diameter {2 * wire_radius:g}m is "
+                f"smaller than the grid cell size {cell_size:g}m. Increase the "
+                "wire radius or reduce the discretisation."
+            )
+            logger.error(message)
+            raise ValueError(message)
+
         tag_data, tag_id = geometry_tag_args(grid, self.kwargs.get("tag"))
+        connectivity_mask = None
+        if fully_pec:
+            connectivity_mask = np.zeros(grid.solid.shape, dtype=np.uint8)
         occupied = build_helix(
             x1,
             y1,
@@ -231,10 +285,46 @@ class Helix(GeometryUserObject):
             grid.rigidE,
             grid.rigidH,
             grid.ID,
-            tag_data,
-            tag_id,
+            connectivity_mask if fully_pec else tag_data,
+            1 if fully_pec else tag_id,
         )
         validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
+
+        if fully_pec:
+            if tag_data is not None:
+                tag_data[connectivity_mask != 0] = tag_id
+            components, cells = _pec_yee_edge_components(
+                grid, connectivity_mask, (numIDx, numIDy, numIDz)
+            )
+            if cells > 0 and components != 1:
+                detail = (
+                    "no PEC Yee edges"
+                    if components == 0
+                    else f"{components} disconnected PEC Yee-edge components"
+                )
+                message = (
+                    f"{self.__str__()} the requested wire radius {wire_radius:g}m "
+                    f"is under-resolved: it produces {detail} on the "
+                    f"({grid.dx:g}, {grid.dy:g}, {grid.dz:g})m grid. Increase the "
+                    "wire radius or reduce the discretisation; the requested "
+                    "radius is not changed automatically."
+                )
+                logger.error(message)
+                raise ValueError(message)
+
+        largest_cell = max(grid.dx, grid.dy, grid.dz)
+        if 2 * wire_radius < largest_cell:
+            logger.warning(
+                f"{self.__str__()} the wire diameter {2 * wire_radius:g}m is "
+                f"smaller than the largest grid cell size {largest_cell:g}m; the "
+                "requested radius is preserved, but the rasterised wire may be "
+                "under-resolved in one or more directions."
+            )
+        if (pec_x or pec_y or pec_z) and not fully_pec:
+            logger.warning(
+                f"{self.__str__()} PEC Yee-edge connectivity is not checked when "
+                "only some material directions are PEC."
+            )
 
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(

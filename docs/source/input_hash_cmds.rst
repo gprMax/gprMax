@@ -1300,8 +1300,15 @@ use: ``#helix: 0.06 0.06 0.005 0.06 0.06 0.045 0.008 0.005 4 0.0015 r pec``.
 
     * The axial length of the helix is the pitch multiplied by the number of
       turns.
-    * The wire diameter must be at least the smallest grid cell size,
-      otherwise the command is rejected.
+    * A helix that is PEC in all three directions is rejected when its
+      rasterised PEC Yee edges form more than one connected component. The
+      check uses the actual ``dx``, ``dy`` and ``dz`` and preserves the
+      requested wire radius.
+    * For a helix that is not PEC in all three directions, the wire diameter
+      must be at least the smallest grid cell size. A diameter below the
+      largest grid cell size produces an explicit under-resolution warning.
+    * PEC connectivity is not checked when only some material directions are
+      PEC; an explicit warning is issued.
     * Helix objects are permitted to extend outwith the model domain if
       desired, however, only parts of object inside the domain will be
       created.

@@ -34,6 +34,9 @@ from .conftest import DL
 def _build(grid, p1, p2, coil_radius, pitch, turns, wire_radius, right_handed=True, **overrides):
     kwargs = dict(
         averaging=True,
+        dx=DL,
+        dy=DL,
+        dz=DL,
         pec_x=False,
         pec_y=False,
         pec_z=False,
@@ -49,9 +52,9 @@ def _build(grid, p1, p2, coil_radius, pitch, turns, wire_radius, right_handed=Tr
         turns,
         wire_radius,
         right_handed,
-        DL,
-        DL,
-        DL,
+        kwargs["dx"],
+        kwargs["dy"],
+        kwargs["dz"],
         1,
         1,
         1,
@@ -74,25 +77,38 @@ def _cell_centres(nx, ny, nz):
     return np.meshgrid(*axes, indexing="ij")
 
 
-def _is_26_connected(mask):
-    """Breadth-first 26-connectivity check over a boolean voxel mask."""
-    cells = set(map(tuple, np.argwhere(mask)))
-    if not cells:
-        return False
+def _pec_edge_components(grid):
+    """Count connected components of the PEC edges in the ID array."""
+    parent = {}
 
-    start = next(iter(cells))
-    visited = {start}
-    frontier = [start]
-    while frontier:
-        i, j, k = frontier.pop()
-        for di in (-1, 0, 1):
-            for dj in (-1, 0, 1):
-                for dk in (-1, 0, 1):
-                    neighbour = (i + di, j + dj, k + dk)
-                    if neighbour in cells and neighbour not in visited:
-                        visited.add(neighbour)
-                        frontier.append(neighbour)
-    return len(visited) == len(cells)
+    def find(node):
+        parent.setdefault(node, node)
+        while parent[node] != node:
+            parent[node] = parent[parent[node]]
+            node = parent[node]
+        return node
+
+    def add_edge(a, b):
+        root_a, root_b = find(a), find(b)
+        if root_a != root_b:
+            parent[root_b] = root_a
+
+    for cell in np.argwhere(grid.solid):
+        i, j, k = (int(value) for value in cell)
+        for dj in (0, 1):
+            for dk in (0, 1):
+                if grid.ID[0, i, j + dj, k + dk] == 1:
+                    add_edge((i, j + dj, k + dk), (i + 1, j + dj, k + dk))
+        for di in (0, 1):
+            for dk in (0, 1):
+                if grid.ID[1, i + di, j, k + dk] == 1:
+                    add_edge((i + di, j, k + dk), (i + di, j + 1, k + dk))
+        for di in (0, 1):
+            for dj in (0, 1):
+                if grid.ID[2, i + di, j + dj, k] == 1:
+                    add_edge((i + di, j + dj, k), (i + di, j + dj, k + 1))
+
+    return len({find(node) for node in parent})
 
 
 class TestHelixAnalytic:
@@ -164,9 +180,57 @@ class TestHelixContinuity:
             2.5,
             1.5 * DL,
             right_handed,
+            averaging=False,
+            pec_x=True,
+            pec_y=True,
+            pec_z=True,
         )
 
-        assert _is_26_connected(g.solid)
+        assert _pec_edge_components(g) == 1
+
+    @pytest.mark.parametrize(
+        "wire_radius,components",
+        [(0.0005, 7), (0.0006, 5)],
+        ids=["seven-components", "five-components"],
+    )
+    def test_review_reproducer_pec_edge_components(self, grid_arrays, wire_radius, components):
+        g = grid_arrays(64, 64, 64)
+        _build(
+            g,
+            (0.032, 0.032, 0.008),
+            (0.032, 0.032, 0.048),
+            0.008,
+            0.006,
+            2.5,
+            wire_radius,
+            averaging=False,
+            pec_x=True,
+            pec_y=True,
+            pec_z=True,
+        )
+
+        assert _pec_edge_components(g) == components
+
+    def test_anisotropic_grid_uses_actual_pec_edges(self, grid_arrays):
+        g = grid_arrays(64, 32, 32)
+        _build(
+            g,
+            (0.032, 0.032, 0.008),
+            (0.032, 0.032, 0.048),
+            0.008,
+            0.006,
+            2.5,
+            0.0008,
+            averaging=False,
+            dx=DL,
+            dy=2 * DL,
+            dz=2 * DL,
+            pec_x=True,
+            pec_y=True,
+            pec_z=True,
+        )
+
+        assert _pec_edge_components(g) > 1
 
 
 class TestHelixDegenerate:
