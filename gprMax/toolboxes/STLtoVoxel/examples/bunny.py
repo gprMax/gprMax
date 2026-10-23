@@ -33,7 +33,7 @@ go = gprMax.GeometryObjectsRead(
 
 gv = gprMax.GeometryView(
     p1=(0, 0, 0),
-    p2=domain.props.p1,
+    p2=(x, y, z),
     dl=(dl, dl, dl),
     filename=fn.with_suffix("").name,
     output_type="n",
