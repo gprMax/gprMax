@@ -3856,6 +3856,14 @@ class TransmissionLine(Source):
             G: FDTDGrid class describing a grid in a model.
         """
 
+        if self._incident_nl <= self.antpos:
+            raise ValueError(
+                f"{self.__class__.__name__} needs an internal line longer than "
+                f"{self.antpos} cells to connect the antenna, but "
+                f"{self.iterations} iterations only give {self._incident_nl}; "
+                "increase the model time window."
+            )
+
         # The preliminary incident-wave calculation and the coupled FDTD run
         # use separate output histories, but they advance the same internal
         # line voltage/current vectors and ABC memories. Always start the
