@@ -32,7 +32,7 @@ from ..Utilities.trace_time import receiver_time_offset
 def gather_receiver_outputs(filename, rxcomponent, *, return_time_offset=False):
     """Gather one component from all receivers without duplicating rx1."""
     with h5py.File(filename, "r") as output:
-        nrx = int(output.attrs["nrx"])
+        nrx = int(output.attrs.get("nrx", 0))
         receivers = sorted(output.get("rxs", {}), key=natural_key)
 
     if nrx == 0:
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         )
     else:
         with h5py.File(args.outputfile, "r") as f:
-            nrx = int(f.attrs["nrx"])
+            nrx = int(f.attrs.get("nrx", 0))
             receivers = sorted(f.get("rxs", {}), key=natural_key)
         if nrx == 0:
             raise ValueError(f"No receivers found in {args.outputfile}")

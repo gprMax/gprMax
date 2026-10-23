@@ -84,7 +84,7 @@ def _mpl_plot_file(file, outputs, fft, show, f):
         paths = paths + ["/subgrids/" + path + "/" for path in f["/subgrids"].keys()]
 
     # Get number of receivers in grid(s)
-    paths = [path for path in paths if f[path].attrs["nrx"] > 0]
+    paths = [path for path in paths if f[path].attrs.get("nrx", 0) > 0]
 
     # Check there are any receivers
     if not paths:
@@ -103,6 +103,10 @@ def _mpl_plot_file(file, outputs, fft, show, f):
             rx = receiver_key.removeprefix("rx")
             rxpath = path + "rxs/" + receiver_key + "/"
             availableoutputs = list(f[rxpath].keys())
+            name = f[rxpath].attrs.get("Name", "")
+            if isinstance(name, bytes):
+                name = name.decode("utf-8", errors="replace")
+            figname = f"{rxpath} - {name}" if name else rxpath
 
             # If only a single output is required, create one subplot
             if len(outputs) == 1:
@@ -138,7 +142,7 @@ def _mpl_plot_file(file, outputs, fft, show, f):
                     fig, (ax1, ax2) = plt.subplots(
                         nrows=1,
                         ncols=2,
-                        num=rxpath + " - " + f[rxpath].attrs["Name"],
+                        num=figname,
                         figsize=(20, 10),
                         facecolor="w",
                         edgecolor="w",
@@ -183,7 +187,7 @@ def _mpl_plot_file(file, outputs, fft, show, f):
                             xlabel="Time [s]",
                             ylabel=outputtext + " field strength [V/m]",
                         ),
-                        num=rxpath + " - " + f[rxpath].attrs["Name"],
+                        num=figname,
                         figsize=(20, 10),
                         facecolor="w",
                         edgecolor="w",
@@ -207,7 +211,7 @@ def _mpl_plot_file(file, outputs, fft, show, f):
 
                 fig, axs = plt.subplots(
                     subplot_kw=dict(xlabel="Time [s]"),
-                    num=rxpath + " - " + f[rxpath].attrs["Name"],
+                    num=figname,
                     figsize=(20, 10),
                     nrows=3,
                     ncols=plt_cols,
