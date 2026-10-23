@@ -540,6 +540,11 @@ def load_material_spec(
     averagable = entry.get("averagable")
     if averagable is not None and not isinstance(averagable, bool):
         raise ValueError(f"{context} field 'averagable' must be true or false")
+    if averagable and (np.isinf(se) or np.isinf(sm)):
+        raise ValueError(
+            f"{context} has infinite conductivity and cannot set 'averagable' to true: "
+            "perfect conductors do not participate in dielectric smoothing"
+        )
     if averagable is None:
         averagable = default_averagable
 
@@ -779,7 +784,8 @@ def material_to_database_entry(material: Material, *, directional_keys=None) -> 
         "name": material.ID,
         "model": "constant",
         "base": base,
-        "averagable": bool(material.averagable),
+        # Perfect conductors are never smoothed; keep exports loadable.
+        "averagable": bool(material.averagable) and not (material.is_pec or material.is_pmc),
     }
     if getattr(material, "directional_materials", None) is not None:
         if directional_keys is None:
