@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="710" viewBox="0 0 1400 710" role="img" aria-labelledby="title description">
+  <title id="title">From independent solves to a consistent modal field bank</title>
+  <desc id="description">Solve anchors, associate fields, refine uncertain matches, select a basis using longitudinal and gradient separation before symmetry and unresolved-block continuation, check the bank, then use its electric and magnetic fields.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10" fill="none" stroke="#356782" stroke-width="1.5"/>
+    </marker>
+  </defs>
+  <rect width="1400" height="710" fill="white"/>
+  <g font-family="DejaVu Sans, Arial, sans-serif" fill="#172b3a" text-anchor="middle">
+    <text x="700" y="44" font-size="29" font-weight="bold">From independent solves to a consistent modal field bank</text>
+    <text x="700" y="77" font-size="20">Follow the fields across frequency, then choose a stable basis inside each degenerate group.</text>
+    <g fill="#edf5fa" stroke="#356782" stroke-width="2.5">
+      <rect x="30" y="110" width="420" height="180" rx="10"/>
+      <rect x="490" y="110" width="420" height="180" rx="10"/>
+      <rect x="950" y="110" width="420" height="180" rx="10"/>
+      <rect x="950" y="370" width="420" height="250" rx="10"/>
+      <rect x="490" y="370" width="420" height="250" rx="10"/>
+      <rect x="30" y="370" width="420" height="250" rx="10"/>
+    </g>
+    <g font-size="26" font-weight="bold">
+      <text x="240" y="158">1. Solve anchors</text>
+      <text x="700" y="158">2. Associate fields</text>
+      <text x="1160" y="158">3. Refine uncertain matches</text>
+      <text x="1160" y="417">4. Select a basis</text>
+      <text x="700" y="417">5. Check the bank</text>
+      <text x="240" y="417">6. Use E/H fields</text>
+    </g>
+    <g font-size="21">
+      <text x="240" y="211">Solve extra candidate modes.</text>
+      <text x="240" y="245">Seed labels near the band center.</text>
+      <text x="700" y="211">Match field patterns and group spans.</text>
+      <text x="700" y="245">Allow raw solver ranks to change.</text>
+      <text x="1160" y="211">Add frequency anchors when needed.</text>
+      <text x="1160" y="245">Record any unresolved intervals.</text>
+      <text x="1160" y="459">TE/TM → Ku−Kv → Ku+Kv</text>
+      <text x="1160" y="498">Then certify and refine by symmetry.</text>
+      <text x="1160" y="537">Continue only unresolved blocks.</text>
+      <text x="1160" y="576">User direction: eligible C4v E pairs.</text>
+      <text x="700" y="470">Field equations, propagation, power</text>
+      <text x="700" y="509">and valid receiver decomposition.</text>
+      <text x="700" y="558">Keep confinement warnings visible.</text>
+      <text x="240" y="483">Interpolate consistent source fields.</text>
+      <text x="240" y="527">Measure with matching references.</text>
+    </g>
+    <text x="700" y="673" font-size="21">Every proposed basis change is checked. A rejected trial keeps the preceding validated fields.</text>
+  </g>
+  <g fill="none" stroke="#356782" stroke-width="3" marker-end="url(#arrow)">
+    <path d="M 452 200 H 482"/>
+    <path d="M 912 200 H 942"/>
+    <path d="M 1160 292 V 361"/>
+    <path d="M 948 495 H 918"/>
+    <path d="M 488 495 H 458"/>
+  </g>
+</svg>
