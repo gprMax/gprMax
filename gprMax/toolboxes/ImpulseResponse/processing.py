@@ -25,6 +25,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 import numpy.typing as npt
+from numpy.lib.npyio import DataSource
 from scipy.signal import fftconvolve
 
 from gprMax.toolboxes.SFCW.processing import (
@@ -136,9 +137,41 @@ def _validate_id(value: str) -> str:
     identifier = str(value).strip()
     if not identifier or re.fullmatch(r"[A-Za-z0-9_.-]+", identifier) is None:
         raise ValueError(
-            "waveform IDs must contain only letters, digits, underscores, dots, or hyphens"
+            "waveform IDs must contain only letters, digits, underscores, dots, or hyphens; "
+            f"got {value!r}"
         )
     return identifier
+
+
+def _csv_waveform_ids(stream) -> list[str]:
+    """Consume the CSV header from ``stream`` and return its unique waveform IDs.
+
+    The first column is the time coordinate, not a waveform, so its label is
+    neither reserved nor compared with the IDs.
+    """
+
+    names: list[str] = []
+    for number, line in enumerate(stream, start=1):
+        if "#" in line:
+            # A header may be fully commented, but text before '#' or a second
+            # '#' would otherwise be dropped from or merged into the raw names.
+            prefix, _, line = line.partition("#")
+            if number == 1:
+                # A UTF-8 byte-order mark is file encoding, not header text.
+                prefix = prefix.removeprefix("\ufeff")
+            if prefix.strip() or "#" in line:
+                raise ValueError("waveform CSV header names must not contain '#'")
+        text = line.strip(" \r\n")
+        if text:
+            names = [name.strip() for name in text.split(",")]
+            break
+    if len(names) < 2 or names[0].lower() not in {"time", "t", "seconds"}:
+        raise ValueError("waveform CSV must contain a first 'time' column and one or more signals")
+    identifiers = [_validate_id(name) for name in names[1:]]
+    duplicates = sorted({name for name in identifiers if identifiers.count(name) > 1})
+    if duplicates:
+        raise ValueError(f"CSV waveform IDs must be unique; duplicates: {duplicates}")
+    return identifiers
 
 
 def load_source_sampling(
@@ -330,14 +363,26 @@ def load_csv_waveforms(
     values in the selected source's units. Times must increase strictly.
     Linear interpolation uses zero outside the CSV interval, and updates
     before ``start_time`` remain zero regardless of the evaluation offset.
+    Each later column name is used verbatim as a unique waveform ID, and an ID
+    may repeat the time label. As with :func:`numpy.genfromtxt`, a filename
+    ending in ``.gz``, ``.bz2``, ``.xz`` or ``.lzma`` is decompressed before
+    the header and data are read.
     """
 
     path = Path(filename)
-    table = np.genfromtxt(path, delimiter=",", names=True, dtype=np.float64, encoding="utf-8")
-    names = table.dtype.names or ()
-    if len(names) < 2 or names[0].lower() not in {"time", "t", "seconds"}:
-        raise ValueError("waveform CSV must contain a first 'time' column and one or more signals")
-    times = np.atleast_1d(np.asarray(table[names[0]], dtype=np.float64))
+    # np.genfromtxt opens a filename through NumPy's public DataSource, which
+    # picks the decompressor from the suffix. Header and data share one text
+    # stream, so data start after the decompressed header line. Data are read
+    # without field names: NumPy name validation can map distinct valid IDs
+    # (for example "a-b", "ab" and "ab_1") onto one field. Columns are matched
+    # by position and each waveform keeps its raw header name.
+    with DataSource().open(str(path), "rt", encoding="utf-8") as stream:
+        identifiers = _csv_waveform_ids(stream)
+        table = np.genfromtxt(stream, delimiter=",", dtype=np.float64, encoding="utf-8", ndmin=2)
+    columns = table.T if table.size else np.empty((len(identifiers) + 1, 0))
+    if len(columns) != len(identifiers) + 1:
+        raise ValueError("waveform CSV header and data must have the same number of columns")
+    times = columns[0]
     if times.size < 2 or not np.all(np.isfinite(times)) or np.any(np.diff(times) <= 0):
         raise ValueError("CSV waveform times must be finite and strictly increasing")
     if not np.isfinite(start_time) or start_time < 0:
@@ -348,10 +393,9 @@ def load_csv_waveforms(
     local_times = update_times - start_time + source.evaluation_time_offset
     active = update_times >= start_time
     waveforms: list[TargetWaveform] = []
-    for name in names[1:]:
-        values = np.atleast_1d(np.asarray(table[name], dtype=np.float64))
+    for identifier, values in zip(identifiers, columns[1:]):
         if values.shape != times.shape or not np.all(np.isfinite(values)):
-            raise ValueError(f"CSV waveform column {name!r} must contain finite values")
+            raise ValueError(f"CSV waveform column {identifier!r} must contain finite values")
         samples = np.zeros(signal.samples.size, dtype=np.float64)
         samples[active] = np.interp(
             local_times[active],
@@ -362,7 +406,7 @@ def load_csv_waveforms(
         )
         waveforms.append(
             TargetWaveform(
-                id=_validate_id(name),
+                id=identifier,
                 samples=samples,
                 dt=signal.dt,
                 source_time_offset=signal.time_offset,
