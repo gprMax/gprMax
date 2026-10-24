@@ -15,6 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
+import bz2
+import gzip
+import lzma
 from pathlib import Path
 
 import h5py
@@ -218,6 +221,224 @@ def test_csv_waveforms_are_resampled_on_source_evaluation_times(tmp_path):
     assert_allclose(first.samples[:3], (1.0, 1.0, 0.0))
     assert_allclose(second.samples[:3], (0.5, -0.5, 0.0))
     assert np.all(first.samples[3:] == 0)
+
+
+_OPENERS = {".csv": open, ".gz": gzip.open, ".bz2": bz2.open, ".xz": lzma.open, ".lzma": lzma.open}
+
+
+def _write_csv(tmp_path, text, suffix=".csv"):
+    # Plain text and each compressed container formerly read by NumPy's
+    # filename suffix dispatch; ".lzma" is the legacy LZMA-alone format.
+    path = tmp_path / ("pulses.csv" + ("" if suffix == ".csv" else suffix))
+    options = {"format": lzma.FORMAT_ALONE} if suffix == ".lzma" else {}
+    with _OPENERS[suffix](path, "wt", encoding="utf-8", **options) as stream:
+        stream.write(text)
+    return path
+
+
+def _csv_with_header(tmp_path, header, suffix=".csv"):
+    rows = "".join(f"{t}{',0' * header.count(',')}\n" for t in range(3))
+    return _write_csv(tmp_path, f"{header}\n{rows}", suffix)
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+def test_csv_waveform_ids_are_raw_header_names(tmp_path, suffix):
+    source = _source(np.r_[1.0, np.zeros(7)], dt=1.0, time_offset=0.5)
+    text = "time,pulse-1,pulse.2,file,a-b,ab\n0,0,1,2,3,4\n1,2,0,0,0,0\n2,0,-1,0,0,0\n"
+    csv = _write_csv(tmp_path, text, suffix)
+
+    waveforms = load_csv_waveforms(csv, source)
+
+    # Each ID and its samples come from the same raw column, not a NumPy field name.
+    assert [item.id for item in waveforms] == ["pulse-1", "pulse.2", "file", "a-b", "ab"]
+    assert {item.input_file for item in waveforms} == {str(csv)}
+    assert_allclose(waveforms[0].samples[:3], (1.0, 1.0, 0.0))
+    assert_allclose(waveforms[1].samples[:3], (0.5, -0.5, 0.0))
+    assert_allclose([item.samples[0] for item in waveforms[2:]], (1.0, 1.5, 2.0))
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+def test_csv_header_conventions_are_preserved(tmp_path, suffix):
+    source = _source(np.r_[1.0, np.zeros(7)], dt=1.0, time_offset=0.5)
+    text = "\n# Time, A ,a\n0,2,4\n# data comment\n\n1,0,0 # trailing\n2,0,0\n"
+    csv = _write_csv(tmp_path, text, suffix)
+
+    upper, lower = load_csv_waveforms(csv, source)
+
+    assert (upper.id, lower.id) == ("A", "a")
+    assert_allclose(upper.samples[:3], (1.0, 0.0, 0.0))
+    assert_allclose(lower.samples[:3], (2.0, 0.0, 0.0))
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+@pytest.mark.parametrize(
+    "header",
+    [
+        pytest.param("time,pulse_a,b", id="plain"),
+        pytest.param("t,pulse_a,b", id="t"),
+        pytest.param("Seconds,pulse_a,b", id="seconds-mixed-case"),
+        pytest.param(" time , pulse_a , b ", id="padded-names"),
+        pytest.param("\n\ntime,pulse_a,b", id="leading-blank-lines"),
+        pytest.param("# time,pulse_a,b", id="commented"),
+        pytest.param("  #time,pulse_a,b", id="indented-comment"),
+        pytest.param("\ufeff# time,pulse_a,b", id="bom-commented"),
+        pytest.param("\ufeff#time,pulse_a,b", id="bom-commented-unspaced"),
+        pytest.param("\ufeff  # time,pulse_a,b", id="bom-indented-comment"),
+        pytest.param("\ufeff#\ntime,pulse_a,b", id="bom-empty-comment-then-plain"),
+        pytest.param("\ufeff#\n# time,pulse_a,b", id="bom-empty-comment-then-commented"),
+    ],
+)
+def test_csv_accepts_existing_header_conventions(tmp_path, header, suffix):
+    # Supported header forms keep their raw IDs; a UTF-8 BOM before a commented
+    # header is not part of any name.
+    source = _source(np.r_[1.0, np.zeros(7)], dt=1.0, time_offset=0.5)
+    csv = _write_csv(tmp_path, f"{header}\n0,0,1\n1,2,0\n2,0,-1\n", suffix)
+    if suffix == ".csv":
+        assert csv.read_bytes().startswith(b"\xef\xbb\xbf") == header.startswith("\ufeff")
+
+    first, second = load_csv_waveforms(csv, source)
+
+    assert (first.id, second.id) == ("pulse_a", "b")
+    assert_allclose(first.samples[:3], (1.0, 1.0, 0.0))
+    assert_allclose(second.samples[:3], (0.5, -0.5, 0.0))
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+@pytest.mark.parametrize(
+    "header, invalid",
+    [
+        ("time,measured pulse", "measured pulse"),
+        ('time,"p"', '"p"'),
+        ("time,?,b", "?"),
+        ("time,,b", ""),
+    ],
+)
+def test_csv_rejects_header_names_that_are_not_waveform_ids(tmp_path, header, invalid, suffix):
+    source = _source(np.r_[1.0, np.zeros(7)], dt=1.0, time_offset=0.5)
+    with pytest.raises(ValueError, match="waveform IDs must contain only") as error:
+        load_csv_waveforms(_csv_with_header(tmp_path, header, suffix), source)
+    assert f"got {invalid!r}" in str(error.value)
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+@pytest.mark.parametrize("header", ["time,a,a", "time,a,a,a_1"])
+def test_csv_rejects_duplicate_header_names(tmp_path, header, suffix):
+    source = _source(np.r_[1.0, np.zeros(7)], dt=1.0, time_offset=0.5)
+    with pytest.raises(ValueError, match=r"must be unique; duplicates: \['a'\]"):
+        load_csv_waveforms(_csv_with_header(tmp_path, header, suffix), source)
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+@pytest.mark.parametrize(
+    "header", ["time,pulse#1,c", "time,a,b # note", "x#time,a", "\ufeffx#time,a"]
+)
+def test_csv_rejects_hash_inside_header(tmp_path, header, suffix):
+    source = _source(np.r_[1.0, np.zeros(7)], dt=1.0, time_offset=0.5)
+    with pytest.raises(ValueError, match="header names must not contain '#'"):
+        load_csv_waveforms(_csv_with_header(tmp_path, header, suffix), source)
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+@pytest.mark.parametrize("ids", [("a-b", "ab", "ab_1", "ab_1_1"), ("a.b", "ab", "ab_1", "ab_1_1")])
+def test_unique_valid_raw_ids_keep_their_own_column_values(tmp_path, ids, suffix):
+    # NumPy field-name validation maps these distinct IDs onto repeated field names.
+    source = _source(np.zeros(5), dt=1.0, time_offset=0.0)
+    values = 10 * np.arange(1, len(ids) + 1) + np.arange(3)[:, None]
+    body = "".join(f"{t}," + ",".join(map(str, row)) + "\n" for t, row in enumerate(values))
+    csv = _write_csv(tmp_path, ",".join(("time",) + ids) + "\n" + body, suffix)
+
+    waveforms = load_csv_waveforms(csv, source)
+
+    assert [item.id for item in waveforms] == list(ids)
+    for item, column in zip(waveforms, values.T):
+        assert_allclose(item.samples, np.r_[column, 0.0, 0.0])
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+@pytest.mark.parametrize(
+    "header, ids",
+    [
+        pytest.param("time,time", ("time",), id="time"),
+        pytest.param("t,t", ("t",), id="t"),
+        pytest.param("seconds,seconds", ("seconds",), id="seconds"),
+        pytest.param("Time,time,TIME", ("time", "TIME"), id="case-variants"),
+        pytest.param("t,seconds,time", ("seconds", "time"), id="other-time-labels"),
+    ],
+)
+def test_csv_waveform_ids_may_equal_the_time_column_label(tmp_path, header, ids, suffix):
+    # The first column is the time coordinate, not a waveform, so its label is
+    # neither reserved nor counted among the waveform IDs.
+    source = _source(np.zeros(5), dt=1.0, time_offset=0.0)
+    assert sample_builtin_waveform(source, "ricker", 1.0, 0.25, ids[0]).id == ids[0]
+    values = 10 * np.arange(1, len(ids) + 1) + np.arange(3)[:, None]
+    body = "".join(f"{t}," + ",".join(map(str, row)) + "\n" for t, row in enumerate(values))
+    csv = _write_csv(tmp_path, f"{header}\n{body}", suffix)
+
+    waveforms = load_csv_waveforms(csv, source)
+
+    assert [item.id for item in waveforms] == list(ids)
+    for item, column in zip(waveforms, values.T):
+        assert_allclose(item.samples, np.r_[column, 0.0, 0.0])
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+@pytest.mark.parametrize(
+    "header, duplicate",
+    [("time,time,time", "time"), ("t,a,t,t", "t"), ("Seconds,seconds,b,seconds", "seconds")],
+)
+def test_csv_rejects_duplicate_ids_equal_to_time_label(tmp_path, header, duplicate, suffix):
+    source = _source(np.r_[1.0, np.zeros(7)], dt=1.0, time_offset=0.5)
+    with pytest.raises(ValueError, match=rf"must be unique; duplicates: \['{duplicate}'\]"):
+        load_csv_waveforms(_csv_with_header(tmp_path, header, suffix), source)
+
+
+@pytest.mark.parametrize("suffix", list(_OPENERS))
+@pytest.mark.parametrize(
+    "text, message",
+    [
+        pytest.param("\ufefftime,a\n0,1\n1,2\n", "first 'time' column", id="plain-bom"),
+        pytest.param("time,a\n0,1\n", "strictly increasing", id="one-row"),
+        pytest.param("time,a,b\n0,1\n1,2\n", "same number of columns", id="short-rows"),
+    ],
+)
+def test_csv_rejects_unsupported_layouts(tmp_path, text, message, suffix):
+    # A plain BOM header stays unsupported; positional columns must match the header.
+    source = _source(np.r_[1.0, np.zeros(7)], dt=1.0, time_offset=0.5)
+    csv = _write_csv(tmp_path, text, suffix)
+    with pytest.raises(ValueError, match=message):
+        load_csv_waveforms(csv, source)
+
+
+def test_csv_filename_lookup_matches_numpy(tmp_path):
+    # A missing plain name also finds a compressed sibling, as np.genfromtxt does.
+    source = _source(np.zeros(5), dt=1.0, time_offset=0.0)
+    csv = _write_csv(tmp_path, "time,pulse\n0,10\n1,11\n2,12\n", ".gz").with_suffix("")
+
+    (waveform,) = load_csv_waveforms(csv, source)
+
+    assert (waveform.id, waveform.input_file) == ("pulse", str(csv))
+    assert_allclose(waveform.samples, (10.0, 11.0, 12.0, 0.0, 0.0))
+    with pytest.raises(FileNotFoundError):
+        load_csv_waveforms(tmp_path / "missing.csv", source)
+
+
+@pytest.mark.parametrize("waveform_id", ["pulse-1", "time"])
+def test_cli_writes_and_deduplicates_raw_csv_waveform_ids(tmp_path, waveform_id):
+    from gprMax.toolboxes.ImpulseResponse.cli import main
+
+    impulse_file = tmp_path / "impulse.h5"
+    _write_impulse_h5(impulse_file)
+    csv = tmp_path / "pulses.csv"
+    csv.write_text(f"time,{waveform_id}\n0,0\n1e-10,1\n2e-10,0\n")
+    arguments = ["process", str(impulse_file), "--waveform-file", str(csv)]
+    cli_duplicate = rf"^waveform IDs must be unique; duplicates: \['{waveform_id}'\]$"
+    with pytest.raises(ValueError, match=cli_duplicate):
+        main(arguments + ["--waveform", "ricker", "1.0", "300e6", waveform_id])
+
+    assert main(arguments) == 0
+    output = tmp_path / "impulse_waveforms" / f"impulse_{waveform_id}.h5"
+    with h5py.File(output, "r") as file:
+        assert file["srcs/src1/excitation"].attrs["WaveformID"] == waveform_id
 
 
 def test_waveform_energy_limit_reports_out_of_band_fraction():
