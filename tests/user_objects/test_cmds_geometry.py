@@ -18,8 +18,8 @@
 """Tests for the geometry user-object classes under
 ``gprMax.user_objects.cmds_geometry``.
 
-14 classes in total: 11 primitive shapes (Edge, Plate, Triangle, Box,
-Cylinder, Cone, CylindricalSector, Sphere, Ellipsoid, FractalBox,
+15 classes in total: 12 primitive shapes (Edge, Plate, Triangle, Box,
+Cylinder, Cone, CylindricalSector, Helix, Sphere, Ellipsoid, FractalBox,
 GeometryObjectsRead) plus 3 modifiers that decorate a fractal box
 (AddSurfaceRoughness, AddSurfaceWater, AddGrass).
 
@@ -53,6 +53,7 @@ from gprMax.user_objects.cmds_geometry.edge import Edge
 from gprMax.user_objects.cmds_geometry.ellipsoid import Ellipsoid
 from gprMax.user_objects.cmds_geometry.fractal_box import FractalBox
 from gprMax.user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
+from gprMax.user_objects.cmds_geometry.helix import Helix
 from gprMax.user_objects.cmds_geometry.plate import Plate
 from gprMax.user_objects.cmds_geometry.sphere import Sphere
 from gprMax.user_objects.cmds_geometry.triangle import Triangle
@@ -70,6 +71,7 @@ PRIMITIVES = [
     (Cylinder, "#cylinder"),
     (Cone, "#cone"),
     (CylindricalSector, "#cylindrical_sector"),
+    (Helix, "#helix"),
     (Sphere, "#sphere"),
     (Ellipsoid, "#ellipsoid"),
     (FractalBox, "#fractal_box"),

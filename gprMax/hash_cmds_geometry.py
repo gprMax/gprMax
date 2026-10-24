@@ -29,6 +29,7 @@ from .user_objects.cmds_geometry.cylindrical_sector import CylindricalSector
 from .user_objects.cmds_geometry.edge import Edge
 from .user_objects.cmds_geometry.ellipsoid import Ellipsoid
 from .user_objects.cmds_geometry.fractal_box import FractalBox
+from .user_objects.cmds_geometry.helix import Helix
 from .user_objects.cmds_geometry.magnetic_edge import MagneticEdge
 from .user_objects.cmds_geometry.plate import Plate
 from .user_objects.cmds_geometry.sphere import Sphere
@@ -106,6 +107,7 @@ def process_geometrycmds(geometry):
             "#cylinder:": 9,
             "#cone:": 10,
             "#cylindrical_sector:": 10,
+            "#helix:": 13,
             "#sphere:": 6,
             "#ellipsoid:": 8,
         }
@@ -310,6 +312,67 @@ def process_geometrycmds(geometry):
                 raise ValueError
 
             scene_objects.append(cylinder)
+
+        elif tmp[0] == "#helix:":
+            if len(tmp) < 13:
+                logger.exception(
+                    "'" + " ".join(tmp) + "' requires at least twelve parameters"
+                )
+                raise ValueError
+
+            p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
+            p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
+            coil_radius = float(tmp[7])
+            pitch = float(tmp[8])
+            turns = float(tmp[9])
+            wire_radius = float(tmp[10])
+            handedness = tmp[11]
+
+            if len(tmp) == 13:
+                helix = Helix(
+                    p1=p1,
+                    p2=p2,
+                    coil_radius=coil_radius,
+                    pitch=pitch,
+                    turns=turns,
+                    wire_radius=wire_radius,
+                    handedness=handedness,
+                    material_id=tmp[12],
+                    tag=tag,
+                )
+
+            elif len(tmp) == 14:
+                helix = Helix(
+                    p1=p1,
+                    p2=p2,
+                    coil_radius=coil_radius,
+                    pitch=pitch,
+                    turns=turns,
+                    wire_radius=wire_radius,
+                    handedness=handedness,
+                    material_id=tmp[12],
+                    averaging=tmp[13],
+                    tag=tag,
+                )
+
+            elif len(tmp) == 15:
+                helix = Helix(
+                    p1=p1,
+                    p2=p2,
+                    coil_radius=coil_radius,
+                    pitch=pitch,
+                    turns=turns,
+                    wire_radius=wire_radius,
+                    handedness=handedness,
+                    material_ids=tmp[12:],
+                    tag=tag,
+                )
+
+            else:
+                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
+                raise ValueError
+
+            scene_objects.append(helix)
 
         elif tmp[0] == "#cone:":
             if len(tmp) < 10:

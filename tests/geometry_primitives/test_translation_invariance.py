@@ -30,6 +30,7 @@ from gprMax.cython.geometry_primitives import (
     build_cylinder,
     build_cylindrical_sector,
     build_ellipsoid,
+    build_helix,
     build_sphere,
     build_triangle,
 )
@@ -108,6 +109,27 @@ def _cone(grid, shift):
     )
 
 
+def _helix(grid, shift):
+    s = shift * DL
+    build_helix(
+        15 * DL + s,
+        15 * DL + s,
+        2 * DL + s,
+        15 * DL + s,
+        15 * DL + s,
+        14 * DL + s,
+        5 * DL,
+        3 * DL,
+        1.0,
+        1.5 * DL,
+        True,
+        DL,
+        DL,
+        DL,
+        *_material_args(grid),
+    )
+
+
 def _triangle(grid, shift):
     s = shift * DL
     build_triangle(
@@ -147,7 +169,9 @@ def _sector(grid, shift):
     )
 
 
-@pytest.mark.parametrize("builder", [_sphere, _ellipsoid, _cylinder, _cone, _triangle, _sector])
+@pytest.mark.parametrize(
+    "builder", [_sphere, _ellipsoid, _cylinder, _cone, _helix, _triangle, _sector]
+)
 def test_integer_cell_translation_preserves_voxel_mask(grid_arrays, builder):
     shift = 29
     extent = 28

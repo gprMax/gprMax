@@ -39,6 +39,7 @@ from gprMax.user_objects.cmds_geometry.cylindrical_sector import CylindricalSect
 from gprMax.user_objects.cmds_geometry.edge import Edge
 from gprMax.user_objects.cmds_geometry.ellipsoid import Ellipsoid
 from gprMax.user_objects.cmds_geometry.fractal_box import FractalBox
+from gprMax.user_objects.cmds_geometry.helix import Helix
 from gprMax.user_objects.cmds_geometry.plate import Plate
 from gprMax.user_objects.cmds_geometry.sphere import Sphere
 from gprMax.user_objects.cmds_geometry.triangle import Triangle
@@ -482,6 +483,67 @@ class TestFractalBoxModifierArity:
         ]
         with pytest.raises(ValueError):
             process_geometrycmds(geometry)
+
+
+# ---------------------------------------------------------------------------
+# Helix
+# ---------------------------------------------------------------------------
+
+
+class TestHelix:
+    BASE = "0.01 0.01 0.002 0.01 0.01 0.03 0.006 0.004 1.5 0.002"
+
+    def test_thirteen_token_isotropic(self):
+        objs = process_geometrycmds([f"#helix: {self.BASE} r pec"])
+        helix = objs[0]
+        assert isinstance(helix, Helix)
+        assert helix.kwargs["p1"] == (0.01, 0.01, 0.002)
+        assert helix.kwargs["p2"] == (0.01, 0.01, 0.03)
+        assert helix.kwargs["coil_radius"] == 0.006
+        assert helix.kwargs["pitch"] == 0.004
+        assert helix.kwargs["turns"] == 1.5
+        assert helix.kwargs["wire_radius"] == 0.002
+        assert helix.kwargs["handedness"] == "r"
+        assert helix.kwargs["material_id"] == "pec"
+        assert "averaging" not in helix.kwargs
+        assert helix.kwargs["tag"] is None
+
+    def test_fourteen_token_averaging(self):
+        objs = process_geometrycmds([f"#helix: {self.BASE} l metal n"])
+        helix = objs[0]
+        assert isinstance(helix, Helix)
+        assert helix.kwargs["handedness"] == "l"
+        assert helix.kwargs["material_id"] == "metal"
+        assert helix.kwargs["averaging"] == "n"
+
+    def test_fifteen_token_anisotropic(self):
+        objs = process_geometrycmds([f"#helix: {self.BASE} r m1 m2 m3"])
+        helix = objs[0]
+        assert isinstance(helix, Helix)
+        assert helix.kwargs["material_ids"] == ["m1", "m2", "m3"]
+
+    def test_fifteen_token_isotropic_tag(self):
+        objs = process_geometrycmds([f"#helix: {self.BASE} r metal y wire_tag"])
+        helix = objs[0]
+        assert isinstance(helix, Helix)
+        assert helix.kwargs["material_id"] == "metal"
+        assert helix.kwargs["averaging"] == "y"
+        assert helix.kwargs["tag"] == "wire_tag"
+
+    def test_seventeen_token_anisotropic_tag(self):
+        objs = process_geometrycmds([f"#helix: {self.BASE} r m1 m2 m3 y wire_tag"])
+        helix = objs[0]
+        assert isinstance(helix, Helix)
+        assert helix.kwargs["material_ids"] == ["m1", "m2", "m3"]
+        assert helix.kwargs["tag"] == "wire_tag"
+
+    def test_too_few_tokens_rejected(self):
+        with pytest.raises(ValueError):
+            process_geometrycmds([f"#helix: {self.BASE} r"])
+
+    def test_too_many_tokens_rejected(self):
+        with pytest.raises(ValueError):
+            process_geometrycmds([f"#helix: {self.BASE} r m1 m2 m3 x"])
 
 
 # ---------------------------------------------------------------------------
