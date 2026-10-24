@@ -356,6 +356,10 @@ class EigenmodeSource(Source):
         self._auto_tracking_mode_count = None
         self.degenerate = ()
         self.symmetry_diagnostics = []
+        self.separation_diagnostics = []
+        self.separation_attempts = []
+        self.transport_diagnostics = []
+        self.transport_attempts = []
         self.symmetry_detection = None
         self.mode_polarizations = {}
         self.degenerate_diagnostics = []

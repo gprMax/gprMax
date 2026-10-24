@@ -1,0 +1,5 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+START hybrid_E_crossing_24
+COMPLETE hybrid_E_crossing_24 {'name': 'hybrid_E_crossing_24', 'status': 'complete', 'modes': 10, 'max_field_residual': 2.5464110629754736e-14, 'min_gauge_overlap': 0.9999999999999774, 'min_same_channel_overlap': 0.9999999999999774, 'min_continuity': 0.9999367242470006, 'max_parity_error': 4.172618295238452e-12, 'fallback_groups': [], 'separation_rejections': []}
+START higher_TE_TM_E_crossing_24
+COMPLETE higher_TE_TM_E_crossing_24 {'name': 'higher_TE_TM_E_crossing_24', 'status': 'complete', 'modes': 40, 'max_field_residual': 1.522905354501204e-14, 'min_gauge_overlap': 0.9999999999999649, 'min_same_channel_overlap': 0.9999999999999649, 'min_continuity': 0.9999994402363233, 'max_parity_error': 2.3240422577593773e-10, 'fallback_groups': [], 'separation_rejections': []}

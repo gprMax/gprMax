@@ -1274,6 +1274,10 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
     owner.polarization_diagnostics = []
     owner.symmetry_diagnostics = []
     owner.symmetry_detection = None
+    owner.separation_diagnostics = []
+    owner.separation_attempts = []
+    owner.transport_diagnostics = []
+    owner.transport_attempts = []
     owner._degenerate_masks = {}
     owner._degenerate_overlaps = {}
     owner._degenerate_guard_trimmed = {}
@@ -1574,15 +1578,15 @@ def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anch
 
 
 def _polarize_resolved_pairs(owner, grid, solvers, modes, electric, magnetic, requested):
-    """Apply directions within resolved doublets, never across their parent span."""
+    """Apply directions only within certified C4v E doublets."""
     from gprMax.eigenmode_symmetry import _validate_measurement_basis
 
-    resolved = {tuple(record['modes']): record['blocks'] for record in owner.symmetry_diagnostics}
-    pairs = [tuple(block) for parent in owner.degenerate_diagnostics
-             for block in resolved.get(tuple(parent['modes']), (parent['modes'],))
-             if len(block) == 2]
+    pairs = [tuple(block) for record in owner.symmetry_diagnostics
+             if record.get('symmetry') == 'c4v'
+             for block, irrep in zip(record['blocks'], record.get('irreps', ()))
+             if len(block) == 2 and irrep == 'E']
     if not pairs:
-        raise ValueError('mode_polarizations requires a resolved two-mode subspace; '
+        raise ValueError('mode_polarizations requires a certified C4v E pair; '
                          'the detected groups contain no eligible doublet.')
     directions = normalize_polarizations(requested, pairs, owner.normal_axis, owner.invariant_axis,
                                         warn_deprecated=False)
@@ -1607,7 +1611,9 @@ def _polarize_resolved_pairs(owner, grid, solvers, modes, electric, magnetic, re
             scale = np.asarray([sum(np.sum(abs(f[a])) for a in owner.transverse_axes)
                                 for f in e]) * np.prod(grid.dl[list(owner.transverse_axes)])
             condition = np.linalg.cond(moments)
+            singular = np.linalg.svd(moments, compute_uv=False)
             if (not np.isfinite(condition) or condition > _CONDITION_LIMIT
+                    or singular[-1] <= 1e-12*np.linalg.norm(scale)
                     or np.any(np.linalg.norm(moments, axis=0) <= 1e-12 * scale)):
                 raise ValueError(f'mode_polarizations: resolved pair {pair} has zero or ill-conditioned '
                                  'integrated transverse E; use automatic field orientation.')
@@ -1675,6 +1681,38 @@ def write_diagnostics(group, owner):
                 anchor = output.create_group(f'anchor{k}')
                 for key, value in values.items():
                     anchor[key] = value
+    if getattr(owner, 'separation_diagnostics', None) or getattr(owner, 'separation_attempts', None):
+        import json
+        root = group.create_group('mode_separation')
+        root.attrs['Method'] = 'longitudinal_directional_total_gradient_v1'
+        root.attrs['BasisConvention'] = 'Validated separation basis before spatial symmetry certification'
+        root.attrs['RejectedTrials'] = json.dumps(getattr(owner, 'separation_attempts', []))
+        for i, record in enumerate(getattr(owner, 'separation_diagnostics', ())):
+            output = root.create_group(str(i+1))
+            output.attrs['ParentModes'] = record['modes']
+            output.attrs['Blocks'] = ';'.join(','.join(map(str, b)) for b in record['blocks'])
+            output.attrs['ReferenceAnchorIndex'] = record['reference_anchor']
+            for k, values in record['anchors'].items():
+                anchor = output.create_group(f'anchor{k}')
+                for name in ('transform', 'residual', 'power', 'field_residual'):
+                    anchor[name] = values[name]
+                anchor.attrs['Selection'] = json.dumps(values['separation'], default=lambda x: x.tolist())
+    if getattr(owner, 'transport_diagnostics', None) or getattr(owner, 'transport_attempts', None):
+        import json
+        root = group.create_group('unresolved_transport')
+        root.attrs['Method'] = 'block_procrustes_after_separation_and_symmetry_v1'
+        root.attrs['RejectedTrials'] = json.dumps(getattr(owner, 'transport_attempts', []))
+        for i, record in enumerate(getattr(owner, 'transport_diagnostics', ())):
+            output = root.create_group(str(i+1))
+            output.attrs['ParentModes'] = record['modes']
+            output.attrs['Blocks'] = ';'.join(','.join(map(str, b)) for b in record['blocks'])
+            output.attrs['BlockMethods'] = np.asarray(
+                ['procrustes' if len(b) > 1 else 'phase' for b in record['blocks']], dtype='S')
+            output.attrs['ReferenceAnchorIndex'] = record['reference_anchor']
+            for k, values in record['anchors'].items():
+                anchor = output.create_group(f'anchor{k}')
+                for name in ('transform', 'residual', 'power', 'field_residual'):
+                    anchor[name] = values[name]
     detection = getattr(owner, "symmetry_detection", None)
     if detection is not None:
         import json
@@ -1687,11 +1725,12 @@ def write_diagnostics(group, owner):
         root.attrs["MaterialAbsoluteTolerance"] = 1e-12
     if getattr(owner, "symmetry_diagnostics", None):
         root = group.create_group("symmetry_subspaces")
-        root.attrs["Method"] = "longitudinal_symmetry_and_axis_orientation_v3"
+        root.attrs["Method"] = "independent_separation_then_symmetry_v4"
         root.attrs['BasisConvention'] = 'Certified symmetry basis before any explicit subgroup polarization'
         for i, record in enumerate(owner.symmetry_diagnostics):
             output = root.create_group(str(i+1))
             output.attrs["ParentModes"] = record['modes']
+            output.attrs['Symmetry'] = record.get('symmetry', '')
             output.attrs["Blocks"] = ';'.join(','.join(map(str,b)) for b in record['blocks'])
             output.attrs["Generators"] = np.asarray(record['generators'], dtype='S')
             output.attrs["Irreps"] = np.asarray(record.get('irreps', ()), dtype='S')

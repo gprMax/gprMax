@@ -1,0 +1,189 @@
+{
+  "status": "complete",
+  "started_utc": "2026-10-24T09:10:14.167502+00:00",
+  "mode": "higher",
+  "cases": [
+    {
+      "name": "square_PEC_40",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 1.3546203567789864e-14,
+      "min_gauge_overlap": 0.9999999999999054,
+      "min_same_channel_overlap": 0.9999999999999054,
+      "min_continuity": 0.9999622581288691,
+      "max_parity_error": 1.784547302303055e-12,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "square_PEC_64",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 2.3262996790892942e-14,
+      "min_gauge_overlap": 0.9999999999997335,
+      "min_same_channel_overlap": 0.9999999999997335,
+      "min_continuity": 0.9999616379480317,
+      "max_parity_error": 6.480916591669728e-12,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "circular_PEC_40",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 7.892694617548393e-15,
+      "min_gauge_overlap": 0.9999999999999776,
+      "min_same_channel_overlap": 0.9999999999999776,
+      "min_continuity": 0.999937219068779,
+      "max_parity_error": 2.7603280761442944e-12,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "circular_PEC_64",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 1.571248143761992e-14,
+      "min_gauge_overlap": 0.999999999999962,
+      "min_same_channel_overlap": 0.999999999999962,
+      "min_continuity": 0.9999368636939221,
+      "max_parity_error": 9.01050602803709e-12,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "square_copper_40",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 4.05889336585492e-10,
+      "min_gauge_overlap": 0.9999999999999756,
+      "min_same_channel_overlap": 0.9999999999999756,
+      "min_continuity": 0.9999619439162657,
+      "max_parity_error": 3.7159673294693114e-09,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "square_copper_64",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 3.8542586604582923e-10,
+      "min_gauge_overlap": 0.9999999999999538,
+      "min_same_channel_overlap": 0.9999999999999538,
+      "min_continuity": 0.9999615733217696,
+      "max_parity_error": 8.243442892205947e-09,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "circular_copper_40",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 7.237362840295614e-12,
+      "min_gauge_overlap": 0.9999999999999658,
+      "min_same_channel_overlap": 0.9999999999999658,
+      "min_continuity": 0.9999372222303821,
+      "max_parity_error": 3.042787226704476e-10,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "circular_copper_64",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 1.1609361854071069e-11,
+      "min_gauge_overlap": 0.9999999999999665,
+      "min_same_channel_overlap": 0.9999999999999665,
+      "min_continuity": 0.9999368669466727,
+      "max_parity_error": 2.642324124327097e-09,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "square_dielectric_40",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 1.6249264066017123e-15,
+      "min_gauge_overlap": 0.999999999999988,
+      "min_same_channel_overlap": 0.999999999999988,
+      "min_continuity": 0.9999818416237443,
+      "max_parity_error": 4.0832604307007243e-10,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "square_dielectric_64",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 3.190196378947432e-15,
+      "min_gauge_overlap": 0.9999999999999798,
+      "min_same_channel_overlap": 0.9999999999999798,
+      "min_continuity": 0.9999818834793618,
+      "max_parity_error": 7.312511550678287e-12,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "circular_dielectric_40",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 1.671556336760241e-15,
+      "min_gauge_overlap": 0.9999999999999813,
+      "min_same_channel_overlap": 0.9999999999999813,
+      "min_continuity": 0.999947330431568,
+      "max_parity_error": 3.6953462083770035e-11,
+      "fallback_groups": [],
+      "separation_rejections": []
+    },
+    {
+      "name": "circular_dielectric_64",
+      "status": "complete",
+      "modes": 60,
+      "max_field_residual": 3.180412111722445e-15,
+      "min_gauge_overlap": 0.9999999999999765,
+      "min_same_channel_overlap": 0.9999999999999765,
+      "min_continuity": 0.9999673199125763,
+      "max_parity_error": 1.386193010300871e-10,
+      "fallback_groups": [],
+      "separation_rejections": []
+    }
+  ],
+  "source_sha256": {
+    "testing\\eigenmode_support\\identification\\higher_order_identity_audit.py": "c34c49692551b88f013938c0c4a0b35ed5632d42fa13b5662cf452f41319ad53",
+    "testing\\eigenmode_support\\identification\\combined_identity_audit.py": "b62012f9bf7923a9b4e3bfeaa935a97e7b3ee08d0e7c8dfd8f801b9349753073",
+    "testing\\eigenmode_support\\identification\\tracking_classification_edges.py": "bfc2af011c4b061c4f0109ef687cea301ac231b39f43f0bf236f1f05b16257f4",
+    "gprMax\\eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax\\eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "testing\\eigenmode_support\\subspaces\\general_subspace_tracking.py": "938ae2e8831eef53f7c30cf831a71a787d8142194418fca5be7a5783639620ac"
+  },
+  "frequencies_GHz": [
+    79,
+    80,
+    81
+  ],
+  "requested_modes": 60,
+  "candidates": 80,
+  "seeds": [
+    131,
+    982
+  ],
+  "circular_template_max_m": 16,
+  "circular_template_max_n": 8,
+  "finished_utc": "2026-10-24T09:35:05.478283+00:00",
+  "git_branch": "auto-tracking-improve",
+  "git_head": "8d010441b4a6223dea01e8653a4aa62434eb13a4",
+  "python": "3.13.15",
+  "numpy": "2.5.2",
+  "scipy": "1.18.1",
+  "threads": {
+    "OMP_NUM_THREADS": 1,
+    "OPENBLAS_NUM_THREADS": 1
+  },
+  "numerical_source_sha256": {
+    "gprMax/eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax/eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax/eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218",
+    "gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py": "24baa590d527568701638b8a25a2f026e4d62f80936c8a5fdc751636ce7f6bca"
+  }
+}

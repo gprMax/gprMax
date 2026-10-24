@@ -40,10 +40,14 @@ def test_axis_selection_falls_back_when_monitor_precision_requires_it(monkeypatc
         owner, grid, e, h = aligned_bank([solver], (5,6))
         selected = owner.symmetry_detection['groups'][0]
         if dtype == np.complex64:
-            assert selected['applied'] == 'power_whitening'
+            assert selected['applied'] == 'longitudinal_gradient'
             assert all('precision budget' in trial['reason'] for trial in selected['attempts'])
             assert owner.symmetry_diagnostics == []
-            _, _, fallback_e, fallback_h = aligned_bank([solver], (5,6), symmetry=None)
+            # Failed symmetry must retain the independently validated separation.
+            with monkeypatch.context() as context:
+                context.setattr(symmetry, 'detect_symmetry', lambda solvers: dict(
+                    detected='none', candidates=[], anchors=[], groups=[]))
+                _, _, fallback_e, fallback_h = aligned_bank([solver], (5,6))
             for actual, expected in ((e, fallback_e), (h, fallback_h)):
                 for a, b in zip(actual[0], expected[0]):
                     for ac, bc in zip(a, b):

@@ -1,0 +1,59 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+....................................                                     [100%]
+============================== warnings summary ===============================
+tests/test_eigenmode_degenerate_integration.py: 12 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:255: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    knlE = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+
+tests/test_eigenmode_degenerate_integration.py: 12 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:261: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    knlH = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+
+tests/test_eigenmode_degenerate_integration.py: 24 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:363: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    knlE = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+
+tests/test_eigenmode_degenerate_integration.py: 24 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:368: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    knlH = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+
+tests/test_eigenmode_degenerate_integration.py: 12 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:398: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
+
+tests/test_eigenmode_degenerate_integration.py: 12 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:519: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    module = self.source_module(magnetic, options=config.sim_config.devices["nvcc_opts"])
+
+tests/test_eigenmode_degenerate_integration.py: 12 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:526: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    module = self.source_module(electric, options=config.sim_config.devices["nvcc_opts"])
+
+tests/test_eigenmode_degenerate_integration.py: 12 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:539: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+
+tests/test_eigenmode_degenerate_integration.py: 12 warnings
+  C:\Users\Traveler\PycharmProjects\gprMin\gprMax\updates\cuda_updates.py:569: UserWarning: The CUDA compiler succeeded, but said the following:
+  kernel.cu
+
+    module = self.source_module(source, options=config.sim_config.devices["nvcc_opts"])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+36 passed, 109 deselected, 132 warnings in 181.32s (0:03:01)
