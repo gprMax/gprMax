@@ -378,7 +378,7 @@ def longitudinal_blocks(generators, electric, magnetic, field_scale, *, probe=No
 
 
 def axis_sensitive_blocks(blocks, electric, magnetic, mirrors, spacing, field_scale, *, tolerance=1e-8,
-                          family_tolerance=None):
+                          family_tolerance=None, candidate_groups=None):
     """Orient equal-parity singlets in a common longitudinal family.
 
     The generalized directional-gradient eigenproblem uses native Ez and
@@ -411,7 +411,8 @@ def axis_sensitive_blocks(blocks, electric, magnetic, mirrors, spacing, field_sc
         if j in used:
             continue
         indices = [i for i, parity, score in candidates if i not in used and parity == signs
-                   and abs(score-rho) <= family_tolerance]
+                   and abs(score-rho) <= family_tolerance
+                   and (candidate_groups is None or candidate_groups[i] == candidate_groups[j])]
         used.update(indices)
         if len(indices) < 2:
             continue
@@ -449,6 +450,110 @@ def axis_sensitive_blocks(blocks, electric, magnetic, mirrors, spacing, field_sc
     return tuple(result), records
 
 
+def _spectral_clusters(values, tolerance):
+    """Complete-link clusters; a chain of small gaps cannot merge endpoints."""
+    order = np.argsort(values)
+    groups = []
+    for index in order:
+        if not groups or values[index] - values[groups[-1][0]] > tolerance:
+            groups.append([int(index)])
+        else:
+            groups[-1].append(int(index))
+    return [np.asarray(group) for group in groups]
+
+
+def longitudinal_gradient_blocks(electric, magnetic, spacing, field_scale, *,
+                                 tolerance=1e-8, family_tolerance=None):
+    """Separate rho, signed Ku-Kv, then Ku+Kv ties without spatial symmetry.
+
+    Input columns have unit power. Each output block is whitened separately;
+    cross-block power is retained. Unresolved eigenspaces remain blocks, not
+    arbitrary eigenvectors. Candidate columns join equal |eta| and total
+    gradient scores within one longitudinal family for later symmetry checks.
+    """
+    fields = tuple(np.asarray(a) for a in (electric, magnetic))
+    n = fields[0].shape[-1]
+    gram = lambda a: a.reshape(-1, n).conj().T @ a.reshape(-1, n)
+    le = gram(fields[0])
+    metric = le + gram(fields[1])
+    ku, kv = [sum(gram(np.diff(a, axis=axis)/spacing[axis]) for a in fields) for axis in (0, 1)]
+    return _separate_longitudinal_forms(le, metric, ku-kv, ku+kv, field_scale,
+                                       tolerance=tolerance, family_tolerance=family_tolerance)
+
+
+def _separate_longitudinal_forms(le, metric, difference, total, field_scale, *,
+                                 tolerance=1e-8, family_tolerance=None):
+    """Generalized spectral hierarchy, shared by native and exact-field checks."""
+    from scipy.linalg import eigh
+
+    family_tolerance = tolerance if family_tolerance is None else family_tolerance
+    hermitian = lambda a: (a + a.conj().T)/2
+    le, metric, difference, total = map(hermitian, (le, metric, difference, total))
+    n = len(metric)
+    longitudinal = dict(applied=False, reason='', scores=np.empty(0))
+    record = dict(longitudinal=longitudinal, gradients=[], candidates=[np.arange(n)])
+    values = np.linalg.eigvalsh(metric)
+    if values[-1] <= 1e-12*field_scale:
+        longitudinal['reason'] = 'insignificant_longitudinal_fields'
+        return (np.eye(n),), record
+    if values[0] <= values[-1]/1e8:
+        longitudinal['reason'] = 'singular_or_ill_conditioned_longitudinal_metric'
+        return (np.eye(n),), record
+    rho, vectors = eigh(hermitian(le), metric)
+    families = _spectral_clusters(rho, family_tolerance)
+    longitudinal.update(applied=len(families) > 1, scores=rho,
+                        reason='resolved_longitudinal_families' if len(families) > 1
+                        else 'unresolved_longitudinal_content')
+    blocks, descriptors = [], []
+    for family, indices in enumerate(families):
+        basis = np.linalg.qr(vectors[:, indices])[0] if len(families) > 1 else np.eye(n)
+        m = hermitian(basis.conj().T @ metric @ basis)
+        d = hermitian(basis.conj().T @ difference @ basis)
+        s = hermitian(basis.conj().T @ total @ basis)
+        scale = max(float(np.max(abs(eigh(s, m, eigvals_only=True)))), np.finfo(float).tiny)
+        eta, directions = eigh(d, m)
+        directional = _spectral_clusters(eta, tolerance*scale)
+        for columns in directional:
+            b = basis @ directions[:, columns] if len(directional) > 1 else basis
+            b = np.linalg.qr(b)[0]
+            restricted_m = hermitian(b.conj().T @ metric @ b)
+            sigma, radial = eigh(hermitian(b.conj().T @ total @ b), restricted_m)
+            radial_groups = _spectral_clusters(sigma, tolerance*scale)
+            for part in radial_groups:
+                c = b @ radial[:, part] if len(radial_groups) > 1 else b
+                c = np.linalg.qr(c)[0]
+                index = len(blocks)
+                blocks.append(c)
+                descriptors.append((family, float(np.mean(abs(eta[columns]))),
+                                    float(np.mean(sigma[part])), scale))
+                record['gradients'].append(dict(block_index=index, family=family,
+                    difference_scores=eta[columns], sum_scores=sigma[part],
+                    directional_split=len(directional) > 1, sum_split=len(radial_groups) > 1))
+    # Group whole resolved blocks, using complete-link agreement in both scores.
+    candidates = []
+    for j, (family, eta, sigma, scale) in enumerate(descriptors):
+        for group in candidates:
+            if all(family == descriptors[i][0]
+                   and abs(eta-descriptors[i][1]) <= tolerance*max(scale, descriptors[i][3])
+                   and abs(sigma-descriptors[i][2]) <= tolerance*max(scale, descriptors[i][3]) for i in group):
+                group.append(j)
+                break
+        else:
+            candidates.append([j])
+    cuts = np.cumsum([0]+[b.shape[1] for b in blocks])
+    record['candidates'] = [np.concatenate([np.arange(cuts[i], cuts[i+1]) for i in group])
+                            for group in candidates]
+    return tuple(blocks), record
+
+
+def _family_tolerance(solver, labels, tolerance):
+    if getattr(solver, 'surface_boundary', None) is None:
+        return tolerance
+    eigenvalues = np.asarray(solver.eigenvalues)[np.asarray(labels)-1]
+    loss = np.max(abs(eigenvalues.imag)/np.maximum(abs(eigenvalues), 1e-300))
+    return max(tolerance, min(1e-3, float(loss)))
+
+
 def _validate_measurement_basis(owner, grid, electric, magnetic):
     """Require the complete power-wave bank to pass monitor precision checks."""
     import gprMax.config as config
@@ -475,18 +580,42 @@ def _validate_measurement_basis(owner, grid, electric, magnetic):
 
 
 def align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric, magnetic):
-    """Automatically decompose certified spans, preserving the fallback bank.
+    """Separate physical spans first, then independently certify spatial symmetry.
 
     Each trial uses private field-bank rows and diagnostics. A rejected trial
     cannot partially publish its transforms, including at earlier anchors.
     """
+    # This pass deliberately precedes even material symmetry detection. Each
+    # parent is transactional and uses the same full-field acceptance checks
+    # as the symmetry pass below.
+    owner.separation_diagnostics = []
+    owner.separation_attempts = []
+    owner.transport_diagnostics = []
+    owner.transport_attempts = []
+    if owner.invariant_axis is None:
+        for parent in owner.degenerate_diagnostics:
+            trial = copy(owner)
+            trial.degenerate_diagnostics = deepcopy([parent])
+            trial.separation_diagnostics = []
+            trial_e, trial_h = [list(row) for row in electric], [list(row) for row in magnetic]
+            try:
+                _align_symmetry_subspaces(trial, grid, frequencies, solvers, modes,
+                                         trial_e, trial_h, symmetry=None)
+            except (ValueError, np.linalg.LinAlgError) as error:
+                owner.separation_attempts.append(dict(modes=tuple(parent['modes']), reason=str(error)))
+                continue
+            for k in range(len(electric)):
+                electric[k][:], magnetic[k][:] = trial_e[k], trial_h[k]
+            parent.update(trial.degenerate_diagnostics[0])
+            owner.separation_diagnostics.extend(trial.separation_diagnostics)
     detection = detect_symmetry(solvers)
     owner.symmetry_detection = detection
     owner.symmetry_diagnostics = []
     if owner.invariant_axis is not None:
         detection.update(detected="none", candidates=[], reason="A two-dimensional transverse port mesh is required.")
     for parent in owner.degenerate_diagnostics:
-        fallback = 'electric_moment' if parent['orientation'] == 'automatic_transverse_axes' else 'power_whitening'
+        fallback = ('longitudinal_gradient' if parent['orientation'] == 'longitudinal_gradient'
+                    else 'electric_moment' if parent['orientation'] == 'automatic_transverse_axes' else 'power_whitening')
         record = dict(modes=tuple(parent['modes']), applied=fallback, attempts=[])
         detection['groups'].append(record)
         for name in detection['candidates']:
@@ -507,13 +636,48 @@ def align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric,
             record['applied'] = name
             break
 
+    # Symmetry-oriented channels are already individually fixed. For the
+    # remaining parents, transport only unresolved blocks; singleton phases
+    # may continue, but resolved families must never be remixed together.
+    certified = {tuple(r['modes']) for r in owner.symmetry_diagnostics}
+    separated = {tuple(r['modes']): r for r in owner.separation_diagnostics}
+    for parent in owner.degenerate_diagnostics:
+        labels = tuple(parent['modes'])
+        if labels in certified:
+            continue
+        blocks = separated[labels]['blocks'] if labels in separated else (labels,)
+        if all(len(block) == 1 for block in blocks):
+            continue
+        trial = copy(owner)
+        trial.degenerate_diagnostics = deepcopy([parent])
+        trial.transport_diagnostics = []
+        trial._transport_blocks = blocks
+        trial_e, trial_h = [list(row) for row in electric], [list(row) for row in magnetic]
+        try:
+            _align_symmetry_subspaces(trial, grid, frequencies, solvers, modes,
+                                     trial_e, trial_h, symmetry='procrustes')
+        except (ValueError, np.linalg.LinAlgError) as error:
+            # Both earlier stages already validated their provisional gauges.
+            # A rejected final trial cannot replace that usable field bank.
+            owner.transport_attempts.append(dict(modes=labels, reason=str(error)))
+            continue
+        for k in range(len(electric)):
+            electric[k][:], magnetic[k][:] = trial_e[k], trial_h[k]
+        parent.update(trial.degenerate_diagnostics[0])
+        owner.transport_diagnostics.extend(trial.transport_diagnostics)
+
 
 def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric, magnetic, *, symmetry):
-    """Decompose eligible source spans, then continue their irreducible blocks."""
+    """Validate one complete parent bank for separation or symmetry refinement.
+
+    With symmetry=None, select longitudinal/gradient blocks independently of
+    spatial actions. Both stages share power, continuity, Maxwell, and monitor
+    precision checks and publish only after every active anchor passes.
+    """
     from scipy.optimize import linear_sum_assignment
     from gprMax.eigenmode_tracking import _frame, _mix, _power, _residuals, _orthonormal, _moments
 
-    actions = field_actions(symmetry)
+    actions = {} if symmetry in (None, 'procrustes') else field_actions(symmetry)
     if owner.invariant_axis is not None:
         raise ValueError("Symmetry decomposition requires a two-dimensional transverse port mesh.")
     if symmetry in ('c4v', 'c2v'):
@@ -538,7 +702,7 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                 h = [magnetic[k][j] for j in positions]
                 power = _power(owner, grid, e, h)
                 values, vectors = np.linalg.eigh(power)
-                if values[0] <= values[-1] / 1e8:
+                if not np.all(np.isfinite(values)) or values[0] <= values[-1] / 1e8:
                     raise ValueError("Symmetry decomposition requires positive, well-conditioned group power.")
                 whitening = (vectors / np.sqrt(values)) @ vectors.conj().T
                 e, h = _mix(e, whitening), _mix(h, whitening)
@@ -578,8 +742,39 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                     for j, columns in enumerate(old['columns']):
                         q = np.linalg.qr(coordinates[:,columns])[0]
                         probe += (j+1) * (q @ q.conj().T)
-                longitudinal = None
-                if symmetry in ('c4v', 'c2v'):
+                longitudinal, separation = None, None
+                candidate_groups = None
+                selected = next((r for r in getattr(owner, 'separation_diagnostics', ())
+                                 if tuple(r['modes']) == labels), None)
+                if symmetry == 'procrustes':
+                    blocks = tuple(np.linalg.solve(whitening, np.eye(len(labels))[:,
+                        [labels.index(label) for label in block]]) for block in owner._transport_blocks)
+                    leakage = 0.
+                elif symmetry is None:
+                    blocks, separation = longitudinal_gradient_blocks(
+                        local_e[2], impedance*local_h[2], (solvers[k].du, solvers[k].dv),
+                        np.linalg.norm(frame, 'fro')**2, tolerance=tolerance,
+                        family_tolerance=_family_tolerance(solvers[k], labels, tolerance))
+                    longitudinal = separation['longitudinal']
+                    leakage = 0.
+                elif symmetry in ('c4v', 'c2v') and selected is not None:
+                    # The incoming fields are the published separation basis.
+                    # Undo only this pass's whitening to locate each candidate.
+                    blocks, candidate_groups, leakage = [], [], 0.
+                    longitudinal = selected['anchors'][k]['longitudinal']
+                    for group_index, columns in enumerate(selected['anchors'][k]['separation']['candidates']):
+                        b = np.linalg.qr(np.linalg.solve(whitening, np.eye(len(labels))[:, columns]))[0]
+                        reduced = tuple(b.conj().T @ d @ b for d in generators)
+                        error = max(np.linalg.norm(d @ b-b @ a, 2) for d, a in zip(generators, reduced))
+                        if error > tolerance:
+                            raise ValueError('Separated candidate is not invariant under the detected symmetry.')
+                        subblocks, suberror = irreducible_blocks(reduced,
+                            probe=None if probe is None else b.conj().T @ probe @ b, tolerance=tolerance)
+                        blocks.extend(b @ c for c in subblocks)
+                        candidate_groups.extend([group_index]*len(subblocks))
+                        leakage = max(leakage, float(error), suberror)
+                    blocks = tuple(blocks)
+                elif symmetry in ('c4v', 'c2v'):
                     blocks, leakage, longitudinal = longitudinal_blocks(
                         generators, local_e[2], impedance * local_h[2],
                         np.linalg.norm(frame, 'fro')**2, probe=probe, tolerance=tolerance)
@@ -595,19 +790,11 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                     naming = c4v_irrep_names if symmetry == 'c4v' else c2v_irrep_names
                     names = naming([np.linalg.solve(ib,d @ ib) for d in generators], ic)
                     irreducible_basis = dict(transform=ib, columns=ic, irreps=names)
-                    family_tolerance = tolerance
-                    if getattr(solvers[k], 'surface_boundary', None) is not None:
-                        # Finite-conductivity partners have weakly different
-                        # longitudinal content. Use relative eigenvalue loss
-                        # as a bounded family-selection scale, not as a field
-                        # acceptance tolerance. All residual checks still apply.
-                        eigenvalues = np.asarray(solvers[k].eigenvalues)[np.asarray(labels)-1]
-                        relative_loss = np.max(abs(eigenvalues.imag) / np.maximum(abs(eigenvalues), 1e-300))
-                        family_tolerance = max(tolerance, min(1e-3, float(relative_loss)))
+                    family_tolerance = _family_tolerance(solvers[k], labels, tolerance)
                     blocks, axis_records = axis_sensitive_blocks(
                         blocks, local_e[2], impedance*local_h[2], mirrors,
                         (solvers[k].du,solvers[k].dv), np.linalg.norm(frame,'fro')**2,
-                        tolerance=tolerance, family_tolerance=family_tolerance)
+                        tolerance=tolerance, family_tolerance=family_tolerance, candidate_groups=candidate_groups)
                     source_irreps = list(names)
                     for record in axis_records:
                         if record['applied']:
@@ -619,13 +806,24 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                     scores = np.full((len(old['columns']), len(blocks)), -1e6)
                     for i, columns in enumerate(old['columns']):
                         for j, b in enumerate(blocks):
+                            if symmetry == 'procrustes' and i != j:
+                                continue  # Final transport cannot reassign established blocks.
                             if len(columns) == b.shape[1]:
                                 a = _orthonormal(old['frame'][:,columns])
                                 c = _orthonormal(frame @ b)
                                 scores[i,j] = np.min(np.linalg.svd(a.conj().T @ c, compute_uv=False))**2
                     rows, order = linear_sum_assignment(-scores)
-                    if len(rows) != len(blocks) or np.min(scores[rows,order]) < owner.tracking_config.tracking_overlap:
+                    if (len(old['columns']) != len(blocks) or len(rows) != len(blocks)
+                            or np.min(scores[rows,order]) < owner.tracking_config.tracking_overlap):
                         raise ValueError("Irreducible symmetry subspaces require closer anchors or corrected symmetry information.")
+                    if separation is not None:
+                        cuts = np.cumsum([0]+[b.shape[1] for b in blocks])
+                        permutation = np.concatenate([np.arange(cuts[j], cuts[j+1]) for j in order[np.argsort(rows)]])
+                        inverse_columns = np.argsort(permutation)
+                        separation['candidates'] = [inverse_columns[c] for c in separation['candidates']]
+                        inverse_blocks = np.argsort(order[np.argsort(rows)])
+                        for record in separation['gradients']:
+                            record['source_block_index'] = int(inverse_blocks[record['block_index']])
                     blocks = tuple(blocks[j] for j in order[np.argsort(rows)])
                     if source_irreps:
                         source_irreps = [source_irreps[j] for j in order[np.argsort(rows)]]
@@ -638,6 +836,18 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                             left, _, right = np.linalg.svd((frame @ b).conj().T @ old['frame'][:,columns])
                             continued.append(b @ (left @ right))
                         blocks = tuple(continued)
+                if symmetry is None and previous is None:
+                    # Choose a deterministic reference inside each block. This
+                    # is a phase for singlets; unresolved blocks still travel
+                    # as complete spans, without claiming individual identity.
+                    from gprMax.eigenmode_tracking import _canonical_subspace_transform
+                    blocks = tuple(b @ _canonical_subspace_transform(frame @ b) for b in blocks)
+                    # Canonicalization changes scale; restore unit block power.
+                    normalized = []
+                    for b in blocks:
+                        v, u = np.linalg.eigh(b.conj().T @ b)
+                        normalized.append(b @ ((u/np.sqrt(v)) @ u.conj().T))
+                    blocks = tuple(normalized)
                 orientation = []
                 if symmetry in ('c4v', 'c2v'):
                     rotation = generators[0] if symmetry == 'c4v' else None
@@ -686,7 +896,7 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                         raise ValueError("Symmetry-adapted fields fail the reconstructed Maxwell check.")
                 power = _power(owner, grid, final_e, final_h)
                 power_values = np.linalg.eigvalsh(power)
-                if (power_values[0] <= power_values[-1] / 1e8 or
+                if (not np.all(np.isfinite(power_values)) or power_values[0] <= power_values[-1] / 1e8 or
                     any(np.linalg.norm(power[np.ix_(c, c)]-np.eye(len(c)), 2) > tolerance
                         for c in columns)):
                     raise ValueError("Symmetry-adapted fields fail positive group power or block whitening.")
@@ -697,7 +907,7 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                 results[k] = dict(frame=final_frame, columns=columns, electric=final_e, magnetic=final_h,
                                   transform=total, residual=residual, power=power, closure=closure,
                                   leakage=leakage, field_residual=field_residual,
-                                  orientation=orientation, longitudinal=longitudinal,
+                                  orientation=orientation, longitudinal=longitudinal, separation=separation,
                                   axis_sensitive=axis_records, irreducible_basis=irreducible_basis,
                                   source_irreps=tuple(source_irreps),
                                   representations=[np.linalg.solve(transform, d @ transform) for d in generators])
@@ -716,8 +926,12 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
             parent['anchors'][k].update(transform=row['transform'], residual=row['residual'], power_gram=row['power'])
             if parent['physical']:
                 parent['anchors'][k]['electric_moments'] = _moments(owner, grid, row['electric'])
-        parent['orientation'] = 'symmetry_irreducible'
-        saved = {k: {name: row[name] for name in ('transform', 'residual', 'power', 'closure', 'leakage', 'field_residual', 'representations', 'orientation', 'longitudinal', 'axis_sensitive', 'irreducible_basis')}
+        parent['orientation'] = ('longitudinal_gradient' if symmetry is None else
+                                 'unresolved_procrustes' if symmetry == 'procrustes' else 'symmetry_irreducible')
+        saved = {k: {name: row[name] for name in ('transform', 'residual', 'power', 'closure', 'leakage', 'field_residual', 'representations', 'orientation', 'longitudinal', 'separation', 'axis_sensitive', 'irreducible_basis')}
                  for k, row in results.items()}
-        owner.symmetry_diagnostics.append(dict(modes=labels, blocks=blocks, irreps=irreps, generators=tuple(actions),
+        diagnostics = (owner.separation_diagnostics if symmetry is None else
+                       owner.transport_diagnostics if symmetry == 'procrustes' else owner.symmetry_diagnostics)
+        symmetry_name = symmetry if symmetry is None or isinstance(symmetry, str) else 'custom'
+        diagnostics.append(dict(modes=labels, blocks=blocks, irreps=irreps, symmetry=symmetry_name, generators=tuple(actions),
                                               reference_anchor=reference, anchors=saved))

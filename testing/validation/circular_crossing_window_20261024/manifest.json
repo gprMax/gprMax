@@ -1,0 +1,34 @@
+{
+  "status": "complete",
+  "started_utc": "2026-10-24T09:21:27.065106+00:00",
+  "frequency_center_Hz": 36742026086.24742,
+  "spacing_m": 0.000625,
+  "windows_m": [
+    0.04,
+    0.06
+  ],
+  "cells": [
+    64,
+    96
+  ],
+  "source_sha256": "86b6f64092025861d2d135426b76fb7e1009509a7e7856549b2a82a6203c436b",
+  "finished_utc": "2026-10-24T09:22:04.384842+00:00",
+  "minimum_field_overlap": 0.9999999998878886,
+  "maximum_relative_neff_change": 8.980369981560444e-11,
+  "git_branch": "auto-tracking-improve",
+  "git_head": "8d010441b4a6223dea01e8653a4aa62434eb13a4",
+  "python": "3.13.15",
+  "numpy": "2.5.2",
+  "scipy": "1.18.1",
+  "threads": {
+    "OMP_NUM_THREADS": 1,
+    "OPENBLAS_NUM_THREADS": 1
+  },
+  "numerical_source_sha256": {
+    "gprMax/eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax/eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax/eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218",
+    "gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py": "24baa590d527568701638b8a25a2f026e4d62f80936c8a5fdc751636ce7f6bca"
+  }
+}

@@ -39,3 +39,5 @@ fresh directory. Recorded plots are separate from fresh outputs.
 .. image:: gallery/after_crossing_H_modes.png
    :width: 100%
    :alt: Magnetic fields after the crossing.
+
+Recorded plots were regenerated on 24 October 2026. See ``gallery/manifest.json`` for source hashes, run settings, numerical validity and confinement diagnostics.

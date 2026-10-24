@@ -24,3 +24,5 @@ fresh directory. Recorded plots are separate from fresh outputs.
 .. image:: gallery/frequency_crossing_H_modes.png
    :width: 100%
    :alt: frequency crossing H modes.png
+
+Recorded plots were regenerated on 24 October 2026. See ``gallery/manifest.json`` for source hashes, run settings, numerical validity and confinement diagnostics.

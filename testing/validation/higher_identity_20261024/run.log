@@ -1,0 +1,25 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+START square_PEC_40
+COMPLETE square_PEC_40 {'name': 'square_PEC_40', 'status': 'complete', 'modes': 60, 'max_field_residual': 1.3546203567789864e-14, 'min_gauge_overlap': 0.9999999999999054, 'min_same_channel_overlap': 0.9999999999999054, 'min_continuity': 0.9999622581288691, 'max_parity_error': 1.784547302303055e-12, 'fallback_groups': [], 'separation_rejections': []}
+START square_PEC_64
+COMPLETE square_PEC_64 {'name': 'square_PEC_64', 'status': 'complete', 'modes': 60, 'max_field_residual': 2.3262996790892942e-14, 'min_gauge_overlap': 0.9999999999997335, 'min_same_channel_overlap': 0.9999999999997335, 'min_continuity': 0.9999616379480317, 'max_parity_error': 6.480916591669728e-12, 'fallback_groups': [], 'separation_rejections': []}
+START circular_PEC_40
+COMPLETE circular_PEC_40 {'name': 'circular_PEC_40', 'status': 'complete', 'modes': 60, 'max_field_residual': 7.892694617548393e-15, 'min_gauge_overlap': 0.9999999999999776, 'min_same_channel_overlap': 0.9999999999999776, 'min_continuity': 0.999937219068779, 'max_parity_error': 2.7603280761442944e-12, 'fallback_groups': [], 'separation_rejections': []}
+START circular_PEC_64
+COMPLETE circular_PEC_64 {'name': 'circular_PEC_64', 'status': 'complete', 'modes': 60, 'max_field_residual': 1.571248143761992e-14, 'min_gauge_overlap': 0.999999999999962, 'min_same_channel_overlap': 0.999999999999962, 'min_continuity': 0.9999368636939221, 'max_parity_error': 9.01050602803709e-12, 'fallback_groups': [], 'separation_rejections': []}
+START square_copper_40
+COMPLETE square_copper_40 {'name': 'square_copper_40', 'status': 'complete', 'modes': 60, 'max_field_residual': 4.05889336585492e-10, 'min_gauge_overlap': 0.9999999999999756, 'min_same_channel_overlap': 0.9999999999999756, 'min_continuity': 0.9999619439162657, 'max_parity_error': 3.7159673294693114e-09, 'fallback_groups': [], 'separation_rejections': []}
+START square_copper_64
+COMPLETE square_copper_64 {'name': 'square_copper_64', 'status': 'complete', 'modes': 60, 'max_field_residual': 3.8542586604582923e-10, 'min_gauge_overlap': 0.9999999999999538, 'min_same_channel_overlap': 0.9999999999999538, 'min_continuity': 0.9999615733217696, 'max_parity_error': 8.243442892205947e-09, 'fallback_groups': [], 'separation_rejections': []}
+START circular_copper_40
+COMPLETE circular_copper_40 {'name': 'circular_copper_40', 'status': 'complete', 'modes': 60, 'max_field_residual': 7.237362840295614e-12, 'min_gauge_overlap': 0.9999999999999658, 'min_same_channel_overlap': 0.9999999999999658, 'min_continuity': 0.9999372222303821, 'max_parity_error': 3.042787226704476e-10, 'fallback_groups': [], 'separation_rejections': []}
+START circular_copper_64
+COMPLETE circular_copper_64 {'name': 'circular_copper_64', 'status': 'complete', 'modes': 60, 'max_field_residual': 1.1609361854071069e-11, 'min_gauge_overlap': 0.9999999999999665, 'min_same_channel_overlap': 0.9999999999999665, 'min_continuity': 0.9999368669466727, 'max_parity_error': 2.642324124327097e-09, 'fallback_groups': [], 'separation_rejections': []}
+START square_dielectric_40
+COMPLETE square_dielectric_40 {'name': 'square_dielectric_40', 'status': 'complete', 'modes': 60, 'max_field_residual': 1.6249264066017123e-15, 'min_gauge_overlap': 0.999999999999988, 'min_same_channel_overlap': 0.999999999999988, 'min_continuity': 0.9999818416237443, 'max_parity_error': 4.0832604307007243e-10, 'fallback_groups': [], 'separation_rejections': []}
+START square_dielectric_64
+COMPLETE square_dielectric_64 {'name': 'square_dielectric_64', 'status': 'complete', 'modes': 60, 'max_field_residual': 3.190196378947432e-15, 'min_gauge_overlap': 0.9999999999999798, 'min_same_channel_overlap': 0.9999999999999798, 'min_continuity': 0.9999818834793618, 'max_parity_error': 7.312511550678287e-12, 'fallback_groups': [], 'separation_rejections': []}
+START circular_dielectric_40
+COMPLETE circular_dielectric_40 {'name': 'circular_dielectric_40', 'status': 'complete', 'modes': 60, 'max_field_residual': 1.671556336760241e-15, 'min_gauge_overlap': 0.9999999999999813, 'min_same_channel_overlap': 0.9999999999999813, 'min_continuity': 0.999947330431568, 'max_parity_error': 3.6953462083770035e-11, 'fallback_groups': [], 'separation_rejections': []}
+START circular_dielectric_64
+COMPLETE circular_dielectric_64 {'name': 'circular_dielectric_64', 'status': 'complete', 'modes': 60, 'max_field_residual': 3.180412111722445e-15, 'min_gauge_overlap': 0.9999999999999765, 'min_same_channel_overlap': 0.9999999999999765, 'min_continuity': 0.9999673199125763, 'max_parity_error': 1.386193010300871e-10, 'fallback_groups': [], 'separation_rejections': []}

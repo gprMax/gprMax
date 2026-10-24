@@ -1,0 +1,20 @@
+{
+  "status": "completed",
+  "started_utc": "2026-10-24T08:07:16.636248+00:00",
+  "git_head": "8d010441b4a6223dea01e8653a4aa62434eb13a4",
+  "python": "3.13.15",
+  "numpy": "2.5.2",
+  "sources": {
+    "testing\\eigenmode_support\\identification\\gradient_first_investigation.py": "ea530ebcf59c627cb0d3468991eed489d98d3113b21ac45dcf89739b46a95132",
+    "gprMax\\eigenmode_symmetry.py": "5c1b8e3362e42ab1e4120265b275bf24cffa7d9060930617d0e0b5ab77322a4d",
+    "gprMax\\eigenmode_tracking.py": "9ce517b763c5c1b49a14c7de6e4080534bf01a77f155eb948a11c7f881aa21cf",
+    "tests\\test_eigenmode_auto_symmetry.py": "bd426ff5a14b10e1323d85f50e20a4a801d7ea6b8c18bbfcc87e95de7ae8abe3",
+    "testing\\eigenmode_support\\subspaces\\general_subspace_tracking.py": "938ae2e8831eef53f7c30cf831a71a787d8142194418fca5be7a5783639620ac",
+    "testing\\eigenmode_support\\subspaces\\expanded_mode_tracking.py": "d5e2918652847b6efd46fbb06c612ee9203d281e7e4f309f207c04acdcdd02fc",
+    "testing\\eigenmode_support\\identification\\tracking_classification_edges.py": "bfc2af011c4b061c4f0109ef687cea301ac231b39f43f0bf236f1f05b16257f4",
+    "testing\\eigenmode_support\\identification\\modal_field_templates.py": "5bd85f36f050c060210fea929c9fce0f214769e66b41dd1a56db3bbf9f35b1d0",
+    "gprMax\\fdfd_eigenmode_solver\\fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218"
+  },
+  "scope": "PEC modal identification and exact-field quadrature; no scattering comparison or runtime change.",
+  "finished_utc": "2026-10-24T08:07:17.990041+00:00"
+}

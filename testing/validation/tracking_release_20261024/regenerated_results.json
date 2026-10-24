@@ -1,0 +1,2201 @@
+{
+  "status": "passed",
+  "regenerated_utc": "2026-10-24T10:12:48.464362+00:00",
+  "source_sha256": {
+    "gprMax/eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax/eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax/eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218",
+    "gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py": "24baa590d527568701638b8a25a2f026e4d62f80936c8a5fdc751636ce7f6bca",
+    "tests/test_eigenmode_degenerate_integration.py": "3de5de08c95042d58ed750fb9f16e1bf3fff5054fd2ac981493c56a7455da10b",
+    "tests/test_eigenmode_independent_separation.py": "7460dcb885f485a0af2bdfcc22cc02fdae006ea9ea2bbe1d8b3621bab0227064",
+    "tests/test_analytical_step_index_reference.py": "b359f8a645eeff857b3e269874cae4ebb47b7681b72acdee2189d83561e75244",
+    "tests/test_gradient_first_investigation.py": "74a9f4b9347ea7ecc777c5083c6df69f263a80d77b15564b39511afb72bf75a0",
+    "gprMax/sources.py": "43144ebbcef810e5ac2b1de0530d7d3269e6b5a6d3c68de855148245c57d0b08",
+    "examples/features/eigenmode_tracking/gallery.py": "e5f92deb332b2814e660efeb8e423f321328d5620cc010f5228ee75aaea48b24",
+    "examples/features/eigenmode_tracking/plot_results.py": "735470618f522a9ba333d053d3f849f4b8e1328e2b829a3a7c08c9052fc653b4",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py": "28727be741ff0257817957071587e168a0c343fff3a04f46be99719989b5c58c",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py": "a715a5bf14de365b284d39cd20294c92297ee3057f22df1bc0b17288450581d4",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py": "5df7d1b758f20b1939a97bd629c57437d6cf14b986cee799a449d37f74d91fbc",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py": "b3dfba16ed7cde5734ffedd40cfbde4ec837783d7ffdf265219cd31f04bd86c0",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/tracked_modes.py": "c488ccd39c7c52844ccd86c4e88c8c489693387ee3fbd735e3c0f8e7e8f5683a",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/tracked_modes.py": "8753272671d792b9010f7c59c151fb211d946ff55ac87cf2fd15e5f476b86be2",
+    "testing/validation/eigenmode_tracking/branch_crossing/square_anisotropic_bore.py": "7909c4a0918fbfe1d2fba862a510e94f2f21e5a9fafee01c9db080a5177947e9"
+  },
+  "gallery_validation": {
+    "pec_rectangular": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.0001447323769592,
+      "maximum_combined_residual": 1.0002066984499842e-12,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "a25e58f36964a54ec4817e9ad9fdb3e88126c85ac2b7e47cd81e44c6735723d1"
+    },
+    "pec_square": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.0001447323769588,
+      "maximum_combined_residual": 4.111829580581124e-13,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "6ab6e379bb19d797d1cac86d57ef4b9a7beda36407d8cdc1646d8ddac8deb974"
+    },
+    "pec_cylindrical": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.0002737759374118,
+      "maximum_combined_residual": 4.706900043655839e-13,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "127d0b6b244406b55d83b159789275cc077618c01fc18db2643036689e540d3e"
+    },
+    "copper_rectangular": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.0001449809134384,
+      "maximum_combined_residual": 3.5673674595582635e-12,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [
+        {
+          "mode": 1,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        }
+      ],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "3de57801b828cd5004c7a31f2335825bf83598fbb5e1067e9f68198456e95f51"
+    },
+    "copper_square": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.0001448481867166,
+      "maximum_combined_residual": 4.656600239527518e-13,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [
+        {
+          "mode": 1,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        }
+      ],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "c5b6f5f7b27ff94f5060d5fdf2f75a1220732e8f54e8f56311ad27980e03cd44"
+    },
+    "copper_cylindrical": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.000273880942308,
+      "maximum_combined_residual": 4.816026376836144e-13,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [
+        {
+          "mode": 1,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 39000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 39500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 40000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 40500000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 1,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 2,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 3,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 4,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 5,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 6,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 7,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 8,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 9,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 10,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 11,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 12,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 13,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 14,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 15,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        },
+        {
+          "mode": 16,
+          "frequency_Hz": 41000000000.0,
+          "confinement": "unbound_suspect",
+          "reasons": "artificial_edge_participation"
+        }
+      ],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "689bea1600bcf9c5057c5e0e1cddfbd718fa28277936030541ded6342441ad0a"
+    },
+    "dielectric_rectangular": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.1771996426618352,
+      "maximum_combined_residual": 2.85442411989045e-14,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "33a3dafdf0af747a53461d7f90a94379649a620814bb594c99ce72bb1fe4c6c2"
+    },
+    "dielectric_square": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.2182280320553702,
+      "maximum_combined_residual": 2.0582062035883292e-14,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "413ae2f419a343c11e1c6f9c6f55714627a568dc8c7788a9c45c43dac0af2d6a"
+    },
+    "dielectric_cylindrical": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.2275949231400782,
+      "maximum_combined_residual": 2.1707185856120507e-14,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 16,
+      "frequencies_Hz": [
+        39000000000.0,
+        39500000000.0,
+        40000000000.0,
+        40500000000.0,
+        41000000000.0
+      ],
+      "raw_bank_sha256": "426c3d3b02020f1c907370ace884b182bddd135a8c622e854f4fbed18dce4b60"
+    },
+    "frequency_crossing": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.0014952094893588,
+      "maximum_combined_residual": 9.423574535914172e-11,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 2,
+      "frequencies_Hz": [
+        12800000000.0,
+        12900000000.0,
+        13000000000.0,
+        13100000000.0,
+        13200000000.0,
+        13300000000.0,
+        13400000000.0,
+        13500000000.0,
+        13600000000.0,
+        13800000000.0,
+        14000000000.0,
+        14150000000.0,
+        14300000000.0,
+        14600000000.0,
+        14900000000.0,
+        15200000000.0,
+        15500000000.0,
+        15800000000.0,
+        16100000000.0
+      ],
+      "raw_bank_sha256": "3254779e88b38866c86f87b1bd94c7ff4c9466c83eb4d832e04b114dee96e8b6"
+    },
+    "before_crossing": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.016564623766086,
+      "maximum_combined_residual": 5.916194474173302e-13,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 8,
+      "frequencies_Hz": [
+        20000000000.0
+      ],
+      "raw_bank_sha256": "1c0b93b04df8c5591a3bac590e915cfb6f1e312c1af04e9a79a8048ef3fc4d1a"
+    },
+    "after_crossing": {
+      "all_anchor_validity_masks": true,
+      "minimum_balanced_power": 1.0165646237660289,
+      "maximum_combined_residual": 5.360467854568222e-13,
+      "unresolved_tracking_intervals": 0,
+      "confinement_flags": [],
+      "separation_rejected_trials": [],
+      "stored_source_revision": "8c617a2",
+      "fields_finite": true,
+      "neff_finite": true,
+      "mode_count": 8,
+      "frequencies_Hz": [
+        20000000000.0
+      ],
+      "raw_bank_sha256": "c16ea6fc240aef858baf0ad9d5a8140588f950a23c92b9d03c4553191f8ed889"
+    }
+  },
+  "driven_launches": {
+    "8": [
+      {
+        "mode": 1,
+        "frequency_Hz": [
+          20000000000.0,
+          20100000000.0,
+          20200000000.0,
+          20300000000.0,
+          20400000000.0,
+          20500000000.0,
+          20600000000.0,
+          20700000000.0,
+          20800000000.0,
+          20900000000.0,
+          21000000000.0,
+          21100000000.0,
+          21200000000.0,
+          21300000000.0,
+          21400000000.0,
+          21500000000.0,
+          21600000000.0,
+          21700000000.0,
+          21800000000.0,
+          21900000000.0,
+          22000000000.0,
+          22100000000.0,
+          22200000000.0,
+          22300000000.0,
+          22400000000.0,
+          22500000000.0,
+          22600000000.0,
+          22700000000.0,
+          22800000000.0,
+          22900000000.0,
+          23000000000.0,
+          23100000000.0,
+          23200000000.0,
+          23300000000.0,
+          23400000000.0,
+          23500000000.0,
+          23600000000.0,
+          23700000000.0,
+          23800000000.0,
+          23900000000.0,
+          24000000000.0
+        ],
+        "maximum_s11_dB": -62.9167726810591,
+        "maximum_s21_magnitude_error_dB": 3.256319816016406e-05,
+        "maximum_cross_channel_amplitude": 3.452469080644081e-16,
+        "power_wave_valid": true,
+        "coefficient_valid": true,
+        "all_scattering_finite": true,
+        "dt_s": 1.92583320154647e-12,
+        "anchor_frequency_Hz": [
+          16900000000.0,
+          20000000000.0,
+          21000000000.0,
+          22000000000.0,
+          23000000000.0,
+          24000000000.0,
+          27100000000.0
+        ],
+        "validation": {
+          "port1": {
+            "all_anchor_validity_masks": true,
+            "minimum_balanced_power": 1.0136841196294655,
+            "maximum_combined_residual": 5.876428039878564e-14,
+            "unresolved_tracking_intervals": 0,
+            "confinement_flags": [],
+            "separation_rejected_trials": [],
+            "stored_source_revision": "8c617a2"
+          },
+          "port2": {
+            "all_anchor_validity_masks": true,
+            "minimum_balanced_power": 1.0136841196294655,
+            "maximum_combined_residual": 5.876428039878564e-14,
+            "unresolved_tracking_intervals": 0,
+            "confinement_flags": [],
+            "separation_rejected_trials": [],
+            "stored_source_revision": "8c617a2"
+          }
+        },
+        "receiver_fields_finite": true,
+        "raw_hdf5_sha256": "1b2447e2ec187a4411cdeccd49ac1b1b7652f10d98f9500540904b228df706d3"
+      },
+      {
+        "mode": 2,
+        "frequency_Hz": [
+          20000000000.0,
+          20100000000.0,
+          20200000000.0,
+          20300000000.0,
+          20400000000.0,
+          20500000000.0,
+          20600000000.0,
+          20700000000.0,
+          20800000000.0,
+          20900000000.0,
+          21000000000.0,
+          21100000000.0,
+          21200000000.0,
+          21300000000.0,
+          21400000000.0,
+          21500000000.0,
+          21600000000.0,
+          21700000000.0,
+          21800000000.0,
+          21900000000.0,
+          22000000000.0,
+          22100000000.0,
+          22200000000.0,
+          22300000000.0,
+          22400000000.0,
+          22500000000.0,
+          22600000000.0,
+          22700000000.0,
+          22800000000.0,
+          22900000000.0,
+          23000000000.0,
+          23100000000.0,
+          23200000000.0,
+          23300000000.0,
+          23400000000.0,
+          23500000000.0,
+          23600000000.0,
+          23700000000.0,
+          23800000000.0,
+          23900000000.0,
+          24000000000.0
+        ],
+        "maximum_s11_dB": -62.916772681041905,
+        "maximum_s21_magnitude_error_dB": 3.256319816016406e-05,
+        "maximum_cross_channel_amplitude": 3.7377727433494384e-16,
+        "power_wave_valid": true,
+        "coefficient_valid": true,
+        "all_scattering_finite": true,
+        "dt_s": 1.92583320154647e-12,
+        "anchor_frequency_Hz": [
+          16900000000.0,
+          20000000000.0,
+          21000000000.0,
+          22000000000.0,
+          23000000000.0,
+          24000000000.0,
+          27100000000.0
+        ],
+        "validation": {
+          "port1": {
+            "all_anchor_validity_masks": true,
+            "minimum_balanced_power": 1.0136841196294655,
+            "maximum_combined_residual": 5.876428039878564e-14,
+            "unresolved_tracking_intervals": 0,
+            "confinement_flags": [],
+            "separation_rejected_trials": [],
+            "stored_source_revision": "8c617a2"
+          },
+          "port2": {
+            "all_anchor_validity_masks": true,
+            "minimum_balanced_power": 1.0136841196294655,
+            "maximum_combined_residual": 5.876428039878564e-14,
+            "unresolved_tracking_intervals": 0,
+            "confinement_flags": [],
+            "separation_rejected_trials": [],
+            "stored_source_revision": "8c617a2"
+          }
+        },
+        "receiver_fields_finite": true,
+        "raw_hdf5_sha256": "2a5915164e2947dd515648376342e28de55e61d652fe1a774ea83ddc8164e38f"
+      }
+    ],
+    "9": [
+      {
+        "mode": 3,
+        "frequency_Hz": [
+          13100000000.0,
+          13150000000.0,
+          13200000000.0,
+          13250000000.0,
+          13300000000.0,
+          13350000000.0,
+          13400000000.0,
+          13450000000.0,
+          13500000000.0,
+          13550000000.0,
+          13600000000.0,
+          13650000000.0,
+          13700000000.0,
+          13750000000.0,
+          13800000000.0,
+          13850000000.0,
+          13900000000.0,
+          13950000000.0,
+          14000000000.0,
+          14050000000.0,
+          14100000000.0,
+          14150000000.0,
+          14200000000.0,
+          14250000000.0,
+          14300000000.0,
+          14350000000.0,
+          14400000000.0,
+          14450000000.0,
+          14500000000.0,
+          14550000000.0,
+          14600000000.0,
+          14650000000.0,
+          14700000000.0,
+          14750000000.0,
+          14800000000.0,
+          14850000000.0,
+          14900000000.0,
+          14950000000.0,
+          15000000000.0,
+          15050000000.0,
+          15100000000.0,
+          15150000000.0,
+          15200000000.0,
+          15250000000.0,
+          15300000000.0,
+          15350000000.0,
+          15400000000.0,
+          15450000000.0,
+          15500000000.0,
+          15550000000.0,
+          15600000000.0,
+          15650000000.0,
+          15700000000.0,
+          15750000000.0,
+          15800000000.0
+        ],
+        "maximum_s11_dB": -81.13196157589499,
+        "maximum_s21_magnitude_error_dB": 3.734523189217837e-06,
+        "maximum_cross_channel_amplitude": 3.267515865592436e-14,
+        "power_wave_valid": true,
+        "coefficient_valid": true,
+        "all_scattering_finite": true,
+        "dt_s": 1.92583320154647e-12,
+        "anchor_frequency_Hz": [
+          12800000000.0,
+          12900000000.0,
+          13000000000.0,
+          13100000000.0,
+          13200000000.0,
+          13300000000.0,
+          13400000000.0,
+          13500000000.0,
+          13600000000.0,
+          13800000000.0,
+          14000000000.0,
+          14150000000.0,
+          14300000000.0,
+          14600000000.0,
+          14900000000.0,
+          15200000000.0,
+          15500000000.0,
+          15800000000.0,
+          16100000000.0
+        ],
+        "validation": {
+          "port1": {
+            "all_anchor_validity_masks": true,
+            "minimum_balanced_power": 1.0011467624219028,
+            "maximum_combined_residual": 6.12817435833554e-13,
+            "unresolved_tracking_intervals": 0,
+            "confinement_flags": [],
+            "separation_rejected_trials": [],
+            "stored_source_revision": "8c617a2"
+          },
+          "port2": {
+            "all_anchor_validity_masks": true,
+            "minimum_balanced_power": 1.0011467624219028,
+            "maximum_combined_residual": 6.12817435833554e-13,
+            "unresolved_tracking_intervals": 0,
+            "confinement_flags": [],
+            "separation_rejected_trials": [],
+            "stored_source_revision": "8c617a2"
+          }
+        },
+        "receiver_fields_finite": true,
+        "inferred_crossing_GHz": 14.420322315835733,
+        "raw_hdf5_sha256": "09cde6645f7c048f93668eebf1af72d038bf6829453af64a55d4acffdd8ad5d2"
+      },
+      {
+        "mode": 4,
+        "frequency_Hz": [
+          13100000000.0,
+          13150000000.0,
+          13200000000.0,
+          13250000000.0,
+          13300000000.0,
+          13350000000.0,
+          13400000000.0,
+          13450000000.0,
+          13500000000.0,
+          13550000000.0,
+          13600000000.0,
+          13650000000.0,
+          13700000000.0,
+          13750000000.0,
+          13800000000.0,
+          13850000000.0,
+          13900000000.0,
+          13950000000.0,
+          14000000000.0,
+          14050000000.0,
+          14100000000.0,
+          14150000000.0,
+          14200000000.0,
+          14250000000.0,
+          14300000000.0,
+          14350000000.0,
+          14400000000.0,
+          14450000000.0,
+          14500000000.0,
+          14550000000.0,
+          14600000000.0,
+          14650000000.0,
+          14700000000.0,
+          14750000000.0,
+          14800000000.0,
+          14850000000.0,
+          14900000000.0,
+          14950000000.0,
+          15000000000.0,
+          15050000000.0,
+          15100000000.0,
+          15150000000.0,
+          15200000000.0,
+          15250000000.0,
+          15300000000.0,
+          15350000000.0,
+          15400000000.0,
+          15450000000.0,
+          15500000000.0,
+          15550000000.0,
+          15600000000.0,
+          15650000000.0,
+          15700000000.0,
+          15750000000.0,
+          15800000000.0
+        ],
+        "maximum_s11_dB": -62.406220526272264,
+        "maximum_s21_magnitude_error_dB": 0.00010144309885952478,
+        "maximum_cross_channel_amplitude": 3.922013993447064e-14,
+        "power_wave_valid": true,
+        "coefficient_valid": true,
+        "all_scattering_finite": true,
+        "dt_s": 1.92583320154647e-12,
+        "anchor_frequency_Hz": [
+          12800000000.0,
+          12900000000.0,
+          13000000000.0,
+          13100000000.0,
+          13200000000.0,
+          13300000000.0,
+          13400000000.0,
+          13500000000.0,
+          13600000000.0,
+          13800000000.0,
+          14000000000.0,
+          14150000000.0,
+          14300000000.0,
+          14600000000.0,
+          14900000000.0,
+          15200000000.0,
+          15500000000.0,
+          15800000000.0,
+          16100000000.0
+        ],
+        "validation": {
+          "port1": {
+            "all_anchor_validity_masks": true,
+            "minimum_balanced_power": 1.0011467624219028,
+            "maximum_combined_residual": 6.12817435833554e-13,
+            "unresolved_tracking_intervals": 0,
+            "confinement_flags": [],
+            "separation_rejected_trials": [],
+            "stored_source_revision": "8c617a2"
+          },
+          "port2": {
+            "all_anchor_validity_masks": true,
+            "minimum_balanced_power": 1.0011467624219028,
+            "maximum_combined_residual": 6.12817435833554e-13,
+            "unresolved_tracking_intervals": 0,
+            "confinement_flags": [],
+            "separation_rejected_trials": [],
+            "stored_source_revision": "8c617a2"
+          }
+        },
+        "receiver_fields_finite": true,
+        "inferred_crossing_GHz": 14.420322315835733,
+        "raw_hdf5_sha256": "36d21e5a9a57d5246f3a4d641bf52fb7152bfd051bd62c9369c4e695d6c7c09e"
+      }
+    ]
+  },
+  "published_images": [
+    "examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_dispersion.png",
+    "examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_E_modes.png",
+    "examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_H_modes.png",
+    "examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_dispersion.png",
+    "examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_E_modes.png",
+    "examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_H_modes.png",
+    "examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_dispersion.png",
+    "examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_E_modes.png",
+    "examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_H_modes.png",
+    "examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_dispersion.png",
+    "examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_E_modes.png",
+    "examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_H_modes.png",
+    "examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_dispersion.png",
+    "examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_E_modes.png",
+    "examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_H_modes.png",
+    "examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_dispersion.png",
+    "examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_E_modes.png",
+    "examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_H_modes.png",
+    "examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_dispersion.png",
+    "examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_E_modes.png",
+    "examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_H_modes.png",
+    "examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_dispersion.png",
+    "examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_E_modes.png",
+    "examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_H_modes.png",
+    "examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_dispersion.png",
+    "examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_E_modes.png",
+    "examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_H_modes.png",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_dispersion.png",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_E_modes.png",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_H_modes.png",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_dispersion.png",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_E_modes.png",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_H_modes.png",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_dispersion.png",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_E_modes.png",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_H_modes.png",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/modal_profiles.png",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/propagation_constants.png",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode1_results.png",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode2_results.png",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode3_results.png",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode4_results.png"
+  ],
+  "provenance_note": "Source hashes identify the executed working tree. Stored HDF5 SourceRevision comes from the compiled package and is not the revision of these uncommitted Python changes.",
+  "published_image_sha256": {
+    "examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_dispersion.png": "75d23c4b3a32efba5d9e9ee8a7132d1011c98a9b08d9f8533d8a5a9a7bc3b987",
+    "examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_E_modes.png": "960df08c1211b8cc8f73e5da21f83ae2785e34b1eb9642863bc3f0aebf735170",
+    "examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_H_modes.png": "f15d6b0434fc78878371923da99b7e3100ae95124667e75019bc7fe0cadc72ad",
+    "examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_dispersion.png": "16438721ffc3aeabd9b05ba439524f298c53c1da6df2c877cbc1a1f904cd15ce",
+    "examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_E_modes.png": "9126adf3384995c6d09710de537be8ac321d6c72ccd604db0f356f7db5deba1e",
+    "examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_H_modes.png": "9df844c256f53d740c419764927a129d4f0c0d0b4705921a59746c27c0b961f6",
+    "examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_dispersion.png": "5845d98843d65c27e8c2150825dafb4753ee2fbec7a2e2c5976f79b9613ccf45",
+    "examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_E_modes.png": "a556acba0178844cbf21aa14db48cf923403565bcd503cbf8d985e0ef83776e8",
+    "examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_H_modes.png": "a8f2ad7547f68d2fc232a62c3b09bee765af8fbae3fec9eb10914c2b9335050a",
+    "examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_dispersion.png": "a88611e51a98d41a80a4de4f43d7736629061cf1267bd01d7d2a6dd3f613f66e",
+    "examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_E_modes.png": "70b1500f8684e340a972cd1c4b19a1412c04972207eba0701fa35b96edc5d483",
+    "examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_H_modes.png": "b837174f23d9da5d0399a6aef16751b744cf876463dac2d98e5e578c4e5874b8",
+    "examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_dispersion.png": "810dbe7c5f9fb631072e1a61fb02dc3dde12a8d4a914476715f0f5e3b01d9f80",
+    "examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_E_modes.png": "4e4ebbabb7568aa59527a434f6c6598db2d031c00271f5e440be55e3efeb7d8f",
+    "examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_H_modes.png": "2b3d97714949bd203d4090e88bbffde062947fab2fc7c1669fd3dd632b15a539",
+    "examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_dispersion.png": "99ef2bcc3e83a809c0b0cb7626ffb47c995ab2b384bf6d7ac6a50aad25fef35f",
+    "examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_E_modes.png": "3303eaa7c48a619e6d3c98062a08f312b614b34d4db8f70cc73160543c8fdb9e",
+    "examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_H_modes.png": "2111679575594b9e789651cf2b422cd901b880ef951d128ef46d468e1bbb4afc",
+    "examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_dispersion.png": "28b8df09ecf24f7b06417e14e118801ad93d245e3213a6ec38a11badf7637b1e",
+    "examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_E_modes.png": "43e2cfa957a9c3ef03f64255cac533e5e6c1c5db3fda36b60c3a1afe6c0883b8",
+    "examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_H_modes.png": "78a6990b308ebdbd17c3487d8558d76b78df98c0f189eb67983c39392a5f0d60",
+    "examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_dispersion.png": "ef45aee6bf6df0baa1696f841fdec61738a52d5ad51407609bdfb03b7924b247",
+    "examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_E_modes.png": "991cee9aa61723746ba349fdd61becb6c2646025b3d110ba715589a2687ea5a9",
+    "examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_H_modes.png": "5460ef65d592ad947395864bf15d9d9e3af108f8925d89140fd5a391abe28422",
+    "examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_dispersion.png": "2c6fd991725638ddce9099d3b37ad1f3d1a03cf663baa1e1387608470407511b",
+    "examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_E_modes.png": "2fea9817e335afdc8dcd09f732ba4ac7f52fe383360da6b35d568d48540ad549",
+    "examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_H_modes.png": "a73a8a364469e55996fffaadfa73e71b0af161a206b0f37e6a0a83862d57acb3",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_dispersion.png": "d8b1028ecb108b9f968d40d4ea9f9c18b87e744fd9f56e5def62889c8c691209",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_E_modes.png": "845776eacdbaf766cd87d5b14be82621c70af3874584975f80c2ebaa6b891aa4",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_H_modes.png": "e881376062cb51db9e1df308b3e92b722d6d7e78a4238309bbb94e6410af9b82",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_dispersion.png": "ed58e1edaf980fa438a639209b2983a57db3b0ee6e29fe4277ca528a651d67d5",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_E_modes.png": "8c2400a4376097c2d7f05abd39a5493c1faac7d2616ca000e52821c41bcd84bf",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_H_modes.png": "440ec8582587ad504aae3186bf745e7f6922c3c4ee23bc9cc399e1bc20069e67",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_dispersion.png": "a1552f8188279bf04386f98b7ad64b2e39c77e8ddcf43e6e24bed32501168734",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_E_modes.png": "aff9a4775ac57136f27e65e971a78640d0cb08bbf4a2f60ed4a30ea4eb8f82bc",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_H_modes.png": "4b6ee81e0df9f00b11e1829897ba42d8e99c3345404b8f912b24a567c31b3462",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/modal_profiles.png": "1c4b50a08006016046d0f768f87abe9d33922cd657d1ad33294e13c3ad72acd0",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/propagation_constants.png": "9525e48e875a2dec6d9d0d536f9a14091ef1fd991f20c9f44a9fe5bc810fa9d9",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode1_results.png": "4e0999ba28a78168e07b4db254dbe0383393cf2f93eb574c6f88fe19e885d971",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode2_results.png": "d069c94a474f3815501db7fcf28da42943740ce68cdc0f1661bd755edef776bb",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode3_results.png": "f1bcd1f7a5afc6ecbad0eec45354caea1fcc5dfd5419acc72133aad950fd117d",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode4_results.png": "1d4c8789e28d0d06b96e26d1246ebd21f9aaed75bc12a851728ced013ea36f62"
+  }
+}

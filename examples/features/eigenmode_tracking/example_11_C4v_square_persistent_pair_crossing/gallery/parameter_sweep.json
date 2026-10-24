@@ -1,6 +1,6 @@
 {
   "status": "complete",
-  "started_utc": "2026-10-12T17:46:09.477531+00:00",
+  "started_utc": "2026-10-24T10:09:54.091151+00:00",
   "geometry": "Square PEC bore uniformly filled with diag(2, 2, epsilon_z)",
   "width_m": 0.02,
   "frequency_Hz": 20000000000.0,
@@ -1205,7 +1205,7 @@
     }
   ],
   "source_sha256": {
-    "testing/validation/eigenmode_tracking/branch_crossing/square_anisotropic_bore.py": "09fba13cb98b16e77b0c28a970031fa4288541af5016b1b9a285491d69947ac8",
-    "gprMax/eigenmode_tracking.py": "aee01875f73044d3dbc4f5cc8edf81d99b0c8f51830c8962d5dc60b1fdcb4371"
+    "testing/validation/eigenmode_tracking/branch_crossing/square_anisotropic_bore.py": "7909c4a0918fbfe1d2fba862a510e94f2f21e5a9fafee01c9db080a5177947e9",
+    "gprMax/eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df"
   }
 }

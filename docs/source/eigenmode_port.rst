@@ -1268,7 +1268,8 @@ ports, using ``tracking="auto"`` without a manually declared degenerate
 group. First inspect its geometry-only fields; then excite mode 1 or 2 and
 plot the co- and cross-polarized reflection and transmission. The source
 has a virtual-waveguide feed and the receiving end continues into a PML.
-See :ref:`eigenmode-example-8` for the complete workflow.
+See :ref:`eigenmode-example-8` for the complete workflow and both polarization
+results regenerated on 24 October 2026.
 
 .. code-block:: console
 
@@ -1286,7 +1287,7 @@ branches whose raw eigenvalue ranks exchange. Both ports automatically
 track channels 3 and 4 through that crossing. Inspect the modal fields,
 launch either channel, then check modal S11/S21 and the off-centre probe's
 polarization. See :ref:`eigenmode-example-9` for both launched-mode runs
-and the tracking diagnostics.
+and the tracking diagnostics, regenerated on 24 October 2026.
 
 .. code-block:: console
 

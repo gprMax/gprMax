@@ -1,11 +1,8 @@
 {
-  "geometry": "16 by16 mm squarePECbore",
-  "epsilon": [
-    2.25,
-    1,
-    1
-  ],
+  "regenerated_utc": "2026-10-24T10:10:38.855460+00:00",
   "tracking": "auto",
+  "precision": "double",
+  "backend": "CPU",
   "requested_modes": [
     3,
     4
@@ -74,8 +71,8 @@
       "maximum_s21_magnitude_error_dB": 3.734523189217837e-06,
       "maximum_cross_channel_amplitude": 3.267515865592436e-14,
       "power_wave_valid": true,
+      "coefficient_valid": true,
       "all_scattering_finite": true,
-      "inferred_crossing_GHz": 14.420322315835733,
       "dt_s": 1.92583320154647e-12,
       "anchor_frequency_Hz": [
         12800000000.0,
@@ -97,7 +94,30 @@
         15500000000.0,
         15800000000.0,
         16100000000.0
-      ]
+      ],
+      "validation": {
+        "port1": {
+          "all_anchor_validity_masks": true,
+          "minimum_balanced_power": 1.0011467624219028,
+          "maximum_combined_residual": 6.12817435833554e-13,
+          "unresolved_tracking_intervals": 0,
+          "confinement_flags": [],
+          "separation_rejected_trials": [],
+          "stored_source_revision": "8c617a2"
+        },
+        "port2": {
+          "all_anchor_validity_masks": true,
+          "minimum_balanced_power": 1.0011467624219028,
+          "maximum_combined_residual": 6.12817435833554e-13,
+          "unresolved_tracking_intervals": 0,
+          "confinement_flags": [],
+          "separation_rejected_trials": [],
+          "stored_source_revision": "8c617a2"
+        }
+      },
+      "receiver_fields_finite": true,
+      "inferred_crossing_GHz": 14.420322315835733,
+      "raw_hdf5_sha256": "09cde6645f7c048f93668eebf1af72d038bf6829453af64a55d4acffdd8ad5d2"
     },
     {
       "mode": 4,
@@ -159,11 +179,11 @@
         15800000000.0
       ],
       "maximum_s11_dB": -62.406220526272264,
-      "maximum_s21_magnitude_error_dB": 0.0001014430988614534,
+      "maximum_s21_magnitude_error_dB": 0.00010144309885952478,
       "maximum_cross_channel_amplitude": 3.922013993447064e-14,
       "power_wave_valid": true,
+      "coefficient_valid": true,
       "all_scattering_finite": true,
-      "inferred_crossing_GHz": 14.420322315835733,
       "dt_s": 1.92583320154647e-12,
       "anchor_frequency_Hz": [
         12800000000.0,
@@ -185,11 +205,131 @@
         15500000000.0,
         15800000000.0,
         16100000000.0
-      ]
+      ],
+      "validation": {
+        "port1": {
+          "all_anchor_validity_masks": true,
+          "minimum_balanced_power": 1.0011467624219028,
+          "maximum_combined_residual": 6.12817435833554e-13,
+          "unresolved_tracking_intervals": 0,
+          "confinement_flags": [],
+          "separation_rejected_trials": [],
+          "stored_source_revision": "8c617a2"
+        },
+        "port2": {
+          "all_anchor_validity_masks": true,
+          "minimum_balanced_power": 1.0011467624219028,
+          "maximum_combined_residual": 6.12817435833554e-13,
+          "unresolved_tracking_intervals": 0,
+          "confinement_flags": [],
+          "separation_rejected_trials": [],
+          "stored_source_revision": "8c617a2"
+        }
+      },
+      "receiver_fields_finite": true,
+      "inferred_crossing_GHz": 14.420322315835733,
+      "raw_hdf5_sha256": "36d21e5a9a57d5246f3a4d641bf52fb7152bfd051bd62c9369c4e695d6c7c09e"
     }
   ],
   "source_sha256": {
-    "auto_mode_crossing.py": "4d865fb1d027249c8b00eabf64fd7b531ff43d16fb8433ecac5ae11f117314fb",
-    "plot_results.py": "4c6eba6206cd9a4a2c6504f6a6c4dbc4cec52fe99ff9c5c38b4e356783ee1bf9"
-  }
+    "gprMax/eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax/eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax/eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218",
+    "gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py": "24baa590d527568701638b8a25a2f026e4d62f80936c8a5fdc751636ce7f6bca",
+    "tests/test_eigenmode_degenerate_integration.py": "3de5de08c95042d58ed750fb9f16e1bf3fff5054fd2ac981493c56a7455da10b",
+    "tests/test_eigenmode_independent_separation.py": "7460dcb885f485a0af2bdfcc22cc02fdae006ea9ea2bbe1d8b3621bab0227064",
+    "tests/test_analytical_step_index_reference.py": "b359f8a645eeff857b3e269874cae4ebb47b7681b72acdee2189d83561e75244",
+    "tests/test_gradient_first_investigation.py": "74a9f4b9347ea7ecc777c5083c6df69f263a80d77b15564b39511afb72bf75a0",
+    "gprMax/sources.py": "43144ebbcef810e5ac2b1de0530d7d3269e6b5a6d3c68de855148245c57d0b08",
+    "examples/features/eigenmode_tracking/gallery.py": "e5f92deb332b2814e660efeb8e423f321328d5620cc010f5228ee75aaea48b24",
+    "examples/features/eigenmode_tracking/plot_results.py": "735470618f522a9ba333d053d3f849f4b8e1328e2b829a3a7c08c9052fc653b4",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py": "28727be741ff0257817957071587e168a0c343fff3a04f46be99719989b5c58c",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py": "a715a5bf14de365b284d39cd20294c92297ee3057f22df1bc0b17288450581d4",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py": "5df7d1b758f20b1939a97bd629c57437d6cf14b986cee799a449d37f74d91fbc",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py": "b3dfba16ed7cde5734ffedd40cfbde4ec837783d7ffdf265219cd31f04bd86c0",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/tracked_modes.py": "c488ccd39c7c52844ccd86c4e88c8c489693387ee3fbd735e3c0f8e7e8f5683a",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/tracked_modes.py": "8753272671d792b9010f7c59c151fb211d946ff55ac87cf2fd15e5f476b86be2",
+    "testing/validation/eigenmode_tracking/branch_crossing/square_anisotropic_bore.py": "7909c4a0918fbfe1d2fba862a510e94f2f21e5a9fafee01c9db080a5177947e9"
+  },
+  "runs": [
+    {
+      "name": "example9_geometry",
+      "status": "complete",
+      "command": [
+        "C:\\Users\\Traveler\\anaconda3\\envs\\gprMax2\\python.exe",
+        "examples\\features\\eigenmode_ports\\example_9_C2v_square_anisotropic_crossing\\auto_mode_crossing.py",
+        "--mode",
+        "3",
+        "--geometry-only",
+        "--output",
+        ".codex_tmp\\tracking_gallery_refresh_20261024\\worked\\example9\\geometry\\square_crossing_geometry"
+      ],
+      "started_utc": "2026-10-24T10:07:00.318865+00:00",
+      "returncode": 0,
+      "finished_utc": "2026-10-24T10:07:27.839465+00:00"
+    },
+    {
+      "name": "example9_mode3",
+      "status": "complete",
+      "command": [
+        "C:\\Users\\Traveler\\anaconda3\\envs\\gprMax2\\python.exe",
+        "examples\\features\\eigenmode_ports\\example_9_C2v_square_anisotropic_crossing\\auto_mode_crossing.py",
+        "--mode",
+        "3",
+        "--output",
+        ".codex_tmp\\tracking_gallery_refresh_20261024\\worked\\example9\\mode3\\square_crossing_mode3"
+      ],
+      "started_utc": "2026-10-24T10:07:27.840444+00:00",
+      "returncode": 0,
+      "finished_utc": "2026-10-24T10:08:24.242728+00:00"
+    },
+    {
+      "name": "example9_plot3",
+      "status": "complete",
+      "command": [
+        "C:\\Users\\Traveler\\anaconda3\\envs\\gprMax2\\python.exe",
+        "examples\\features\\eigenmode_ports\\example_9_C2v_square_anisotropic_crossing\\plot_results.py",
+        "--input",
+        ".codex_tmp\\tracking_gallery_refresh_20261024\\worked\\example9\\mode3\\square_crossing_mode3"
+      ],
+      "started_utc": "2026-10-24T10:08:24.243983+00:00",
+      "returncode": 0,
+      "finished_utc": "2026-10-24T10:08:26.173294+00:00"
+    },
+    {
+      "name": "example9_mode4",
+      "status": "complete",
+      "command": [
+        "C:\\Users\\Traveler\\anaconda3\\envs\\gprMax2\\python.exe",
+        "examples\\features\\eigenmode_ports\\example_9_C2v_square_anisotropic_crossing\\auto_mode_crossing.py",
+        "--mode",
+        "4",
+        "--output",
+        ".codex_tmp\\tracking_gallery_refresh_20261024\\worked\\example9\\mode4\\square_crossing_mode4"
+      ],
+      "started_utc": "2026-10-24T10:08:26.174442+00:00",
+      "returncode": 0,
+      "finished_utc": "2026-10-24T10:09:20.859072+00:00"
+    },
+    {
+      "name": "example9_plot4",
+      "status": "complete",
+      "command": [
+        "C:\\Users\\Traveler\\anaconda3\\envs\\gprMax2\\python.exe",
+        "examples\\features\\eigenmode_ports\\example_9_C2v_square_anisotropic_crossing\\plot_results.py",
+        "--input",
+        ".codex_tmp\\tracking_gallery_refresh_20261024\\worked\\example9\\mode4\\square_crossing_mode4"
+      ],
+      "started_utc": "2026-10-24T10:09:20.859715+00:00",
+      "returncode": 0,
+      "finished_utc": "2026-10-24T10:09:22.168590+00:00"
+    }
+  ],
+  "geometry": "16 by 16 mm square PEC bore",
+  "epsilon": [
+    2.25,
+    1,
+    1
+  ]
 }

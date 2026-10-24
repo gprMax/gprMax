@@ -1,0 +1,10 @@
+{
+  "git_head": "8d010441b4a6223dea01e8653a4aa62434eb13a4",
+  "branch": "auto-tracking-improve",
+  "targeted_passes": 104,
+  "targeted_failures": 1,
+  "failure": "test_default_detection_reaches_source_receiver_and_hdf5: compiled magnetic PML extension takes 22 arguments, current caller passes 23",
+  "runtime_modified": false,
+  "new_test_sha256": "74A9F4B9347EA7ECC777C5083C6DF69F263A80D77B15564B39511AFB72BF75A0",
+  "experiment_sha256": "EA530EBCF59C627CB0D3468991EED489D98D3113B21AC45DCF89739B46A95132"
+}

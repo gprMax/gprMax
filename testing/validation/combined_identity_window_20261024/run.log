@@ -1,0 +1,5 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+START square
+COMPLETE {'name': 'square', 'status': 'complete', 'minimum_cropped_overlap': 0.9999999999995672, 'maximum_relative_neff_difference': 3.380318860040448e-13}
+START circular
+COMPLETE {'name': 'circular', 'status': 'complete', 'minimum_cropped_overlap': 0.9999999999997278, 'maximum_relative_neff_difference': 2.273664741914711e-13}

@@ -444,12 +444,17 @@ axis crossed with it. For a z-normal port, ``"y"`` gives y/-x. This convention
 is independent of propagation sign. Use the same setting at both ports.
 
 With ``tracking="auto"``, the complete parent group is tracked and subdivided
-by longitudinal content, symmetry, and directional variation first. The
-requested direction is then applied independently inside each resolved
-two-dimensional block. Singlets remain unchanged: two accidentally degenerate
-singlets are not combined into a polarization pair. If symmetry selection is
-unavailable, an entire two-mode parent can be oriented when its integrated
-electric moments are independent; larger unresolved parents cannot.
+by longitudinal content, then directional and total gradient variation before
+spatial symmetry is detected. Unresolved blocks remain subspaces. Symmetry is
+certified independently and may refine these blocks; failure retains the
+validated separation. After symmetry, remaining unresolved blocks use Procrustes
+transport across frequency. This final step preserves each block's span and
+cannot mix it with resolved modes; resolved singlets receive only phase alignment.
+The requested direction is applied only inside resolved,
+certified C4v E pairs with significant, well-conditioned rank-two integrated
+electric moments. Singlets and uncertified two-mode parents are not eligible.
+This is the supported scope of automatic polarization, not a general prohibition
+on superpositions in other degenerate subspaces.
 
 With ``tracking="legacy"``, the direction applies to the declared two-mode
 pairs, without automatic symmetry selection. In either mode, a request with
@@ -616,10 +621,10 @@ stores the original ``irreducible_basis`` separately from the final source
 as ``A2+B2`` describes the irreps contributing to that source field.
 
 Each group is tested independently. If C4v decomposition fails, C2v is tried
-when supported; if neither succeeds, the group retains its power-whitened
-basis at its full dimension. A requested direction can then orient a complete
-two-mode parent with independent electric moments.
-Two transverse electric moments cannot fully orient a group larger than two.
+when supported; if neither succeeds, the group retains its validated
+longitudinal/gradient separation, or its power-whitened parent basis when that
+separation also failed. User polarization requires a certified C4v E pair
+with significant, well-conditioned electric moments.
 Trials check span closure, continuity, mixed eigen-residuals,
 reconstructed Maxwell residuals when available, positive full-group power,
 and unit power within each retained block before
@@ -642,8 +647,9 @@ in ``symmetry_detection`` when the selected basis differs between precisions.
 
 Neighboring fields continue the selected families and orientations across
 frequency. The original tracking group remains available in
-``degenerate_groups``; the selected source subspaces and their transformations
-are stored in ``symmetry_subspaces`` in the HDF5 output.
+``degenerate_groups``; independent separation is stored in ``mode_separation``,
+certified symmetry subspaces in ``symmetry_subspaces``, and final unresolved-block
+Procrustes transport in ``unresolved_transport`` in the HDF5 output.
 
 Explicit ``mode_polarizations`` is applied after automatic subgroup selection.
 The native symmetry basis passes mirror-parity checks before the requested
@@ -810,12 +816,30 @@ Run these commands from the repository root in that order:
 runs. The result plotter produces the modal S-parameter and receiver-trace
 figures after each full run. This example uses ``verification="fast"`` for
 inspection; when adapting the model, omit that setting or select ``"full"``
-for the additional convergence checks. In the recorded double-precision
-CPU run, worst co-polarized S11 was about -62.9 dB for either polarization,
-with co-polarized S21 near 0 dB.
+for the additional convergence checks. The double-precision CPU runs were
+regenerated on 24 October 2026. Worst co-polarized S11 is -62.9 dB for either
+polarization, and the largest co-polarized S21 magnitude deviation from
+0 dB is 0.0000326 dB. Both launches retain valid power-wave masks, finite
+scattering data, and no unresolved tracking intervals.
 
 :download:`Complete simulation model <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`
 and :download:`simulation result plotter <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py>`.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode1_results.png
+   :width: 95%
+   :alt: Circular TE11 mode 1 reflection, transmission, and receiver polarization.
+
+   Launching the first automatically oriented TE11 channel.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode2_results.png
+   :width: 95%
+   :alt: Circular TE11 mode 2 reflection, transmission, and receiver polarization.
+
+   Launching its orthogonal partner. User polarization mixing requires a
+   certified C4v E pair with significant, well-conditioned rank-two electric moments.
+
+:download:`Recorded measurements and source hashes
+<../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/recorded_results.json>`.
 
 .. _eigenmode-example-9:
 
@@ -868,7 +892,7 @@ and :download:`result plotter <../../examples/features/eigenmode_ports/example_9
    Launching tracked mode 4: TE02 / Ex. Both full runs retain valid power-wave
    masks over the measurement band and have no unresolved tracking intervals.
 
-The recorded double-precision CPU runs have worst co-channel S11 of
+The double-precision CPU runs regenerated on 24 October 2026 have worst co-channel S11 of
 -81.1 dB and -62.4 dB for launched modes 3 and 4. The largest co-channel
 S21 magnitude deviation from 0 dB is 0.000102 dB. These results concern the
 represented mesh and port sampling; they do not establish convergence to
@@ -935,6 +959,15 @@ conductivity surface-impedance preset with an ADE fit over 1–120 GHz.
 Dielectric apertures have distant artificial PEC rims, and cylindrical
 boundaries are staircased. Detected symmetry labels describe that sampled
 problem.
+
+All eleven galleries were regenerated on 24 October 2026 with longitudinal
+TE/TM separation followed by Ku-Kv and Ku+Kv, symmetry refinement, and
+Procrustes transport within any remaining unresolved blocks. Every retained
+gallery mode passes the numerical and reference-validity checks, with no
+unresolved tracking intervals. The finite copper windows retain
+``unbound_suspect`` confinement flags from artificial-edge participation;
+their manifests preserve these warnings. Numerical validity alone does not
+establish aperture convergence or an exact continuum modal identity.
 
 To regenerate a gallery, run its script from the repository root, for example::
 
@@ -1151,6 +1184,12 @@ geometry-only native port snapshots with an undriven material-parameter
 FDFD sweep and analytical comparisons. At the exact numerical coincidence,
 all four input modes are deliberately mixed, and tracking recovers the two
 persistent pairs.
+
+In the regenerated 64- and 96-cell parameter sweeps, the maximum relative
+propagation-constant error is below 0.000157, the minimum analytical profile
+subspace overlap exceeds 0.9999999, and the maximum Maxwell residual is
+below 2.2e-12. The recorded sweep includes the deliberately mixed exact
+crossing at each mesh's numerical coincidence.
 
 Regenerate them with::
 

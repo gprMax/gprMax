@@ -1,0 +1,7 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+........................................................................ [ 38%]
+.........................................s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s [ 76%]
+.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s....                             [100%]
+=========================== short test summary info ===========================
+SKIPPED [36] tests\test_eigenmode_degenerate_integration.py:158: CUDA compilation is unavailable: MSVC cl.exe was not found on PATH
+152 passed, 36 skipped in 339.40s (0:05:39)

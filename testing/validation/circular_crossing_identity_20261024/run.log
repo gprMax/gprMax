@@ -1,0 +1,15 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+SOLVE 35242026086.24742
+SOLVE 35492026086.24742
+SOLVE 35742026086.24742
+SOLVE 35992026086.24742
+SOLVE 36242026086.24742
+SOLVE 36492026086.24742
+SOLVE 36742026086.24742
+SOLVE 36992026086.24742
+SOLVE 37242026086.24742
+SOLVE 37492026086.24742
+SOLVE 37742026086.24742
+SOLVE 37992026086.24742
+SOLVE 38242026086.24742
+COMPLETE {'status': 'complete', 'started_utc': '2026-10-24T09:18:03.811273+00:00', 'cells': 64, 'width_m': 0.04, 'radius_m': 0.01, 'epsilon_core': 4.0, 'epsilon_cladding': 1.0, 'analytical_crossing_Hz': 36742026086.24742, 'minimum_continuity': 0.9518887973207887, 'maximum_field_residual': 3.2048349772486614e-14, 'fallback_groups': [], 'minimum_three_channel_span_overlap': 0.9919169117378493}

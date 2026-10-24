@@ -1,0 +1,114 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "name": "square_PEC_40",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999054,
+      "maximum_field_residual": 1.3546203567789864e-14,
+      "minimum_positive_power": 0.9885789042089119,
+      "minimum_continuity": 0.9999622581288687,
+      "minimum_template_score": 1.0
+    },
+    {
+      "name": "square_PEC_64",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999997335,
+      "maximum_field_residual": 2.3262996790892942e-14,
+      "minimum_positive_power": 0.9955687334867916,
+      "minimum_continuity": 0.9999616379480317,
+      "minimum_template_score": 1.0
+    },
+    {
+      "name": "circular_PEC_40",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999776,
+      "maximum_field_residual": 7.892694617548393e-15,
+      "minimum_positive_power": 0.9374218982887365,
+      "minimum_continuity": 0.9999372190687789,
+      "minimum_template_score": 0.5834991097631658
+    },
+    {
+      "name": "circular_PEC_64",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.999999999999962,
+      "maximum_field_residual": 1.571248143761992e-14,
+      "minimum_positive_power": 0.9630174811479698,
+      "minimum_continuity": 0.9999368636939179,
+      "minimum_template_score": 0.5196476746793727
+    },
+    {
+      "name": "square_copper_40",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999756,
+      "maximum_field_residual": 4.05889336585492e-10,
+      "minimum_positive_power": 0.9891120666875657,
+      "minimum_continuity": 0.9999619439162655,
+      "minimum_template_score": 0.9980449882954636
+    },
+    {
+      "name": "square_copper_64",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999538,
+      "maximum_field_residual": 3.8542586604582923e-10,
+      "minimum_positive_power": 0.9911272051581828,
+      "minimum_continuity": 0.9999615733217696,
+      "minimum_template_score": 0.999556761323494
+    },
+    {
+      "name": "circular_copper_40",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999658,
+      "maximum_field_residual": 7.237362840295614e-12,
+      "minimum_positive_power": 0.9373972084547436,
+      "minimum_continuity": 0.9999372222303773,
+      "minimum_template_score": 0.5796196414073045
+    },
+    {
+      "name": "circular_copper_64",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999665,
+      "maximum_field_residual": 1.1609361854071069e-11,
+      "minimum_positive_power": 0.9630010009182787,
+      "minimum_continuity": 0.9999368669466364,
+      "minimum_template_score": 0.5245519672727116
+    },
+    {
+      "name": "square_dielectric_40",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.999999999999988,
+      "maximum_field_residual": 1.6249264066017123e-15,
+      "minimum_positive_power": 0.990297591339531,
+      "minimum_continuity": 0.9999818416237443,
+      "minimum_template_score": null
+    },
+    {
+      "name": "square_dielectric_64",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999798,
+      "maximum_field_residual": 3.190196378947432e-15,
+      "minimum_positive_power": 0.9967992486955237,
+      "minimum_continuity": 0.9999818834793258,
+      "minimum_template_score": null
+    },
+    {
+      "name": "circular_dielectric_40",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999813,
+      "maximum_field_residual": 1.671556336760241e-15,
+      "minimum_positive_power": 0.8672173591044479,
+      "minimum_continuity": 0.9999473304315657,
+      "minimum_template_score": null
+    },
+    {
+      "name": "circular_dielectric_64",
+      "modes": 60,
+      "minimum_same_channel_overlap": 0.9999999999999765,
+      "maximum_field_residual": 3.180412111722445e-15,
+      "minimum_positive_power": 0.9495309464534152,
+      "minimum_continuity": 0.9999673199125757,
+      "minimum_template_score": null
+    }
+  ],
+  "meaning": "Repeatable physically valid discrete channels; pure continuum modal identity tested separately."
+}

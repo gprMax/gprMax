@@ -1,0 +1,1021 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+Running Sphinx v9.1.0
+loading translations [en]... done
+building [mo]: targets for 0 po files that are out of date
+writing output...
+building [html]: targets for 68 source files that are out of date
+updating environment: [new config] 68 added, 0 changed, 0 removed
+reading sources... [  1%] accelerators
+reading sources... [  3%] benchmarking
+reading sources... [  4%] comparisons_analytical
+reading sources... [  6%] comparisons_numerical
+reading sources... [  7%] contributing
+reading sources... [  9%] developer_reference/reframe_tests.tests.base_tests.CreatePyenvTest
+reading sources... [ 10%] developer_reference/reframe_tests.tests.base_tests.GprMaxBaseTest
+reading sources... [ 12%] developer_reference/reframe_tests.tests.mixins.BScanMixin
+reading sources... [ 13%] developer_reference/reframe_tests.tests.mixins.GeometryObjectsReadMixin
+reading sources... [ 15%] developer_reference/reframe_tests.tests.mixins.GeometryObjectsWriteMixin
+reading sources... [ 16%] developer_reference/reframe_tests.tests.mixins.GeometryOnlyMixin
+reading sources... [ 18%] developer_reference/reframe_tests.tests.mixins.GeometryViewMixin
+reading sources... [ 19%] developer_reference/reframe_tests.tests.mixins.MpiMixin
+reading sources... [ 21%] developer_reference/reframe_tests.tests.mixins.PythonApiMixin
+reading sources... [ 22%] developer_reference/reframe_tests.tests.mixins.ReceiverMixin
+reading sources... [ 24%] developer_reference/reframe_tests.tests.mixins.SnapshotMixin
+reading sources... [ 25%] developer_reference/reframe_tests.tests.mixins.TaskfarmMixin
+reading sources... [ 26%] developer_reference/reframe_tests.tests.regression_checks.GeometryObjectMaterialsRegressionCheck
+reading sources... [ 28%] developer_reference/reframe_tests.tests.regression_checks.GeometryObjectRegressionCheck
+reading sources... [ 29%] developer_reference/reframe_tests.tests.regression_checks.GeometryViewRegressionCheck
+reading sources... [ 31%] developer_reference/reframe_tests.tests.regression_checks.H5RegressionCheck
+reading sources... [ 32%] developer_reference/reframe_tests.tests.regression_checks.ReceiverRegressionCheck
+reading sources... [ 34%] developer_reference/reframe_tests.tests.regression_checks.RegressionCheck
+reading sources... [ 35%] developer_reference/reframe_tests.tests.regression_checks.SnapshotRegressionCheck
+reading sources... [ 37%] eigenmode_port
+reading sources... [ 38%] eigenmode_port_theory
+reading sources... [ 40%] eigenmode_tracking
+reading sources... [ 41%] eigenmode_tracking_theory
+reading sources... [ 43%] examples_advanced
+reading sources... [ 44%] examples_antennas
+reading sources... [ 46%] examples_simple_2D
+reading sources... [ 47%] faqs
+reading sources... [ 49%] features
+reading sources... [ 50%] gprmodelling
+reading sources... [ 51%] hpc
+reading sources... [ 53%] impedance_surfaces
+reading sources... [ 54%] impedance_surfaces_theory
+reading sources... [ 56%] inc_AntennaPatterns
+reading sources... [ 57%] inc_AustinMan
+reading sources... [ 59%] inc_DebyeFit
+reading sources... [ 60%] inc_FMCW
+reading sources... [ 62%] inc_GPRAntennaModels
+reading sources... [ 63%] inc_GeometryImport
+reading sources... [ 65%] inc_ImpulseResponse
+reading sources... [ 66%] inc_LandmineModels
+reading sources... [ 68%] inc_Marimo
+reading sources... [ 69%] inc_Materials
+reading sources... [ 71%] inc_Optimisation
+reading sources... [ 72%] inc_Plotting
+reading sources... [ 74%] inc_README
+reading sources... [ 75%] inc_SFCW
+reading sources... [ 76%] inc_STEPtoVoxel
+reading sources... [ 78%] inc_STLtoVoxel
+reading sources... [ 79%] inc_Utilities
+reading sources... [ 81%] inc_gprMaxLogo
+reading sources... [ 82%] index
+reading sources... [ 84%] input_api
+reading sources... [ 85%] input_hash_cmds
+reading sources... [ 87%] material_databases
+reading sources... [ 88%] migration_v3_v4
+reading sources... [ 90%] output
+reading sources... [ 91%] references
+reading sources... [ 93%] reframe_test_suite
+reading sources... [ 94%] release_notes
+reading sources... [ 96%] releasing
+reading sources... [ 97%] sources_ports
+reading sources... [ 99%] studies
+reading sources... [100%] testing
+
+WARNING: autodoc: failed to import 'base_tests.CreatePyenvTest' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\base_tests.py", line 31, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'base_tests.GprMaxBaseTest' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\base_tests.py", line 31, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.BScanMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.GeometryObjectsReadMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.GeometryObjectsWriteMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.GeometryOnlyMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.GeometryViewMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.MpiMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.PythonApiMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.ReceiverMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.SnapshotMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.TaskfarmMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.GeometryObjectMaterialsRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.GeometryObjectRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.GeometryViewRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.H5RegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.ReceiverRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.RegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.SnapshotRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:65: WARNING: autosummary: failed to import CreatePyenvTest.
+Possible hints:
+* KeyError: 'CreatePyenvTest'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'base_tests'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* ModuleNotFoundError: No module named 'CreatePyenvTest'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:65: WARNING: autosummary: failed to import GprMaxBaseTest.
+Possible hints:
+* AttributeError: module 'reframe_tests.tests' has no attribute 'base_tests'
+* ModuleNotFoundError: No module named 'GprMaxBaseTest'
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'GprMaxBaseTest'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import BScanMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'BScanMixin'
+* KeyError: 'BScanMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import GeometryObjectsReadMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'GeometryObjectsReadMixin'
+* ModuleNotFoundError: No module named 'GeometryObjectsReadMixin'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import GeometryObjectsWriteMixin.
+Possible hints:
+* KeyError: 'GeometryObjectsWriteMixin'
+* ModuleNotFoundError: No module named 'GeometryObjectsWriteMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import GeometryOnlyMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'GeometryOnlyMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* KeyError: 'GeometryOnlyMixin'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import GeometryViewMixin.
+Possible hints:
+* KeyError: 'GeometryViewMixin'
+* ModuleNotFoundError: No module named 'GeometryViewMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import MpiMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'MpiMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'MpiMixin'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import PythonApiMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'PythonApiMixin'
+* ModuleNotFoundError: No module named 'PythonApiMixin'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import ReceiverMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'ReceiverMixin'
+* KeyError: 'ReceiverMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import SnapshotMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'SnapshotMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'SnapshotMixin'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import TaskfarmMixin.
+Possible hints:
+* KeyError: 'TaskfarmMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+* ModuleNotFoundError: No module named 'TaskfarmMixin'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import RegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'RegressionCheck'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* ModuleNotFoundError: No module named 'RegressionCheck'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import H5RegressionCheck.
+Possible hints:
+* KeyError: 'H5RegressionCheck'
+* ModuleNotFoundError: No module named 'H5RegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import ReceiverRegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'ReceiverRegressionCheck'
+* KeyError: 'ReceiverRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import GeometryObjectRegressionCheck.
+Possible hints:
+* KeyError: 'GeometryObjectRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* ModuleNotFoundError: No module named 'GeometryObjectRegressionCheck'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import GeometryObjectMaterialsRegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'GeometryObjectMaterialsRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* KeyError: 'GeometryObjectMaterialsRegressionCheck'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import GeometryViewRegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'GeometryViewRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* KeyError: 'GeometryViewRegressionCheck'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import SnapshotRegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'SnapshotRegressionCheck'
+* KeyError: 'SnapshotRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+looking for now-outdated files... none found
+pickling environment... done
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.base_tests.CreatePyenvTest.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.base_tests.GprMaxBaseTest.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.BScanMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.GeometryObjectsReadMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.GeometryObjectsWriteMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.GeometryOnlyMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.GeometryViewMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.MpiMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.PythonApiMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.ReceiverMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.SnapshotMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.TaskfarmMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.GeometryObjectMaterialsRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.GeometryObjectRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.GeometryViewRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.H5RegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.ReceiverRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.RegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.SnapshotRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+checking consistency... done
+preparing documents... done
+copying assets...
+copying downloadable files... [  1%] ../../PycharmProjects/Traveler/testing/validation/README.rst
+copying downloadable files... [  1%] ../../PycharmProjects/Traveler/testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff.in
+copying downloadable files... [  2%] ../../PycharmProjects/Traveler/testing/validation/eigenmode_multiport_deembedding/validate_rectangular_waveguide.py
+copying downloadable files... [  3%] ../../PycharmProjects/Traveler/testing/models_basic/hertzian_dipole_fs_analytical/hertzian_dipole_fs_analytical.in
+copying downloadable files... [  3%] ../../PycharmProjects/Traveler/testing/validation/validate_plane_wave_dispersive_halfspace.py
+copying downloadable files... [  4%] ../../PycharmProjects/Traveler/testing/validation/validate_plane_wave_realistic_materials.py
+copying downloadable files... [  5%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/validate_point_dipole.py
+copying downloadable files... [  5%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/validate_capoglu_grounded_time.py
+copying downloadable files... [  6%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/validate_grounded_dipoles.py
+copying downloadable files... [  6%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/validate_grounded_slab_reflection.py
+copying downloadable files... [  7%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/validate_capoglu_paper.py
+copying downloadable files... [  8%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/validate_engheta_interfacial_dipoles.py
+copying downloadable files... [  8%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/validate_smith_dipole_height.py
+copying downloadable files... [  9%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/validate_gssi_energy_convergence.py
+copying downloadable files... [ 10%] ../../PycharmProjects/Traveler/testing/validation/planar_layered_ntff/results/gssi_energy_convergence/README.md
+copying downloadable files... [ 10%] ../../PycharmProjects/Traveler/testing/validation/validate_rational_network_literature.py
+copying downloadable files... [ 11%] ../../PycharmProjects/Traveler/testing/validation/validate_hertzian_dipole.py
+copying downloadable files... [ 12%] ../../PycharmProjects/Traveler/testing/validation/validate_pec_sphere_rcs.py
+copying downloadable files... [ 12%] ../../PycharmProjects/Traveler/testing/validation/validate_dielectric_sphere_rcs.py
+copying downloadable files... [ 13%] ../../PycharmProjects/Traveler/testing/validation/validate_debye_sphere_averaging.py
+copying downloadable files... [ 14%] ../../PycharmProjects/Traveler/testing/validation/dispersive_averaging/validate_multilayer_fdtd.py
+copying downloadable files... [ 14%] ../../PycharmProjects/Traveler/testing/validation/dispersive_averaging/validate_core_shell_fdtd.py
+copying downloadable files... [ 15%] ../../PycharmProjects/Traveler/testing/validation/validate_sar_lossy_halfspace.py
+copying downloadable files... [ 16%] ../../PycharmProjects/Traveler/testing/validation/validate_sar_spatial_averaging.py
+copying downloadable files... [ 16%] ../../PycharmProjects/Traveler/testing/validation/validate_sar_lossy_sphere.py
+copying downloadable files... [ 17%] ../../PycharmProjects/Traveler/testing/validation/validate_sar_2d_cylinder.py
+copying downloadable files... [ 18%] ../../PycharmProjects/Traveler/testing/validation/sar_2d_cylinder_results/sar_2d_cylinder_material_maps.png
+copying downloadable files... [ 18%] ../../PycharmProjects/Traveler/testing/validation/validate_sar_power_normalisation.py
+copying downloadable files... [ 19%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/README.md
+copying downloadable files... [ 19%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_bowtie_fs/bowtie_antenna_gprmax.py
+copying downloadable files... [ 20%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_bowtie_fs/bowtie_antenna_matlab.m
+copying downloadable files... [ 21%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_bowtie_fs/plot_bowtie_comparison.py
+copying downloadable files... [ 21%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_bowtie_fs/README.md
+copying downloadable files... [ 22%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_vivaldi_fs/vivaldi_antenna_gprmax.py
+copying downloadable files... [ 23%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_vivaldi_fs/vivaldi_antenna_matlab.m
+copying downloadable files... [ 23%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_vivaldi_fs/plot_vivaldi_comparison.py
+copying downloadable files... [ 24%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_vivaldi_fs/inspect_vivaldi_geometry.py
+copying downloadable files... [ 25%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_vivaldi_fs/README.md
+copying downloadable files... [ 25%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_dipole_fs/README.md
+copying downloadable files... [ 26%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_monopole_fs/README.md
+copying downloadable files... [ 27%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_patch_fs/README.md
+copying downloadable files... [ 27%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_helix_fs/README.md
+copying downloadable files... [ 28%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_dipole_array_fs/README.md
+copying downloadable files... [ 29%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/antenna_reflector_grounded/README.md
+copying downloadable files... [ 29%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/rcs_comparison/README.md
+copying downloadable files... [ 30%] ../../PycharmProjects/Traveler/testing/other_codes/matlab_mom/rx_port_comparison/README.md
+copying downloadable files... [ 31%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_1_straight_waveguide/straight_waveguide.py
+copying downloadable files... [ 31%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_2_curved_waveguide/curved_waveguide.py
+copying downloadable files... [ 32%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_3_antenna_and_farfield/horn_antenna.py
+copying downloadable files... [ 32%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_4_complete_s_matrix/complete_s_matrix.py
+copying downloadable files... [ 33%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_5_phased_array/phased_array.py
+copying downloadable files... [ 34%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_6_near_cutoff/near_cutoff.py
+copying downloadable files... [ 34%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_7_legacy_degenerate_te11/circular_te11.py
+copying downloadable files... [ 35%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py
+copying downloadable files... [ 36%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py
+copying downloadable files... [ 36%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py
+copying downloadable files... [ 37%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_8_auto_degenerate_te11/recorded_results.json
+copying downloadable files... [ 38%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py
+copying downloadable files... [ 38%] ../../PycharmProjects/Traveler/examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/recorded_results.json
+copying downloadable files... [ 39%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/tracked_modes.py
+copying downloadable files... [ 40%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/manifest.json
+copying downloadable files... [ 40%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_2_C4v_square_PEC/tracked_modes.py
+copying downloadable files... [ 41%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/manifest.json
+copying downloadable files... [ 42%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/tracked_modes.py
+copying downloadable files... [ 42%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/manifest.json
+copying downloadable files... [ 43%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/tracked_modes.py
+copying downloadable files... [ 44%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/manifest.json
+copying downloadable files... [ 44%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_5_C4v_square_copper/tracked_modes.py
+copying downloadable files... [ 45%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/manifest.json
+copying downloadable files... [ 45%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/tracked_modes.py
+copying downloadable files... [ 46%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/manifest.json
+copying downloadable files... [ 47%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/tracked_modes.py
+copying downloadable files... [ 47%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/manifest.json
+copying downloadable files... [ 48%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/tracked_modes.py
+copying downloadable files... [ 49%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/manifest.json
+copying downloadable files... [ 49%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/tracked_modes.py
+copying downloadable files... [ 50%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/manifest.json
+copying downloadable files... [ 51%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/tracked_modes.py
+copying downloadable files... [ 51%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/manifest.json
+copying downloadable files... [ 52%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/tracked_modes.py
+copying downloadable files... [ 53%] ../../PycharmProjects/Traveler/examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/manifest.json
+copying downloadable files... [ 53%] ../../PycharmProjects/Traveler/testing/validation/higher_identity_20261024/assessment.rst
+copying downloadable files... [ 54%] ../../PycharmProjects/Traveler/testing/validation/tracking_release_20261024/verification.json
+copying downloadable files... [ 55%] ../../PycharmProjects/Traveler/testing/validation/eigenmode_tracking/degenerate_subspace/C2v_rectangle_2to1_PEC/results.json
+copying downloadable files... [ 55%] ../../PycharmProjects/Traveler/testing/validation/eigenmode_tracking/degenerate_subspace/C4v_square_PEC/results.json
+copying downloadable files... [ 56%] ../../PycharmProjects/Traveler/testing/validation/eigenmode_tracking/degenerate_subspace/C4v_cylindrical_PEC/results.json
+copying downloadable files... [ 56%] ../../PycharmProjects/Traveler/testing/validation/eigenmode_tracking/degenerate_subspace/cylindrical_dielectric/results.json
+copying downloadable files... [ 57%] ../../PycharmProjects/Traveler/testing/validation/eigenmode_tracking/branch_crossing/square_anisotropic_bore/results.json
+copying downloadable files... [ 58%] ../../PycharmProjects/Traveler/examples/features/plane_waves/dielectric_sphere_tfsf.in
+copying downloadable files... [ 58%] ../../PycharmProjects/Traveler/examples/features/plane_waves/dielectric_sphere_tfsf.py
+copying downloadable files... [ 59%] ../../PycharmProjects/Traveler/examples/rcs/pec_sphere/pec_sphere_rcs.in
+copying downloadable files... [ 60%] ../../PycharmProjects/Traveler/examples/rcs/pec_sphere/pec_sphere_rcs.py
+copying downloadable files... [ 60%] ../../PycharmProjects/Traveler/examples/rcs/pec_sphere/plot_pec_sphere_rcs.py
+copying downloadable files... [ 61%] ../../PycharmProjects/Traveler/examples/gpr/materials/heterogeneous_soil.in
+copying downloadable files... [ 62%] ../../PycharmProjects/Traveler/examples/features/subgrids/cylinder_fs.py
+copying downloadable files... [ 62%] ../../PycharmProjects/Traveler/examples/gpr/subgrids/gssi_400_over_fractal_subsurface.py
+copying downloadable files... [ 63%] ../../PycharmProjects/Traveler/examples/antennas/wire_dipole/antenna_wire_dipole_fs.in
+copying downloadable files... [ 64%] ../../PycharmProjects/Traveler/examples/antennas/wire_dipole/antenna_wire_dipole_fs.py
+copying downloadable files... [ 64%] ../../PycharmProjects/Traveler/examples/antennas/wire_dipole/antenna_wire_dipole_pattern.in
+copying downloadable files... [ 65%] ../../PycharmProjects/Traveler/examples/antennas/wire_dipole/antenna_wire_dipole_pattern.py
+copying downloadable files... [ 66%] ../../PycharmProjects/Traveler/examples/antennas/wire_dipole/plot_wire_dipole_pattern.py
+copying downloadable files... [ 66%] ../../PycharmProjects/Traveler/examples/antennas/wire_dipole/antenna_wire_dipole_transmission_line.py
+copying downloadable files... [ 67%] ../../PycharmProjects/Traveler/examples/gpr/antennas/antenna_like_MALA_1200_fs.py
+copying downloadable files... [ 68%] ../../PycharmProjects/Traveler/examples/gpr/antennas/gssi_1500/cylinder_Bscan_GSSI_1500.py
+copying downloadable files... [ 68%] ../../PycharmProjects/Traveler/examples/gpr/basic/cylinder_Ascan_2D.in
+copying downloadable files... [ 69%] ../../PycharmProjects/Traveler/examples/gpr/basic/cylinder_Bscan_2D.in
+copying downloadable files... [ 69%] ../../PycharmProjects/Traveler/examples/gpr/basic/cylinder_Bscan_2D_study.in
+copying downloadable files... [ 70%] ../../PycharmProjects/Traveler/examples/gpr/basic/cylinder_Bscan_2D_study.csv
+copying downloadable files... [ 71%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Utilities/HPC/gprmax_omp.sh
+copying downloadable files... [ 71%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Utilities/HPC/gprmax_omp_taskfarm.sh
+copying downloadable files... [ 72%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Utilities/HPC/gprmax_omp_jobarray.sh
+copying downloadable files... [ 73%] ../../PycharmProjects/Traveler/gprMax/toolboxes/DebyeFit/relaxation.rst
+copying downloadable files... [ 73%] ../../PycharmProjects/Traveler/gprMax/toolboxes/DebyeFit/optimization.rst
+copying downloadable files... [ 74%] ../../PycharmProjects/Traveler/gprMax/toolboxes/FMCW/examples/layered_fmcw_2D.in
+copying downloadable files... [ 75%] ../../PycharmProjects/Traveler/gprMax/toolboxes/FMCW/examples/layered_fmcw_background_2D.in
+copying downloadable files... [ 75%] ../../PycharmProjects/Traveler/gprMax/toolboxes/ImpulseResponse/examples/cylinder_impulse_2D.in
+copying downloadable files... [ 76%] ../../PycharmProjects/Traveler/gprMax/toolboxes/LandmineModels/examples/free_space.py
+copying downloadable files... [ 77%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Marimo/README.md
+copying downloadable files... [ 77%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Materials/eccosorb_slab.in
+copying downloadable files... [ 78%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/start_here.py
+copying downloadable files... [ 79%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/execution-and-processing.md
+copying downloadable files... [ 79%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/optimiser_choices.py
+copying downloadable files... [ 80%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/scipy_integer.py
+copying downloadable files... [ 81%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/inspect_output.py
+copying downloadable files... [ 81%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/waveform_matching.py
+copying downloadable files... [ 82%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/reference_waveform.npz
+copying downloadable files... [ 82%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/reference_waveform.md
+copying downloadable files... [ 83%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/thin_wire_dipole.py
+copying downloadable files... [ 84%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/rectangular_patch.py
+copying downloadable files... [ 84%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/examples/rectangular_patch.md
+copying downloadable files... [ 85%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/CAMPAIGN.rst
+copying downloadable files... [ 86%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/CODE_WALKTHROUGH.md
+copying downloadable files... [ 86%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/DEVELOPER_GUIDE.md
+copying downloadable files... [ 87%] ../../PycharmProjects/Traveler/gprMax/toolboxes/Optimisation/ADAPTERS.md
+copying downloadable files... [ 88%] ../../PycharmProjects/Traveler/examples/features/waveforms/gauspulse.in
+copying downloadable files... [ 88%] ../../PycharmProjects/Traveler/examples/features/waveforms/modulated_gaussian.py
+copying downloadable files... [ 89%] ../../PycharmProjects/Traveler/gprMax/toolboxes/SFCW/examples/cylinder_sfcw_2D.in
+copying downloadable files... [ 90%] ../../PycharmProjects/Traveler/gprMax/toolboxes/STEPtoVoxel/LICENSE
+copying downloadable files... [ 90%] ../../PycharmProjects/Traveler/gprMax/toolboxes/gprMaxLogo/assets/gprmax_v4_logo_2048px.png
+copying downloadable files... [ 91%] ../../PycharmProjects/Traveler/gprMax/toolboxes/gprMaxLogo/assets/gprmax_v4_logo_1024px.png
+copying downloadable files... [ 92%] ../../PycharmProjects/Traveler/gprMax/toolboxes/gprMaxLogo/assets/gprmax_v4_logo_512px.png
+copying downloadable files... [ 92%] ../../PycharmProjects/Traveler/gprMax/toolboxes/gprMaxLogo/assets/manifest.json
+copying downloadable files... [ 93%] ../../PycharmProjects/Traveler/gprMax/toolboxes/gprMaxLogo/README.md
+copying downloadable files... [ 94%] ../../PycharmProjects/Traveler/examples/features/studies/run_study.py
+copying downloadable files... [ 94%] ../../PycharmProjects/Traveler/examples/features/studies/plot_results.py
+copying downloadable files... [ 95%] ../../PycharmProjects/Traveler/examples/features/studies/passive.in
+copying downloadable files... [ 95%] ../../PycharmProjects/Traveler/examples/features/studies/source.in
+copying downloadable files... [ 96%] ../../PycharmProjects/Traveler/examples/features/studies/source.csv
+copying downloadable files... [ 97%] ../../PycharmProjects/Traveler/examples/features/studies/port.in
+copying downloadable files... [ 97%] ../../PycharmProjects/Traveler/examples/features/studies/port.csv
+copying downloadable files... [ 98%] ../../PycharmProjects/Traveler/examples/features/studies/plane_wave.in
+copying downloadable files... [ 99%] ../../PycharmProjects/Traveler/examples/features/studies/plane_wave.csv
+copying downloadable files... [ 99%] ../../PycharmProjects/Traveler/tests/README.rst
+copying downloadable files... [100%] ../../PycharmProjects/Traveler/.github/workflows/pytest.yml
+
+copying static files...
+Writing evaluated template result to C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\tracking_docs_refresh_20261024\_static\basic.css
+Writing evaluated template result to C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\tracking_docs_refresh_20261024\_static\documentation_options.js
+Writing evaluated template result to C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\tracking_docs_refresh_20261024\_static\language_data.js
+Writing evaluated template result to C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\tracking_docs_refresh_20261024\_static\js\versions.js
+copying static files: done
+copying extra files...
+copying extra files: done
+copying assets: done
+writing output... [  1%] accelerators
+writing output... [  3%] benchmarking
+writing output... [  4%] comparisons_analytical
+writing output... [  6%] comparisons_numerical
+writing output... [  7%] contributing
+writing output... [  9%] developer_reference/reframe_tests.tests.base_tests.CreatePyenvTest
+writing output... [ 10%] developer_reference/reframe_tests.tests.base_tests.GprMaxBaseTest
+writing output... [ 12%] developer_reference/reframe_tests.tests.mixins.BScanMixin
+writing output... [ 13%] developer_reference/reframe_tests.tests.mixins.GeometryObjectsReadMixin
+writing output... [ 15%] developer_reference/reframe_tests.tests.mixins.GeometryObjectsWriteMixin
+writing output... [ 16%] developer_reference/reframe_tests.tests.mixins.GeometryOnlyMixin
+writing output... [ 18%] developer_reference/reframe_tests.tests.mixins.GeometryViewMixin
+writing output... [ 19%] developer_reference/reframe_tests.tests.mixins.MpiMixin
+writing output... [ 21%] developer_reference/reframe_tests.tests.mixins.PythonApiMixin
+writing output... [ 22%] developer_reference/reframe_tests.tests.mixins.ReceiverMixin
+writing output... [ 24%] developer_reference/reframe_tests.tests.mixins.SnapshotMixin
+writing output... [ 25%] developer_reference/reframe_tests.tests.mixins.TaskfarmMixin
+writing output... [ 26%] developer_reference/reframe_tests.tests.regression_checks.GeometryObjectMaterialsRegressionCheck
+writing output... [ 28%] developer_reference/reframe_tests.tests.regression_checks.GeometryObjectRegressionCheck
+writing output... [ 29%] developer_reference/reframe_tests.tests.regression_checks.GeometryViewRegressionCheck
+writing output... [ 31%] developer_reference/reframe_tests.tests.regression_checks.H5RegressionCheck
+writing output... [ 32%] developer_reference/reframe_tests.tests.regression_checks.ReceiverRegressionCheck
+writing output... [ 34%] developer_reference/reframe_tests.tests.regression_checks.RegressionCheck
+writing output... [ 35%] developer_reference/reframe_tests.tests.regression_checks.SnapshotRegressionCheck
+writing output... [ 37%] eigenmode_port
+writing output... [ 38%] eigenmode_port_theory
+writing output... [ 40%] eigenmode_tracking
+writing output... [ 41%] eigenmode_tracking_theory
+writing output... [ 43%] examples_advanced
+writing output... [ 44%] examples_antennas
+writing output... [ 46%] examples_simple_2D
+writing output... [ 47%] faqs
+writing output... [ 49%] features
+writing output... [ 50%] gprmodelling
+writing output... [ 51%] hpc
+writing output... [ 53%] impedance_surfaces
+writing output... [ 54%] impedance_surfaces_theory
+writing output... [ 56%] inc_AntennaPatterns
+writing output... [ 57%] inc_AustinMan
+writing output... [ 59%] inc_DebyeFit
+writing output... [ 60%] inc_FMCW
+writing output... [ 62%] inc_GPRAntennaModels
+writing output... [ 63%] inc_GeometryImport
+writing output... [ 65%] inc_ImpulseResponse
+writing output... [ 66%] inc_LandmineModels
+writing output... [ 68%] inc_Marimo
+writing output... [ 69%] inc_Materials
+writing output... [ 71%] inc_Optimisation
+writing output... [ 72%] inc_Plotting
+writing output... [ 74%] inc_README
+writing output... [ 75%] inc_SFCW
+writing output... [ 76%] inc_STEPtoVoxel
+writing output... [ 78%] inc_STLtoVoxel
+writing output... [ 79%] inc_Utilities
+writing output... [ 81%] inc_gprMaxLogo
+writing output... [ 82%] index
+writing output... [ 84%] input_api
+writing output... [ 85%] input_hash_cmds
+writing output... [ 87%] material_databases
+writing output... [ 88%] migration_v3_v4
+writing output... [ 90%] output
+writing output... [ 91%] references
+writing output... [ 93%] reframe_test_suite
+writing output... [ 94%] release_notes
+writing output... [ 96%] releasing
+writing output... [ 97%] sources_ports
+writing output... [ 99%] studies
+writing output... [100%] testing
+
+generating indices... genindex done
+writing additional pages... search done
+copying images... [  1%] ../../images_shared/mpi_domain_decomposition.png
+copying images... [  1%] ../../images_shared/fractal_domain_decomposition.png
+copying images... [  2%] ../../images_shared/GPU_NVIDIA.png
+copying images... [  2%] ../../testing/validation/rectangular_waveguide_partial_cutoff/rectangular_waveguide_partial_cutoff_s11_s21.png
+copying images... [  3%] ../../testing/validation/eigenmode_multiport_deembedding/analytical_matrix_deembedding.png
+copying images... [  3%] ../../testing/validation/eigenmode_multiport_deembedding/rectangular_waveguide_deembedding.png
+copying images... [  4%] ../../images_shared/hertzian_dipole_fs_analytical.png
+copying images... [  4%] ../../images_shared/hertzian_dipole_fs_analytical_diffs.png
+copying images... [  5%] ../../images_shared/plane_wave_halfspace_reflection_magnitude.png
+copying images... [  5%] ../../images_shared/plane_wave_realistic_material_reflection.png
+copying images... [  6%] ../../testing/validation/planar_layered_ntff/results/layered_point_dipole.png
+copying images... [  6%] ../../testing/validation/planar_layered_ntff/results/capoglu_grounded_time/capoglu_grounded_time.png
+copying images... [  7%] ../../testing/validation/planar_layered_ntff/results/grounded_dipoles/grounded_dipole_patterns.png
+copying images... [  8%] ../../testing/validation/planar_layered_ntff/results/grounded_slab_reflection/grounded_slab_reflection.png
+copying images... [  8%] ../../testing/validation/planar_layered_ntff/results/capoglu_figure2.png
+copying images... [  9%] ../../testing/validation/planar_layered_ntff/results/engheta_interfacial_dipoles/engheta_interfacial_dipoles_polar.png
+copying images... [  9%] ../../testing/validation/planar_layered_ntff/results/smith_dipole_height/smith_dipole_height_polar.png
+copying images... [ 10%] ../../testing/validation/planar_layered_ntff/results/gssi_energy_convergence/gssi_energy_convergence.png
+copying images... [ 10%] ../../images_shared/rational_network_pereda_1999_reflection.png
+copying images... [ 11%] ../../images_shared/hertzian_dipole_far_field.png
+copying images... [ 11%] ../../images_shared/hertzian_dipole_near_field.png
+copying images... [ 12%] ../../images_shared/pec_sphere_backscatter_rcs_validation.png
+copying images... [ 12%] ../../images_shared/dielectric_sphere_backscatter_rcs_validation.png
+copying images... [ 13%] ../../images_shared/debye_sphere_averaging_soil_a.png
+copying images... [ 13%] ../../images_shared/debye_sphere_averaging_soil_b.png
+copying images... [ 14%] ../../images_shared/debye_sphere_averaging_soil_c.png
+copying images... [ 15%] ../../images_shared/dispersive_multilayer_reflection.png
+copying images... [ 15%] ../../images_shared/dispersive_core_shell_sphere_averaging.png
+copying images... [ 16%] ../../testing/validation/sar_2d_cylinder_results/sar_2d_cylinder_mie_comparison.png
+copying images... [ 16%] ../../testing/validation/sar_2d_cylinder_results/sar_2d_cylinder_error_summary.png
+copying images... [ 17%] ../../testing/validation/sar_2d_cylinder_results/sar_2d_cylinder_boundary_error.png
+copying images... [ 17%] ../../images_shared/matlab_bowtie_pattern_comparison.png
+copying images... [ 18%] ../../images_shared/matlab_bowtie_s11_comparison.png
+copying images... [ 18%] ../../images_shared/matlab_vivaldi_geometry_comparison.png
+copying images... [ 19%] ../../images_shared/matlab_vivaldi_pattern_comparison.png
+copying images... [ 19%] ../../images_shared/matlab_vivaldi_port_comparison.png
+copying images... [ 20%] ../../images_shared/matlab_dipole_metric_comparison.png
+copying images... [ 20%] ../../images_shared/matlab_monopole_pattern_comparison.png
+copying images... [ 21%] ../../images_shared/matlab_patch_metric_comparison.png
+copying images... [ 22%] ../../images_shared/matlab_helix_comparison.png
+copying images... [ 22%] ../../images_shared/matlab_dipole_array_pattern_comparison.png
+copying images... [ 23%] ../../testing/other_codes/matlab_mom/antenna_reflector_grounded/results/reflector_dipole_pattern_comparison.png
+copying images... [ 23%] ../../images_shared/matlab_square_plate_rcs_comparison.png
+copying images... [ 24%] ../../images_shared/matlab_circle_plate_rcs_comparison.png
+copying images... [ 24%] ../../images_shared/matlab_rx_port_comparison.png
+copying images... [ 25%] ../../images_shared/straight_waveguide_geometry.png
+copying images... [ 25%] ../../images_shared/virtual_horn_geometry.png
+copying images... [ 26%] ../../images_shared/straight_waveguide_sparameters.png
+copying images... [ 26%] ../../images_shared/straight_waveguide_field_propagation.png
+copying images... [ 27%] ../../images_shared/horn_principal_planes.png
+copying images... [ 27%] ../../images_shared/near_cutoff_sparameters.png
+copying images... [ 28%] ../../images_shared/te11_mode1.png
+copying images... [ 28%] ../../images_shared/te11_mode2.png
+copying images... [ 29%] ../../images_shared/mode_tracking_workflow.png
+copying images... [ 30%] ../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode1_results.png
+copying images... [ 30%] ../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode2_results.png
+copying images... [ 31%] ../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode3_results.png
+copying images... [ 31%] ../../examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/square_crossing_mode4_results.png
+copying images... [ 32%] ../../examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_dispersion.png
+copying images... [ 32%] ../../examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_E_modes.png
+copying images... [ 33%] ../../examples/features/eigenmode_tracking/example_1_C2v_rectangular_PEC/gallery/pec_rectangular_H_modes.png
+copying images... [ 33%] ../../examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_dispersion.png
+copying images... [ 34%] ../../examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_E_modes.png
+copying images... [ 34%] ../../examples/features/eigenmode_tracking/example_2_C4v_square_PEC/gallery/pec_square_H_modes.png
+copying images... [ 35%] ../../examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_dispersion.png
+copying images... [ 35%] ../../examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_E_modes.png
+copying images... [ 36%] ../../examples/features/eigenmode_tracking/example_3_C4v_cylindrical_PEC/gallery/pec_cylindrical_H_modes.png
+copying images... [ 37%] ../../examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_dispersion.png
+copying images... [ 37%] ../../examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_E_modes.png
+copying images... [ 38%] ../../examples/features/eigenmode_tracking/example_4_C2v_rectangular_copper/gallery/copper_rectangular_H_modes.png
+copying images... [ 38%] ../../examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_dispersion.png
+copying images... [ 39%] ../../examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_E_modes.png
+copying images... [ 39%] ../../examples/features/eigenmode_tracking/example_5_C4v_square_copper/gallery/copper_square_H_modes.png
+copying images... [ 40%] ../../examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_dispersion.png
+copying images... [ 40%] ../../examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_E_modes.png
+copying images... [ 41%] ../../examples/features/eigenmode_tracking/example_6_C4v_cylindrical_copper/gallery/copper_cylindrical_H_modes.png
+copying images... [ 41%] ../../examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_dispersion.png
+copying images... [ 42%] ../../examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_E_modes.png
+copying images... [ 42%] ../../examples/features/eigenmode_tracking/example_7_C2v_rectangular_dielectric/gallery/dielectric_rectangular_H_modes.png
+copying images... [ 43%] ../../examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_dispersion.png
+copying images... [ 44%] ../../examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_E_modes.png
+copying images... [ 44%] ../../examples/features/eigenmode_tracking/example_8_C4v_square_dielectric/gallery/dielectric_square_H_modes.png
+copying images... [ 45%] ../../examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_dispersion.png
+copying images... [ 45%] ../../examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_E_modes.png
+copying images... [ 46%] ../../examples/features/eigenmode_tracking/example_9_C4v_cylindrical_dielectric/gallery/dielectric_cylindrical_H_modes.png
+copying images... [ 46%] ../../examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_dispersion.png
+copying images... [ 47%] ../../examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_E_modes.png
+copying images... [ 47%] ../../examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/gallery/frequency_crossing_H_modes.png
+copying images... [ 48%] ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/propagation_constants.png
+copying images... [ 48%] ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/modal_profiles.png
+copying images... [ 49%] ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_E_modes.png
+copying images... [ 49%] ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_E_modes.png
+copying images... [ 50%] ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/before_crossing_H_modes.png
+copying images... [ 51%] ../../examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/gallery/after_crossing_H_modes.png
+copying images... [ 51%] ../../images_shared/mode_tracking_lattice_rotations.png
+copying images... [ 52%] ../../images_shared/mode_tracking_sampled_geometries.png
+copying images... [ 52%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C2v_rectangle_2to1_PEC/comparison.png
+copying images... [ 53%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C2v_rectangle_2to1_PEC/modal_profiles_1.png
+copying images... [ 53%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C2v_rectangle_2to1_PEC/modal_profiles_2.png
+copying images... [ 54%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C4v_square_PEC/comparison.png
+copying images... [ 54%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C4v_square_PEC/modal_profiles_1.png
+copying images... [ 55%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C4v_square_PEC/modal_profiles_2.png
+copying images... [ 55%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C4v_cylindrical_PEC/comparison.png
+copying images... [ 56%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C4v_cylindrical_PEC/modal_profiles_1.png
+copying images... [ 56%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/C4v_cylindrical_PEC/modal_profiles_2.png
+copying images... [ 57%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/cylindrical_dielectric/profile_matching.png
+copying images... [ 58%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/cylindrical_dielectric/propagation_constants.png
+copying images... [ 58%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/cylindrical_dielectric/modal_profiles_1.png
+copying images... [ 59%] ../../testing/validation/eigenmode_tracking/degenerate_subspace/cylindrical_dielectric/modal_profiles_2.png
+copying images... [ 59%] ../../testing/validation/eigenmode_tracking/branch_crossing/square_anisotropic_bore/propagation_constants.png
+copying images... [ 60%] ../../testing/validation/eigenmode_tracking/branch_crossing/square_anisotropic_bore/modal_profiles.png
+copying images... [ 60%] ../../images_shared/eigenmode_dielectric_slab_2d_tm_fields.png
+copying images... [ 61%] ../../images_shared/pec_sphere_backscatter_rcs.png
+copying images... [ 61%] ../../images_shared/heterogeneous_soil.png
+copying images... [ 62%] ../../images_shared/cylinder_subgrid.png
+copying images... [ 62%] ../../images_shared/antenna_like_GSSI_400_subgrids.png
+copying images... [ 63%] ../../images_shared/antenna_like_GSSI_400_subgrids_detail.png
+copying images... [ 63%] ../../images_shared/antenna_wire_dipole_fs_ports_feed_signals.png
+copying images... [ 64%] ../../images_shared/antenna_wire_dipole_fs_ports_feed_parameters.png
+copying images... [ 65%] ../../images_shared/antenna_wire_dipole_fs_ports_feed_validity.png
+copying images... [ 65%] ../../images_shared/antenna_wire_dipole_pattern.png
+copying images... [ 66%] ../../images_shared/antenna_like_MALA_1200.png
+copying images... [ 66%] ../../images_shared/antenna_like_MALA_1200_fs_results.png
+copying images... [ 67%] ../../images_shared/cylinder_Bscan_GSSI_1500.png
+copying images... [ 67%] ../../images_shared/cylinder_Bscan_GSSI_1500_results.png
+copying images... [ 68%] ../../images_shared/cylinder_half_space_geo.png
+copying images... [ 68%] ../../images_shared/cylinder_Ascan_results.png
+copying images... [ 69%] ../../images_shared/cylinder_Bscan_results.png
+copying images... [ 69%] ../../images_shared/yeecell3d.png
+copying images... [ 70%] ../../images_shared/yeecell2dTMz.png
+copying images... [ 70%] ../../images_shared/yeecell2dTEz.png
+copying images... [ 71%] ../../images_shared/coord3d.png
+copying images... [ 72%] ../../images_shared/abcs.png
+copying images... [ 72%] ../../images_shared/sibc_eigenmode_microstrip.png
+copying images... [ 73%] ../../images_shared/sibc_eigenmode_rectangular_guide.png
+copying images... [ 73%] ../../images_shared/sibc_eigenmode_cylindrical_guide.png
+copying images... [ 74%] ../../images_shared/antenna_like_GSSI_1500_patterns_E_Er5.png
+copying images... [ 74%] ../../images_shared/AustinMan_head.png
+copying images... [ 75%] ../../images_shared/AustinMan.png
+copying images... [ 75%] ../../images_shared/epsilon.png
+copying images... [ 76%] ../../images_shared/fmcw_multilayer_validation.png
+copying images... [ 76%] ../../images_shared/antenna_like_GSSI_1500.png
+copying images... [ 77%] ../../images_shared/antenna_like_GSSI_400.png
+copying images... [ 77%] ../../images_shared/geometry_import_labelled_volume.png
+copying images... [ 78%] ../../images_shared/geometry_import_mesh_voxelisation.png
+copying images... [ 78%] ../../images_shared/geometry_import_open_medical_volumes.png
+copying images... [ 79%] ../../images_shared/impulse_response_waveform_synthesis.png
+copying images... [ 80%] ../../images_shared/PMA.png
+copying images... [ 80%] ../../images_shared/PMN.png
+copying images... [ 81%] ../../images_shared/eccosorb_ls14.png
+copying images... [ 81%] ../../images_shared/eccosorb_ls16.png
+copying images... [ 82%] ../../images_shared/eccosorb_ls18.png
+copying images... [ 82%] ../../images_shared/eccosorb_ls20.png
+copying images... [ 83%] ../../images_shared/eccosorb_ls22.png
+copying images... [ 83%] ../../images_shared/eccosorb_ls26.png
+copying images... [ 84%] ../../images_shared/eccosorb_ls28.png
+copying images... [ 84%] ../../images_shared/eccosorb_ls30.png
+copying images... [ 85%] ../../gprMax/toolboxes/Optimisation/examples/images/patch_comparison.png
+copying images... [ 85%] ../../images_shared/gaussian.png
+copying images... [ 86%] ../../images_shared/modulated_gaussian.png
+copying images... [ 87%] ../../images_shared/gaussiandot.png
+copying images... [ 87%] ../../images_shared/gaussiandotnorm.png
+copying images... [ 88%] ../../images_shared/gaussiandotdot.png
+copying images... [ 88%] ../../images_shared/gaussiandotdotnorm.png
+copying images... [ 89%] ../../images_shared/ricker.png
+copying images... [ 89%] ../../images_shared/sine.png
+copying images... [ 90%] ../../images_shared/contsine.png
+copying images... [ 90%] ../../images_shared/impulse.png
+copying images... [ 91%] ../../images_shared/gprMax_logo_small.png
+copying images... [ 91%] ../../images_shared/sfcw_impulse_ricker_validation.png
+copying images... [ 92%] ../../images_shared/sfcw_cylinder_example.png
+copying images... [ 92%] ../../gprMax/toolboxes/STEPtoVoxel/examples/patch_antenna/probe_fed_70um_views.png
+copying images... [ 93%] ../../gprMax/toolboxes/STEPtoVoxel/examples/patch_antenna/probe_fed_port1_overlay.png
+copying images... [ 94%] ../../gprMax/toolboxes/STEPtoVoxel/examples/patch_antenna/probe_fed_gprmax_reference_overlay.png
+copying images... [ 94%] ../../gprMax/toolboxes/STEPtoVoxel/examples/patch_antenna/probe_fed_gprmax_patch_view.svg
+copying images... [ 95%] ../../gprMax/toolboxes/STEPtoVoxel/examples/patch_antenna/probe_fed_gprmax_coax_view.svg
+copying images... [ 95%] ../../images_shared/Rotated_Bunny_Import.png
+copying images... [ 96%] ../../images_shared/Rotated_Bunny_Upside_down.png
+copying images... [ 96%] ../../images_shared/Rotated_Bunny_Export.png
+copying images... [ 97%] ../../images_shared/Rotated_Bunny_ParaView.png
+copying images... [ 97%] ../../images_shared/stanford_bunny_stl.png
+copying images... [ 98%] ../../images_shared/stanford_bunny.png
+copying images... [ 98%] ../../images_shared/gprMax_logo.png
+copying images... [ 99%] ../../images_shared/gprMax_logo_geometry.png
+copying images... [ 99%] ../../images_shared/paraview_toolbar.png
+copying images... [100%] ../../images_shared/paraview_pipeline.png
+
+dumping search index in English (code: en)... done
+dumping object inventory... done
+build succeeded, 57 warnings.
+
+The HTML pages are in .codex_tmp\tracking_docs_refresh_20261024.

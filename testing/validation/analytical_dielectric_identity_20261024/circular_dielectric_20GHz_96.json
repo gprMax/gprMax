@@ -1,0 +1,3706 @@
+{
+  "channels": [
+    {
+      "channel": 1,
+      "analytical": "HE1,1",
+      "partner": 0,
+      "squared_field_overlap": 0.9999152556223816,
+      "neff_fdfd": 1.9276358521502472,
+      "neff_analytical": 1.928028525977015,
+      "relative_neff_error": 0.00020366598391934043,
+      "alternatives": [
+        {
+          "name": "HE1,1",
+          "partner": 0,
+          "overlap": 0.9999152556223816
+        },
+        {
+          "name": "HE1,3",
+          "partner": 0,
+          "overlap": 0.00046560455094390627
+        },
+        {
+          "name": "EH1,2",
+          "partner": 0,
+          "overlap": 0.0003042478099410233
+        },
+        {
+          "name": "EH1,1",
+          "partner": 0,
+          "overlap": 0.00010115944890267362
+        }
+      ]
+    },
+    {
+      "channel": 2,
+      "analytical": "HE1,1",
+      "partner": 1,
+      "squared_field_overlap": 0.9999152556224036,
+      "neff_fdfd": 1.9276358521502472,
+      "neff_analytical": 1.928028525977015,
+      "relative_neff_error": 0.00020366598391934043,
+      "alternatives": [
+        {
+          "name": "HE1,1",
+          "partner": 1,
+          "overlap": 0.9999152556224036
+        },
+        {
+          "name": "HE1,3",
+          "partner": 1,
+          "overlap": 0.00046560455094392226
+        },
+        {
+          "name": "EH1,2",
+          "partner": 1,
+          "overlap": 0.00030424780994102555
+        },
+        {
+          "name": "EH1,1",
+          "partner": 1,
+          "overlap": 0.00010115944890268796
+        }
+      ]
+    },
+    {
+      "channel": 3,
+      "analytical": "TE0,1",
+      "partner": 0,
+      "squared_field_overlap": 0.9997983830969085,
+      "neff_fdfd": 1.8326452317886541,
+      "neff_analytical": 1.833095579071801,
+      "relative_neff_error": 0.0002456758328853774,
+      "alternatives": [
+        {
+          "name": "TE0,1",
+          "partner": 0,
+          "overlap": 0.9997983830969085
+        },
+        {
+          "name": "TE0,2",
+          "partner": 0,
+          "overlap": 0.0017195206574967946
+        },
+        {
+          "name": "HE4,1",
+          "partner": 1,
+          "overlap": 9.98072269273489e-06
+        },
+        {
+          "name": "HE2,1",
+          "partner": 1,
+          "overlap": 1.7221519773286636e-29
+        }
+      ]
+    },
+    {
+      "channel": 4,
+      "analytical": "HE2,1",
+      "partner": 1,
+      "squared_field_overlap": 0.9997985178579032,
+      "neff_fdfd": 1.8093084871965877,
+      "neff_analytical": 1.8102641718940466,
+      "relative_neff_error": 0.0005279255438498106,
+      "alternatives": [
+        {
+          "name": "HE2,1",
+          "partner": 1,
+          "overlap": 0.9997985178579032
+        },
+        {
+          "name": "EH2,1",
+          "partner": 1,
+          "overlap": 0.0005280895339536849
+        },
+        {
+          "name": "HE2,2",
+          "partner": 1,
+          "overlap": 0.00019318692046820134
+        },
+        {
+          "name": "HE2,1",
+          "partner": 0,
+          "overlap": 9.158106162411081e-26
+        }
+      ]
+    },
+    {
+      "channel": 5,
+      "analytical": "HE2,1",
+      "partner": 0,
+      "squared_field_overlap": 0.9997707214005129,
+      "neff_fdfd": 1.8091540041299898,
+      "neff_analytical": 1.8102641718940466,
+      "relative_neff_error": 0.0006132628493084877,
+      "alternatives": [
+        {
+          "name": "HE2,1",
+          "partner": 0,
+          "overlap": 0.9997707214005129
+        },
+        {
+          "name": "EH2,1",
+          "partner": 0,
+          "overlap": 0.00023576480539475164
+        },
+        {
+          "name": "HE2,2",
+          "partner": 0,
+          "overlap": 0.00023548527358913167
+        },
+        {
+          "name": "HE2,1",
+          "partner": 1,
+          "overlap": 8.144569250145937e-27
+        }
+      ]
+    },
+    {
+      "channel": 6,
+      "analytical": "TM0,1",
+      "partner": 0,
+      "squared_field_overlap": 0.9997661635417601,
+      "neff_fdfd": 1.7962236689365976,
+      "neff_analytical": 1.7972454060524452,
+      "relative_neff_error": 0.0005685017262566404,
+      "alternatives": [
+        {
+          "name": "TM0,1",
+          "partner": 0,
+          "overlap": 0.9997661635417601
+        },
+        {
+          "name": "TM0,2",
+          "partner": 0,
+          "overlap": 0.00035009881102578393
+        },
+        {
+          "name": "HE4,1",
+          "partner": 0,
+          "overlap": 1.2439804636433135e-05
+        },
+        {
+          "name": "HE2,1",
+          "partner": 1,
+          "overlap": 3.036534061873936e-29
+        }
+      ]
+    },
+    {
+      "channel": 7,
+      "analytical": "EH1,1",
+      "partner": 0,
+      "squared_field_overlap": 0.9988393455549978,
+      "neff_fdfd": 1.6766469462467937,
+      "neff_analytical": 1.6771887555097496,
+      "relative_neff_error": 0.00032304608600312905,
+      "alternatives": [
+        {
+          "name": "EH1,1",
+          "partner": 0,
+          "overlap": 0.9988393455549978
+        },
+        {
+          "name": "EH1,2",
+          "partner": 0,
+          "overlap": 0.007670285336570062
+        },
+        {
+          "name": "HE3,1",
+          "partner": 0,
+          "overlap": 0.0007598211357865834
+        },
+        {
+          "name": "HE1,2",
+          "partner": 0,
+          "overlap": 8.800997752248921e-05
+        }
+      ]
+    },
+    {
+      "channel": 8,
+      "analytical": "EH1,1",
+      "partner": 1,
+      "squared_field_overlap": 0.9988393455549975,
+      "neff_fdfd": 1.6766469462467923,
+      "neff_analytical": 1.6771887555097496,
+      "relative_neff_error": 0.0003230460860039234,
+      "alternatives": [
+        {
+          "name": "EH1,1",
+          "partner": 1,
+          "overlap": 0.9988393455549975
+        },
+        {
+          "name": "EH1,2",
+          "partner": 1,
+          "overlap": 0.007670285336570131
+        },
+        {
+          "name": "HE3,1",
+          "partner": 1,
+          "overlap": 0.0007598211357867094
+        },
+        {
+          "name": "HE1,2",
+          "partner": 1,
+          "overlap": 8.800997752230845e-05
+        }
+      ]
+    },
+    {
+      "channel": 9,
+      "analytical": "HE3,1",
+      "partner": 0,
+      "squared_field_overlap": 0.9988617432605815,
+      "neff_fdfd": 1.6386688224508872,
+      "neff_analytical": 1.6405942492760588,
+      "relative_neff_error": 0.0011736154908632858,
+      "alternatives": [
+        {
+          "name": "HE3,1",
+          "partner": 0,
+          "overlap": 0.9988617432605815
+        },
+        {
+          "name": "EH3,1",
+          "partner": 0,
+          "overlap": 0.001039379367549385
+        },
+        {
+          "name": "EH1,1",
+          "partner": 0,
+          "overlap": 0.0006814806001749627
+        },
+        {
+          "name": "HE1,2",
+          "partner": 0,
+          "overlap": 7.57239909795187e-05
+        }
+      ]
+    },
+    {
+      "channel": 10,
+      "analytical": "HE3,1",
+      "partner": 1,
+      "squared_field_overlap": 0.9988617432605933,
+      "neff_fdfd": 1.6386688224508865,
+      "neff_analytical": 1.6405942492760588,
+      "relative_neff_error": 0.0011736154908636917,
+      "alternatives": [
+        {
+          "name": "HE3,1",
+          "partner": 1,
+          "overlap": 0.9988617432605933
+        },
+        {
+          "name": "EH3,1",
+          "partner": 1,
+          "overlap": 0.001039379367549343
+        },
+        {
+          "name": "EH1,1",
+          "partner": 1,
+          "overlap": 0.0006814806001752022
+        },
+        {
+          "name": "HE1,2",
+          "partner": 1,
+          "overlap": 7.572399097950067e-05
+        }
+      ]
+    },
+    {
+      "channel": 11,
+      "analytical": "HE1,2",
+      "partner": 0,
+      "squared_field_overlap": 0.999447140206504,
+      "neff_fdfd": 1.5763586182383025,
+      "neff_analytical": 1.5778187156595642,
+      "relative_neff_error": 0.000925389847877034,
+      "alternatives": [
+        {
+          "name": "HE1,2",
+          "partner": 0,
+          "overlap": 0.999447140206504
+        },
+        {
+          "name": "HE1,3",
+          "partner": 0,
+          "overlap": 0.008670984169961603
+        },
+        {
+          "name": "EH1,1",
+          "partner": 0,
+          "overlap": 0.00011492525420247426
+        },
+        {
+          "name": "HE3,1",
+          "partner": 0,
+          "overlap": 8.676675491083571e-05
+        }
+      ]
+    },
+    {
+      "channel": 12,
+      "analytical": "HE1,2",
+      "partner": 1,
+      "squared_field_overlap": 0.9994471402065207,
+      "neff_fdfd": 1.5763586182383014,
+      "neff_analytical": 1.5778187156595642,
+      "relative_neff_error": 0.0009253898478777376,
+      "alternatives": [
+        {
+          "name": "HE1,2",
+          "partner": 1,
+          "overlap": 0.9994471402065207
+        },
+        {
+          "name": "HE1,3",
+          "partner": 1,
+          "overlap": 0.008670984169961728
+        },
+        {
+          "name": "EH1,1",
+          "partner": 1,
+          "overlap": 0.00011492525420241003
+        },
+        {
+          "name": "HE3,1",
+          "partner": 1,
+          "overlap": 8.676675491095802e-05
+        }
+      ]
+    },
+    {
+      "channel": 13,
+      "analytical": "EH2,1",
+      "partner": 0,
+      "squared_field_overlap": 0.9995859667556236,
+      "neff_fdfd": 1.4837833294552163,
+      "neff_analytical": 1.4808232226553337,
+      "relative_neff_error": 0.001998960277361575,
+      "alternatives": [
+        {
+          "name": "EH2,1",
+          "partner": 0,
+          "overlap": 0.9995859667556236
+        },
+        {
+          "name": "HE2,1",
+          "partner": 0,
+          "overlap": 0.0004322455039280192
+        },
+        {
+          "name": "HE2,2",
+          "partner": 0,
+          "overlap": 8.498615251619035e-05
+        },
+        {
+          "name": "EH2,1",
+          "partner": 1,
+          "overlap": 4.286534743798549e-28
+        }
+      ]
+    },
+    {
+      "channel": 14,
+      "analytical": "EH2,1",
+      "partner": 1,
+      "squared_field_overlap": 0.9991460665520626,
+      "neff_fdfd": 1.477446214703199,
+      "neff_analytical": 1.4808232226553337,
+      "relative_neff_error": 0.002280493647364079,
+      "alternatives": [
+        {
+          "name": "EH2,1",
+          "partner": 1,
+          "overlap": 0.9991460665520626
+        },
+        {
+          "name": "HE2,2",
+          "partner": 1,
+          "overlap": 0.00042485557168470025
+        },
+        {
+          "name": "HE2,1",
+          "partner": 1,
+          "overlap": 0.00019818856469542068
+        },
+        {
+          "name": "EH2,1",
+          "partner": 0,
+          "overlap": 2.0702282437973174e-28
+        }
+      ]
+    },
+    {
+      "channel": 15,
+      "analytical": "HE4,1",
+      "partner": 1,
+      "squared_field_overlap": 0.9877656988706379,
+      "neff_fdfd": 1.4011143762651979,
+      "neff_analytical": 1.4011630621014175,
+      "relative_neff_error": 3.4746731152493024e-05,
+      "alternatives": [
+        {
+          "name": "HE4,1",
+          "partner": 1,
+          "overlap": 0.9877656988706379
+        },
+        {
+          "name": "TE0,2",
+          "partner": 0,
+          "overlap": 0.011938976042850458
+        },
+        {
+          "name": "TE0,1",
+          "partner": 0,
+          "overlap": 3.310050112728475e-05
+        },
+        {
+          "name": "HE4,1",
+          "partner": 0,
+          "overlap": 3.8366411430859464e-28
+        }
+      ]
+    },
+    {
+      "channel": 16,
+      "analytical": "HE4,1",
+      "partner": 0,
+      "squared_field_overlap": 0.9991721658784799,
+      "neff_fdfd": 1.395310636355365,
+      "neff_analytical": 1.4011630621014175,
+      "relative_neff_error": 0.004176834163238168,
+      "alternatives": [
+        {
+          "name": "HE4,1",
+          "partner": 0,
+          "overlap": 0.9991721658784799
+        },
+        {
+          "name": "TM0,2",
+          "partner": 0,
+          "overlap": 0.000157563605428226
+        },
+        {
+          "name": "TM0,1",
+          "partner": 0,
+          "overlap": 1.4214390739288644e-05
+        },
+        {
+          "name": "TE0,2",
+          "partner": 0,
+          "overlap": 5.825804403242081e-27
+        }
+      ]
+    },
+    {
+      "channel": 17,
+      "analytical": "TE0,2",
+      "partner": 0,
+      "squared_field_overlap": 0.9852316518992338,
+      "neff_fdfd": 1.3872056716587937,
+      "neff_analytical": 1.387615436655967,
+      "relative_neff_error": 0.0002953015557111167,
+      "alternatives": [
+        {
+          "name": "TE0,2",
+          "partner": 0,
+          "overlap": 0.9852316518992338
+        },
+        {
+          "name": "HE4,1",
+          "partner": 1,
+          "overlap": 0.013700509265153852
+        },
+        {
+          "name": "TE0,1",
+          "partner": 0,
+          "overlap": 0.0011926511082402016
+        },
+        {
+          "name": "HE4,1",
+          "partner": 0,
+          "overlap": 1.7462270195046842e-26
+        }
+      ]
+    },
+    {
+      "channel": 18,
+      "analytical": "HE2,2",
+      "partner": 1,
+      "squared_field_overlap": 0.9993099744769296,
+      "neff_fdfd": 1.2734340431020628,
+      "neff_analytical": 1.2737496196552445,
+      "relative_neff_error": 0.00024775399208136473,
+      "alternatives": [
+        {
+          "name": "HE2,2",
+          "partner": 1,
+          "overlap": 0.9993099744769296
+        },
+        {
+          "name": "HE2,1",
+          "partner": 1,
+          "overlap": 3.975937684142583e-05
+        },
+        {
+          "name": "EH2,1",
+          "partner": 1,
+          "overlap": 3.970563192419381e-05
+        },
+        {
+          "name": "HE2,2",
+          "partner": 0,
+          "overlap": 1.369014117252741e-25
+        }
+      ]
+    },
+    {
+      "channel": 19,
+      "analytical": "HE2,2",
+      "partner": 0,
+      "squared_field_overlap": 0.9989980547060796,
+      "neff_fdfd": 1.2719756471311818,
+      "neff_analytical": 1.2737496196552445,
+      "relative_neff_error": 0.0013927168233759991,
+      "alternatives": [
+        {
+          "name": "HE2,2",
+          "partner": 0,
+          "overlap": 0.9989980547060796
+        },
+        {
+          "name": "EH2,1",
+          "partner": 0,
+          "overlap": 0.0002505387614163352
+        },
+        {
+          "name": "HE2,1",
+          "partner": 0,
+          "overlap": 1.7143958140883794e-05
+        },
+        {
+          "name": "HE2,2",
+          "partner": 1,
+          "overlap": 1.1210998441687228e-25
+        }
+      ]
+    },
+    {
+      "channel": 20,
+      "analytical": "TM0,2",
+      "partner": 0,
+      "squared_field_overlap": 0.9990150114330535,
+      "neff_fdfd": 1.2612108323985896,
+      "neff_analytical": 1.2606272180807516,
+      "relative_neff_error": 0.00046295551092928117,
+      "alternatives": [
+        {
+          "name": "TM0,2",
+          "partner": 0,
+          "overlap": 0.9990150114330535
+        },
+        {
+          "name": "HE4,1",
+          "partner": 0,
+          "overlap": 0.0001679559930431651
+        },
+        {
+          "name": "TM0,1",
+          "partner": 0,
+          "overlap": 0.00011553488792124849
+        },
+        {
+          "name": "HE2,2",
+          "partner": 1,
+          "overlap": 1.8266547358154402e-26
+        }
+      ]
+    }
+  ],
+  "combined_spans": [
+    {
+      "families": [
+        "EH1,1",
+        "HE3,1"
+      ],
+      "channels": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "minimum_principal_overlap": 0.9994570148290562
+    },
+    {
+      "families": [
+        "EH2,1",
+        "HE4,1"
+      ],
+      "channels": [
+        13,
+        14,
+        15,
+        16
+      ],
+      "minimum_principal_overlap": 0.9877656988706458
+    }
+  ],
+  "minimum_field_overlap": 0.9852316518992338,
+  "maximum_relative_neff_error": 0.004176834163238168,
+  "pipeline": {
+    "modes": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "candidate_indices": [
+      [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ]
+    ],
+    "groups": [
+      [
+        1,
+        2
+      ],
+      [
+        7,
+        8
+      ],
+      [
+        9,
+        10
+      ],
+      [
+        11,
+        12
+      ]
+    ],
+    "detection": {
+      "detected": "c4v",
+      "candidates": [
+        "c4v",
+        "c2v"
+      ],
+      "anchors": [
+        {
+          "supported": [
+            "c4v",
+            "c2v"
+          ],
+          "reasons": {}
+        },
+        {
+          "supported": [
+            "c4v",
+            "c2v"
+          ],
+          "reasons": {}
+        }
+      ],
+      "groups": [
+        {
+          "modes": [
+            1,
+            2
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            7,
+            8
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            9,
+            10
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            11,
+            12
+          ],
+          "applied": "c4v",
+          "attempts": []
+        }
+      ]
+    },
+    "separation": [
+      {
+        "modes": [
+          1,
+          2
+        ],
+        "blocks": [
+          [
+            1
+          ],
+          [
+            2
+          ]
+        ],
+        "irreps": [],
+        "anchors": {
+          "1": {
+            "transform": [
+              [
+                [
+                  1.0140652327834814,
+                  0.00031158998835310165
+                ],
+                [
+                  0.04722357131707402,
+                  0.0024495029026542015
+                ]
+              ],
+              [
+                [
+                  -0.12810246839775202,
+                  -5.365571357040708e-05
+                ],
+                [
+                  -1.0070521515661588,
+                  -0.0004218037518769844
+                ]
+              ]
+            ],
+            "residual": [
+              4.31031385916232e-15,
+              5.129435904615235e-15
+            ],
+            "power": [
+              [
+                [
+                  0.9999999999999999,
+                  0.0
+                ],
+                [
+                  -8.703463588102864e-17,
+                  -9.875929550101097e-18
+                ]
+              ],
+              [
+                [
+                  -8.703463588102864e-17,
+                  9.875929550101097e-18
+                ],
+                [
+                  1.0,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 0.0,
+            "leakage": 0.0,
+            "field_residual": 3.802802533731513e-14,
+            "representations": [],
+            "orientation": [],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.3037900478614585,
+                0.30379004786145913
+              ]
+            },
+            "separation": {
+              "longitudinal": {
+                "applied": false,
+                "reason": "unresolved_longitudinal_content",
+                "scores": [
+                  0.3037900478614585,
+                  0.30379004786145913
+                ]
+              },
+              "gradients": [
+                {
+                  "block_index": 0,
+                  "family": 0,
+                  "difference_scores": [
+                    -21892.895669715977
+                  ],
+                  "sum_scores": [
+                    108889.46483007983
+                  ],
+                  "directional_split": true,
+                  "sum_split": false
+                },
+                {
+                  "block_index": 1,
+                  "family": 0,
+                  "difference_scores": [
+                    21892.89566971601
+                  ],
+                  "sum_scores": [
+                    108889.46483007912
+                  ],
+                  "directional_split": true,
+                  "sum_split": false
+                }
+              ],
+              "candidates": [
+                [
+                  0,
+                  1
+                ]
+              ]
+            },
+            "axis_sensitive": [],
+            "irreducible_basis": null
+          },
+          "0": {
+            "transform": [
+              [
+                [
+                  0.9998020988138794,
+                  -6.939537343531693e-05
+                ],
+                [
+                  0.022544805838278417,
+                  0.0033370325706678413
+                ]
+              ],
+              [
+                [
+                  0.03086062697048164,
+                  0.004039328504107957
+                ],
+                [
+                  -0.999577379229161,
+                  0.0001188553902849443
+                ]
+              ]
+            ],
+            "residual": [
+              5.6376013203454356e-15,
+              6.5007269703550316e-15
+            ],
+            "power": [
+              [
+                [
+                  1.0000000000000009,
+                  0.0
+                ],
+                [
+                  4.340389351934664e-16,
+                  1.2224689701833709e-17
+                ]
+              ],
+              [
+                [
+                  4.340389351934664e-16,
+                  -1.2224689701833709e-17
+                ],
+                [
+                  1.0000000000000002,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 0.0,
+            "leakage": 0.0,
+            "field_residual": 2.8195431706884845e-14,
+            "representations": [],
+            "orientation": [],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.3038408771904955,
+                0.30384087719049596
+              ]
+            },
+            "separation": {
+              "longitudinal": {
+                "applied": false,
+                "reason": "unresolved_longitudinal_content",
+                "scores": [
+                  0.3038408771904955,
+                  0.30384087719049596
+                ]
+              },
+              "gradients": [
+                {
+                  "block_index": 0,
+                  "family": 0,
+                  "difference_scores": [
+                    -21879.13506278824
+                  ],
+                  "sum_scores": [
+                    108848.03800505282
+                  ],
+                  "directional_split": true,
+                  "sum_split": false,
+                  "source_block_index": 0
+                },
+                {
+                  "block_index": 1,
+                  "family": 0,
+                  "difference_scores": [
+                    21879.13506278821
+                  ],
+                  "sum_scores": [
+                    108848.03800505337
+                  ],
+                  "directional_split": true,
+                  "sum_split": false,
+                  "source_block_index": 1
+                }
+              ],
+              "candidates": [
+                [
+                  0,
+                  1
+                ]
+              ]
+            },
+            "axis_sensitive": [],
+            "irreducible_basis": null
+          }
+        }
+      },
+      {
+        "modes": [
+          7,
+          8
+        ],
+        "blocks": [
+          [
+            7
+          ],
+          [
+            8
+          ]
+        ],
+        "irreps": [],
+        "anchors": {
+          "1": {
+            "transform": [
+              [
+                [
+                  -0.2010987179247855,
+                  0.0042681523082684384
+                ],
+                [
+                  -1.0261127017356155,
+                  0.0003357095668938571
+                ]
+              ],
+              [
+                [
+                  1.0401004032121168,
+                  -0.001181131479220483
+                ],
+                [
+                  0.10749883728306332,
+                  0.00023872244065132621
+                ]
+              ]
+            ],
+            "residual": [
+              1.1152259783970956e-14,
+              1.0674143917437427e-14
+            ],
+            "power": [
+              [
+                [
+                  1.0000000000000004,
+                  0.0
+                ],
+                [
+                  -1.2295216339133565e-15,
+                  -1.836514434136032e-18
+                ]
+              ],
+              [
+                [
+                  -1.2295216339133565e-15,
+                  1.836514434136032e-18
+                ],
+                [
+                  1.0000000000000004,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 0.0,
+            "leakage": 0.0,
+            "field_residual": 6.62378230876768e-14,
+            "representations": [],
+            "orientation": [],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.0365821846865805,
+                0.03658218468658298
+              ]
+            },
+            "separation": {
+              "longitudinal": {
+                "applied": false,
+                "reason": "unresolved_longitudinal_content",
+                "scores": [
+                  0.0365821846865805,
+                  0.03658218468658298
+                ]
+              },
+              "gradients": [
+                {
+                  "block_index": 0,
+                  "family": 0,
+                  "difference_scores": [
+                    -120775.34558125478
+                  ],
+                  "sum_scores": [
+                    265815.81344035163
+                  ],
+                  "directional_split": true,
+                  "sum_split": false
+                },
+                {
+                  "block_index": 1,
+                  "family": 0,
+                  "difference_scores": [
+                    120775.34558125527
+                  ],
+                  "sum_scores": [
+                    265815.8134403519
+                  ],
+                  "directional_split": true,
+                  "sum_split": false
+                }
+              ],
+              "candidates": [
+                [
+                  0,
+                  1
+                ]
+              ]
+            },
+            "axis_sensitive": [],
+            "irreducible_basis": null
+          },
+          "0": {
+            "transform": [
+              [
+                [
+                  -1.145904926989536,
+                  0.09146981544813582
+                ],
+                [
+                  -1.2098965506642665,
+                  0.011725622950553332
+                ]
+              ],
+              [
+                [
+                  1.643709551138456,
+                  -0.07132574505908165
+                ],
+                [
+                  0.2802318137068685,
+                  -0.00732547297895785
+                ]
+              ]
+            ],
+            "residual": [
+              1.538534637638167e-14,
+              1.0161559090205285e-14
+            ],
+            "power": [
+              [
+                [
+                  1.000000000000001,
+                  0.0
+                ],
+                [
+                  -2.3296901923873173e-15,
+                  -1.63700328670543e-17
+                ]
+              ],
+              [
+                [
+                  -2.3296901923873173e-15,
+                  1.63700328670543e-17
+                ],
+                [
+                  1.0000000000000007,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 0.0,
+            "leakage": 0.0,
+            "field_residual": 7.514827225207762e-14,
+            "representations": [],
+            "orientation": [],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.0365652592353578,
+                0.03656525923536025
+              ]
+            },
+            "separation": {
+              "longitudinal": {
+                "applied": false,
+                "reason": "unresolved_longitudinal_content",
+                "scores": [
+                  0.0365652592353578,
+                  0.03656525923536025
+                ]
+              },
+              "gradients": [
+                {
+                  "block_index": 0,
+                  "family": 0,
+                  "difference_scores": [
+                    -120751.63479376744
+                  ],
+                  "sum_scores": [
+                    265740.92500223115
+                  ],
+                  "directional_split": true,
+                  "sum_split": false,
+                  "source_block_index": 0
+                },
+                {
+                  "block_index": 1,
+                  "family": 0,
+                  "difference_scores": [
+                    120751.63479376704
+                  ],
+                  "sum_scores": [
+                    265740.9250022315
+                  ],
+                  "directional_split": true,
+                  "sum_split": false,
+                  "source_block_index": 1
+                }
+              ],
+              "candidates": [
+                [
+                  0,
+                  1
+                ]
+              ]
+            },
+            "axis_sensitive": [],
+            "irreducible_basis": null
+          }
+        }
+      },
+      {
+        "modes": [
+          9,
+          10
+        ],
+        "blocks": [
+          [
+            9
+          ],
+          [
+            10
+          ]
+        ],
+        "irreps": [],
+        "anchors": {
+          "1": {
+            "transform": [
+              [
+                [
+                  -0.2753244580630606,
+                  0.05205223550636493
+                ],
+                [
+                  -0.98721516346353,
+                  -0.0026646519366472217
+                ]
+              ],
+              [
+                [
+                  1.024807478526147,
+                  -0.011443783771243915
+                ],
+                [
+                  -0.052461416682766736,
+                  0.0005859186831524005
+                ]
+              ]
+            ],
+            "residual": [
+              1.5418720098673125e-14,
+              1.049990316284868e-14
+            ],
+            "power": [
+              [
+                [
+                  1.0000000000000004,
+                  0.0
+                ],
+                [
+                  -4.454894239780116e-16,
+                  3.3384029489442845e-17
+                ]
+              ],
+              [
+                [
+                  -4.454894239780116e-16,
+                  -3.3384029489442845e-17
+                ],
+                [
+                  1.0,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 0.0,
+            "leakage": 0.0,
+            "field_residual": 7.013477560046924e-14,
+            "representations": [],
+            "orientation": [],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.37194811933419686,
+                0.37194811933419736
+              ]
+            },
+            "separation": {
+              "longitudinal": {
+                "applied": false,
+                "reason": "unresolved_longitudinal_content",
+                "scores": [
+                  0.37194811933419686,
+                  0.37194811933419736
+                ]
+              },
+              "gradients": [
+                {
+                  "block_index": 0,
+                  "family": 0,
+                  "difference_scores": [
+                    -8447.570938633617
+                  ],
+                  "sum_scores": [
+                    244105.16389614993
+                  ],
+                  "directional_split": true,
+                  "sum_split": false
+                },
+                {
+                  "block_index": 1,
+                  "family": 0,
+                  "difference_scores": [
+                    8447.570938634242
+                  ],
+                  "sum_scores": [
+                    244105.16389615007
+                  ],
+                  "directional_split": true,
+                  "sum_split": false
+                }
+              ],
+              "candidates": [
+                [
+                  0,
+                  1
+                ]
+              ]
+            },
+            "axis_sensitive": [],
+            "irreducible_basis": null
+          },
+          "0": {
+            "transform": [
+              [
+                [
+                  -0.02316313372937188,
+                  0.0012598105109301039
+                ],
+                [
+                  -1.0001758221286354,
+                  -6.631748277471365e-05
+                ]
+              ],
+              [
+                [
+                  0.9990427446863108,
+                  3.787733896275236e-05
+                ],
+                [
+                  -0.05294705033382544,
+                  1.3088153877252161e-05
+                ]
+              ]
+            ],
+            "residual": [
+              1.7496167479737644e-14,
+              1.1577637997612418e-14
+            ],
+            "power": [
+              [
+                [
+                  1.0000000000000002,
+                  0.0
+                ],
+                [
+                  1.3197328971835403e-16,
+                  -2.285106570522354e-17
+                ]
+              ],
+              [
+                [
+                  1.3197328971835403e-16,
+                  2.285106570522354e-17
+                ],
+                [
+                  0.9999999999999999,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 0.0,
+            "leakage": 0.0,
+            "field_residual": 5.998480564233382e-14,
+            "representations": [],
+            "orientation": [],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.3720454015096232,
+                0.3720454015096242
+              ]
+            },
+            "separation": {
+              "longitudinal": {
+                "applied": false,
+                "reason": "unresolved_longitudinal_content",
+                "scores": [
+                  0.3720454015096232,
+                  0.3720454015096242
+                ]
+              },
+              "gradients": [
+                {
+                  "block_index": 0,
+                  "family": 0,
+                  "difference_scores": [
+                    -8436.257267324312
+                  ],
+                  "sum_scores": [
+                    244033.8038989333
+                  ],
+                  "directional_split": true,
+                  "sum_split": false,
+                  "source_block_index": 0
+                },
+                {
+                  "block_index": 1,
+                  "family": 0,
+                  "difference_scores": [
+                    8436.2572673278
+                  ],
+                  "sum_scores": [
+                    244033.80389893302
+                  ],
+                  "directional_split": true,
+                  "sum_split": false,
+                  "source_block_index": 1
+                }
+              ],
+              "candidates": [
+                [
+                  0,
+                  1
+                ]
+              ]
+            },
+            "axis_sensitive": [],
+            "irreducible_basis": null
+          }
+        }
+      },
+      {
+        "modes": [
+          11,
+          12
+        ],
+        "blocks": [
+          [
+            11
+          ],
+          [
+            12
+          ]
+        ],
+        "irreps": [],
+        "anchors": {
+          "1": {
+            "transform": [
+              [
+                [
+                  -0.3030903262300635,
+                  0.004813507542604432
+                ],
+                [
+                  0.9529781291836585,
+                  0.001501426049053589
+                ]
+              ],
+              [
+                [
+                  -0.954664621018255,
+                  2.68272459368335e-05
+                ],
+                [
+                  -0.29777834924329555,
+                  8.367936586428648e-06
+                ]
+              ]
+            ],
+            "residual": [
+              1.50602916454434e-14,
+              1.2837769532368089e-14
+            ],
+            "power": [
+              [
+                [
+                  0.9999999999999999,
+                  0.0
+                ],
+                [
+                  9.658357612792935e-16,
+                  2.8031916912832336e-17
+                ]
+              ],
+              [
+                [
+                  9.658357612792935e-16,
+                  -2.8031916912832336e-17
+                ],
+                [
+                  1.0000000000000004,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 0.0,
+            "leakage": 0.0,
+            "field_residual": 8.89145869247981e-14,
+            "representations": [],
+            "orientation": [],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.7014439734033862,
+                0.7014439734033905
+              ]
+            },
+            "separation": {
+              "longitudinal": {
+                "applied": false,
+                "reason": "unresolved_longitudinal_content",
+                "scores": [
+                  0.7014439734033862,
+                  0.7014439734033905
+                ]
+              },
+              "gradients": [
+                {
+                  "block_index": 0,
+                  "family": 0,
+                  "difference_scores": [
+                    -59464.89716794999
+                  ],
+                  "sum_scores": [
+                    289189.8947261095
+                  ],
+                  "directional_split": true,
+                  "sum_split": false
+                },
+                {
+                  "block_index": 1,
+                  "family": 0,
+                  "difference_scores": [
+                    59464.89716794865
+                  ],
+                  "sum_scores": [
+                    289189.8947261098
+                  ],
+                  "directional_split": true,
+                  "sum_split": false
+                }
+              ],
+              "candidates": [
+                [
+                  0,
+                  1
+                ]
+              ]
+            },
+            "axis_sensitive": [],
+            "irreducible_basis": null
+          },
+          "0": {
+            "transform": [
+              [
+                [
+                  -0.2577025962535538,
+                  -0.0042995218692665396
+                ],
+                [
+                  0.9671592144213725,
+                  -0.0013436389804037715
+                ]
+              ],
+              [
+                [
+                  -0.9553494638239844,
+                  0.00018263719962530178
+                ],
+                [
+                  -0.298555239055133,
+                  5.707575589800756e-05
+                ]
+              ]
+            ],
+            "residual": [
+              2.119002725197958e-14,
+              1.440156521824792e-14
+            ],
+            "power": [
+              [
+                [
+                  1.0000000000000004,
+                  0.0
+                ],
+                [
+                  2.7800860078054967e-15,
+                  1.612782100032707e-17
+                ]
+              ],
+              [
+                [
+                  2.7800860078054967e-15,
+                  -1.612782100032707e-17
+                ],
+                [
+                  1.0000000000000004,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 0.0,
+            "leakage": 0.0,
+            "field_residual": 8.084973216597483e-14,
+            "representations": [],
+            "orientation": [],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.7015469790478752,
+                0.701546979047883
+              ]
+            },
+            "separation": {
+              "longitudinal": {
+                "applied": false,
+                "reason": "unresolved_longitudinal_content",
+                "scores": [
+                  0.7015469790478752,
+                  0.701546979047883
+                ]
+              },
+              "gradients": [
+                {
+                  "block_index": 0,
+                  "family": 0,
+                  "difference_scores": [
+                    -59479.66594784423
+                  ],
+                  "sum_scores": [
+                    289104.1740375243
+                  ],
+                  "directional_split": true,
+                  "sum_split": false,
+                  "source_block_index": 0
+                },
+                {
+                  "block_index": 1,
+                  "family": 0,
+                  "difference_scores": [
+                    59479.66594784246
+                  ],
+                  "sum_scores": [
+                    289104.1740375241
+                  ],
+                  "directional_split": true,
+                  "sum_split": false,
+                  "source_block_index": 1
+                }
+              ],
+              "candidates": [
+                [
+                  0,
+                  1
+                ]
+              ]
+            },
+            "axis_sensitive": [],
+            "irreducible_basis": null
+          }
+        }
+      }
+    ],
+    "symmetry": [
+      {
+        "modes": [
+          1,
+          2
+        ],
+        "blocks": [
+          [
+            1,
+            2
+          ]
+        ],
+        "irreps": [
+          "E"
+        ],
+        "anchors": {
+          "1": {
+            "transform": [
+              [
+                [
+                  1.0140652327834816,
+                  0.0003115899883530968
+                ],
+                [
+                  -0.04722357131707384,
+                  -0.0024495029026541937
+                ]
+              ],
+              [
+                [
+                  -0.128102468397752,
+                  -5.365571357039949e-05
+                ],
+                [
+                  1.0070521515661583,
+                  0.0004218037518770538
+                ]
+              ]
+            ],
+            "residual": [
+              4.38109351197555e-15,
+              5.0874026415367e-15
+            ],
+            "power": [
+              [
+                [
+                  1.0000000000000002,
+                  0.0
+                ],
+                [
+                  8.670111811770854e-17,
+                  9.875929550101116e-18
+                ]
+              ],
+              [
+                [
+                  8.670111811770854e-17,
+                  -9.875929550101116e-18
+                ],
+                [
+                  0.9999999999999992,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 8.783629050943398e-15,
+            "leakage": 0.0,
+            "field_residual": 3.805423977505517e-14,
+            "representations": [
+              [
+                [
+                  [
+                    -3.6239912651339453e-19,
+                    1.6031603931889708e-18
+                  ],
+                  [
+                    -1.0000000000000002,
+                    1.3125468478315375e-17
+                  ]
+                ],
+                [
+                  [
+                    0.9999999999999979,
+                    2.3226279123798623e-17
+                  ],
+                  [
+                    8.445904837638875e-17,
+                    8.152488270424894e-18
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    -1.0000000000000007,
+                    -7.703719777548943e-34
+                  ],
+                  [
+                    -5.490428675837777e-17,
+                    -8.15248827042491e-18
+                  ]
+                ],
+                [
+                  [
+                    2.951540419788512e-17,
+                    -1.6031603931889875e-18
+                  ],
+                  [
+                    0.9999999999999973,
+                    1.3877787807814444e-17
+                  ]
+                ]
+              ]
+            ],
+            "orientation": [
+              {
+                "method": "electric_moment",
+                "parity": [
+                  [
+                    -1,
+                    1
+                  ],
+                  [
+                    1,
+                    -1
+                  ]
+                ],
+                "parity_residual": 3.2795183477281926e-15,
+                "moment_relative_min": 0.6791540958307198,
+                "channel_overlaps": [
+                  1.0,
+                  1.0
+                ]
+              }
+            ],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.3037900478614585,
+                0.30379004786145913
+              ]
+            },
+            "separation": null,
+            "axis_sensitive": [],
+            "irreducible_basis": {
+              "transform": [
+                [
+                  [
+                    1.0140652327834816,
+                    0.00031158998835310175
+                  ],
+                  [
+                    0.04722357131707402,
+                    0.0024495029026542015
+                  ]
+                ],
+                [
+                  [
+                    -0.128102468397752,
+                    -5.365571357040795e-05
+                  ],
+                  [
+                    -1.0070521515661588,
+                    -0.0004218037518769844
+                  ]
+                ]
+              ],
+              "columns": [
+                [
+                  0,
+                  1
+                ]
+              ],
+              "irreps": [
+                "E"
+              ]
+            }
+          },
+          "0": {
+            "transform": [
+              [
+                [
+                  0.999802098813879,
+                  -6.939537343526831e-05
+                ],
+                [
+                  -0.02254480583828016,
+                  -0.00333703257066791
+                ]
+              ],
+              [
+                [
+                  0.03086062697048378,
+                  0.004039328504107988
+                ],
+                [
+                  0.9995773792291611,
+                  -0.00011885539028488878
+                ]
+              ]
+            ],
+            "residual": [
+              5.668826868465624e-15,
+              6.5389101732071996e-15
+            ],
+            "power": [
+              [
+                [
+                  0.9999999999999999,
+                  0.0
+                ],
+                [
+                  -7.372019321370095e-17,
+                  -4.231411277285452e-18
+                ]
+              ],
+              [
+                [
+                  -7.372019321370095e-17,
+                  4.231411277285452e-18
+                ],
+                [
+                  1.000000000000001,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 1.19237200006843e-14,
+            "leakage": 2.559676101496879e-32,
+            "field_residual": 2.8244723470811922e-14,
+            "representations": [
+              [
+                [
+                  [
+                    -2.4637102504922957e-19,
+                    2.3453664290173833e-20
+                  ],
+                  [
+                    -0.9999999999999967,
+                    1.3126131934249016e-17
+                  ]
+                ],
+                [
+                  [
+                    1.0000000000000004,
+                    1.245715955570002e-17
+                  ],
+                  [
+                    -6.576506021860828e-17,
+                    -4.746330721799464e-18
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    -0.9999999999999961,
+                    -1.8488927466117464e-32
+                  ],
+                  [
+                    7.349209350385031e-17,
+                    4.74633072179901e-18
+                  ]
+                ],
+                [
+                  [
+                    7.21849641774123e-18,
+                    -2.3453664290314513e-20
+                  ],
+                  [
+                    1.0000000000000007,
+                    -2.465190328815662e-32
+                  ]
+                ]
+              ]
+            ],
+            "orientation": [
+              {
+                "method": "electric_moment",
+                "parity": [
+                  [
+                    -1,
+                    1
+                  ],
+                  [
+                    1,
+                    -1
+                  ]
+                ],
+                "parity_residual": 5.313601395438945e-15,
+                "moment_relative_min": 0.6791430749231647,
+                "channel_overlaps": [
+                  0.9999999869999532,
+                  0.9999999869999766
+                ]
+              }
+            ],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.3038408771904955,
+                0.30384087719049596
+              ]
+            },
+            "separation": null,
+            "axis_sensitive": [],
+            "irreducible_basis": {
+              "transform": [
+                [
+                  [
+                    -0.999802098813879,
+                    6.939537343531675e-05
+                  ],
+                  [
+                    -0.022544805838278007,
+                    -0.00333703257066785
+                  ]
+                ],
+                [
+                  [
+                    -0.030860626970481708,
+                    -0.004039328504108014
+                  ],
+                  [
+                    0.9995773792291607,
+                    -0.0001188553902849998
+                  ]
+                ]
+              ],
+              "columns": [
+                [
+                  0,
+                  1
+                ]
+              ],
+              "irreps": [
+                "E"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "modes": [
+          7,
+          8
+        ],
+        "blocks": [
+          [
+            7,
+            8
+          ]
+        ],
+        "irreps": [
+          "E"
+        ],
+        "anchors": {
+          "1": {
+            "transform": [
+              [
+                [
+                  -0.20109871792478448,
+                  0.004268152308268299
+                ],
+                [
+                  1.026112701735616,
+                  -0.00033570956689436485
+                ]
+              ],
+              [
+                [
+                  1.0401004032121164,
+                  -0.0011811314792205402
+                ],
+                [
+                  -0.10749883728306592,
+                  -0.00023872244065142726
+                ]
+              ]
+            ],
+            "residual": [
+              1.1161961035497231e-14,
+              1.0650359746996425e-14
+            ],
+            "power": [
+              [
+                [
+                  0.9999999999999999,
+                  0.0
+                ],
+                [
+                  -1.9855670106201866e-16,
+                  -2.2250576311713373e-19
+                ]
+              ],
+              [
+                [
+                  -1.9855670106201866e-16,
+                  2.2250576311713373e-19
+                ],
+                [
+                  1.0000000000000004,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 1.9447831642235917e-14,
+            "leakage": 1.9721673093228233e-31,
+            "field_residual": 6.627870784177504e-14,
+            "representations": [
+              [
+                [
+                  [
+                    -1.9743554857289117e-17,
+                    2.9890829514070253e-16
+                  ],
+                  [
+                    -0.9999999999999988,
+                    1.6017855607772482e-16
+                  ]
+                ],
+                [
+                  [
+                    1.0000000000000007,
+                    1.617095939915785e-16
+                  ],
+                  [
+                    -1.9915436150549395e-16,
+                    -3.0015154440089507e-16
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    -0.9999999999999986,
+                    -3.697785493223493e-32
+                  ],
+                  [
+                    3.684384687142508e-15,
+                    3.0021914085551737e-16
+                  ]
+                ],
+                [
+                  [
+                    3.5023240329513043e-15,
+                    -2.9884069868608014e-16
+                  ],
+                  [
+                    1.0000000000000004,
+                    1.7347234759769057e-18
+                  ]
+                ]
+              ]
+            ],
+            "orientation": [
+              {
+                "method": "electric_moment",
+                "parity": [
+                  [
+                    -1,
+                    1
+                  ],
+                  [
+                    1,
+                    -1
+                  ]
+                ],
+                "parity_residual": 3.8077283414730095e-15,
+                "moment_relative_min": 0.10093223584529364,
+                "channel_overlaps": [
+                  1.0,
+                  1.0
+                ]
+              }
+            ],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.0365821846865805,
+                0.03658218468658298
+              ]
+            },
+            "separation": null,
+            "axis_sensitive": [],
+            "irreducible_basis": {
+              "transform": [
+                [
+                  [
+                    0.20109871792478531,
+                    -0.004268152308268434
+                  ],
+                  [
+                    1.026112701735615,
+                    -0.0003357095668938625
+                  ]
+                ],
+                [
+                  [
+                    -1.0401004032121162,
+                    0.0011811314792204812
+                  ],
+                  [
+                    -0.10749883728306485,
+                    -0.00023872244065132817
+                  ]
+                ]
+              ],
+              "columns": [
+                [
+                  0,
+                  1
+                ]
+              ],
+              "irreps": [
+                "E"
+              ]
+            }
+          },
+          "0": {
+            "transform": [
+              [
+                [
+                  -1.1459049269895354,
+                  0.09146981544813598
+                ],
+                [
+                  1.209896550664269,
+                  -0.01172562295055429
+                ]
+              ],
+              [
+                [
+                  1.6437095511384554,
+                  -0.07132574505908175
+                ],
+                [
+                  -0.28023181370687317,
+                  0.007325472978958308
+                ]
+              ]
+            ],
+            "residual": [
+              1.5440453405752982e-14,
+              1.0140394118023682e-14
+            ],
+            "power": [
+              [
+                [
+                  1.0000000000000002,
+                  0.0
+                ],
+                [
+                  8.05312534631327e-17,
+                  -1.2098617027814546e-18
+                ]
+              ],
+              [
+                [
+                  8.05312534631327e-17,
+                  1.2098617027814546e-18
+                ],
+                [
+                  0.9999999999999999,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 2.6002215276659482e-14,
+            "leakage": 3.944304526105059e-31,
+            "field_residual": 7.50852290770377e-14,
+            "representations": [
+              [
+                [
+                  [
+                    -1.0455994778209082e-18,
+                    -2.950539950617318e-17
+                  ],
+                  [
+                    -0.9999999999999986,
+                    1.601766025961251e-16
+                  ]
+                ],
+                [
+                  [
+                    1.0000000000000016,
+                    1.6344431746755372e-16
+                  ],
+                  [
+                    1.6926740329995425e-16,
+                    4.236421751926654e-17
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    -0.9999999999999986,
+                    -3.697785493223493e-32
+                  ],
+                  [
+                    4.38259506702944e-15,
+                    -4.2340492825013484e-17
+                  ]
+                ],
+                [
+                  [
+                    4.551596202693974e-15,
+                    2.9529124200427516e-17
+                  ],
+                  [
+                    1.000000000000001,
+                    1.3877787807814555e-17
+                  ]
+                ]
+              ]
+            ],
+            "orientation": [
+              {
+                "method": "electric_moment",
+                "parity": [
+                  [
+                    -1,
+                    1
+                  ],
+                  [
+                    1,
+                    -1
+                  ]
+                ],
+                "parity_residual": 4.969909782967897e-15,
+                "moment_relative_min": 0.10095580890782106,
+                "channel_overlaps": [
+                  0.9999998916824021,
+                  0.9999998916823897
+                ]
+              }
+            ],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.0365652592353578,
+                0.03656525923536025
+              ]
+            },
+            "separation": null,
+            "axis_sensitive": [],
+            "irreducible_basis": {
+              "transform": [
+                [
+                  [
+                    1.1459049269895363,
+                    -0.09146981544813582
+                  ],
+                  [
+                    1.2098965506642683,
+                    -0.011725622950553514
+                  ]
+                ],
+                [
+                  [
+                    -1.6437095511384556,
+                    0.07132574505908162
+                  ],
+                  [
+                    -0.28023181370687206,
+                    0.00732547297895798
+                  ]
+                ]
+              ],
+              "columns": [
+                [
+                  0,
+                  1
+                ]
+              ],
+              "irreps": [
+                "E"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "modes": [
+          9,
+          10
+        ],
+        "blocks": [
+          [
+            9,
+            10
+          ]
+        ],
+        "irreps": [
+          "E"
+        ],
+        "anchors": {
+          "1": {
+            "transform": [
+              [
+                [
+                  -0.275324458062955,
+                  0.05205223550636103
+                ],
+                [
+                  0.9872151634635608,
+                  0.0026646519366418145
+                ]
+              ],
+              [
+                [
+                  1.0248074785261534,
+                  -0.011443783771242999
+                ],
+                [
+                  0.0524614166826563,
+                  -0.0005859186831552749
+                ]
+              ]
+            ],
+            "residual": [
+              1.5367010694526868e-14,
+              1.0619562041150847e-14
+            ],
+            "power": [
+              [
+                [
+                  1.000000000000001,
+                  0.0
+                ],
+                [
+                  -2.226205963641824e-17,
+                  1.7338394627244047e-18
+                ]
+              ],
+              [
+                [
+                  -2.226205963641824e-17,
+                  -1.7338394627244047e-18
+                ],
+                [
+                  1.0000000000000013,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 1.7161017927985023e-14,
+            "leakage": 6.310887241768095e-30,
+            "field_residual": 7.016632728506796e-14,
+            "representations": [
+              [
+                [
+                  [
+                    3.351585845277827e-17,
+                    9.016487776187914e-15
+                  ],
+                  [
+                    -1.0000000000000018,
+                    1.776640347366517e-15
+                  ]
+                ],
+                [
+                  [
+                    0.9999999999999988,
+                    1.778673742796921e-15
+                  ],
+                  [
+                    -6.340035696131652e-18,
+                    -9.016168766359326e-15
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    -1.0000000000000018,
+                    -2.5637979419682884e-30
+                  ],
+                  [
+                    2.71314886602764e-13,
+                    9.007938282151279e-15
+                  ]
+                ],
+                [
+                  [
+                    2.7128195211013663e-13,
+                    -9.024718260394998e-15
+                  ],
+                  [
+                    0.9999999999999988,
+                    2.3665827156630354e-30
+                  ]
+                ]
+              ]
+            ],
+            "orientation": [
+              {
+                "method": "electric_moment",
+                "parity": [
+                  [
+                    -1,
+                    1
+                  ],
+                  [
+                    1,
+                    -1
+                  ]
+                ],
+                "parity_residual": 2.7148046240223823e-13,
+                "moment_relative_min": 0.004654709552723771,
+                "channel_overlaps": [
+                  1.0,
+                  1.0
+                ]
+              }
+            ],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.37194811933419686,
+                0.37194811933419736
+              ]
+            },
+            "separation": null,
+            "axis_sensitive": [],
+            "irreducible_basis": {
+              "transform": [
+                [
+                  [
+                    0.2753244580630606,
+                    -0.05205223550636493
+                  ],
+                  [
+                    0.9872151634635306,
+                    0.002664651936647194
+                  ]
+                ],
+                [
+                  [
+                    -1.024807478526147,
+                    0.011443783771243915
+                  ],
+                  [
+                    0.05246141668276629,
+                    -0.0005859186831523727
+                  ]
+                ]
+              ],
+              "columns": [
+                [
+                  0,
+                  1
+                ]
+              ],
+              "irreps": [
+                "E"
+              ]
+            }
+          },
+          "0": {
+            "transform": [
+              [
+                [
+                  -0.023163133729480378,
+                  0.0012598105109289499
+                ],
+                [
+                  1.0001758221286328,
+                  6.631748277397506e-05
+                ]
+              ],
+              [
+                [
+                  0.9990427446863049,
+                  3.787733896381401e-05
+                ],
+                [
+                  0.052947050333934126,
+                  -1.3088153878453891e-05
+                ]
+              ]
+            ],
+            "residual": [
+              1.7537230629502625e-14,
+              1.156182437161592e-14
+            ],
+            "power": [
+              [
+                [
+                  0.9999999999999999,
+                  0.0
+                ],
+                [
+                  1.4288052921555656e-19,
+                  -5.764900630118431e-18
+                ]
+              ],
+              [
+                [
+                  1.4288052921555656e-19,
+                  5.764900630118431e-18
+                ],
+                [
+                  0.9999999999999996,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 2.1326336167548707e-14,
+            "leakage": 5.082120056479053e-32,
+            "field_residual": 5.99762171472079e-14,
+            "representations": [
+              [
+                [
+                  [
+                    3.757246896009736e-18,
+                    3.1058512726049902e-15
+                  ],
+                  [
+                    -1.0000000000000007,
+                    1.776635858650436e-15
+                  ]
+                ],
+                [
+                  [
+                    1.0000000000000004,
+                    1.8237765531756026e-15
+                  ],
+                  [
+                    4.8286303752841136e-17,
+                    -3.1135503715908865e-15
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    -1.0000000000000009,
+                    -5.9164567891575885e-31
+                  ],
+                  [
+                    -2.872374233576875e-13,
+                    3.1128680316159816e-15
+                  ]
+                ],
+                [
+                  [
+                    -2.871914811985711e-13,
+                    -3.106533612580929e-15
+                  ],
+                  [
+                    1.0,
+                    5.9164567891575885e-31
+                  ]
+                ]
+              ]
+            ],
+            "orientation": [
+              {
+                "method": "electric_moment",
+                "parity": [
+                  [
+                    -1,
+                    1
+                  ],
+                  [
+                    1,
+                    -1
+                  ]
+                ],
+                "parity_residual": 2.8723197385525005e-13,
+                "moment_relative_min": 0.004652248717762904,
+                "channel_overlaps": [
+                  0.9999999204266755,
+                  0.9999999204267068
+                ]
+              }
+            ],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.3720454015096232,
+                0.3720454015096242
+              ]
+            },
+            "separation": null,
+            "axis_sensitive": [],
+            "irreducible_basis": {
+              "transform": [
+                [
+                  [
+                    0.02316313372937198,
+                    -0.0012598105109301056
+                  ],
+                  [
+                    1.0001758221286354,
+                    6.631748277471476e-05
+                  ]
+                ],
+                [
+                  [
+                    -0.9990427446863106,
+                    -3.78773389627593e-05
+                  ],
+                  [
+                    0.052947050333825595,
+                    -1.3088153877281652e-05
+                  ]
+                ]
+              ],
+              "columns": [
+                [
+                  0,
+                  1
+                ]
+              ],
+              "irreps": [
+                "E"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "modes": [
+          11,
+          12
+        ],
+        "blocks": [
+          [
+            11,
+            12
+          ]
+        ],
+        "irreps": [
+          "E"
+        ],
+        "anchors": {
+          "1": {
+            "transform": [
+              [
+                [
+                  -0.952978129183659,
+                  -0.0015014260490538046
+                ],
+                [
+                  -0.3030903262300614,
+                  0.004813507542604284
+                ]
+              ],
+              [
+                [
+                  0.29777834924329183,
+                  -8.36793658648416e-06
+                ],
+                [
+                  -0.9546646210182558,
+                  2.6827245937000033e-05
+                ]
+              ]
+            ],
+            "residual": [
+              1.2843215616652155e-14,
+              1.5007737080484838e-14
+            ],
+            "power": [
+              [
+                [
+                  0.9999999999999991,
+                  0.0
+                ],
+                [
+                  4.1758350400471144e-16,
+                  -8.325919769765018e-18
+                ]
+              ],
+              [
+                [
+                  4.1758350400471144e-16,
+                  8.325919769765018e-18
+                ],
+                [
+                  1.0,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 2.096586710932568e-14,
+            "leakage": 0.0,
+            "field_residual": 8.910635299069215e-14,
+            "representations": [
+              [
+                [
+                  [
+                    -2.982399448273329e-16,
+                    -2.7863229782272515e-16
+                  ],
+                  [
+                    -1.0000000000000024,
+                    3.0727809781795545e-16
+                  ]
+                ],
+                [
+                  [
+                    1.0000000000000067,
+                    3.0740869650754646e-16
+                  ],
+                  [
+                    7.532008585242588e-18,
+                    2.761870478398281e-16
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    -1.000000000000002,
+                    -4.930380657631324e-32
+                  ],
+                  [
+                    6.653536485950155e-16,
+                    -2.7286480342877163e-16
+                  ]
+                ],
+                [
+                  [
+                    9.70435400792141e-16,
+                    2.8195454223378123e-16
+                  ],
+                  [
+                    1.0000000000000069,
+                    9.860761315262648e-32
+                  ]
+                ]
+              ]
+            ],
+            "orientation": [
+              {
+                "method": "electric_moment",
+                "parity": [
+                  [
+                    -1,
+                    1
+                  ],
+                  [
+                    1,
+                    -1
+                  ]
+                ],
+                "parity_residual": 1.3674428031282485e-14,
+                "moment_relative_min": 0.32171891810450376,
+                "channel_overlaps": [
+                  1.0,
+                  1.0
+                ]
+              }
+            ],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.7014439734033862,
+                0.7014439734033905
+              ]
+            },
+            "separation": null,
+            "axis_sensitive": [],
+            "irreducible_basis": {
+              "transform": [
+                [
+                  [
+                    0.3030903262300635,
+                    -0.004813507542604432
+                  ],
+                  [
+                    0.9529781291836582,
+                    0.0015014260490535817
+                  ]
+                ],
+                [
+                  [
+                    0.954664621018255,
+                    -2.68272459368335e-05
+                  ],
+                  [
+                    -0.29777834924329405,
+                    8.367936586400893e-06
+                  ]
+                ]
+              ],
+              "columns": [
+                [
+                  0,
+                  1
+                ]
+              ],
+              "irreps": [
+                "E"
+              ]
+            }
+          },
+          "0": {
+            "transform": [
+              [
+                [
+                  -0.9671592144213706,
+                  0.0013436389804036776
+                ],
+                [
+                  -0.25770259625356196,
+                  -0.0042995218692664155
+                ]
+              ],
+              [
+                [
+                  0.298555239055138,
+                  -5.707575589794511e-05
+                ],
+                [
+                  -0.9553494638239816,
+                  0.00018263719962545444
+                ]
+              ]
+            ],
+            "residual": [
+              1.435415518360998e-14,
+              2.123057209613277e-14
+            ],
+            "power": [
+              [
+                [
+                  0.9999999999999996,
+                  0.0
+                ],
+                [
+                  -5.846949624408368e-18,
+                  -8.67763897487052e-19
+                ]
+              ],
+              [
+                [
+                  -5.846949624408368e-18,
+                  8.67763897487052e-19
+                ],
+                [
+                  0.9999999999999996,
+                  0.0
+                ]
+              ]
+            ],
+            "closure": 2.5230536002239404e-14,
+            "leakage": 3.1554436208840472e-30,
+            "field_residual": 8.08352972518951e-14,
+            "representations": [
+              [
+                [
+                  [
+                    2.2522762540350984e-16,
+                    -7.553623351378898e-18
+                  ],
+                  [
+                    -1.0000000000000056,
+                    3.07031667702916e-16
+                  ]
+                ],
+                [
+                  [
+                    0.9999999999999994,
+                    3.073871655226158e-16
+                  ],
+                  [
+                    2.7173599084168134e-17,
+                    5.176870794667963e-18
+                  ]
+                ]
+              ],
+              [
+                [
+                  [
+                    -1.0000000000000058,
+                    1.734723475976807e-18
+                  ],
+                  [
+                    -2.328193379193808e-16,
+                    -4.649680990625495e-18
+                  ]
+                ],
+                [
+                  [
+                    -4.305592672136137e-16,
+                    8.08081315542515e-18
+                  ],
+                  [
+                    1.0,
+                    4.930380657631324e-32
+                  ]
+                ]
+              ]
+            ],
+            "orientation": [
+              {
+                "method": "electric_moment",
+                "parity": [
+                  [
+                    -1,
+                    1
+                  ],
+                  [
+                    1,
+                    -1
+                  ]
+                ],
+                "parity_residual": 8.299879659419089e-15,
+                "moment_relative_min": 0.32181652772498764,
+                "channel_overlaps": [
+                  0.9999998913447464,
+                  0.999999891344736
+                ]
+              }
+            ],
+            "longitudinal": {
+              "applied": false,
+              "reason": "unresolved_longitudinal_content",
+              "scores": [
+                0.7015469790478752,
+                0.701546979047883
+              ]
+            },
+            "separation": null,
+            "axis_sensitive": [],
+            "irreducible_basis": {
+              "transform": [
+                [
+                  [
+                    0.25770259625355374,
+                    0.004299521869266535
+                  ],
+                  [
+                    -0.9671592144213728,
+                    0.0013436389804037522
+                  ]
+                ],
+                [
+                  [
+                    0.9553494638239838,
+                    -0.00018263719962532954
+                  ],
+                  [
+                    0.29855523905513015,
+                    -5.707575589803185e-05
+                  ]
+                ]
+              ],
+              "columns": [
+                [
+                  0,
+                  1
+                ]
+              ],
+              "irreps": [
+                "E"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "transport": [],
+    "separation_attempts": [],
+    "transport_attempts": [],
+    "mode_details": [
+      [
+        {
+          "mode": 1,
+          "parity": [
+            -1,
+            1
+          ],
+          "parity_error": 1.062771644986455e-14,
+          "rho": 0.3038408771904956,
+          "templates": [],
+          "neff": [
+            1.9275671437324593,
+            0.0
+          ]
+        },
+        {
+          "mode": 2,
+          "parity": [
+            1,
+            -1
+          ],
+          "parity_error": 1.2420346950138379e-14,
+          "rho": 0.3038408771904953,
+          "templates": [],
+          "neff": [
+            1.927567143732459,
+            0.0
+          ]
+        },
+        {
+          "mode": 3,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 1.9588661999968647e-14,
+          "rho": 0.0001022104873849915,
+          "templates": [],
+          "neff": [
+            1.832493393374346,
+            0.0
+          ]
+        },
+        {
+          "mode": 4,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 1.8553221739642215e-12,
+          "rho": 0.33213033145476045,
+          "templates": [],
+          "neff": [
+            1.8091205662395127,
+            0.0
+          ]
+        },
+        {
+          "mode": 5,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 1.2224394882853285e-12,
+          "rho": 0.3419459112471052,
+          "templates": [],
+          "neff": [
+            1.8089655602581494,
+            0.0
+          ]
+        },
+        {
+          "mode": 6,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 1.319989011922704e-14,
+          "rho": 0.9998879048352458,
+          "templates": [],
+          "neff": [
+            1.796020134662219,
+            0.0
+          ]
+        },
+        {
+          "mode": 7,
+          "parity": [
+            -1,
+            1
+          ],
+          "parity_error": 2.906706262761383e-14,
+          "rho": 0.036565259235359755,
+          "templates": [],
+          "neff": [
+            1.6763431898605723,
+            0.0
+          ]
+        },
+        {
+          "mode": 8,
+          "parity": [
+            1,
+            -1
+          ],
+          "parity_error": 2.191234856426697e-14,
+          "rho": 0.03656525923535848,
+          "templates": [],
+          "neff": [
+            1.6763431898605712,
+            0.0
+          ]
+        },
+        {
+          "mode": 9,
+          "parity": [
+            -1,
+            1
+          ],
+          "parity_error": 2.8790830249854146e-13,
+          "rho": 0.37204540150962395,
+          "templates": [],
+          "neff": [
+            1.6382907421812396,
+            0.0
+          ]
+        },
+        {
+          "mode": 10,
+          "parity": [
+            1,
+            -1
+          ],
+          "parity_error": 2.877848007794336e-13,
+          "rho": 0.37204540150962334,
+          "templates": [],
+          "neff": [
+            1.6382907421812383,
+            0.0
+          ]
+        },
+        {
+          "mode": 11,
+          "parity": [
+            -1,
+            1
+          ],
+          "parity_error": 2.0939126427167442e-14,
+          "rho": 0.7015469790478766,
+          "templates": [],
+          "neff": [
+            1.5759220033026005,
+            0.0
+          ]
+        },
+        {
+          "mode": 12,
+          "parity": [
+            1,
+            -1
+          ],
+          "parity_error": 2.9312990805746916e-14,
+          "rho": 0.7015469790478815,
+          "templates": [],
+          "neff": [
+            1.575922003302599,
+            0.0
+          ]
+        },
+        {
+          "mode": 13,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 3.347123059741436e-13,
+          "rho": 0.05160406788979784,
+          "templates": [],
+          "neff": [
+            1.4832814103703396,
+            0.0
+          ]
+        },
+        {
+          "mode": 14,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 3.301345899791522e-13,
+          "rho": 0.05499042357229094,
+          "templates": [],
+          "neff": [
+            1.4769371955299053,
+            0.0
+          ]
+        },
+        {
+          "mode": 15,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 3.4615660564745463e-13,
+          "rho": 0.40288182843418935,
+          "templates": [],
+          "neff": [
+            1.400426065181715,
+            0.0
+          ]
+        },
+        {
+          "mode": 16,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 4.575886779115515e-13,
+          "rho": 0.42409794946422164,
+          "templates": [],
+          "neff": [
+            1.3946101977183174,
+            0.0
+          ]
+        },
+        {
+          "mode": 17,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 5.380524915242927e-13,
+          "rho": 0.0026377587482461404,
+          "templates": [],
+          "neff": [
+            1.3866015877598346,
+            0.0
+          ]
+        },
+        {
+          "mode": 18,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 2.2732412693188517e-12,
+          "rho": 0.5784582311372525,
+          "templates": [],
+          "neff": [
+            1.2726658677304967,
+            0.0
+          ]
+        },
+        {
+          "mode": 19,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 2.7908971194911045e-12,
+          "rho": 0.5929629458306753,
+          "templates": [],
+          "neff": [
+            1.2712097090612977,
+            0.0
+          ]
+        },
+        {
+          "mode": 20,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 1.3581115253374594e-13,
+          "rho": 0.999639580680239,
+          "templates": [],
+          "neff": [
+            1.2605143387423468,
+            0.0
+          ]
+        }
+      ],
+      [
+        {
+          "mode": 1,
+          "parity": [
+            -1,
+            1
+          ],
+          "parity_error": 7.626571726644471e-15,
+          "rho": 0.3037900478614592,
+          "templates": [],
+          "neff": [
+            1.9276358521502472,
+            0.0
+          ]
+        },
+        {
+          "mode": 2,
+          "parity": [
+            1,
+            -1
+          ],
+          "parity_error": 9.412698636205474e-15,
+          "rho": 0.3037900478614588,
+          "templates": [],
+          "neff": [
+            1.9276358521502472,
+            0.0
+          ]
+        },
+        {
+          "mode": 3,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 1.5523149861674513e-14,
+          "rho": 0.00010228180015214285,
+          "templates": [],
+          "neff": [
+            1.8326452317886541,
+            0.0
+          ]
+        },
+        {
+          "mode": 4,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 6.055323399780105e-13,
+          "rho": 0.33205981073276747,
+          "templates": [],
+          "neff": [
+            1.8093084871965877,
+            0.0
+          ]
+        },
+        {
+          "mode": 5,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 1.8086395659096127e-13,
+          "rho": 0.3418762306237874,
+          "templates": [],
+          "neff": [
+            1.8091540041299898,
+            0.0
+          ]
+        },
+        {
+          "mode": 6,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 1.535661948116774e-14,
+          "rho": 0.9998877863437424,
+          "templates": [],
+          "neff": [
+            1.7962236689365976,
+            0.0
+          ]
+        },
+        {
+          "mode": 7,
+          "parity": [
+            -1,
+            1
+          ],
+          "parity_error": 1.8247902980169712e-14,
+          "rho": 0.03658218468658294,
+          "templates": [],
+          "neff": [
+            1.6766469462467937,
+            0.0
+          ]
+        },
+        {
+          "mode": 8,
+          "parity": [
+            1,
+            -1
+          ],
+          "parity_error": 1.553661581436018e-14,
+          "rho": 0.03658218468658061,
+          "templates": [],
+          "neff": [
+            1.6766469462467923,
+            0.0
+          ]
+        },
+        {
+          "mode": 9,
+          "parity": [
+            -1,
+            1
+          ],
+          "parity_error": 2.7204419992464116e-13,
+          "rho": 0.3719481193341966,
+          "templates": [],
+          "neff": [
+            1.6386688224508872,
+            0.0
+          ]
+        },
+        {
+          "mode": 10,
+          "parity": [
+            1,
+            -1
+          ],
+          "parity_error": 2.7186163007430483e-13,
+          "rho": 0.3719481193341967,
+          "templates": [],
+          "neff": [
+            1.6386688224508865,
+            0.0
+          ]
+        },
+        {
+          "mode": 11,
+          "parity": [
+            -1,
+            1
+          ],
+          "parity_error": 1.8688648344767062e-14,
+          "rho": 0.7014439734033907,
+          "templates": [],
+          "neff": [
+            1.5763586182383025,
+            0.0
+          ]
+        },
+        {
+          "mode": 12,
+          "parity": [
+            1,
+            -1
+          ],
+          "parity_error": 1.9789134095133582e-14,
+          "rho": 0.701443973403386,
+          "templates": [],
+          "neff": [
+            1.5763586182383014,
+            0.0
+          ]
+        },
+        {
+          "mode": 13,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 4.950519139051044e-14,
+          "rho": 0.051618576307923464,
+          "templates": [],
+          "neff": [
+            1.4837833294552163,
+            0.0
+          ]
+        },
+        {
+          "mode": 14,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 3.9099912873201895e-14,
+          "rho": 0.05500814466837847,
+          "templates": [],
+          "neff": [
+            1.477446214703199,
+            0.0
+          ]
+        },
+        {
+          "mode": 15,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 4.4394255825066445e-14,
+          "rho": 0.4028360324309177,
+          "templates": [],
+          "neff": [
+            1.4011143762651979,
+            0.0
+          ]
+        },
+        {
+          "mode": 16,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 1.5537285398890188e-13,
+          "rho": 0.42395865403716604,
+          "templates": [],
+          "neff": [
+            1.395310636355365,
+            0.0
+          ]
+        },
+        {
+          "mode": 17,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 2.660682976699616e-13,
+          "rho": 0.0025985479182198627,
+          "templates": [],
+          "neff": [
+            1.3872056716587937,
+            0.0
+          ]
+        },
+        {
+          "mode": 18,
+          "parity": [
+            -1,
+            -1
+          ],
+          "parity_error": 7.803444380124788e-13,
+          "rho": 0.5784893607734323,
+          "templates": [],
+          "neff": [
+            1.2734340431020628,
+            0.0
+          ]
+        },
+        {
+          "mode": 19,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 6.726203518028456e-13,
+          "rho": 0.5930112090262671,
+          "templates": [],
+          "neff": [
+            1.2719756471311818,
+            0.0
+          ]
+        },
+        {
+          "mode": 20,
+          "parity": [
+            1,
+            1
+          ],
+          "parity_error": 2.727287639849308e-13,
+          "rho": 0.9996397925481774,
+          "templates": [],
+          "neff": [
+            1.2612108323985896,
+            0.0
+          ]
+        }
+      ]
+    ],
+    "max_field_residual": 1.813763641983108e-13,
+    "minimum_power_eigenvalue": 0.996009429915335,
+    "minimum_channel_continuity": 0.9999990387732999,
+    "continuity": [
+      [
+        0.9999999869999585,
+        0.99999998700001,
+        0.9999999509845799,
+        0.9999999640753872,
+        0.9999999643727169,
+        0.9999999734268125,
+        0.9999998916824197,
+        0.9999998916823868,
+        0.9999999204266837,
+        0.9999999204267189,
+        0.9999998913447439,
+        0.999999891344733,
+        0.999999798933004,
+        0.9999997950910985,
+        0.999999316505868,
+        0.9999998223869989,
+        0.9999990387732999,
+        0.9999994547508692,
+        0.9999993984174279,
+        0.999999099914332
+      ]
+    ],
+    "max_parity_error": 2.7908971194911045e-12,
+    "all_propagating": true,
+    "material_metadata": null
+  }
+}

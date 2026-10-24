@@ -1,16 +1,12 @@
 {
-  "started_utc": "2026-10-12T17:44:20.814802+00:00",
+  "started_utc": "2026-10-24T10:04:40.390964+00:00",
+  "status": "complete",
   "modes": 16,
   "spacing_mm": 0.25,
   "verification": "fast",
   "excitation": false,
-  "time_stepping": false,
   "geometry_only": true,
-  "source_sha256": {
-    "gallery.py": "ba21afb020e25c7ff48472e1b9b8f632fb989dd44b5292da44624776290fc93b",
-    "plot_results.py": "67d96452e73b1823bf61f83df3d8e3cacaf3ce24637315797fdbfec2cf1bc5af"
-  },
-  "status": "complete",
+  "time_stepping": false,
   "case": {
     "case": "copper_cylindrical",
     "mode_count": 16,
@@ -66,7 +62,527 @@
     40500000000.0,
     41000000000.0
   ],
-  "dispersion_plot_postprocessing_sha256": {
-    "examples/features/eigenmode_tracking/plot_results.py": "029934c2e7bc4ea4f88c8b1d2ada3f3dca60cdfb762a2f30ee221203ebbdb16f"
-  }
+  "source_sha256": {
+    "gprMax/eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax/eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax/eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218",
+    "gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py": "24baa590d527568701638b8a25a2f026e4d62f80936c8a5fdc751636ce7f6bca",
+    "tests/test_eigenmode_degenerate_integration.py": "3de5de08c95042d58ed750fb9f16e1bf3fff5054fd2ac981493c56a7455da10b",
+    "tests/test_eigenmode_independent_separation.py": "7460dcb885f485a0af2bdfcc22cc02fdae006ea9ea2bbe1d8b3621bab0227064",
+    "tests/test_analytical_step_index_reference.py": "b359f8a645eeff857b3e269874cae4ebb47b7681b72acdee2189d83561e75244",
+    "tests/test_gradient_first_investigation.py": "74a9f4b9347ea7ecc777c5083c6df69f263a80d77b15564b39511afb72bf75a0",
+    "gprMax/sources.py": "43144ebbcef810e5ac2b1de0530d7d3269e6b5a6d3c68de855148245c57d0b08",
+    "examples/features/eigenmode_tracking/gallery.py": "e5f92deb332b2814e660efeb8e423f321328d5620cc010f5228ee75aaea48b24",
+    "examples/features/eigenmode_tracking/plot_results.py": "735470618f522a9ba333d053d3f849f4b8e1328e2b829a3a7c08c9052fc653b4",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py": "28727be741ff0257817957071587e168a0c343fff3a04f46be99719989b5c58c",
+    "examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py": "a715a5bf14de365b284d39cd20294c92297ee3057f22df1bc0b17288450581d4",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/auto_mode_crossing.py": "5df7d1b758f20b1939a97bd629c57437d6cf14b986cee799a449d37f74d91fbc",
+    "examples/features/eigenmode_ports/example_9_C2v_square_anisotropic_crossing/plot_results.py": "b3dfba16ed7cde5734ffedd40cfbde4ec837783d7ffdf265219cd31f04bd86c0",
+    "examples/features/eigenmode_tracking/example_10_anisotropic_frequency_crossing/tracked_modes.py": "c488ccd39c7c52844ccd86c4e88c8c489693387ee3fbd735e3c0f8e7e8f5683a",
+    "examples/features/eigenmode_tracking/example_11_C4v_square_persistent_pair_crossing/tracked_modes.py": "8753272671d792b9010f7c59c151fb211d946ff55ac87cf2fd15e5f476b86be2",
+    "testing/validation/eigenmode_tracking/branch_crossing/square_anisotropic_bore.py": "7909c4a0918fbfe1d2fba862a510e94f2f21e5a9fafee01c9db080a5177947e9"
+  },
+  "validation": {
+    "all_anchor_validity_masks": true,
+    "minimum_balanced_power": 1.000273880942308,
+    "maximum_combined_residual": 4.816026376836144e-13,
+    "unresolved_tracking_intervals": 0,
+    "confinement_flags": [
+      {
+        "mode": 1,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 2,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 3,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 4,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 5,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 6,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 7,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 8,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 9,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 10,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 11,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 12,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 13,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 14,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 15,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 16,
+        "frequency_Hz": 39000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 1,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 2,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 3,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 4,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 5,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 6,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 7,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 8,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 9,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 10,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 11,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 12,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 13,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 14,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 15,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 16,
+        "frequency_Hz": 39500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 1,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 2,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 3,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 4,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 5,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 6,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 7,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 8,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 9,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 10,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 11,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 12,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 13,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 14,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 15,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 16,
+        "frequency_Hz": 40000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 1,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 2,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 3,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 4,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 5,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 6,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 7,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 8,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 9,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 10,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 11,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 12,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 13,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 14,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 15,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 16,
+        "frequency_Hz": 40500000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 1,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 2,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 3,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 4,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 5,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 6,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 7,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 8,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 9,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 10,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 11,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 12,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 13,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 14,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 15,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      },
+      {
+        "mode": 16,
+        "frequency_Hz": 41000000000.0,
+        "confinement": "unbound_suspect",
+        "reasons": "artificial_edge_participation"
+      }
+    ],
+    "separation_rejected_trials": [],
+    "stored_source_revision": "8c617a2",
+    "fields_finite": true,
+    "neff_finite": true,
+    "mode_count": 16,
+    "frequencies_Hz": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "raw_bank_sha256": "689bea1600bcf9c5057c5e0e1cddfbd718fa28277936030541ded6342441ad0a"
+  },
+  "regenerated_utc": "2026-10-24T10:12:48.464362+00:00"
 }
