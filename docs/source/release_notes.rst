@@ -5,6 +5,18 @@ Release notes
 Unreleased / next release
 =========================
 
+Fractal volumes and rough surfaces
+----------------------------------
+
+* **Same-seed fractal geometry can change:** fractal volumes and rough
+  surfaces now centre their spectral filters on the actual FFT DC position.
+  Regenerating them with the same seed can therefore give different geometry
+  when any fractal-generation dimension is odd-sized or a single cell. These
+  are the dimensions of the fractal being generated, not necessarily those of
+  the overall model domain. Fractals whose generation dimensions are all even
+  are unaffected, and previously exported geometry is unchanged; reuse it
+  where earlier geometry must be reproduced exactly.
+
 PMC symmetry boundaries and PML
 -------------------------------
 
