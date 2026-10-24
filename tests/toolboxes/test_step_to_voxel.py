@@ -177,6 +177,52 @@ def test_thin_closed_solid_is_preserved_when_between_slice_centres():
     assert np.count_nonzero(preserved[:, :, 3:]) == 0
 
 
+@pytest.mark.parametrize("top", (2.5, 2.5 + 1e-15, 2.5 - 1e-15, 2.5 + 5e-8))
+@pytest.mark.parametrize("sweep_axis", ("x", "y", "z"))
+def test_a_face_on_a_slice_centre_plane_is_decided_the_same_way(top, sweep_axis):
+    # A face on the plane of the cell centres was cut as its own triangle
+    # edges, which the even-odd fill turned into wedges (half of this slab),
+    # and within rounding of the plane it gave all of it or nothing. Now a
+    # centre on (or within rounding of) a top face is outside, as on the
+    # scanline fill's upper boundaries, whichever axis is swept; a solid left
+    # empty by that is kept by thin-feature preservation.
+    vertices, triangles = _box_mesh(lower=(1.0, 1.0, 2.0), upper=(5.0, 4.0, top))
+    sampled = voxelise_solid_scanline(
+        vertices, triangles, (7, 6, 6), preserve_thin_features=False, sweep_axis=sweep_axis
+    )
+    kept = voxelise_solid_scanline(vertices, triangles, (7, 6, 6), sweep_axis=sweep_axis)
+
+    assert not sampled.any()
+    assert np.count_nonzero(kept[1:5, 1:4, 2]) == 12
+    assert np.count_nonzero(kept) == 12
+
+
+@pytest.mark.parametrize("sweep_axis", ("x", "y", "z"))
+def test_a_bottom_face_on_a_slice_centre_plane_fills_its_layer(sweep_axis):
+    # Closed below, open above: two solids stacked on a centre plane share no
+    # cell, and the upper one takes the layer.
+    vertices, triangles = _box_mesh(lower=(1.0, 1.0, 2.5), upper=(5.0, 4.0, 3.25))
+    mask = voxelise_solid_scanline(
+        vertices, triangles, (7, 6, 6), preserve_thin_features=False, sweep_axis=sweep_axis
+    )
+
+    assert np.count_nonzero(mask[1:5, 1:4, 2]) == 12
+    assert np.count_nonzero(mask) == 12
+
+
+@pytest.mark.parametrize("pad", (0, 1, 2))
+def test_thin_copper_on_slice_centres_is_independent_of_the_grid_origin(pad):
+    # 35 um copper on 70 um cells: its top face lies on the centre plane, at a
+    # height in voxel units that rounding leaves exact or a few ulp away,
+    # depending on where the grid starts. It came out in wedges, 23 % short.
+    dx = 7e-5
+    vertices, triangles = _box_mesh(lower=(0.0231, 0.0, 0.0), upper=(0.0231 + 40 * dx, 20 * dx, 35e-6))
+    grid, spec = voxelise_material_grid([TriangleMesh(vertices, triangles, 0)], dx=dx, pad=pad)
+
+    assert np.count_nonzero(grid == 0) == 40 * 20
+    assert np.count_nonzero(np.any(grid == 0, axis=(0, 1))) == 1
+
+
 @pytest.mark.parametrize("thin_axis", (0, 1, 2))
 def test_thin_closed_solid_preservation_is_axis_independent(thin_axis):
     vertices, triangles = _thin_box_mesh()
