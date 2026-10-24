@@ -1,0 +1,14 @@
+#title: Reinforced concrete slab
+#domain: 0.24 0.18 0.16
+#dx_dy_dz: 0.002 0.002 0.002
+#time_window: 3e-9
+#pml_cells: 10 10 10 10 10 10
+
+#waveform: ricker 1 1.5e9 w
+#material: 6 0.01 1 0 concrete
+
+#box: 0.01 0.01 0.01 0.23 0.17 0.11 concrete
+#rebar_mesh: 0.02 0.02 0.02 0.22 0.16 0.10 0.04 0.04 0.008 0.02 0.04 pec n reinforcement
+
+#hertzian_dipole: z 0.12 0.09 0.12 w
+#rx: 0.16 0.09 0.12 rx1 Ex Ey Ez

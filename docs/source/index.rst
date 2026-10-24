@@ -20,6 +20,7 @@ gprMax User Guide
 
     input_hash_cmds
     input_api
+    rebar_mesh
     sources_ports
     studies
     material_databases
