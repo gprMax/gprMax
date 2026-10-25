@@ -179,11 +179,12 @@ class FractalSurface:
 
         self.fractalsurface = np.zeros(surfacedims, dtype=self.dtype)
 
-        # Positional vector at centre of array, scaled by weighting
+        # Positional vector of the DC component, scaled by weighting. The
+        # kernel shifts index i to (i + n // 2) % n, so DC sits at n // 2.
         v1 = np.array(
             [
-                self.weighting[0] * (surfacedims[0]) / 2,
-                self.weighting[1] * (surfacedims[1]) / 2,
+                self.weighting[0] * (surfacedims[0] // 2),
+                self.weighting[1] * (surfacedims[1] // 2),
             ]
         )
 
@@ -359,8 +360,8 @@ class MPIFractalSurface(FractalSurface):
 
         surfacedims = self.get_surface_dims()
 
-        # Positional vector at centre of array, scaled by weighting
-        v1 = self.weighting * surfacedims / 2
+        # Positional vector of the DC component (see FractalSurface), scaled by weighting
+        v1 = self.weighting * (np.asarray(surfacedims) // 2)
 
         subcomm = Subcomm(self.comm)
 

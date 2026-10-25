@@ -229,12 +229,13 @@ class FractalVolume:
 
         self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=self.dtype)
 
-        # Positional vector at centre of array, scaled by weighting
+        # Positional vector of the DC component, scaled by weighting. The
+        # kernel shifts index i to (i + n // 2) % n, so DC sits at n // 2.
         v1 = np.array(
             [
-                self.weighting[0] * self.nx / 2,
-                self.weighting[1] * self.ny / 2,
-                self.weighting[2] * self.nz / 2,
+                self.weighting[0] * (self.nx // 2),
+                self.weighting[1] * (self.ny // 2),
+                self.weighting[2] * (self.nz // 2),
             ]
         )
 
@@ -417,8 +418,8 @@ class MPIFractalVolume(FractalVolume):
         # Adjust weighting to account for filter scaling
         self.weighting = np.multiply(self.weighting, filterscaling)
 
-        # Positional vector at centre of array, scaled by weighting
-        v1 = self.weighting * self.size / 2
+        # Positional vector of the DC component (see FractalVolume), scaled by weighting
+        v1 = self.weighting * (self.size // 2)
 
         subcomm = Subcomm(self.comm)
         A = DistArray(self.size, subcomm, dtype=self.dtype)
