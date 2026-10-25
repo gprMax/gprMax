@@ -184,11 +184,15 @@ def world_to_voxel_coords(V_world: np.ndarray, grid: GridSpec) -> np.ndarray:
 # =============================================================================
 
 
-# A sample is classified as if it lay SAMPLE_EPS (voxel units) above the cell
-# centre on every axis, against boundaries closed below and open above (the
-# scanline fill's long-standing rule): a centre on a face, or within rounding
-# of it, is inside when the face is a lower side of the solid and outside when
-# it is an upper side, whichever axis is swept and wherever the grid starts.
+# The slices, and the column and row tests of the scanline fill, compare a
+# sample with an offset of SAMPLE_EPS (voxel units) against boundaries closed
+# below and open above (the fill's long-standing rule). A centre on a face
+# square to an axis, or within rounding of it, is then inside when the face is
+# a lower side of the solid and outside when it is an upper side, whichever
+# axis is swept and wherever the grid starts. A sample exactly on an oblique
+# face is not covered: different sweep axes can still classify it differently
+# (as before; recorded as an expected failure in the tests). Samples clearly
+# inside or outside are classified the same by every sweep.
 SAMPLE_EPS = 1e-7
 
 
@@ -283,9 +287,9 @@ def _triangle_to_intersecting_points(
     face on the plane of the slice centres is decided by the faces that meet
     it, the same way whatever the last digits of its coordinates. (Cut as its
     own three edges, such a face once broke the even-odd fill into wedges,
-    e.g. 35 um copper on 70 um cells.) A cell centre on a face is therefore
-    inside when the face is a bottom of the solid and outside when it is a top
-    (SAMPLE_EPS).
+    e.g. 35 um copper on 70 um cells.) A cell centre on a face in the plane
+    is therefore inside when the face is a bottom of the solid and outside when
+    it is a top (SAMPLE_EPS).
 
     eps is in voxel units. With float64 voxel coords, 1e-7 is conservative.
     """
@@ -565,9 +569,9 @@ def _y_at_x_halfopen(
     Robust rules:
       - ignore vertical segments
       - use the half-open x-interval [xmin, xmax) to avoid double-counting shared
-        vertices. Closed below and open above along every axis (as the slices,
-        _triangle_to_intersecting_points), so a sample on a face is inside when
-        the face is a lower side of the solid, whichever axis is swept.
+        vertices. Closed below and open above, as the slices
+        (_triangle_to_intersecting_points), so a sample on a face square to an
+        axis is inside when the face is a lower side of the solid (SAMPLE_EPS).
     """
     x1, y1 = p1
     x2, y2 = p2

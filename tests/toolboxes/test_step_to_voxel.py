@@ -223,6 +223,30 @@ def test_thin_copper_on_slice_centres_is_independent_of_the_grid_origin(pad):
     assert np.count_nonzero(np.any(grid == 0, axis=(0, 1))) == 1
 
 
+@pytest.mark.xfail(
+    reason="a sample exactly on an oblique face can be classified differently by different "
+    "sweep axes (boundary only: clearly inside or outside samples always agree)",
+    strict=True,
+)
+def test_a_sample_on_an_oblique_face_is_classified_the_same_by_every_sweep():
+    # A tetrahedron with its corners on cell centres: some centres lie exactly
+    # on its oblique faces. Seen before #939 as well; kept for follow-up.
+    vertices = np.array([[5.5, 2.5, 3.5], [5.5, 0.5, 2.5], [0.5, 3.5, 6.5], [0.5, 2.5, 2.5]])
+    triangles = np.array([[0, 2, 1], [0, 1, 3], [1, 2, 3], [0, 3, 2]], dtype=np.int32)
+    centre = vertices.mean(axis=0)
+    for index, (a, b, c) in enumerate(triangles):
+        if np.dot(np.cross(vertices[b] - vertices[a], vertices[c] - vertices[a]), vertices[a] - centre) < 0:
+            triangles[index] = (a, c, b)
+    counts = {
+        axis: np.count_nonzero(
+            voxelise_solid_scanline(vertices, triangles, (8, 8, 8), preserve_thin_features=False, sweep_axis=axis)
+        )
+        for axis in "xyz"
+    }
+
+    assert counts["x"] == counts["y"] == counts["z"]
+
+
 @pytest.mark.parametrize("thin_axis", (0, 1, 2))
 def test_thin_closed_solid_preservation_is_axis_independent(thin_axis):
     vertices, triangles = _thin_box_mesh()
