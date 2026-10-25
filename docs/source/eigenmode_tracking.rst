@@ -685,6 +685,27 @@ including materials and boundaries, rather than the intended geometric name.
 They check every solved anchor and use the strongest supported symmetry
 common to the bank.
 
+.. important::
+
+   To use ``mode_polarizations`` with ``tracking="auto"`` in a PEC or SIBC
+   waveguide, keep the complete port window C4v-symmetric. Use a square
+   window with equal transverse cell spacing, center the guide in it, and
+   keep padding equal on opposite sides. The sampled materials and boundary
+   treatment must also preserve quarter turns and reflections. Avoid
+   symmetry-breaking elements within the port cross-section.
+
+   Symmetry is checked about the center of the full port window. Even an
+   extra PEC cell on just one side can prevent certification and cause an
+   explicit polarization request to be rejected. For SIBC walls, the
+   retained samples and surface-impedance rows must also map under these
+   symmetry operations. Geometry symmetry alone is insufficient: the
+   selected modes must form a certified C4v E pair with usable electric
+   moments.
+
+   C4v is required for this automatic polarization choice. Ports with lower
+   symmetry can still use automatic tracking and field-family separation
+   with ``mode_polarizations=None``.
+
 * **C4v** includes quarter turns and reflections, as for a centered square
   on a square mesh with equal transverse spacing. A centered staircased
   circle can also have C4v symmetry.

@@ -634,6 +634,16 @@ and aperture. Unequal transverse spacings usually reduce the available
 group to C2v or a subgroup. Detection tests these sampled quantities at
 every solved anchor and takes the strongest supported group common to the bank.
 
+The symmetry actions use the center and extent of the full port aperture;
+they do not remove unused PEC padding or search for a different symmetry
+center. Asymmetric padding can therefore prevent C4v certification even
+when the fields in the guide are unchanged. For explicit automatic
+polarization, the user must preserve C4v in the complete sampled window,
+including PEC masks or SIBC retained samples and boundary rows, as described
+in :ref:`tracking-symmetry-options`. The C4v E and electric-moment eligibility
+checks remain necessary. Lower-symmetry ports retain independent separation
+and unresolved-block continuation without an explicit polarization request.
+
 This bound concerns rotations and mirrors of a square **two-dimensional port
 cross section**, with its normal fixed. A three-dimensional cubic lattice has
 additional operations that exchange the normal with other axes. Other lattice
