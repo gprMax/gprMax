@@ -242,6 +242,24 @@ def _bboxes_mm(parts):
 
 
 @pytest.mark.integration
+def test_probe_fed_patch_fills_its_area_on_70_um_cells(tmp_path):
+    # The 35 um patch's top face lies on the centre plane of 70 um cells: it
+    # came out as one triangle of its top face, half of it.
+    example = EXAMPLE / "patch_antenna"
+    patch = next(part for part in inspect_step(example / "PROBE_FED.stp") if part.name == "PATCH")
+    lower, upper = np.array(patch.cad["bbox_xyzxyz"][:3]), np.array(patch.cad["bbox_xyzxyz"][3:])
+    area_cells = patch.cad["vol_m3"] / (upper[2] - lower[2]) / 7e-5**2
+    for pad in (0, 2):
+        result = convert_step(
+            example / "PROBE_FED.stp",
+            example / "materials.csv",
+            tmp_path / f"pad{pad}",
+            ConversionConfig(voxel_size=(7e-5, 7e-5, 7e-5), pad_cells=pad),
+            write_vtk=False,
+        )
+        assert result.component_cell_counts["PATCH"] == pytest.approx(area_cells, rel=0.02)
+
+
 def test_unsplit_part_keeps_its_assembly_placement(placed_assembly):
     parts = step_parser.main(str(placed_assembly), step_parser.ParserConfig())
 

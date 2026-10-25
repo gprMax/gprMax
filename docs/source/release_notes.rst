@@ -44,6 +44,20 @@ STLtoVoxel and geometry import
   ``convert`` functions is deprecated and ignored.
 * Imported-geometry grids from STLtoVoxel, STEPtoVoxel and GeometryImport no
   longer gain an empty upper cell when a bound lies on a cell face.
+* **Faces on cell centres are voxelised consistently** (STEPtoVoxel and
+  STLtoVoxel): a face lying on the plane of the cell centres, such as the top
+  of 35 um copper on 70 um cells, was cut as its own triangles and could come
+  out as wedges (an 8-element patch array lost 23 % of its copper, the
+  ``PROBE_FED`` example half its patch at 70 um), and whether it did depended
+  on the grid's origin, so ``--pad-cells`` changed the result. A cell centre on
+  a face square to an axis is now inside when the face is a lower side of the
+  solid and outside when it is an upper side (a thin part left empty is kept by
+  thin-feature preservation, as before), whatever the origin. Edges within
+  rounding of a cell centre are decided the same way. Geometry converted again
+  can therefore differ where a face or an edge lies on, or within rounding of,
+  a cell centre (``PROBE_FED`` at 0.1 mm: 394 of 263,000 cells). A sample
+  exactly on an oblique face can still be classified differently by different
+  sweep axes, as before.
 * ``GeometryObjectsRead`` names both cell sizes when the file's resolution
   differs from the model's, and warns when ``p1`` is rounded to a cell corner.
 
