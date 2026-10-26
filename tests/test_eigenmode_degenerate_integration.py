@@ -158,16 +158,18 @@ def test_broadband_random_basis(tmp_path, normal_axis, direction, precision, rec
 @pytest.mark.integration
 @pytest.mark.gpu
 @pytest.mark.parametrize("backend", ("cuda", "opencl"))
+@pytest.mark.parametrize("tracking", ("legacy", "auto"))
 @pytest.mark.parametrize("normal_axis,direction", [(a, d) for a in range(3) for d in ("+", "-")])
 @pytest.mark.parametrize("precision", ("double", "single"))
 @pytest.mark.parametrize("mode,broadband", [(1, False), (2, False), (1, True)])
 def test_device_physical_labels_and_virtual_continuation(
-    tmp_path, request, backend, normal_axis, direction, precision, mode, broadband, record_property
+    tmp_path, request, backend, tracking, normal_axis, direction, precision, mode, broadband, record_property
 ):
     """Aligned channels must reach device injection, including a mixed pulse."""
     fixture = "gpu_device" if backend == "cuda" else "opencl_device"
     device_options = {"gpu" if backend == "cuda" else "opencl": [request.getfixturevalue(fixture)]}
     options = dict(
+        tracking=tracking,
         normal_axis=normal_axis,
         direction=direction,
         precision=precision,

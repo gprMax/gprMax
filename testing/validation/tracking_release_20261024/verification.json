@@ -1,0 +1,106 @@
+{
+  "status": "passed",
+  "branch": "auto-tracking-improve",
+  "base_commit": "8d010441b4a6223dea01e8653a4aa62434eb13a4",
+  "python": "3.13.15",
+  "numpy": "2.5.2",
+  "scipy": "1.18.1",
+  "msvc": "14.51.36231 (Visual Studio 18 BuildTools, x64)",
+  "cuda": "13.3",
+  "cuda_device": "NVIDIA GeForce RTX 4070 Laptop GPU",
+  "original_review_selection": {
+    "passed_after_rebuild": 550,
+    "cuda_initially_skipped": 36
+  },
+  "additional_audit_tests_passed": 26,
+  "device_stages": [
+    {
+      "name": "review_tracking_cuda_ready",
+      "passed": 36,
+      "failures": 0,
+      "skipped": 0,
+      "metrics": {
+        "cuda_double": {
+          "cases": 18,
+          "maximum_relative_receiver_error": 2.0121671788673064e-15
+        },
+        "cuda_single": {
+          "cases": 18,
+          "maximum_relative_receiver_error": 1.0929421351189978e-06
+        }
+      }
+    },
+    {
+      "name": "review_tracking_auto_devices",
+      "passed": 72,
+      "failures": 0,
+      "skipped": 0,
+      "metrics": {
+        "cuda_double": {
+          "cases": 18,
+          "maximum_relative_receiver_error": 2.253220272105436e-15
+        },
+        "cuda_single": {
+          "cases": 18,
+          "maximum_relative_receiver_error": 1.0929421351189978e-06
+        },
+        "opencl_double": {
+          "cases": 18,
+          "maximum_relative_receiver_error": 2.253220272105436e-15
+        },
+        "opencl_single": {
+          "cases": 18,
+          "maximum_relative_receiver_error": 1.0929421351189978e-06
+        }
+      }
+    }
+  ],
+  "unique_tests_passed": 684,
+  "remaining_failures": 0,
+  "remaining_skips": 0,
+  "source_sha256": {
+    "gprMax/eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax/eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax/eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218",
+    "gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py": "24baa590d527568701638b8a25a2f026e4d62f80936c8a5fdc751636ce7f6bca",
+    "tests/test_eigenmode_degenerate_integration.py": "3de5de08c95042d58ed750fb9f16e1bf3fff5054fd2ac981493c56a7455da10b",
+    "tests/test_eigenmode_independent_separation.py": "7460dcb885f485a0af2bdfcc22cc02fdae006ea9ea2bbe1d8b3621bab0227064",
+    "tests/test_analytical_step_index_reference.py": "b359f8a645eeff857b3e269874cae4ebb47b7681b72acdee2189d83561e75244",
+    "tests/test_gradient_first_investigation.py": "74a9f4b9347ea7ecc777c5083c6df69f263a80d77b15564b39511afb72bf75a0",
+    "gprMax/sources.py": "43144ebbcef810e5ac2b1de0530d7d3269e6b5a6d3c68de855148245c57d0b08"
+  },
+  "environment_remediation": [
+    "Rebuilt stale Cython PML extensions after the upstream rebase.",
+    "Activated MSVC x64 using vcvars64.bat for CUDA compilation.",
+    "Set TEMP and TMP to writable .codex_tmp/cuda_compile_temp; set PYCUDA_CACHE_DIR to .codex_tmp/cuda_cache."
+  ],
+  "coverage_note": "Original device tests defaulted to legacy tracking. Added explicit legacy/auto parameterization and ran all 72 additional automatic CUDA/OpenCL cases.",
+  "regenerated_examples": {
+    "status": "passed",
+    "galleries": 11,
+    "modal_banks": 12,
+    "driven_launches": 4,
+    "published_images": 42,
+    "details": "regenerated_results.json",
+    "all_anchor_validity_masks": true,
+    "all_driven_power_wave_masks": true,
+    "all_scattering_finite": true,
+    "unresolved_tracking_intervals": 0,
+    "confinement_note": "All three finite-window copper galleries retain unbound_suspect/artificial_edge_participation flags. Aperture convergence is not established by numerical validity."
+  },
+  "documentation": {
+    "status": "passed",
+    "builder": "Sphinx 9.1.0 HTML",
+    "command": "python -m sphinx -E -b html -D autosummary_generate=0 docs/source .codex_tmp/tracking_docs_refresh_20261024",
+    "scope": "All 59 documentation source files; existing autosummary stubs retained because ReFrame is unavailable in this Windows environment.",
+    "full_build_warnings": 57,
+    "warnings_in_edited_eigenmode_pages": 0,
+    "source_sha256": {
+      "docs/source/eigenmode_port.rst": "0c3494eae77e65f27d7fa96d8d9baef9e5240b872d5c2a384b03de7c11f4eec4",
+      "docs/source/eigenmode_tracking.rst": "b42ff50d3f000e4cf7d11e38107fcc507b2afaf556a35d43ffab8b2cf2d5c5df",
+      "docs/source/eigenmode_tracking_theory.rst": "7e5f8e23d3b4641933acf0d9c033be74320960bb831a13696ecec5bc92185aac",
+      "docs/source/_includes/eigenmode_port_parameters.rstinc": "43161a5de99db6aed99eeae578a5053cc4a2fb4b9d4bc91b77882999aa8ab0bd"
+    }
+  }
+}

@@ -1,0 +1,1054 @@
+{
+  "status": "complete",
+  "started_utc": "2026-10-24T09:14:33.705071+00:00",
+  "radius_m": 0.01,
+  "core_epsilon": 4.0,
+  "cladding_epsilon": 1.0,
+  "numerical_window_m": 0.04,
+  "analytical_cladding": "infinite",
+  "cases": [
+    {
+      "name": "circular_dielectric_20GHz_40",
+      "status": "complete",
+      "modes": 20,
+      "minimum_field_overlap": 0.9644174321413317,
+      "maximum_relative_neff_error": 0.02484701365847021,
+      "max_field_residual": 9.265035142249341e-15,
+      "fallback_groups": [],
+      "selected": [
+        {
+          "channel": 7,
+          "analytical": "EH1,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9710947993362934,
+          "neff_fdfd": 1.6741042633679037,
+          "neff_analytical": 1.6771887555097496,
+          "relative_neff_error": 0.0018390846776863434,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.9710947993362934
+            },
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.02298506197064217
+            },
+            {
+              "name": "EH1,2",
+              "partner": 0,
+              "overlap": 0.011305588353398052
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 0.004313723107410184
+            }
+          ]
+        },
+        {
+          "channel": 8,
+          "analytical": "EH1,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9710947993362941,
+          "neff_fdfd": 1.6741042633679035,
+          "neff_analytical": 1.6771887555097496,
+          "relative_neff_error": 0.0018390846776864757,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.9710947993362941
+            },
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.022985061970641863
+            },
+            {
+              "name": "EH1,2",
+              "partner": 1,
+              "overlap": 0.011305588353398026
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 0.004313723107409348
+            }
+          ]
+        },
+        {
+          "channel": 9,
+          "analytical": "HE3,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9644174321413401,
+          "neff_fdfd": 1.644597066338188,
+          "neff_analytical": 1.6405942492760588,
+          "relative_neff_error": 0.0024398580355230676,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.9644174321413401
+            },
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.022498137183081607
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 0.00957389554632375
+            },
+            {
+              "name": "EH3,1",
+              "partner": 0,
+              "overlap": 0.0029962511786607708
+            }
+          ]
+        },
+        {
+          "channel": 10,
+          "analytical": "HE3,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9644174321413317,
+          "neff_fdfd": 1.6445970663381873,
+          "neff_analytical": 1.6405942492760588,
+          "relative_neff_error": 0.0024398580355226617,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.9644174321413317
+            },
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.022498137183081548
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 0.009573895546325302
+            },
+            {
+              "name": "EH3,1",
+              "partner": 1,
+              "overlap": 0.002996251178660777
+            }
+          ]
+        }
+      ],
+      "combined_spans": [
+        {
+          "families": [
+            "EH1,1",
+            "HE3,1"
+          ],
+          "channels": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "minimum_principal_overlap": 0.9845830924058389
+        },
+        {
+          "families": [
+            "EH2,1",
+            "HE4,1"
+          ],
+          "channels": [
+            13,
+            14,
+            15,
+            16
+          ],
+          "minimum_principal_overlap": 0.9791576455658512
+        }
+      ]
+    },
+    {
+      "name": "circular_dielectric_20GHz_64",
+      "status": "complete",
+      "modes": 20,
+      "minimum_field_overlap": 0.9871439870766505,
+      "maximum_relative_neff_error": 0.0036251175242786753,
+      "max_field_residual": 3.081541859406966e-14,
+      "fallback_groups": [],
+      "selected": [
+        {
+          "channel": 7,
+          "analytical": "EH1,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9973805017078511,
+          "neff_fdfd": 1.6761346561165675,
+          "neff_analytical": 1.6771887555097496,
+          "relative_neff_error": 0.0006284918079251277,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.9973805017078511
+            },
+            {
+              "name": "EH1,2",
+              "partner": 0,
+              "overlap": 0.008499094198753018
+            },
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.0017520781537260042
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 0.0001664520990436264
+            }
+          ]
+        },
+        {
+          "channel": 8,
+          "analytical": "EH1,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9973805017078329,
+          "neff_fdfd": 1.6761346561165664,
+          "neff_analytical": 1.6771887555097496,
+          "relative_neff_error": 0.0006284918079257896,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.9973805017078329
+            },
+            {
+              "name": "EH1,2",
+              "partner": 1,
+              "overlap": 0.008499094198752843
+            },
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.001752078153732282
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 0.00016645209904387557
+            }
+          ]
+        },
+        {
+          "channel": 9,
+          "analytical": "HE3,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9963744725075808,
+          "neff_fdfd": 1.6388278711472117,
+          "neff_analytical": 1.6405942492760588,
+          "relative_neff_error": 0.0010766697064959862,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.9963744725075808
+            },
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.0015610624850934656
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 0.0012106451758761268
+            },
+            {
+              "name": "EH3,1",
+              "partner": 0,
+              "overlap": 0.001196848608551786
+            }
+          ]
+        },
+        {
+          "channel": 10,
+          "analytical": "HE3,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9963744725075793,
+          "neff_fdfd": 1.6388278711472113,
+          "neff_analytical": 1.6405942492760588,
+          "relative_neff_error": 0.0010766697064962568,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.9963744725075793
+            },
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.001561062485098589
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 0.00121064517587662
+            },
+            {
+              "name": "EH3,1",
+              "partner": 1,
+              "overlap": 0.001196848608551842
+            }
+          ]
+        }
+      ],
+      "combined_spans": [
+        {
+          "families": [
+            "EH1,1",
+            "HE3,1"
+          ],
+          "channels": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "minimum_principal_overlap": 0.9979251291194071
+        },
+        {
+          "families": [
+            "EH2,1",
+            "HE4,1"
+          ],
+          "channels": [
+            13,
+            14,
+            15,
+            16
+          ],
+          "minimum_principal_overlap": 0.9899726933636201
+        }
+      ]
+    },
+    {
+      "name": "circular_dielectric_20GHz_96",
+      "status": "complete",
+      "modes": 20,
+      "minimum_field_overlap": 0.9852316518992338,
+      "maximum_relative_neff_error": 0.004176834163238168,
+      "max_field_residual": 1.813763641983108e-13,
+      "fallback_groups": [],
+      "selected": [
+        {
+          "channel": 7,
+          "analytical": "EH1,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9988393455549978,
+          "neff_fdfd": 1.6766469462467937,
+          "neff_analytical": 1.6771887555097496,
+          "relative_neff_error": 0.00032304608600312905,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.9988393455549978
+            },
+            {
+              "name": "EH1,2",
+              "partner": 0,
+              "overlap": 0.007670285336570062
+            },
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.0007598211357865834
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 8.800997752248921e-05
+            }
+          ]
+        },
+        {
+          "channel": 8,
+          "analytical": "EH1,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9988393455549975,
+          "neff_fdfd": 1.6766469462467923,
+          "neff_analytical": 1.6771887555097496,
+          "relative_neff_error": 0.0003230460860039234,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.9988393455549975
+            },
+            {
+              "name": "EH1,2",
+              "partner": 1,
+              "overlap": 0.007670285336570131
+            },
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.0007598211357867094
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 8.800997752230845e-05
+            }
+          ]
+        },
+        {
+          "channel": 9,
+          "analytical": "HE3,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9988617432605815,
+          "neff_fdfd": 1.6386688224508872,
+          "neff_analytical": 1.6405942492760588,
+          "relative_neff_error": 0.0011736154908632858,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.9988617432605815
+            },
+            {
+              "name": "EH3,1",
+              "partner": 0,
+              "overlap": 0.001039379367549385
+            },
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.0006814806001749627
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 7.57239909795187e-05
+            }
+          ]
+        },
+        {
+          "channel": 10,
+          "analytical": "HE3,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9988617432605933,
+          "neff_fdfd": 1.6386688224508865,
+          "neff_analytical": 1.6405942492760588,
+          "relative_neff_error": 0.0011736154908636917,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.9988617432605933
+            },
+            {
+              "name": "EH3,1",
+              "partner": 1,
+              "overlap": 0.001039379367549343
+            },
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.0006814806001752022
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 7.572399097950067e-05
+            }
+          ]
+        }
+      ],
+      "combined_spans": [
+        {
+          "families": [
+            "EH1,1",
+            "HE3,1"
+          ],
+          "channels": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "minimum_principal_overlap": 0.9994570148290562
+        },
+        {
+          "families": [
+            "EH2,1",
+            "HE4,1"
+          ],
+          "channels": [
+            13,
+            14,
+            15,
+            16
+          ],
+          "minimum_principal_overlap": 0.9877656988706458
+        }
+      ]
+    },
+    {
+      "name": "circular_dielectric_40GHz_40",
+      "status": "complete",
+      "modes": 40,
+      "minimum_field_overlap": 0.7457064285287719,
+      "maximum_relative_neff_error": 0.014546789867666662,
+      "max_field_residual": 4.597316214124847e-15,
+      "fallback_groups": [],
+      "selected": [
+        {
+          "channel": 7,
+          "analytical": "EH1,1",
+          "partner": 0,
+          "squared_field_overlap": 0.7457064285287751,
+          "neff_fdfd": 1.9145268944578817,
+          "neff_analytical": 1.9135400130245204,
+          "relative_neff_error": 0.0005157359797256018,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.7457064285287751
+            },
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.24474583776426967
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 0.008511370292181467
+            },
+            {
+              "name": "EH1,4",
+              "partner": 0,
+              "overlap": 0.00032639574227138286
+            }
+          ]
+        },
+        {
+          "channel": 8,
+          "analytical": "EH1,1",
+          "partner": 1,
+          "squared_field_overlap": 0.7457064285287719,
+          "neff_fdfd": 1.9145268944578808,
+          "neff_analytical": 1.9135400130245204,
+          "relative_neff_error": 0.0005157359797251376,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.7457064285287719
+            },
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.24474583776427333
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 0.00851137029218126
+            },
+            {
+              "name": "EH1,4",
+              "partner": 1,
+              "overlap": 0.0003263957422713787
+            }
+          ]
+        },
+        {
+          "channel": 9,
+          "analytical": "HE3,1",
+          "partner": 0,
+          "squared_field_overlap": 0.7458193577376782,
+          "neff_fdfd": 1.9115482491516902,
+          "neff_analytical": 1.9110148019258082,
+          "relative_neff_error": 0.00027914342962933795,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.7458193577376782
+            },
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.2485094387572215
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 0.0022326284038822176
+            },
+            {
+              "name": "EH1,2",
+              "partner": 0,
+              "overlap": 0.0005808518640684879
+            }
+          ]
+        },
+        {
+          "channel": 10,
+          "analytical": "HE3,1",
+          "partner": 1,
+          "squared_field_overlap": 0.7458193577376798,
+          "neff_fdfd": 1.9115482491516893,
+          "neff_analytical": 1.9110148019258082,
+          "relative_neff_error": 0.00027914342962887315,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.7458193577376798
+            },
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.24850943875722045
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 0.002232628403882539
+            },
+            {
+              "name": "EH1,2",
+              "partner": 1,
+              "overlap": 0.0005808518640684907
+            }
+          ]
+        }
+      ],
+      "combined_spans": [
+        {
+          "families": [
+            "EH1,1",
+            "HE3,1"
+          ],
+          "channels": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "minimum_principal_overlap": 0.987706367654116
+        },
+        {
+          "families": [
+            "EH2,1",
+            "HE4,1"
+          ],
+          "channels": [
+            13,
+            14,
+            15,
+            16
+          ],
+          "minimum_principal_overlap": 0.9809665561282074
+        },
+        {
+          "families": [
+            "EH3,1",
+            "HE5,1"
+          ],
+          "channels": [
+            21,
+            22,
+            23,
+            24
+          ],
+          "minimum_principal_overlap": 0.9864240852815747
+        }
+      ]
+    },
+    {
+      "name": "circular_dielectric_40GHz_64",
+      "status": "complete",
+      "modes": 40,
+      "minimum_field_overlap": 0.9676221996574567,
+      "maximum_relative_neff_error": 0.004239780256837003,
+      "max_field_residual": 1.4999239734608786e-14,
+      "fallback_groups": [],
+      "selected": [
+        {
+          "channel": 7,
+          "analytical": "EH1,1",
+          "partner": 0,
+          "squared_field_overlap": 0.968177040643875,
+          "neff_fdfd": 1.913672268835047,
+          "neff_analytical": 1.9135400130245204,
+          "relative_neff_error": 6.911577998179313e-05,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.968177040643875
+            },
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.03128158299426208
+            },
+            {
+              "name": "EH1,4",
+              "partner": 0,
+              "overlap": 0.00035270491083663633
+            },
+            {
+              "name": "EH1,3",
+              "partner": 0,
+              "overlap": 0.00017451235548990874
+            }
+          ]
+        },
+        {
+          "channel": 8,
+          "analytical": "EH1,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9681770406438533,
+          "neff_fdfd": 1.913672268835046,
+          "neff_analytical": 1.9135400130245204,
+          "relative_neff_error": 6.911577998132899e-05,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.9681770406438533
+            },
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.03128158299427646
+            },
+            {
+              "name": "EH1,4",
+              "partner": 1,
+              "overlap": 0.0003527049108366267
+            },
+            {
+              "name": "EH1,3",
+              "partner": 1,
+              "overlap": 0.00017451235548990502
+            }
+          ]
+        },
+        {
+          "channel": 9,
+          "analytical": "HE3,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9676221996574822,
+          "neff_fdfd": 1.91077130836589,
+          "neff_analytical": 1.9110148019258082,
+          "relative_neff_error": 0.00012741584192486812,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.9676221996574822
+            },
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.03095110993392836
+            },
+            {
+              "name": "HE1,2",
+              "partner": 0,
+              "overlap": 0.0006703714431283899
+            },
+            {
+              "name": "EH3,3",
+              "partner": 0,
+              "overlap": 0.00011214010649397581
+            }
+          ]
+        },
+        {
+          "channel": 10,
+          "analytical": "HE3,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9676221996574567,
+          "neff_fdfd": 1.9107713083658888,
+          "neff_analytical": 1.9110148019258082,
+          "relative_neff_error": 0.0001274158419254491,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.9676221996574567
+            },
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.03095110993394807
+            },
+            {
+              "name": "HE1,2",
+              "partner": 1,
+              "overlap": 0.0006703714431290644
+            },
+            {
+              "name": "EH3,3",
+              "partner": 1,
+              "overlap": 0.00011214010649397735
+            }
+          ]
+        }
+      ],
+      "combined_spans": [
+        {
+          "families": [
+            "EH1,1",
+            "HE3,1"
+          ],
+          "channels": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "minimum_principal_overlap": 0.9984388233878184
+        },
+        {
+          "families": [
+            "EH2,1",
+            "HE4,1"
+          ],
+          "channels": [
+            13,
+            14,
+            15,
+            16
+          ],
+          "minimum_principal_overlap": 0.9976525361924183
+        },
+        {
+          "families": [
+            "EH3,1",
+            "HE5,1"
+          ],
+          "channels": [
+            21,
+            22,
+            23,
+            24
+          ],
+          "minimum_principal_overlap": 0.9964979149099277
+        }
+      ]
+    },
+    {
+      "name": "circular_dielectric_40GHz_96",
+      "status": "complete",
+      "modes": 40,
+      "minimum_field_overlap": 0.9435164057903677,
+      "maximum_relative_neff_error": 0.0022562585001179272,
+      "max_field_residual": 2.6924852731739138e-14,
+      "fallback_groups": [],
+      "selected": [
+        {
+          "channel": 7,
+          "analytical": "EH1,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9859877431018145,
+          "neff_fdfd": 1.913539592802758,
+          "neff_analytical": 1.9135400130245204,
+          "relative_neff_error": 2.1960437692232372e-07,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.9859877431018145
+            },
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.013706025476049767
+            },
+            {
+              "name": "EH1,4",
+              "partner": 0,
+              "overlap": 0.00032136358830826784
+            },
+            {
+              "name": "EH1,3",
+              "partner": 0,
+              "overlap": 0.00014451637598843193
+            }
+          ]
+        },
+        {
+          "channel": 8,
+          "analytical": "EH1,1",
+          "partner": 1,
+          "squared_field_overlap": 0.9859877431018337,
+          "neff_fdfd": 1.9135395928027574,
+          "neff_analytical": 1.9135400130245204,
+          "relative_neff_error": 2.1960437727043968e-07,
+          "alternatives": [
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.9859877431018337
+            },
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.013706025476043509
+            },
+            {
+              "name": "EH1,4",
+              "partner": 1,
+              "overlap": 0.0003213635883082708
+            },
+            {
+              "name": "EH1,3",
+              "partner": 1,
+              "overlap": 0.00014451637598843111
+            }
+          ]
+        },
+        {
+          "channel": 9,
+          "analytical": "HE3,1",
+          "partner": 0,
+          "squared_field_overlap": 0.9860983747817529,
+          "neff_fdfd": 1.91068970441971,
+          "neff_analytical": 1.9110148019258082,
+          "relative_neff_error": 0.00017011773313874973,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 0,
+              "overlap": 0.9860983747817529
+            },
+            {
+              "name": "EH1,1",
+              "partner": 0,
+              "overlap": 0.0135958974095587
+            },
+            {
+              "name": "EH3,3",
+              "partner": 0,
+              "overlap": 9.642761290128419e-05
+            },
+            {
+              "name": "HE3,4",
+              "partner": 0,
+              "overlap": 7.047970716615602e-05
+            }
+          ]
+        },
+        {
+          "channel": 10,
+          "analytical": "HE3,1",
+          "partner": 1,
+          "squared_field_overlap": 0.986098374781778,
+          "neff_fdfd": 1.91068970441971,
+          "neff_analytical": 1.9110148019258082,
+          "relative_neff_error": 0.00017011773313874973,
+          "alternatives": [
+            {
+              "name": "HE3,1",
+              "partner": 1,
+              "overlap": 0.986098374781778
+            },
+            {
+              "name": "EH1,1",
+              "partner": 1,
+              "overlap": 0.013595897409552657
+            },
+            {
+              "name": "EH3,3",
+              "partner": 1,
+              "overlap": 9.642761290128733e-05
+            },
+            {
+              "name": "HE3,4",
+              "partner": 1,
+              "overlap": 7.047970716615166e-05
+            }
+          ]
+        }
+      ],
+      "combined_spans": [
+        {
+          "families": [
+            "EH1,1",
+            "HE3,1"
+          ],
+          "channels": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "minimum_principal_overlap": 0.9995533850862139
+        },
+        {
+          "families": [
+            "EH2,1",
+            "HE4,1"
+          ],
+          "channels": [
+            13,
+            14,
+            15,
+            16
+          ],
+          "minimum_principal_overlap": 0.9986933691864804
+        },
+        {
+          "families": [
+            "EH3,1",
+            "HE5,1"
+          ],
+          "channels": [
+            21,
+            22,
+            23,
+            24
+          ],
+          "minimum_principal_overlap": 0.998186432643522
+        }
+      ]
+    }
+  ],
+  "source": "https://vtechworks.lib.vt.edu/bitstream/handle/10919/30522/jb-chap5.pdf equations 5.1--5.6",
+  "source_sha256": {
+    "testing\\eigenmode_support\\dielectric\\analytical_identity_audit.py": "f7fb6233573f261f47c855fc6fd21911b624b59c3c21136331707f6466f8e4e9",
+    "testing\\eigenmode_support\\dielectric\\analytical_step_index.py": "ab5d59f8176b83db6132a685916d739af913d2db74cb4230c1defd6ac1557508",
+    "testing\\eigenmode_support\\identification\\combined_identity_audit.py": "b62012f9bf7923a9b4e3bfeaa935a97e7b3ee08d0e7c8dfd8f801b9349753073",
+    "gprMax\\eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax\\eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax\\fdfd_eigenmode_solver\\fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218"
+  },
+  "finished_utc": "2026-10-24T09:16:28.757354+00:00",
+  "git_branch": "auto-tracking-improve",
+  "git_head": "8d010441b4a6223dea01e8653a4aa62434eb13a4",
+  "python": "3.13.15",
+  "numpy": "2.5.2",
+  "scipy": "1.18.1",
+  "threads": {
+    "OMP_NUM_THREADS": 1,
+    "OPENBLAS_NUM_THREADS": 1
+  },
+  "numerical_source_sha256": {
+    "gprMax/eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax/eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax/eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218",
+    "gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py": "24baa590d527568701638b8a25a2f026e4d62f80936c8a5fdc751636ce7f6bca"
+  }
+}

@@ -1,0 +1,4 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+COMPLETE WINDOW 0.04
+COMPLETE WINDOW 0.06
+{'status': 'complete', 'started_utc': '2026-10-24T09:21:27.065106+00:00', 'frequency_center_Hz': 36742026086.24742, 'spacing_m': 0.000625, 'windows_m': [0.04, 0.06], 'cells': [64, 96], 'source_sha256': '86b6f64092025861d2d135426b76fb7e1009509a7e7856549b2a82a6203c436b', 'finished_utc': '2026-10-24T09:22:04.384842+00:00', 'minimum_field_overlap': 0.9999999998878886, 'maximum_relative_neff_change': 8.980369981560444e-11}
