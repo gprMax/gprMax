@@ -36,8 +36,12 @@ MERGED_OUTPUT_SCHEMA_VERSION = 1
 
 
 def _grid_group(output, grid_path="/"):
-    grid_path = str(grid_path).strip("/")
-    return output[grid_path] if grid_path else output
+    path = str(grid_path).strip("/")
+    if not path:
+        return output
+    if path not in output or not isinstance(output[path], h5py.Group):
+        raise ValueError(f"Grid path {grid_path!r} was not found in {output.filename}")
+    return output[path]
 
 
 def get_output_data(
@@ -63,7 +67,7 @@ def get_output_data(
     with h5py.File(filename, "r") as f:
         grid = _grid_group(f, grid_path)
         if trace_group is None:
-            nrx = int(grid.attrs["nrx"])
+            nrx = int(grid.attrs.get("nrx", 0))
             if nrx == 0:
                 raise ValueError(f"No receivers found in {filename}")
             if receiver_name is None and f"rxs/rx{rxnumber}" not in grid:
@@ -72,7 +76,9 @@ def get_output_data(
                 receiver_catalogue(grid), f"name:{receiver_name}" if receiver_name is not None else rxnumber
             ).path
             allowed = TIME_DOMAIN_RECEIVER_OUTPUTS
-            description = f"receiver {rxnumber}"
+            description = (
+                f"receiver {receiver_name!r}" if receiver_name is not None else f"receiver {rxnumber}"
+            )
         else:
             path = str(trace_group).strip("/")
             if path.startswith(("name:", "study:", "build:", "rxs/")):
