@@ -274,4 +274,3 @@ def test_gather_receiver_outputs_empty_receivers_raises_value_error(tmp_path):
 
     with pytest.raises(ValueError, match="No receivers found"):
         gather_receiver_outputs(filename, "Ez")
-

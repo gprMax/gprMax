@@ -27,7 +27,12 @@ import h5py
 import numpy as np
 
 from gprMax.utilities.utilities import natural_keys
-from gprMax.toolboxes.Utilities.receiver_identity import match_receiver, receiver_catalogue, select_receiver
+from gprMax.toolboxes.Utilities.receiver_identity import (
+    match_receiver,
+    receiver_catalogue,
+    receiver_recorded,
+    select_receiver,
+)
 from gprMax.toolboxes.Utilities.trace_time import read_time_history, receiver_time_offset
 
 TIME_DOMAIN_QUANTITIES = {
@@ -220,6 +225,11 @@ def collect_traces(
             if receiver_path not in grid:
                 raise ValueError(f"Trace group {receiver_path!r} is not available in {filename}")
             if dataset_path not in grid:
+                if not receiver_recorded(grid[receiver_path]):
+                    raise ValueError(
+                        f"Receiver {receiver_path!r} was not recorded (record=false) in {filename}; "
+                        "there is no stored trace to export"
+                    )
                 available = ", ".join(grid[receiver_path].keys())
                 raise ValueError(
                     f"Component {rxcomponent!r} is not available for receiver {rxnumber} "

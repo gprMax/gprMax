@@ -82,7 +82,7 @@ class TestFootprint:
 
 
 class TestValidator:
-    
+
     def test_single_rank_cannot_straddle_but_is_still_unsupported(self, monkeypatch):
         with pytest.raises(MPISubgridConfigurationError) as exc:
             check((45, 45, 45), (55, 55, 55), (1, 1, 1))
@@ -149,7 +149,7 @@ class TestValidator:
     def test_subgrid_inside_one_rank_passes_once_solver_supports_it(self, monkeypatch):
         monkeypatch.setattr(mpi_preflight, "SUBGRIDS_ON_MPI_SOLVER_SUPPORTED", True)
         check((10, 10, 10), (20, 20, 20), (2, 1, 1))
-    
+
     @pytest.mark.parametrize(
         "i0, i1, tasks",
         [
@@ -169,7 +169,7 @@ class TestValidator:
         msg = str(exc.value)
         assert "not currently supported with MPI domain decomposition" in msg
         assert "Omit --mpi" in msg
-    
+
     def test_ratio_one_subgrid_inside_one_rank_reports_mpi_limitation(self):
         with pytest.raises(MPISubgridConfigurationError) as exc:
             validate_subgrid_against_mpi(

@@ -22,7 +22,7 @@ import pytest
 from gprMax.toolboxes.Utilities.outputfiles_merge import get_output_data, merge_files
 
 
-def _write_output(filename, offset=0, iterations=3, dtype=np.float64):
+def _write_output(filename, offset=0, iterations=3, dtype=np.float64, record=True, trace_offset=0.0):
     with h5py.File(filename, "w") as output:
         output.attrs["Title"] = "merge test"
         output.attrs["Iterations"] = iterations
@@ -35,10 +35,13 @@ def _write_output(filename, offset=0, iterations=3, dtype=np.float64):
         receiver.attrs["Name"] = "surface"
         receiver.attrs["Position"] = (1.0 + offset, 2.0, 3.0)
         receiver.attrs["GridPosition"] = (10 + offset, 20, 30)
-        field = receiver.create_dataset("Ez", data=np.asarray(np.arange(iterations) + offset, dtype=dtype))
-        field.attrs["SampleInterval"] = 1e-10
-        field.attrs["TimeSampleOffset"] = 0.0
-        field.attrs["Quantity"] = "Ez"
+        if record:
+            field = receiver.create_dataset("Ez", data=np.asarray(np.arange(iterations) + offset, dtype=dtype))
+            field.attrs["SampleInterval"] = 1e-10
+            field.attrs["TimeSampleOffset"] = trace_offset
+            field.attrs["Quantity"] = "Ez"
+        else:
+            receiver.attrs["Recorded"] = False
 
         port = output.create_group("ports/receive")
         port.attrs["Name"] = "receive"
@@ -118,7 +121,7 @@ def test_merge_preserves_receiver_metadata_and_subgrid_outputs(tmp_path):
         assert output["rxs/rx1/Ez"].attrs["SampleInterval"] == 1e-10
         assert output["rxs/rx1/Ez"].attrs["TimeSampleOffset"] == 0.0
         assert output.attrs["MergedOutput"]
-        assert output.attrs["MergedOutputSchemaVersion"] == 1
+        assert output.attrs["MergedOutputSchemaVersion"] == 2
         assert output.attrs["ntraces"] == 2
         np.testing.assert_array_equal(
             output["trace_metadata/rxs/rx1/Position"],
@@ -251,6 +254,92 @@ def test_merge_rejects_mixed_precision(tmp_path):
         merge_files(files)
 
 
+def test_merge_stores_unrecorded_input_as_nan_column(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5"]
+    _write_output(files[0])
+    _write_output(files[1], offset=1, record=False)
+
+    merged = merge_files(files)
+
+    data, _ = get_output_data(merged, 1, "Ez")
+    np.testing.assert_array_equal(data[:, 0], [0, 1, 2])
+    assert np.isnan(data[:, 1]).all()
+    with h5py.File(merged, "r") as output:
+        assert "Recorded" not in output["rxs/rx1"].attrs
+        np.testing.assert_array_equal(output["trace_metadata/rxs/rx1/Recorded"], [True, False])
+    with pytest.raises(ValueError, match="was not recorded"):
+        get_output_data(files[1], 1, "Ez")
+
+
+def test_merge_keeps_receiver_muted_in_every_input(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5"]
+    _write_output(files[0], record=False)
+    _write_output(files[1], offset=1, record=False)
+
+    merged = merge_files(files)
+
+    with h5py.File(merged, "r") as output:
+        receiver = output["rxs/rx1"]
+        assert receiver.attrs["Name"] == "surface"
+        assert not receiver.attrs["Recorded"]
+        assert list(receiver.keys()) == []
+        np.testing.assert_array_equal(output["trace_metadata/rxs/rx1/Recorded"], [False, False])
+    with pytest.raises(ValueError, match="was not recorded"):
+        get_output_data(merged, 1, "Ez")
+
+
+def test_merge_templates_from_first_recorded_input(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5"]
+    _write_output(files[0], record=False)
+    _write_output(files[1], offset=1)
+
+    merged = merge_files(files)
+
+    data, _ = get_output_data(merged, 1, "Ez")
+    assert np.isnan(data[:, 0]).all()
+    np.testing.assert_array_equal(data[:, 1], [1, 2, 3])
+    with h5py.File(merged, "r") as output:
+        assert "Recorded" not in output["rxs/rx1"].attrs
+        np.testing.assert_array_equal(output["trace_metadata/rxs/rx1/Recorded"], [False, True])
+
+
+def test_merge_rejects_invalid_first_recorded_trace_after_muted_input(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5"]
+    _write_output(files[0], record=False)
+    _write_output(files[1], offset=1)
+    with h5py.File(files[1], "r+") as output:
+        del output["rxs/rx1/Ez"]
+        field = output["rxs/rx1"].create_dataset("Ez", data=np.asarray([1.0]))
+        field.attrs.update(SampleInterval=1e-10, TimeSampleOffset=0.0, Quantity="Ez")
+
+    with pytest.raises(ValueError, match="shape \\(1,\\); expected \\(3,\\)"):
+        merge_files(files)
+
+
+def test_merge_rejects_later_recorded_trace_after_muted_input(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5", tmp_path / "model3.h5"]
+    _write_output(files[0], record=False)
+    _write_output(files[1], offset=1)
+    _write_output(files[2], offset=2, trace_offset=0.5e-10)
+
+    with pytest.raises(ValueError, match="TimeSampleOffset differs"):
+        merge_files(files)
+
+
+def test_merge_rejects_short_later_trace_after_muted_input(tmp_path):
+    files = [tmp_path / "model1.h5", tmp_path / "model2.h5", tmp_path / "model3.h5"]
+    _write_output(files[0], record=False)
+    _write_output(files[1], offset=1)
+    _write_output(files[2], offset=2)
+    with h5py.File(files[2], "r+") as output:
+        del output["rxs/rx1/Ez"]
+        field = output["rxs/rx1"].create_dataset("Ez", data=np.asarray([1.0]))
+        field.attrs.update(SampleInterval=1e-10, TimeSampleOffset=0.0, Quantity="Ez")
+
+    with pytest.raises(ValueError, match="shape \\(1,\\); expected \\(3,\\)"):
+        merge_files(files)
+
+
 def test_get_output_data_missing_nrx_raises_value_error(tmp_path):
     filename = tmp_path / "no_nrx.h5"
     with h5py.File(filename, "w") as output:
@@ -284,4 +373,3 @@ def test_get_output_data_receiver_name_selection(tmp_path):
     data, dt = get_output_data(filename, 1, "Ez", receiver_name="surface")
     np.testing.assert_array_equal(data, [0, 1, 2])
     assert dt == 1e-10
-

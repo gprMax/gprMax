@@ -51,6 +51,11 @@ class ReceiverCatalogue(dict):
             self.ordinals[(rx.layout, rx.build_index)].append(rx)
 
 
+def receiver_recorded(group) -> bool:
+    """Whether a receiver group carries trace data; a missing flag means it does."""
+    return bool(group.attrs.get("Recorded", True))
+
+
 def receiver_catalogue(grid) -> dict[str, ReceiverIdentity]:
     """Snapshot identities in one grid namespace; safe after the file closes."""
     if "rxs" not in grid:

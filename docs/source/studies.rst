@@ -123,7 +123,7 @@ General GPR studies support top-level
 :class:`gprMax.Rx` objects on the main grid. A state can refer directly to its
 Python object or use its deterministic ID. Sources omitted from a case are
 inactive; receivers omitted from a case keep their original position and are
-recorded.
+recorded, unless their state sets ``record=False``.
 
 .. code-block:: python
 
@@ -149,16 +149,25 @@ recorded.
 
 The available source overrides are ``active``, ``position``,
 ``waveform_id``, ``start``, ``stop``, and the dimensionless amplitude
-``scale``. Receivers currently accept ``position`` and ``record=True``. The
-study determines the run count automatically; pass ``i=N`` to restart at the
-one-based case number ``N``. For a text input model the equivalent
-``#study`` command reads the same information from CSV.
+``scale``. Receivers accept ``position`` and ``record``, which defaults to
+``True``. The study determines the run count automatically; pass ``i=N`` to
+restart at the one-based case number ``N``. For a text input model the
+equivalent ``#study`` command reads the same information from CSV.
 
 Study ``start``/``stop`` overrides must be finite. ``active`` and ``record``
 accept Python or NumPy boolean scalars; strings, numeric flags and boolean
 arrays are rejected rather than interpreted by truthiness. These checks also
-apply before reusing a study in another run. ``record=False`` remains
-unsupported and is rejected for both boolean types.
+apply before reusing a study in another run. A receiver with
+``record=False`` keeps its position and public receiver slot in that case,
+but its group stores ``Recorded=0`` and no field datasets. Omitted receivers
+remain recorded at their baseline position.
+
+Python readers treat a missing ``Recorded`` attribute as recorded, so files
+from ordinary runs and older releases are unaffected. The plotting, merge,
+export and Marimo tools raise or skip a muted receiver explicitly instead of
+reading its missing datasets as zeros. When ``outputfiles_merge`` combines
+runs with different selections, unrecorded columns are stored as NaN and the
+per-input flags are kept in ``trace_metadata/rxs/rxN/Recorded``.
 
 For a complete acquisition that users can edit in a spreadsheet, see the
 :ref:`CSV B-scan example <bscan_csv_study>`. A Python model can use that same

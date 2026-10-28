@@ -179,9 +179,11 @@ def test_api_study_python_and_numpy_flags_agree(tmp_path, value):
         assert bool(np.any(handle["rxs/rx1/Ez"])) == bool(value)
 
 
-def test_numpy_record_false_is_rejected_not_silently_enabled(tmp_path):
+@pytest.mark.integration
+def test_numpy_record_false_omits_receiver_data(tmp_path):
     model, study, receiver = study_scene({})
     study.cases[0].states.append(gprMax.ObjectState(receiver, record=np.bool_(False)))
-    with pytest.raises(ValueError, match="record=false"):
-        gprMax.run(scenes=[model], study=study, outputfile=tmp_path / "record", log_level=50)
-    assert not list(tmp_path.glob("*.h5"))
+    gprMax.run(scenes=[model], study=study, outputfile=tmp_path / "record", log_level=50)
+    with h5py.File(tmp_path / "record.h5") as handle:
+        assert not bool(handle["rxs/rx1"].attrs["Recorded"])
+        assert "Ez" not in handle["rxs/rx1"]

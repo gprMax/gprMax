@@ -409,7 +409,7 @@ class Study:
 
         # Sparse tables describe the active source set for each case. A source
         # omitted from a case is therefore disabled, while receivers retain
-        # their baseline location and remain recorded.
+        # their baseline location and remain recorded unless explicitly muted.
         for study_id, item in runtime.items():
             if _is_source(item) and study_id not in explicit_sources:
                 self._resample_source(model.G, item, scale=0.0)
@@ -422,6 +422,7 @@ class Study:
                     "scale": 0.0,
                 }
             elif not _is_source(item) and study_id not in resolved["objects"]:
+                item.study_record = True
                 resolved["objects"][study_id] = {
                     "position": [float(item.coord[i] * model.G.dl[i]) for i in range(3)],
                     "record": True,
@@ -497,6 +498,7 @@ class Study:
                 item.start = baseline["start"]
                 item.stop = baseline["stop"]
             else:
+                item.study_record = True
                 for values in item.outputs.values():
                     values.fill(0)
 
@@ -525,12 +527,9 @@ class Study:
         applied["position"] = [float(item.coord[i] * grid.dl[i]) for i in range(3)]
 
         if not _is_source(item):
-            if parameters.get("record") is False:
-                raise ValueError(
-                    f"Study object '{study_id}' requested record=false. Selective receiver output "
-                    "is reserved for a later study implementation; omit the row instead."
-                )
-            applied["record"] = True
+            record = bool(parameters.get("record", True))
+            item.study_record = record
+            applied["record"] = record
             return applied
 
         if "waveform_id" in parameters:

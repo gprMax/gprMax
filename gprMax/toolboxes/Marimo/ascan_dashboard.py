@@ -21,7 +21,7 @@ def _():
         get_trace,
         get_unit_label,
         list_components,
-        list_receivers,
+        list_recorded_receivers,
         load_files,
     )
     from gprMax.toolboxes.Marimo.processing import (
@@ -79,7 +79,7 @@ def _():
         go,
         io,
         list_components,
-        list_receivers,
+        list_recorded_receivers,
         load_files,
         mo,
         np,
@@ -209,7 +209,7 @@ def _(
     get_data,
     get_traces,
     list_components,
-    list_receivers,
+    list_recorded_receivers,
     mo,
 ):
     _state = get_data()
@@ -220,7 +220,10 @@ def _(
 
     _file_options = list(_files.keys())
     _first_file = _file_options[0]
-    _first_rx = list_receivers(_files[_first_file])[0]
+    _first_rxs = list_recorded_receivers(_files[_first_file])
+    if not _first_rxs:
+        mo.stop(True, mo.md(f"{_first_file} has no recorded receivers (record=false)."))
+    _first_rx = _first_rxs[0]
     _first_comps = list_components(_files[_first_file], _first_rx)
 
     _next_hex = PALETTE[len(get_traces()) % len(PALETTE)]
@@ -232,7 +235,7 @@ def _(
         label="File",
     )
     receiver_selector = mo.ui.dropdown(
-        options=list_receivers(_files[_first_file]),
+        options=_first_rxs,
         value=_first_rx,
         label="Receiver",
     )

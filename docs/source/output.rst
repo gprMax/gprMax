@@ -711,6 +711,16 @@ ImpulseResponse files retain selected receivers' original paths/indices;
 these subsets can contain gaps, so readers should enumerate actual groups
 and sort numeric suffixes rather than construct paths from ``1..nrx``.
 
+Merged files report ``MergedOutputSchemaVersion=2``. A receiver that an input
+case muted with ``record=false`` keeps its group and identity, but its merged
+samples are NaN columns, never zeros. A single ``Recorded`` attribute remains
+only when every input agrees; per-input flags are stored in
+``trace_metadata/rxs/rxN/Recorded``. Readers accept a NaN column only when
+its flag is false; infinities and NaN columns for recorded traces are rejected.
+``plot_Ascan`` and ``plot_Bscan`` skip muted receivers with a warning, and
+``get_output_data`` rejects an explicit request for one instead of returning
+an empty trace.
+
 Use name-based selections when migrating saved scripts:
 
 .. code-block:: python

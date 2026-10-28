@@ -25,18 +25,30 @@ import numpy as np
 from gprMax.utilities.utilities import handle_plot_output
 
 from ..Utilities.outputfiles_merge import get_output_data
-from ..Utilities.receiver_identity import natural_key
-from ..Utilities.trace_time import receiver_time_offset
+from ..Utilities.receiver_identity import natural_key, receiver_catalogue, receiver_recorded, select_receiver
+from ..Utilities.trace_time import (
+    _missing_columns_are_valid,
+    _missing_columns_match,
+    receiver_time_offset,
+)
 
 
 def gather_receiver_outputs(filename, rxcomponent, *, return_time_offset=False):
     """Gather one component from all receivers without duplicating rx1."""
     with h5py.File(filename, "r") as output:
+        rxs = output.get("rxs", {})
         nrx = int(output.attrs.get("nrx", 0))
-        receivers = sorted(output.get("rxs", {}), key=natural_key)
+        receivers = [
+            key
+            for key in sorted(rxs, key=natural_key)
+            if receiver_recorded(rxs[key])
+        ]
+        has_receivers = len(rxs) > 0
 
-    if nrx == 0 or not receivers:
+    if nrx == 0 or not has_receivers:
         raise ValueError(f"No receivers found in {filename}")
+    if not receivers:
+        raise ValueError(f"No recorded receivers found in {filename}; every receiver has Recorded=false")
 
     traces = []
     dt = None
@@ -58,6 +70,37 @@ def gather_receiver_outputs(filename, rxcomponent, *, return_time_offset=False):
     if return_time_offset:
         return np.column_stack(traces), dt, offset
     return np.column_stack(traces), dt
+
+
+def _gathered_columns(output, count):
+    recorded = []
+    for key in sorted(output.get("rxs", {}), key=natural_key):
+        group = output["rxs"][key]
+        if not receiver_recorded(group):
+            continue
+        flags = output.get(f"trace_metadata/rxs/{key}/Recorded")
+        if not isinstance(flags, h5py.Dataset):
+            return None
+        recorded.extend(np.asarray(flags, dtype=bool))
+    return np.asarray(recorded) if len(recorded) == count else None
+
+
+def _validate_missing_traces(filename, outputdata, rxnumber, rxcomponent, trace_group):
+    with h5py.File(filename, "r") as output:
+        if trace_group == "gathered":
+            valid = _missing_columns_match(outputdata, _gathered_columns(output, outputdata.shape[1]))
+        else:
+            if trace_group is None:
+                path = f"rxs/rx{rxnumber}"
+            else:
+                path = str(trace_group).strip("/")
+                if path.startswith(("name:", "study:", "build:", "rxs/")):
+                    path = select_receiver(receiver_catalogue(output), path).path
+            group = output.get(path)
+            dataset = group.get(rxcomponent) if isinstance(group, h5py.Group) else None
+            valid = isinstance(dataset, h5py.Dataset) and _missing_columns_are_valid(dataset, outputdata)
+        if not valid:
+            raise ValueError(f"Trace data contain NaN or infinite values: {trace_group or rxnumber} in {filename}")
 
 
 def mpl_plot(
@@ -91,13 +134,10 @@ def mpl_plot(
 
     file = Path(filename)
     outputdata = np.asarray(outputdata)
-    if (
-        outputdata.ndim != 2
-        or 0 in outputdata.shape
-        or not np.all(np.isfinite(outputdata))
-        or np.iscomplexobj(outputdata)
-    ):
+    if outputdata.ndim != 2 or 0 in outputdata.shape or np.iscomplexobj(outputdata):
         raise ValueError("A B-scan must be a nonempty finite real time-by-trace matrix")
+    if not np.isfinite(outputdata).all():
+        _validate_missing_traces(file, outputdata, rxnumber, rxcomponent, trace_group)
     if not np.isfinite(dt) or dt <= 0:
         raise ValueError("B-scan sample interval must be finite and positive")
     time_offset = (
@@ -114,8 +154,8 @@ def mpl_plot(
         facecolor="w",
         edgecolor="w",
     )
-    colour_limit = np.amax(np.abs(outputdata))
-    if colour_limit == 0:
+    colour_limit = np.nanmax(np.abs(outputdata))
+    if not np.isfinite(colour_limit) or colour_limit == 0:
         colour_limit = 1
 
     plt.imshow(
@@ -228,10 +268,20 @@ if __name__ == "__main__":
         )
     else:
         with h5py.File(args.outputfile, "r") as f:
+            rxs = f.get("rxs", {})
             nrx = int(f.attrs.get("nrx", 0))
-            receivers = sorted(f.get("rxs", {}), key=natural_key)
-        if nrx == 0 or not receivers:
+            receivers = [
+                key
+                for key in sorted(rxs, key=natural_key)
+                if receiver_recorded(rxs[key])
+            ]
+            has_receivers = len(rxs) > 0
+        if nrx == 0 or not has_receivers:
             raise ValueError(f"No receivers found in {args.outputfile}")
+        if not receivers:
+            raise ValueError(
+                f"No recorded receivers found in {args.outputfile}; every receiver has Recorded=false"
+            )
         for key in receivers:
             rx = int(key.removeprefix("rx"))
             outputdata, dt, offset = get_output_data(

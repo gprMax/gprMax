@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
+import warnings
 from pathlib import Path
 
 import h5py
@@ -24,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from gprMax.receivers import Rx
-from gprMax.toolboxes.Utilities.receiver_identity import natural_key
+from gprMax.toolboxes.Utilities.receiver_identity import natural_key, receiver_recorded
 from gprMax.toolboxes.Utilities.trace_time import read_time_history
 from gprMax.utilities.utilities import fft_power, handle_plot_output
 
@@ -92,6 +93,7 @@ def _mpl_plot_file(file, outputs, fft, show, f):
         raise ValueError(f"No receivers found in {file}")
 
     # Loop through all grids
+    recorded_receivers = False
     for path in paths:
         # Check for single output component when doing a FFT
         if fft and not len(outputs) == 1:
@@ -102,6 +104,13 @@ def _mpl_plot_file(file, outputs, fft, show, f):
         for receiver_key in sorted(f[path + "rxs"], key=natural_key):
             rx = receiver_key.removeprefix("rx")
             rxpath = path + "rxs/" + receiver_key + "/"
+            if not receiver_recorded(f[rxpath]):
+                warnings.warn(
+                    f"{rxpath} was not recorded (record=false); skipping it",
+                    stacklevel=2,
+                )
+                continue
+            recorded_receivers = True
             availableoutputs = list(f[rxpath].keys())
             name = f[rxpath].attrs.get("Name", "")
             if isinstance(name, bytes):
@@ -286,6 +295,10 @@ def _mpl_plot_file(file, outputs, fft, show, f):
             # receiver's figure would ever be shown/saved.
             suffix = "_" + rxpath.strip("/").replace("/", "_")
             handle_plot_output(plt, fig, str(file), suffix=suffix, show=show)
+
+    if not recorded_receivers:
+        f.close()
+        raise ValueError(f"No recorded receivers found in {file}; every receiver has Recorded=false")
 
     f.close()
 

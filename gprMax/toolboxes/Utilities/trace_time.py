@@ -36,6 +36,44 @@ def _nearest_attribute(group, name):
         group = group.parent
 
 
+def _merged_grid(group):
+    while True:
+        if group.attrs.get("MergedOutput"):
+            return group
+        if group.name == "/":
+            return None
+        group = group.parent
+
+
+def _recorded_columns(dataset):
+    grid = _merged_grid(dataset.parent)
+    if grid is None:
+        return None
+    relative = dataset.name[len(grid.name) :].strip("/")
+    parts = relative.split("/")
+    if len(parts) != 3 or parts[0] != "rxs":
+        return None
+    recorded = grid.get(f"trace_metadata/{parts[0]}/{parts[1]}/Recorded")
+    if not isinstance(recorded, h5py.Dataset) or recorded.ndim != 1:
+        return None
+    return np.asarray(recorded, dtype=bool)
+
+
+def _missing_columns_match(values, recorded):
+    if recorded is None or values.ndim != 2 or recorded.shape != (values.shape[1],):
+        return False
+    missing = np.isnan(values).all(axis=0)
+    return (
+        not np.isinf(values).any()
+        and np.array_equal(np.isnan(values), np.tile(missing, (values.shape[0], 1)))
+        and np.array_equal(missing, ~recorded)
+    )
+
+
+def _missing_columns_are_valid(dataset, values):
+    return _missing_columns_match(values, _recorded_columns(dataset))
+
+
 def read_time_history(dataset, *, allow_matrix=False):
     """Read a real history with validated sampling and source-specific length.
 
@@ -111,6 +149,6 @@ def read_time_history(dataset, *, allow_matrix=False):
     offset = float(fallback if offset is None else offset)
     if not np.isfinite(offset):
         raise ValueError(f"Invalid sample-zero time offset for {dataset.name}")
-    if not np.all(np.isfinite(values)):
+    if not np.isfinite(values).all() and not _missing_columns_are_valid(dataset, values):
         raise ValueError(f"Trace data contain NaN or infinite values: {dataset.name}")
     return TimeHistory(values, dt, offset)
