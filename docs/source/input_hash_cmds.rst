@@ -138,8 +138,8 @@ face.
 .. note::
 
     * A 2D model must have exactly one invariant axis.
-    * Subgrids, symmetry boundaries, transmission-line sources, and magnetic
-      edges are not currently supported in 2D mode.
+    * Subgrids, symmetry boundaries, and transmission-line sources are not
+      currently supported in 2D mode.
     * A source polarisation must be one of the active components for the
       selected plane and mode. gprMax rejects incompatible electric and
       magnetic sources rather than silently creating a zero source.
@@ -1099,9 +1099,10 @@ Allows you to introduce a single magnetic-field edge with specific properties in
 
 For example, an x-directed perfect magnetic conductor is specified with ``#magnetic_edge: 0.5 0.5 0.5 0.7 0.5 0.5 pmc``.
 
-.. note::
-
-    ``#magnetic_edge`` is not currently supported in 2D mode.
+In 2D, the edge must follow an active magnetic-field component: the invariant
+axis in TE mode, or either in-plane axis in TM mode. Use ``inf`` on the
+invariant axis to place a TM edge on the active interior reference layer, or to
+span the reduced thickness for a TE edge. Other orientations are rejected.
 
 #plate:
 -------
@@ -1123,10 +1124,11 @@ For example to specify a xy oriented plate that is a perfect electric conductor,
 .. _geometry-tags-hash:
 
 The volumetric commands ``#triangle`` (non-zero thickness), ``#box``,
-``#sphere``, ``#cylinder``, ``#cylindrical_sector``, ``#cone``,
-``#ellipsoid``, and ``#fractal_box`` accept an optional final positional
-``tag_name`` string. Geometry tags are cell-centred semantic metadata and
-are independent of materials. They follow normal ordered geometry semantics:
+``#sphere``, ``#cylinder``, ``#cylindrical_sector``, ``#cone``, ``#helix``,
+``#rebar_mesh``, ``#ellipsoid``, and ``#fractal_box`` accept an optional final
+positional ``tag_name`` string. Geometry tags are cell-centred semantic
+metadata and are independent of materials. They follow normal ordered geometry
+semantics:
 a later tagged volume replaces the older tag in its cells, while a later
 untagged volume clears those cells to tag ID zero. Consequently
 ``#cylinder: ... plastic n container`` followed by a smaller untagged
@@ -1300,6 +1302,59 @@ For example, to specify a cone with centres at (0.02, 0.075, 0.075) and (0.08, 0
 .. note::
 
     * Cone objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
+
+#helix:
+-------
+
+Allows you to introduce a helical wire with a circular cross-section into the
+model. The axis can be arbitrary, i.e. it does not have to align with one of
+the Cartesian axes of the model. The syntax of the command is:
+
+.. code-block:: none
+
+    #helix: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 str1 str2 [c1 [tag_name]]
+
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the helix base.
+* ``f4 f5 f6`` are the coordinates (x,y,z) of a second point on the helix
+  axis. Only the direction from ``f1 f2 f3`` towards this point is used; its
+  distance from the base does not affect the geometry.
+* ``f7`` is the radius of the helical centreline.
+* ``f8`` is the axial advance per complete turn. A pitch of zero produces
+  closed loops that overlap in the plane of the base.
+* ``f9`` is the number of turns and may be fractional.
+* ``f10`` is the radius of the circular wire cross-section.
+* ``str1`` is the handedness, ``r`` for right-handed or ``l`` for
+  left-handed. The value is case-insensitive.
+* ``str2`` is a material identifier that must correspond to material that has
+  already been defined in the input file, or is one of the builtin materials.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch
+  on and off dielectric smoothing.
+
+Three material identifiers may be given in place of ``str2`` to assign
+materials in the x, y and z directions. Directional assignments remain
+non-averaged, as for the other volume commands.
+
+For example, to specify a right-handed four-turn perfect electric conductor
+coil with a coil radius of 8 mm, a pitch of 5 mm and a wire radius of 1.5 mm,
+use: ``#helix: 0.06 0.06 0.005 0.06 0.06 0.045 0.008 0.005 4 0.0015 r pec``.
+
+.. note::
+
+    * The axial length of the helix is the pitch multiplied by the number of
+      turns.
+    * A helix that is PEC in all three directions is rejected when its
+      rasterised PEC Yee edges form more than one connected component. The
+      check uses the actual ``dx``, ``dy`` and ``dz`` and preserves the
+      requested wire radius.
+    * For a helix that is not PEC in all three directions, the wire diameter
+      must be at least the smallest grid cell size. A diameter below the
+      largest grid cell size produces an explicit under-resolution warning.
+    * PEC connectivity is not checked when only some material directions are
+      PEC; an explicit warning is issued.
+    * Helix objects are permitted to extend outwith the model domain if
+      desired, however, only parts of object inside the domain will be
+      created.
+    * The command can only be used in 3D models.
 
 #ellipsoid:
 -----------

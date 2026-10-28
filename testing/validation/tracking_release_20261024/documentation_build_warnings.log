@@ -1,0 +1,513 @@
+WARNING: autodoc: failed to import 'base_tests.CreatePyenvTest' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\base_tests.py", line 31, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'base_tests.GprMaxBaseTest' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\base_tests.py", line 31, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.BScanMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.GeometryObjectsReadMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.GeometryObjectsWriteMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.GeometryOnlyMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.GeometryViewMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.MpiMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.PythonApiMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.ReceiverMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.SnapshotMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'mixins.TaskfarmMixin' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\mixins.py", line 22, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.GeometryObjectMaterialsRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.GeometryObjectRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.GeometryViewRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.H5RegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.ReceiverRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.RegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+WARNING: autodoc: failed to import 'regression_checks.SnapshotRegressionCheck' from module 'reframe_tests.tests'; the following exception was raised:
+Traceback (most recent call last):
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 131, in _import_from_module_and_path
+    module = _import_module(module_name, try_reload=True)
+  File "C:\Users\Traveler\PycharmProjects\gprMin\.codex_tmp\docs_deps\sphinx\ext\autodoc\_dynamic\_importer.py", line 221, in _import_module
+    module = importlib.import_module(modname)
+  File "C:\Users\Traveler\anaconda3\envs\gprMax2\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1395, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1023, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\Traveler\PycharmProjects\gprMin\reframe_tests\tests\regression_checks.py", line 24, in <module>
+    import reframe.utility.sanity as sn
+ModuleNotFoundError: No module named 'reframe'
+ [autodoc.import_object]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:65: WARNING: autosummary: failed to import CreatePyenvTest.
+Possible hints:
+* KeyError: 'CreatePyenvTest'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'base_tests'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* ModuleNotFoundError: No module named 'CreatePyenvTest'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:65: WARNING: autosummary: failed to import GprMaxBaseTest.
+Possible hints:
+* AttributeError: module 'reframe_tests.tests' has no attribute 'base_tests'
+* ModuleNotFoundError: No module named 'GprMaxBaseTest'
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'GprMaxBaseTest'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import BScanMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'BScanMixin'
+* KeyError: 'BScanMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import GeometryObjectsReadMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'GeometryObjectsReadMixin'
+* ModuleNotFoundError: No module named 'GeometryObjectsReadMixin'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import GeometryObjectsWriteMixin.
+Possible hints:
+* KeyError: 'GeometryObjectsWriteMixin'
+* ModuleNotFoundError: No module named 'GeometryObjectsWriteMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import GeometryOnlyMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'GeometryOnlyMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* KeyError: 'GeometryOnlyMixin'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import GeometryViewMixin.
+Possible hints:
+* KeyError: 'GeometryViewMixin'
+* ModuleNotFoundError: No module named 'GeometryViewMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import MpiMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'MpiMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'MpiMixin'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import PythonApiMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'PythonApiMixin'
+* ModuleNotFoundError: No module named 'PythonApiMixin'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import ReceiverMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'ReceiverMixin'
+* KeyError: 'ReceiverMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import SnapshotMixin.
+Possible hints:
+* ModuleNotFoundError: No module named 'SnapshotMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'SnapshotMixin'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:144: WARNING: autosummary: failed to import TaskfarmMixin.
+Possible hints:
+* KeyError: 'TaskfarmMixin'
+* ModuleNotFoundError: No module named 'reframe'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* AttributeError: module 'reframe_tests.tests' has no attribute 'mixins'
+* ModuleNotFoundError: No module named 'TaskfarmMixin'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import RegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'reframe'
+* KeyError: 'RegressionCheck'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* ModuleNotFoundError: No module named 'RegressionCheck'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import H5RegressionCheck.
+Possible hints:
+* KeyError: 'H5RegressionCheck'
+* ModuleNotFoundError: No module named 'H5RegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import ReceiverRegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'ReceiverRegressionCheck'
+* KeyError: 'ReceiverRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import GeometryObjectRegressionCheck.
+Possible hints:
+* KeyError: 'GeometryObjectRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* ModuleNotFoundError: No module named 'GeometryObjectRegressionCheck'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import GeometryObjectMaterialsRegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'GeometryObjectMaterialsRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+* KeyError: 'GeometryObjectMaterialsRegressionCheck'
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import GeometryViewRegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'GeometryViewRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* KeyError: 'GeometryViewRegressionCheck'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\reframe_test_suite.rst:171: WARNING: autosummary: failed to import SnapshotRegressionCheck.
+Possible hints:
+* ModuleNotFoundError: No module named 'SnapshotRegressionCheck'
+* KeyError: 'SnapshotRegressionCheck'
+* ModuleNotFoundError: No module named 'reframe'
+* AttributeError: module 'reframe_tests.tests' has no attribute 'regression_checks'
+* ValueError: not enough values to unpack (expected 2, got 1)
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.base_tests.CreatePyenvTest.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.base_tests.GprMaxBaseTest.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.BScanMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.GeometryObjectsReadMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.GeometryObjectsWriteMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.GeometryOnlyMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.GeometryViewMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.MpiMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.PythonApiMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.ReceiverMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.SnapshotMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.mixins.TaskfarmMixin.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.GeometryObjectMaterialsRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.GeometryObjectRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.GeometryViewRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.H5RegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.ReceiverRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.RegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]
+C:\Users\Traveler\PycharmProjects\gprMin\docs\source\developer_reference\reframe_tests.tests.regression_checks.SnapshotRegressionCheck.rst: WARNING: document isn't included in any toctree [toc.not_included]

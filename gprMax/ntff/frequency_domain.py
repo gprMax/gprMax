@@ -1515,6 +1515,82 @@ class KSIRFrequencyDomainMonitor:
                 component_group["dn_psi_dft"] = data.normal_derivative
 
 
+def _decoded(value):
+    return value.decode() if isinstance(value, bytes) else value
+
+
+def _saved_surface_groups(source: h5py.File, monitor_name: str):
+    """Locate a saved surface DFT by monitor or frequency-transform name.
+
+    Returns ``(group, surface_group, managed)``: ``group`` carries the
+    transform conventions, ``surface_group`` the origin and closure metadata.
+    A stand-alone :class:`KSIRFrequencyDomainMonitor` writes both on
+    ``/ntff/<name>`` with its DFTs below ``surface``. Scene objects
+    (``KSIRFrequencyTransform``) write
+    ``/ntff/<surface>/frequency/<transform>/surface_dft`` with the closure and
+    origin on the surface group; ``monitor_name`` is then the transform ID or
+    the path ``<surface>/frequency/<transform>``.
+    """
+
+    if "ntff" not in source:
+        raise ValueError(f"saved file has no NTFF monitor {monitor_name!r}")
+    ntff = source["ntff"]
+    if monitor_name in ntff:
+        group = ntff[monitor_name]
+        if "surface" in group:
+            return group, group, False
+        if "surface_dft" in group:
+            return group, group.parent.parent, True
+    matches = [
+        surface["frequency"][monitor_name]
+        for surface in ntff.values()
+        if isinstance(surface, h5py.Group)
+        and "frequency" in surface
+        and monitor_name in surface["frequency"]
+    ]
+    if len(matches) > 1:
+        raise ValueError(f"saved file has more than one frequency transform {monitor_name!r}")
+    if matches:
+        group = matches[0]
+        if "surface_dft" not in group:
+            raise ValueError(
+                f"saved transform {monitor_name!r} does not contain surface DFTs "
+                "(it was run with save_surface_dft=False)"
+            )
+        return group, group.parent.parent, True
+    if monitor_name in ntff:
+        raise ValueError("saved monitor does not contain surface DFTs")
+    raise ValueError(f"saved file has no NTFF monitor {monitor_name!r}")
+
+
+def _saved_component_geometry(component_group, surface_group, component):
+    """Logical bounds, spacing and field shape of one saved component surface.
+
+    Files written before scene objects stored these per component carry them
+    on the surface group (``logical_bounds``) and the model's base group
+    (``dx_dy_dz``, ``nx_ny_nz``); the patch positions are checked either way.
+    """
+
+    attrs = component_group.attrs
+    if "logical_lower" in attrs:
+        return (
+            attrs["logical_lower"],
+            attrs["logical_upper"],
+            attrs["grid_spacing"],
+            attrs["field_shape"],
+        )
+    bounds = np.asarray(surface_group.attrs["logical_bounds"], dtype=int)
+    base = surface_group.parent.parent
+    if "dx_dy_dz" not in base.attrs or "nx_ny_nz" not in base.attrs:
+        raise ValueError(f"saved {component} surface has no grid geometry")
+    return (
+        bounds[:3],
+        bounds[3:],
+        base.attrs["dx_dy_dz"],
+        np.asarray(base.attrs["nx_ny_nz"], dtype=int) + 1,
+    )
+
+
 def evaluate_saved_surface_dft(
     filename: Path | str,
     monitor_name: str,
@@ -1527,7 +1603,9 @@ def evaluate_saved_surface_dft(
 
     Args:
         filename: model HDF5 output containing a saved KSIR surface DFT.
-        monitor_name: frequency-transform identifier below the ``/ntff``
+        monitor_name: frequency-transform identifier (the ``id`` of a
+            ``KSIRFrequencyTransform``, or ``<surface>/frequency/<transform>``)
+            or the name of a stand-alone KSIR monitor below the ``/ntff``
             group.
         theta: one-dimensional polar-angle values in degrees.
         phi: one-dimensional azimuthal-angle values in degrees.
@@ -1540,25 +1618,27 @@ def evaluate_saved_surface_dft(
     """
 
     with h5py.File(filename, "r") as source:
-        path = f"ntff/{monitor_name}"
-        if path not in source:
-            raise ValueError(f"saved file has no NTFF monitor {monitor_name!r}")
-        group = source[path]
+        group, surface_group, managed = _saved_surface_groups(source, monitor_name)
         for attr, expected in (
             ("phasor_time_sign", PHASOR_TIME_DEPENDENCE),
             ("forward_transform_sign", FORWARD_TRANSFORM_KERNEL),
             ("green_radial_sign", OUTGOING_GREEN_RADIAL_FACTOR),
         ):
-            actual = group.attrs.get(attr)
-            if isinstance(actual, bytes):
-                actual = actual.decode()
-            if actual != expected:
+            if _decoded(group.attrs.get(attr)) != expected:
                 raise ValueError(f"saved surface convention {attr!r} is incompatible")
-        if "surface" not in group:
-            raise ValueError("saved monitor does not contain surface DFTs")
-        stored_real_dtype = group.attrs.get("real_dtype", group["frequencies"].dtype.name)
-        if isinstance(stored_real_dtype, bytes):
-            stored_real_dtype = stored_real_dtype.decode()
+        if managed:
+            formulation = _decoded(group.attrs.get("formulation", "ksir"))
+            if formulation != "ksir":
+                raise ValueError(
+                    f"saved transform {monitor_name!r} uses the {formulation!r} formulation; "
+                    "only KSIR surface DFTs can be reevaluated"
+                )
+            components = group["surface_dft"]
+            stored_origin = surface_group.attrs["physical_origin"]
+        else:
+            components = group["surface"]
+            stored_origin = group.attrs["origin"]
+        stored_real_dtype = _decoded(group.attrs.get("real_dtype", group["frequencies"].dtype.name))
         real_dtype = np.dtype(stored_real_dtype)
         theta_values = _angles("theta", theta, real_dtype)
         phi_values = _angles("phi", phi, real_dtype)
@@ -1566,26 +1646,22 @@ def evaluate_saved_surface_dft(
         paired_theta = _readonly(theta_grid.ravel())
         paired_phi = _readonly(phi_grid.ravel())
         directions = _readonly(spherical_directions(paired_theta, paired_phi, degrees=True))
-        closure_name = group.attrs.get("closure", "closed")
-        if isinstance(closure_name, bytes):
-            closure_name = closure_name.decode()
+        closure_name = _decoded(surface_group.attrs.get("closure", "closed"))
 
         def decoded_strings(name):
-            values = np.atleast_1d(group.attrs.get(name, ()))
-            return tuple(
-                value.decode() if isinstance(value, bytes) else str(value) for value in values
-            )
+            values = np.atleast_1d(surface_group.attrs.get(name, ()))
+            return tuple(str(_decoded(value)) for value in values)
 
         closure = closure_from_metadata(
             closure_name,
             decoded_strings("omitted_faces"),
             decoded_strings("symmetry_plane_faces"),
             decoded_strings("symmetry_plane_types"),
-            np.atleast_1d(group.attrs.get("symmetry_plane_coordinates", ())),
+            np.atleast_1d(surface_group.attrs.get("symmetry_plane_coordinates", ())),
         )
         frequencies = _readonly(group["frequencies"][:])
         reference_origin = np.asarray(
-            group.attrs["origin"] if origin is None else origin,
+            stored_origin if origin is None else origin,
             dtype=real_dtype,
         )
         if reference_origin.shape != (3,) or not np.all(np.isfinite(reference_origin)):
@@ -1593,24 +1669,38 @@ def evaluate_saved_surface_dft(
         _readonly(reference_origin)
         wave_speed = float(group.attrs["wave_speed"])
         fields: Dict[str, npt.NDArray[np.complexfloating]] = {}
-        for component, component_group in group["surface"].items():
+        for component, component_group in components.items():
+            if managed:
+                lower, upper, spacing, shape = _saved_component_geometry(
+                    component_group, surface_group, component
+                )
+                positions = component_group["patch_positions"][:]
+                field = component_group["field"][:]
+                derivative = component_group["normal_derivative"][:]
+            else:
+                attrs = component_group.attrs
+                lower, upper = attrs["logical_lower"], attrs["logical_upper"]
+                spacing, shape = attrs["grid_spacing"], attrs["field_shape"]
+                positions = component_group["patch_xyz"][:]
+                field = component_group["psi_dft"][:]
+                derivative = component_group["dn_psi_dft"][:]
             surface = closure.apply_quadrature(
                 build_component_surface(
                     component,
-                    component_group.attrs["logical_lower"],
-                    component_group.attrs["logical_upper"],
-                    component_group.attrs["grid_spacing"],
-                    component_group.attrs["field_shape"],
+                    lower,
+                    upper,
+                    spacing,
+                    shape,
                     excluded_faces=closure.omitted_faces,
                     real_dtype=real_dtype,
                 )
             )
-            if not np.array_equal(surface.patch_positions, component_group["patch_xyz"][:]):
+            if not np.array_equal(surface.patch_positions, positions):
                 raise ValueError(f"saved {component} surface geometry is inconsistent")
             values, _ = _evaluate_component_with_closure(
                 surface,
-                component_group["psi_dft"][:],
-                component_group["dn_psi_dft"][:],
+                field,
+                derivative,
                 closure,
                 frequencies,
                 directions,

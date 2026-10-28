@@ -498,12 +498,12 @@ Cell-centred geometry tags
 --------------------------
 
 The volumetric commands ``Box``, ``Sphere``, ``Cylinder``, ``Cone``,
-``CylindricalSector``, ``Ellipsoid``, a ``Triangle`` with non-zero thickness,
-and ``FractalBox`` accept the optional keyword ``tag``. A tag is semantic
-metadata independent of the electromagnetic material, for example
-``tag='cranial_bone'``. Reusing the same string on several primitives makes
-them one semantic region without retaining a list of the individual
-primitives.
+``CylindricalSector``, ``Ellipsoid``, ``Helix``, ``RebarMesh``, a ``Triangle``
+with non-zero thickness, and ``FractalBox`` accept the optional keyword
+``tag``. A tag is semantic metadata independent of the electromagnetic
+material, for example ``tag='cranial_bone'``. Reusing the same string on
+several primitives makes them one semantic region without retaining a list of
+the individual primitives.
 
 Tags follow the same ordered overwrite semantics as geometry. A tagged
 primitive writes its tag to every cell it occupies; an untagged primitive
@@ -647,6 +647,26 @@ Magnetic Edge
 Ellipsoid
 ---------
 .. autoclass:: gprMax.user_objects.cmds_geometry.ellipsoid.Ellipsoid
+
+Helix
+-----
+.. autoclass:: gprMax.user_objects.cmds_geometry.helix.Helix
+
+.. code-block:: python
+
+    scene.add(gprMax.Helix(
+        p1=(0.06, 0.06, 0.005),
+        p2=(0.06, 0.06, 0.045),
+        coil_radius=8e-3,
+        pitch=5e-3,
+        turns=4.0,
+        wire_radius=1.5e-3,
+        handedness='r',
+        material_id='pec',
+    ))
+
+See :doc:`helix` for the centreline definition, resolution requirement, and
+hash-command form.
 
 Plate
 -----
@@ -2042,6 +2062,27 @@ separately justified closure. ``evaluate_saved_surface_dft`` evaluates a
 compatible saved surface spectrum after a run, while
 ``spherical_observation_points`` constructs Cartesian exact-field receiver
 locations from spherical coordinates.
+
+A ``KSIRFrequencyTransform`` saves its surface DFT by default, so its far field
+can be evaluated again for other directions or another phase-reference origin
+by naming the transform. Symmetry completion is taken from the saved surface;
+the result holds range-normalised Cartesian components:
+
+.. code-block:: python
+
+    from gprMax.ntff.evaluator import project_cartesian_to_spherical
+
+    saved = gprMax.evaluate_saved_surface_dft(
+        "model.h5", "spectrum", theta=np.arange(1, 180), phi=[0, 90]
+    )
+    cartesian = np.stack(
+        [saved.range_normalized_fields[c] for c in ("Ex", "Ey", "Ez")], axis=-1
+    )
+    _, e_theta, e_phi = np.moveaxis(
+        project_cartesian_to_spherical(cartesian, saved.theta, saved.phi, degrees=True),
+        -1,
+        0,
+    )
 
 A layered transform reuses the same far-field request classes. For example,
 air above a finite dielectric layer and a lower dielectric half-space can be

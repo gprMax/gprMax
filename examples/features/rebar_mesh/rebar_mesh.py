@@ -1,8 +1,8 @@
 """Two-layer steel reinforcement mesh inside a concrete slab.
 
 The model uses a 2 mm grid and a 1.5 GHz Ricker source. The upper bar layer
-runs along x, the lower layer runs along y, and both are embedded 20 mm below
-the top concrete surface. Results are written beside this script.
+runs along x, the lower layer runs along y, with 20 mm cover below the top
+concrete surface. Results are written beside this script.
 """
 
 from pathlib import Path

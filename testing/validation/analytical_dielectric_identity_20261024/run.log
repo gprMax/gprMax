@@ -1,0 +1,13 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+START circular_dielectric_20GHz_40
+COMPLETE circular_dielectric_20GHz_40 min overlap 0.9644174321413317 max neff error 0.02484701365847021
+START circular_dielectric_20GHz_64
+COMPLETE circular_dielectric_20GHz_64 min overlap 0.9871439870766505 max neff error 0.0036251175242786753
+START circular_dielectric_20GHz_96
+COMPLETE circular_dielectric_20GHz_96 min overlap 0.9852316518992338 max neff error 0.004176834163238168
+START circular_dielectric_40GHz_40
+COMPLETE circular_dielectric_40GHz_40 min overlap 0.7457064285287719 max neff error 0.014546789867666662
+START circular_dielectric_40GHz_64
+COMPLETE circular_dielectric_40GHz_64 min overlap 0.9676221996574567 max neff error 0.004239780256837003
+START circular_dielectric_40GHz_96
+COMPLETE circular_dielectric_40GHz_96 min overlap 0.9435164057903677 max neff error 0.0022562585001179272

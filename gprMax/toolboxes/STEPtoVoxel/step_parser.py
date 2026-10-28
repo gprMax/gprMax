@@ -16,27 +16,35 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from OCC.Core.Bnd import Bnd_Box
-from OCC.Core.BRep import BRep_Tool
-from OCC.Core.BRepBndLib import brepbndlib
-from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
-from OCC.Core.BRepGProp import brepgprop
-from OCC.Core.BRepMesh import BRepMesh_IncrementalMesh
-from OCC.Core.gp import gp_Ax1, gp_Dir, gp_Pnt, gp_Trsf
-from OCC.Core.GProp import GProp_GProps
 
-# ------------------ OpenCascade imports ------------------
-from OCC.Core.IFSelect import IFSelect_RetDone
-from OCC.Core.Interface import Interface_Static
-from OCC.Core.STEPCAFControl import STEPCAFControl_Reader
-from OCC.Core.TDataStd import TDataStd_Name
-from OCC.Core.TDF import TDF_Label, TDF_LabelSequence
-from OCC.Core.TDocStd import TDocStd_Document
-from OCC.Core.TopLoc import TopLoc_Location
-from OCC.Core.XCAFApp import XCAFApp_Application
-from OCC.Core.XCAFDoc import XCAFDoc_ColorType, XCAFDoc_DocumentTool
-from OCC.Extend.TopologyUtils import TopologyExplorer
-
+from ._occ import (
+    Bnd_Box,
+    BRep_Tool,
+    BRepBuilderAPI_Transform,
+    BRepMesh_IncrementalMesh,
+    GProp_GProps,
+    IFSelect_RetDone,
+    Interface_Static,
+    OCCError,
+    STEPCAFControl_Reader,
+    TDF_Label,
+    TDF_LabelSequence,
+    TDocStd_Document,
+    TopLoc_Location,
+    TopologyExplorer,
+    XCAFApp_Application,
+    XCAFDoc_ColorType,
+    XCAFDoc_DocumentTool,
+    brepbndlib,
+    brepgprop,
+    gp_Ax1,
+    gp_Dir,
+    gp_Pnt,
+    gp_Trsf,
+    label_fallback_name,
+    label_name,
+    step_entity_labeller,
+)
 from .step_metadata import (
     StepMetadata,
     is_generated_name,
@@ -235,9 +243,7 @@ def _principal_moments(properties: GProp_GProps, volume: Optional[float]) -> Opt
 def get_label_name(label: Any) -> str:
     """Human-readable label name via TDataStd_Name, else ''."""
     try:
-        attr = TDataStd_Name()
-        if label.FindAttribute(TDataStd_Name.GetID(), attr):
-            return str(attr.Get()).strip()
+        return label_name(label)
     except Exception:
         pass
     return ""
@@ -370,7 +376,7 @@ def get_best_color(color_tool: Any, labels_to_try: List[Any], default=(0.8, 0.8,
                 ok, c = color_tool.GetColor(lbl, ct)
                 if ok:
                     return (c.Red(), c.Green(), c.Blue())
-        except Exception:
+        except OCCError:
             continue
     return default
 
@@ -424,7 +430,7 @@ def collect_shapes_recursive(
         ref = TDF_Label()
         shape_tool.GetReferredShape(label, ref)
 
-        occ_name = (get_label_name(label) or label.GetLabelName() or "").strip()
+        occ_name = (get_label_name(label) or label_fallback_name(label) or "").strip()
         new_name = occ_name or name_accum
         new_loc = loc_accum.Multiplied(shape_tool.GetLocation(label))
 
@@ -445,7 +451,7 @@ def collect_shapes_recursive(
         children = TDF_LabelSequence()
         shape_tool.GetComponents(label, children)
 
-        asm_name = (get_label_name(label) or label.GetLabelName() or "").strip()
+        asm_name = (get_label_name(label) or label_fallback_name(label) or "").strip()
         if asm_name:
             name_accum = asm_name
 
@@ -467,7 +473,7 @@ def collect_shapes_recursive(
     if shape_tool.IsSimpleShape(label):
         shape = shape_tool.GetShape(label)
 
-        leaf_name = (get_label_name(label) or label.GetLabelName() or "").strip()
+        leaf_name = (get_label_name(label) or label_fallback_name(label) or "").strip()
         name = name_accum or leaf_name or f"Part_{len(out_list) + 1}"
 
         labels_to_try = []
@@ -486,7 +492,7 @@ def collect_shapes_recursive(
     # Rare fallback: still a shape
     if shape_tool.IsShape(label):
         shape = shape_tool.GetShape(label)
-        nm = (name_accum or get_label_name(label) or label.GetLabelName() or "").strip() or f"Part_{len(out_list)+1}"
+        nm = (name_accum or get_label_name(label) or label_fallback_name(label) or "").strip() or f"Part_{len(out_list)+1}"
 
         labels_to_try = []
         if occ_label is not None:
@@ -543,7 +549,7 @@ def load_step_with_hierarchy(step_path: str, cfg: ParserConfig) -> List[Part]:
 
     metadata = StepMetadata.from_file(step_path)
     transfer_reader = reader.Reader().WS().TransferReader()
-    interface_model = reader.Reader().WS().Model()
+    entity_label = step_entity_labeller(reader, metadata)
 
     for part in parts:
         resolved = None
@@ -553,8 +559,7 @@ def load_step_with_hierarchy(step_path: str, cfg: ParserConfig) -> List[Part]:
             if entity is not None:
                 break
         if entity is not None:
-            label = interface_model.StringLabel(entity)
-            label_text = "" if label is None else label.ToCString()
+            label_text = entity_label(entity)
             match = re.fullmatch(r"#(\d+)", label_text)
             if match:
                 part.step_entity_id = int(match.group(1))
@@ -747,7 +752,9 @@ def main(step_path: str, cfg: ParserConfig) -> List[Part]:
             after = len(parts)
             if after > before:
                 print(f"🧩 Exploded {after - before} additional solids → {after} solids total")
-                ops_shape = {p.uid: p.shape for p in parts}  # exploded shapes are already ops-space
+                # Exploded shapes are already in ops space; keep the placed
+                # shapes of parts that were not split.
+                ops_shape = {p.uid: ops_shape.get(p.uid, p.shape) for p in parts}
             else:
                 print(f"🧩 No multi-solid leaf shapes detected → {after} solids total (no explode)")
         else:

@@ -1,0 +1,51 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+.................................................................F       [100%]
+================================== FAILURES ===================================
+___________ test_default_detection_reaches_source_receiver_and_hdf5 ___________
+
+tmp_path = WindowsPath('C:/Users/Traveler/PycharmProjects/gprMin/.codex_tmp/pytest_gradient_first_20261024_run2/test_default_detection_reaches0')
+
+    def test_default_detection_reaches_source_receiver_and_hdf5(tmp_path):
+        import h5py
+        import json
+        import gprMax
+        from testing.eigenmode_support.ports.degenerate_eigenmode_ports import circular_scene
+        scene=circular_scene(normal_axis=2,steps=12,virtual=False,monitor=True,averaging='n')
+        for obj in scene.grid_objects:
+            if isinstance(obj,gprMax.EigenmodePort):
+                obj.kwargs['mode_polarizations']=None
+                obj.kwargs['tracking']='auto'
+        path=tmp_path/'automatic_symmetry'
+>       gprMax.run(scenes=[scene],outputfile=path,cpu_precision='double',hide_progress_bars=True,log_level=40)
+
+tests\test_eigenmode_auto_symmetry.py:230:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+gprMax\gprMax.py:280: in run
+    return run_main(args)
+           ^^^^^^^^^^^^^^
+gprMax\gprMax.py:432: in run_main
+    results = context.run()
+              ^^^^^^^^^^^^^
+gprMax\contexts.py:106: in run
+    self._run_model(i)
+gprMax\contexts.py:151: in _run_model
+    self.model.solve(solver)
+gprMax\model.py:872: in solve
+    solver.solve(iterator)
+gprMax\solvers.py:65: in solve
+    self._solve(iterator)
+gprMax\solvers.py:88: in _solve
+    self.updates.update_magnetic_pml()
+gprMax\updates\cpu_updates.py:118: in update_magnetic_pml
+    pml.update_magnetic()
+gprMax\pml.py:680: in update_magnetic
+    func(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+>   RE0 = RE[0, j]
+E   TypeError: __pyx_fuse_1__pyx_f_6gprMax_6cython_28pml_updates_magnetic_HORIPML_order1_zminus() takes exactly 22 positional arguments (23 given)
+
+gprMax\cython\pml_updates_magnetic_HORIPML.pyx:605: TypeError
+=========================== short test summary info ===========================
+FAILED tests/test_eigenmode_auto_symmetry.py::test_default_detection_reaches_source_receiver_and_hdf5
+1 failed, 65 passed in 4.89s

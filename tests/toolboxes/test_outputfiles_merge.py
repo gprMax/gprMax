@@ -249,3 +249,38 @@ def test_merge_rejects_mixed_precision(tmp_path):
 
     with pytest.raises(ValueError, match="Inconsistent dtype"):
         merge_files(files)
+
+
+def test_get_output_data_missing_nrx_raises_value_error(tmp_path):
+    filename = tmp_path / "no_nrx.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["Iterations"] = 3
+        output.attrs["dt"] = 1e-10
+
+    with pytest.raises(ValueError, match="No receivers found"):
+        get_output_data(filename, 1, "Ez")
+
+
+def test_get_output_data_nonexistent_grid_path_raises_value_error(tmp_path):
+    filename = tmp_path / "model.h5"
+    _write_output(filename)
+
+    with pytest.raises(ValueError, match="Grid path 'subgrids/nonexistent' was not found"):
+        get_output_data(filename, 1, "Ez", grid_path="subgrids/nonexistent")
+
+
+def test_get_output_data_receiver_name_error_description(tmp_path):
+    filename = tmp_path / "model.h5"
+    _write_output(filename)
+
+    with pytest.raises(ValueError, match="is not a supported real time-domain output for receiver 'surface'"):
+        get_output_data(filename, 1, "invalid_comp", receiver_name="surface")
+
+
+def test_get_output_data_receiver_name_selection(tmp_path):
+    filename = tmp_path / "model.h5"
+    _write_output(filename)
+
+    data, dt = get_output_data(filename, 1, "Ez", receiver_name="surface")
+    np.testing.assert_array_equal(data, [0, 1, 2])
+    assert dt == 1e-10

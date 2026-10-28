@@ -582,6 +582,15 @@ Anisotropic materials
 
 It is possible to specify objects that have diagonal anisotropy which allows materials such as wood and fibre-reinforced composites, often imaged with GPR, to be more accurately modelled. Standard isotropic objects specify one material identifier that defines the same properties in x, y, and z directions. However, every volumetric object building command can also be specified with three material identifiers, which allows properties for the x, y, and z directions to be separately defined.
 
+Helical wire geometry
+=====================
+
+A dedicated helical-wire primitive builds a circular-cross-section wire wound
+around an arbitrary axis from a base point, coil radius, pitch, number of
+turns, wire radius, and handedness. It supports fractional turns, a
+zero-pitch closed ring, dielectric smoothing, geometry tags, directional
+materials, and distributed MPI execution. See :doc:`helix`.
+
 Dielectric smoothing
 ====================
 

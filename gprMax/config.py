@@ -26,6 +26,7 @@ import numpy as np
 from colorama import Fore, Style, init
 
 from gprMax.scene import Scene
+from gprMax.subgrids import mpi_preflight
 
 init()
 from scipy.constants import c
@@ -374,9 +375,18 @@ class SimulationConfig:
                 "Subgrids require the CPU or CUDA solver; OpenCL and Metal are unsupported."
             )
 
-        if self.mpi and hasattr(self.args, "subgrid") and self.args.subgrid:
-            logger.error("You cannot use subgrids with MPI.")
-            raise ValueError
+        if (
+            self.mpi
+            and getattr(self.args, "subgrid", False)
+            and all(int(m) <= 1 for m in self.mpi)
+            and not mpi_preflight.SUBGRIDS_ON_MPI_SOLVER_SUPPORTED
+        ):
+            msg = (
+                "Subgrids cannot yet be coupled to an MPI domain-decomposed main grid. "
+                "Omit the MPI domain decomposition option to use subgrids."
+            )
+            logger.error(msg)
+            raise ValueError(msg)
 
         # Each model in a simulation is given a unique number when the instance of ModelConfig is created
         self.current_model = 0

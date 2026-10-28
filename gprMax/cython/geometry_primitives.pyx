@@ -20,7 +20,7 @@ import numpy as np
 
 cimport cython
 cimport numpy as np
-from libc.math cimport ceil, cos, sin
+from libc.math cimport ceil, cos, floor, sin, sqrt
 
 np.seterr(divide='raise')
 
@@ -1093,6 +1093,233 @@ cpdef Py_ssize_t build_cylinder(
                         occupied += 1
 
     return occupied
+
+
+cdef inline double point_segment_distance2(
+    double px,
+    double py,
+    double pz,
+    double ax,
+    double ay,
+    double az,
+    double bx,
+    double by,
+    double bz,
+    double segment2
+) noexcept nogil:
+    """Squared distance from a point to segment AB; the projection is clamped to the endpoints."""
+
+    cdef double abx = bx - ax
+    cdef double aby = by - ay
+    cdef double abz = bz - az
+    cdef double t = ((px - ax) * abx + (py - ay) * aby + (pz - az) * abz) / segment2
+    cdef double qx, qy, qz
+
+    if t < 0:
+        t = 0
+    elif t > 1:
+        t = 1
+    qx = px - (ax + t * abx)
+    qy = py - (ay + t * aby)
+    qz = pz - (az + t * abz)
+    return qx * qx + qy * qy + qz * qz
+
+
+cpdef Py_ssize_t build_helix(
+    double x1,
+    double y1,
+    double z1,
+    double x2,
+    double y2,
+    double z2,
+    double coil_radius,
+    double pitch,
+    double turns,
+    double wire_radius,
+    bint right_handed,
+    double dx,
+    double dy,
+    double dz,
+    int numID,
+    int numIDx,
+    int numIDy,
+    int numIDz,
+    bint averaging,
+    bint pec_x,
+    bint pec_y,
+    bint pec_z,
+    np.uint32_t[:, :, ::1] solid,
+    np.int8_t[:, :, :, ::1] rigidE,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID,
+    object tag_data=None,
+    unsigned int tag_id=0
+):
+    """Rasterises a helical wire by sweeping a sphere along the centreline.
+
+    Consecutive capsule segments overlap by at most half a cell, so the wire
+    stays connected without any cell being written twice. Material, rigid, and
+    tag updates therefore happen once per occupied cell.
+
+    Args:
+        x1, y1, z1: coordinates of the helix base centre.
+        x2, y2, z2: coordinates of a point on the helix axis; only the
+                    direction is used.
+        coil_radius: radius of the helical centreline.
+        pitch: axial advance per complete turn.
+        turns: number of turns, which may be fractional.
+        wire_radius: radius of the circular wire cross-section.
+        right_handed: whether the winding follows the right-hand rule about
+                    the axis.
+        dx, dy, dz: spatial discretisation.
+        numID, numIDx, numIDy, numIDz: material IDs for the solid array and
+                    the x/y/z directional components.
+        averaging: whether dielectric smoothing applies to occupied cells.
+        pec_x, pec_y, pec_z: whether each directional component is a perfect
+                    electric conductor; build_voxel() uses these for rigidE
+                    and rigidH.
+        solid, rigidE, rigidH, ID: target grid arrays.
+    """
+
+    cdef Py_ssize_t i, j, k, s, nx, ny, nz, samples
+    cdef Py_ssize_t xs, xf, ys, yf, zs, zf, cell_key
+    cdef int ix1, iy1, iz1, ix2, iy2, iz2
+    cdef double ax, ay, az, axis_length, ahx, ahy, ahz
+    cdef double ux, uy, uz, vx, vy, vz, basis_length
+    cdef double total_length, step, wire_radius2
+    cdef double t0, t1, angle0, angle1, along0, along1
+    cdef double cx0, cy0, cz0, cx1, cy1, cz1
+    cdef double abx, aby, abz, segment2
+    cdef double px, py, pz, minx, maxx, miny, maxy, minz, maxz
+    cdef int tag_itemsize = 0
+    cdef int direction = 1
+    cdef np.uint8_t[::1] tag_bytes
+    cdef object tag_array
+    cdef object seen = set()
+    cdef double pi = 3.14159265358979323846
+    cdef double min_dl
+
+    if tag_data is not None:
+        tag_array = np.asarray(tag_data)
+        if tag_array.ndim != 3 or not tag_array.flags.c_contiguous:
+            raise ValueError("Geometry tag map must be a C-contiguous 3-D array")
+        if tag_array.dtype not in (np.uint8, np.uint16, np.uint32):
+            raise TypeError("Geometry tag map must use uint8, uint16, or uint32")
+        tag_itemsize = tag_array.itemsize
+        tag_bytes = tag_array.view(np.uint8).reshape(-1)
+
+    if coil_radius <= 0 or pitch < 0 or turns <= 0 or wire_radius <= 0:
+        return 0
+
+    ix1, iy1, iz1 = round_value(x1 / dx), round_value(y1 / dy), round_value(z1 / dz)
+    ix2, iy2, iz2 = round_value(x2 / dx), round_value(y2 / dy), round_value(z2 / dz)
+    ax, ay, az = (ix2 - ix1) * dx, (iy2 - iy1) * dy, (iz2 - iz1) * dz
+    axis_length = sqrt(ax * ax + ay * ay + az * az)
+    if axis_length == 0:
+        return 0
+    ahx, ahy, ahz = ax / axis_length, ay / axis_length, az / axis_length
+
+    if ahx > -0.9 and ahx < 0.9:
+        ux, uy, uz = 0, ahz, -ahy
+        basis_length = sqrt(uy * uy + uz * uz)
+        ux, uy, uz = ux / basis_length, uy / basis_length, uz / basis_length
+    else:
+        ux, uy, uz = -ahz, 0, ahx
+        basis_length = sqrt(ux * ux + uz * uz)
+        ux, uy, uz = ux / basis_length, uy / basis_length, uz / basis_length
+    vx = ahy * uz - ahz * uy
+    vy = ahz * ux - ahx * uz
+    vz = ahx * uy - ahy * ux
+
+    total_length = sqrt(
+        (2 * pi * coil_radius * turns) * (2 * pi * coil_radius * turns)
+        + (pitch * turns) * (pitch * turns)
+    )
+    min_dl = dx
+    if dy < min_dl:
+        min_dl = dy
+    if dz < min_dl:
+        min_dl = dz
+    step = wire_radius
+    if 0.5 * min_dl < step:
+        step = 0.5 * min_dl
+    if 0.25 * coil_radius < step:
+        step = 0.25 * coil_radius
+    samples = <Py_ssize_t>ceil(total_length / step)
+    if samples < 1:
+        samples = 1
+
+    nx = solid.shape[0]
+    ny = solid.shape[1]
+    nz = solid.shape[2]
+    if not right_handed:
+        direction = -1
+    wire_radius2 = wire_radius * wire_radius
+
+    for s in range(samples):
+        t0 = <double>s / samples
+        t1 = <double>(s + 1) / samples
+        angle0 = direction * 2 * pi * turns * t0
+        angle1 = direction * 2 * pi * turns * t1
+        along0 = pitch * turns * t0
+        along1 = pitch * turns * t1
+        cx0 = (ix1 * dx) + ahx * along0 + coil_radius * (
+            cos(angle0) * ux + sin(angle0) * vx
+        )
+        cy0 = (iy1 * dy) + ahy * along0 + coil_radius * (
+            cos(angle0) * uy + sin(angle0) * vy
+        )
+        cz0 = (iz1 * dz) + ahz * along0 + coil_radius * (
+            cos(angle0) * uz + sin(angle0) * vz
+        )
+        cx1 = (ix1 * dx) + ahx * along1 + coil_radius * (
+            cos(angle1) * ux + sin(angle1) * vx
+        )
+        cy1 = (iy1 * dy) + ahy * along1 + coil_radius * (
+            cos(angle1) * uy + sin(angle1) * vy
+        )
+        cz1 = (iz1 * dz) + ahz * along1 + coil_radius * (
+            cos(angle1) * uz + sin(angle1) * vz
+        )
+        abx, aby, abz = cx1 - cx0, cy1 - cy0, cz1 - cz0
+        segment2 = abx * abx + aby * aby + abz * abz
+        if segment2 == 0:
+            continue
+
+        minx, maxx = cx0, cx1
+        if maxx < minx:
+            minx, maxx = maxx, minx
+        miny, maxy = cy0, cy1
+        if maxy < miny:
+            miny, maxy = maxy, miny
+        minz, maxz = cz0, cz1
+        if maxz < minz:
+            minz, maxz = maxz, minz
+        xs = max(0, <Py_ssize_t>floor((minx - wire_radius) / dx) - 1)
+        xf = min(nx, <Py_ssize_t>ceil((maxx + wire_radius) / dx) + 1)
+        ys = max(0, <Py_ssize_t>floor((miny - wire_radius) / dy) - 1)
+        yf = min(ny, <Py_ssize_t>ceil((maxy + wire_radius) / dy) + 1)
+        zs = max(0, <Py_ssize_t>floor((minz - wire_radius) / dz) - 1)
+        zf = min(nz, <Py_ssize_t>ceil((maxz + wire_radius) / dz) + 1)
+
+        for i in range(xs, xf):
+            for j in range(ys, yf):
+                for k in range(zs, zf):
+                    px, py, pz = (i + 0.5) * dx, (j + 0.5) * dy, (k + 0.5) * dz
+                    if point_segment_distance2(
+                        px, py, pz, cx0, cy0, cz0, cx1, cy1, cz1, segment2
+                    ) <= wire_radius2:
+                        cell_key = (i * ny + j) * nz + k
+                        if cell_key not in seen:
+                            seen.add(cell_key)
+                            build_voxel(i, j, k, numID, numIDx, numIDy, numIDz,
+                                        averaging, pec_x, pec_y, pec_z,
+                                        solid, rigidE, rigidH, ID)
+                            if tag_itemsize:
+                                set_geometry_tag(tag_bytes, tag_itemsize, ny, nz,
+                                                 i, j, k, tag_id)
+
+    return <Py_ssize_t>len(seen)
 
 
 cpdef Py_ssize_t build_cone(

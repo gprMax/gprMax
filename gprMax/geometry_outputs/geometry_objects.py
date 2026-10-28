@@ -29,6 +29,10 @@ from gprMax import config
 from gprMax._version import __version__
 from gprMax.geometry_outputs.grid_view import GridType, GridView, MPIGridView
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.impedance_surfaces import (
+    impedance_marker_id,
+    surface_impedance_model_to_geometry_metadata,
+)
 from gprMax.material_database import (
     create_database_document,
     make_database_id,
@@ -113,6 +117,24 @@ class GeometryObject(Generic[GridType]):
             entry = dict(material_to_database_entry(material, directional_keys=key_by_id))
             metadata = dict(entry.get("metadata", {}))
             metadata["original_id"] = material.ID
+            surface_model_id = getattr(material, "surface_impedance_id", None)
+            if surface_model_id is not None:
+                if material.ID != impedance_marker_id(surface_model_id):
+                    raise ValueError(
+                        f"surface-impedance marker {material.ID!r} does not match model "
+                        f"{surface_model_id!r}"
+                    )
+                model = self.grid.surface_impedance_models.get(surface_model_id)
+                if model is None:
+                    raise ValueError(
+                        f"surface-impedance model {surface_model_id!r} is missing from the grid"
+                    )
+                metadata["surface_impedance_model"] = (
+                    surface_impedance_model_to_geometry_metadata(model)
+                )
+            impedance_role = getattr(material, "impedance_role", None)
+            if impedance_role is not None:
+                metadata["impedance_private_role"] = impedance_role
             provenance = getattr(material, "database_provenance", None)
             if provenance is not None:
                 metadata["source_database"] = provenance
@@ -174,6 +196,11 @@ class GeometryObject(Generic[GridType]):
             fdata.create_dataset("/material_keys", data=np.asarray(material_keys, dtype="S"))
             fdata.attrs["MaterialDatabase"] = self.filename_materials.stem
             fdata.attrs["MaterialDatabaseSchemaVersion"] = 1
+            if any(
+                hasattr(material, "surface_impedance_id")
+                for material in self.grid_view.materials
+            ):
+                fdata.attrs["ContainsSurfaceImpedance"] = 1
 
         write_database(self.filename_materials, self._material_document(material_keys))
 
@@ -244,6 +271,15 @@ class MPIGeometryObject(GeometryObject["MPIGrid"]):
             else None,
             root=0,
         )
+        contains_surface_impedance = self.grid_view.comm.bcast(
+            any(
+                hasattr(material, "surface_impedance_id")
+                for material in self.grid_view.materials
+            )
+            if self.grid_view.comm.rank == 0
+            else None,
+            root=0,
+        )
 
         ID = self.grid_view.get_ID()
         data = self.grid_view.get_solid()
@@ -305,6 +341,8 @@ class MPIGeometryObject(GeometryObject["MPIGrid"]):
             fdata.create_dataset("/material_keys", data=np.asarray(material_keys, dtype="S"))
             fdata.attrs["MaterialDatabase"] = self.filename_materials.stem
             fdata.attrs["MaterialDatabaseSchemaVersion"] = 1
+            if contains_surface_impedance:
+                fdata.attrs["ContainsSurfaceImpedance"] = 1
 
         if self.grid_view.comm.rank == 0:
             write_database(self.filename_materials, self._material_document(material_keys))

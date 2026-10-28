@@ -626,6 +626,22 @@ class TestTransmissionLineCalculateIncidentVI:
 
         assert tl.nl == tl.antpos + 1
 
+    def test_internal_line_too_short_for_antenna_raises(self, fake_grid, make_constant_waveform):
+        """A time window that yields 10 or fewer internal cells cannot place
+        the injector and antenna; fail before indexing past the arrays."""
+        dt = 1e-12
+        tl = TransmissionLine(iterations=10, dt=dt)
+        tl.resistance = 50.0
+        tl.waveformID = "wf"
+        tl.start = 0.0
+        w = make_constant_waveform(value=0.0)
+        G = fake_grid(iterations=10, dt=dt, waveforms=[w])
+        tl.stop = G.timewindow
+        tl.calculate_waveform_values(G)
+
+        with pytest.raises(ValueError, match="increase the model time window"):
+            tl.calculate_incident_V_I(G)
+
 
 class TestTransmissionLineUpdateElectric:
     @pytest.mark.parametrize(

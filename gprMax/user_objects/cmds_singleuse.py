@@ -17,7 +17,8 @@
 
 import logging
 import math
-from numbers import Integral
+import os
+from numbers import Integral, Real
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -31,8 +32,32 @@ from gprMax.utilities.host_info import set_omp_threads
 logger = logging.getLogger(__name__)
 
 
+def _validate_real_triple(user_object, values, label):
+    try:
+        items = tuple(values)
+    except TypeError as exc:
+        raise ValueError(f"{user_object} requires three {label}") from exc
+
+    if len(items) != 3:
+        raise ValueError(f"{user_object} requires three {label}")
+    if any(isinstance(value, bool) or not isinstance(value, Real) for value in items):
+        raise ValueError(f"{user_object} requires numeric {label}")
+    return items
+
+
+def _validate_step_size(user_object, step_size):
+    values = _validate_real_triple(user_object, step_size, "step sizes")
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError(f"{user_object} requires finite step sizes")
+    return values
+
+
 class Title(ModelUserObject):
     """Title of the model.
+
+    Args:
+        name (str): Title of the model, saved in the output file(s). It may contain
+            spaces. Required.
 
     Attributes:
         title (str): Model title.
@@ -63,8 +88,13 @@ class Title(ModelUserObject):
 class Discretisation(ModelUserObject):
     """Spatial discretisation of the model in the x, y, and z dimensions.
 
+    Args:
+        p1 (tuple of three floats): Spatial step, the cell size (dx, dy, dz), in the
+            x, y and z directions, in metres. Each must be finite and greater than
+            zero. Required.
+
     Attributes:
-        discretisation (tuple): Spatial discretisation of the model
+        discretisation (tuple of three floats): Spatial discretisation of the model
             (x, y, z)
     """
 
@@ -86,13 +116,16 @@ class Discretisation(ModelUserObject):
         self.discretisation = p1
 
     def build(self, model: Model):
-        if not np.all(np.isfinite(self.discretisation)) or any(d <= 0 for d in self.discretisation):
+        discretisation = _validate_real_triple(self, self.discretisation, "spatial steps")
+        if not all(math.isfinite(value) for value in discretisation) or any(
+            value <= 0 for value in discretisation
+        ):
             raise ValueError(
                 f"{self} discretisation requires a finite spatial step greater than zero "
                 "in all dimensions"
             )
 
-        model.dl = np.array(self.discretisation, dtype=np.float64)
+        model.dl = np.array(discretisation, dtype=np.float64)
         logger.info(f"Spatial discretisation: {model.dl[0]:g} x {model.dl[1]:g} x {model.dl[2]:g}m")
 
 
@@ -107,8 +140,14 @@ class DomainMode(ModelUserObject):
     model can be switched between 2D and 3D by changing this command's
     argument alone, without having to remove the command.
 
+    Args:
+        mode (str): Requested domain mode (case-insensitive). One of 'TM', 'TE' or
+            '3D'. Required. Without this object the model is 3D, unless the domain
+            uses ``inf`` on one axis, in which case gprMax defaults to TM.
+
     Attributes:
-        requested_mode (str): Requested domain mode, "TM", "TE" or "3D".
+        requested_mode (str): Requested domain mode in upper case, "TM", "TE" or
+            "3D".
     """
 
     @property
@@ -127,6 +166,8 @@ class DomainMode(ModelUserObject):
                 (case-insensitive).
         """
         super().__init__(mode=mode)
+        if not isinstance(mode, str):
+            raise ValueError(f"{self} requires the mode to be a string")
         self.requested_mode = mode.upper()
 
     def build(self, model: Model):
@@ -176,6 +217,8 @@ class MagneticAveraging(ModelUserObject):
             mode: 'harmonic' (default) or 'arithmetic' (case-insensitive).
         """
         super().__init__(mode=mode)
+        if not isinstance(mode, str):
+            raise ValueError(f"{self} requires the mode to be a string")
         self.mode = mode.lower()
 
     def build(self, model: Model):
@@ -232,8 +275,12 @@ class DispersiveAveraging(ModelUserObject):
 class Domain(ModelUserObject):
     """Size of the model.
 
+    Args:
+        p1 (tuple of three floats): Domain size (x, y, z) of the model, in metres.
+            One axis may be ``inf`` to build a 2D model (see DomainMode). Required.
+
     Attributes:
-        domain_size (tuple): Extent of the model domain (x, y, z).
+        domain_size (tuple of three floats): Extent of the model domain (x, y, z).
     """
 
     @property
@@ -305,6 +352,7 @@ class Domain(ModelUserObject):
         return tuple(domain_size), axis
 
     def build(self, model: Model):
+        self.domain_size = _validate_real_triple(self, self.domain_size, "domain sizes")
         requested_mode = config.get_model_config().requested_2d_mode
 
         # `inf` with no `#domain_mode` declared at all defaults to TM (the
@@ -436,6 +484,11 @@ class TimeStepStabilityFactor(ModelUserObject):
     A Scene declaring SurfaceImpedance caps the effective factor at 0.99
     before time-dependent objects are built, preserving smaller user values.
 
+    Args:
+        f (float): Factor to multiply the time step at the CFL limit by. Must be
+            finite, greater than zero and not more than 1. Required. Without this
+            object gprMax uses the time step at the CFL limit (factor 1).
+
     Attributes:
         stability_factor (float): Factor to multiply time step by.
     """
@@ -460,7 +513,9 @@ class TimeStepStabilityFactor(ModelUserObject):
     def validate(self):
         """Validate the requested factor before applying any automatic cap."""
         if (
-            not np.isfinite(self.stability_factor)
+            isinstance(self.stability_factor, bool)
+            or not isinstance(self.stability_factor, Real)
+            or not math.isfinite(self.stability_factor)
             or self.stability_factor <= 0
             or self.stability_factor > 1
         ):
@@ -508,11 +563,15 @@ class TimeWindow(ModelUserObject):
 
     def build(self, model: Model):
         if self.time is not None:
-            if np.isfinite(self.time) and self.time > 0:
-                model.timewindow = self.time
-                model.iterations = int(np.ceil(self.time / model.dt)) + 1
-            else:
+            if (
+                isinstance(self.time, bool)
+                or not isinstance(self.time, Real)
+                or not math.isfinite(self.time)
+                or self.time <= 0
+            ):
                 raise ValueError(f"{self} time must be finite and greater than zero")
+            model.timewindow = self.time
+            model.iterations = int(np.ceil(self.time / model.dt)) + 1
         elif self.iterations is not None:
             if (
                 isinstance(self.iterations, bool)
@@ -542,6 +601,11 @@ class OMPThreads(ModelUserObject):
 
     Usually this should match the number of physical CPU cores
     available.
+
+    Args:
+        n (int): Number of OpenMP threads to use, at least 1. Required. Without this
+            object gprMax uses the ``OMP_NUM_THREADS`` environment variable if set,
+            otherwise all available physical CPU cores.
 
     Attributes:
         omp_threads (int): Number of OpenMP threads.
@@ -723,11 +787,39 @@ class PMLProps(ModelUserObject):
     releases of gprMax. Use the new PMLFormulation and PMLThickness
     user objects instead.
 
+    At least a formulation or a thickness (all six sides, if not ``thickness``)
+    must be set.
+
+    Args:
+        formulation (str or None): Formulation used for all PMLs. One of 'HORIPML'
+            or 'MRIPML'. Optional (default None, formulation left unchanged).
+        thickness (int or None): Thickness of the PML, in cells, on all six sides
+            of the model domain. Takes precedence over the individual sides.
+            Optional (default None).
+        x0 (int or None): Thickness of the PML, in cells, on the lower x side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        y0 (int or None): Thickness of the PML, in cells, on the lower y side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        z0 (int or None): Thickness of the PML, in cells, on the lower z side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        xmax (int or None): Thickness of the PML, in cells, on the upper x side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        ymax (int or None): Thickness of the PML, in cells, on the upper y side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+        zmax (int or None): Thickness of the PML, in cells, on the upper z side.
+            Optional (default None); used only when ``thickness`` is None and all
+            six sides are given.
+
     Attributes:
-        pml_formulation (PMLFormulation): User object to set the PML
-            formulation.
-        pml_thickness (PMLThickness): User object to set the PML
-            thickness.
+        pml_formulation (PMLFormulation or None): User object to set the PML
+            formulation, or None if no formulation was given.
+        pml_thickness (PMLThickness or None): User object to set the PML
+            thickness, or None if no thickness was given.
     """
 
     @property
@@ -811,8 +903,13 @@ class PMLProps(ModelUserObject):
 class SrcSteps(ModelUserObject):
     """Move the location of all simple sources.
 
+    Args:
+        p1 (tuple of three floats): (dx, dy, dz) increments, in metres, to move all
+            simple sources (HertzianDipole, MagneticDipole) by for each model run.
+            In a 2D model the step along the invariant axis must be zero. Required.
+
     Attributes:
-        step_size (Tuple[float]): Increment (x, y, z) to move all
+        step_size (tuple of three floats): Increment (x, y, z) to move all
             simple sources by for each step.
     """
 
@@ -835,15 +932,16 @@ class SrcSteps(ModelUserObject):
         self.step_size = p1
 
     def build(self, model: Model):
+        step_size = _validate_step_size(self, self.step_size)
         uip = self._create_uip(model.G)
         mode = config.get_model_config().mode
-        if mode.startswith("2D") and self.step_size[("xyz".index(mode[-1]))] != 0:
+        if mode.startswith("2D") and step_size[("xyz".index(mode[-1]))] != 0:
             raise ValueError(
                 f"{self.params_str()} cannot step sources along the invariant axis in 2D "
                 f"mode ('{mode}') - only run 1 (step 0) is at the interior reference layer; "
                 "any later run would move sources onto the forced-dead outer wall."
             )
-        model.srcsteps = uip.discretise_static_point(self.step_size)
+        model.srcsteps = uip.discretise_static_point(step_size)
 
         logger.info(
             f"Simple sources will step {model.srcsteps[0] * model.dx:g}m, "
@@ -855,8 +953,13 @@ class SrcSteps(ModelUserObject):
 class RxSteps(ModelUserObject):
     """Move the location of all receivers.
 
+    Args:
+        p1 (tuple of three floats): (dx, dy, dz) increments, in metres, to move all
+            receivers by for each model run. In a 2D model the step along the
+            invariant axis must be zero. Required.
+
     Attributes:
-        step_size (Tuple[float]): Increment (x, y, z) to move all
+        step_size (tuple of three floats): Increment (x, y, z) to move all
             receivers by for each step.
     """
 
@@ -879,15 +982,16 @@ class RxSteps(ModelUserObject):
         self.step_size = p1
 
     def build(self, model: Model):
+        step_size = _validate_step_size(self, self.step_size)
         uip = self._create_uip(model.G)
         mode = config.get_model_config().mode
-        if mode.startswith("2D") and self.step_size[("xyz".index(mode[-1]))] != 0:
+        if mode.startswith("2D") and step_size[("xyz".index(mode[-1]))] != 0:
             raise ValueError(
                 f"{self.params_str()} cannot step receivers along the invariant axis in 2D "
                 f"mode ('{mode}') - only run 1 (step 0) is at the interior reference layer; "
                 "any later run would move receivers onto the forced-dead outer wall."
             )
-        model.rxsteps = uip.discretise_static_point(self.step_size)
+        model.rxsteps = uip.discretise_static_point(step_size)
 
         logger.info(
             f"All receivers will step {model.rxsteps[0] * model.dx:g}m, "
@@ -898,6 +1002,11 @@ class RxSteps(ModelUserObject):
 
 class OutputDir(ModelUserObject):
     """Set the directory where output file(s) will be stored.
+
+    Args:
+        dir (str): Path to the directory for the output file(s); it is created if it
+            does not exist. Required. Without this object outputs are written beside
+            the input file, or as set by ``outputfile`` in ``gprMax.run``.
 
     Attributes:
         output_dir (str): File path to directory. Relative Python API paths
@@ -915,6 +1024,8 @@ class OutputDir(ModelUserObject):
 
     def __init__(self, dir: str):
         super().__init__(dir=dir)
+        if not isinstance(dir, (str, os.PathLike)):
+            raise ValueError(f"{self} requires a directory path")
         self.output_dir = dir
 
     def build(self, model: Model):

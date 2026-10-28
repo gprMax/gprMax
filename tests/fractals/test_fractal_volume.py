@@ -41,6 +41,7 @@ and the optional ``mpi4py_fft`` package.
 import numpy as np
 import pytest
 
+from gprMax.fractals import fractal_volume
 from gprMax.fractals.fractal_volume import FractalVolume
 
 SEED = 42
@@ -209,6 +210,29 @@ class TestGenerateFractalVolume:
         volume = make_volume(xf=1, yf=8, zf=8)
         volume.generate_fractal_volume()
         assert volume.fractalvolume.shape == (1, 8, 8)
+
+    @pytest.mark.parametrize("extent", [(5, 6, 7), (7, 7, 7), (8, 8, 1)])
+    def test_spectral_filter_is_centred_on_dc(self, monkeypatch, extent):
+        # The kernel divides each FFT coefficient by its weighted distance
+        # from DC. That distance must be zero at DC and equal for k and -k,
+        # otherwise odd or 1-cell extents get a lopsided, non-Hermitian filter.
+        kernel = fractal_volume.generate_fractal3D
+        calls = []
+
+        def spy(*args):
+            calls.append(args)
+            kernel(*args)
+
+        monkeypatch.setattr(fractal_volume, "generate_fractal3D", spy)
+        nx, ny, nz = extent
+        make_volume(xf=nx, yf=ny, zf=nz).generate_fractal_volume()
+
+        ones = np.ones(extent, dtype=np.complex128)
+        filt = np.zeros(extent, dtype=np.complex128)
+        kernel(*calls[0][:13], ones, filt)
+        mirrored = np.roll(filt[::-1, ::-1, ::-1], 1, axis=(0, 1, 2))
+        assert filt[0, 0, 0].real == pytest.approx(1.0 / 0.9)
+        assert np.allclose(filt, mirrored)
 
 
 class TestGenerateVolumeMask:

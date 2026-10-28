@@ -30,7 +30,7 @@ import hashlib
 import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Any, Iterable, Mapping
 
 import numpy as np
 import numpy.typing as npt
@@ -321,6 +321,18 @@ def is_reserved_impedance_id(ID: str) -> bool:
     return isinstance(ID, str) and ID.startswith(PRIVATE_IMPEDANCE_ID_PREFIX)
 
 
+def impedance_marker_id(model_id: str) -> str:
+    """Return the reserved voxel-marker ID for one surface model."""
+
+    return f"__impedance_volume__{model_id}"
+
+
+def private_impedance_material_id(role: str) -> str:
+    """Return the reserved coefficient-row ID for one private impedance role."""
+
+    return f"__impedance_{role.replace('-', '_')}__"
+
+
 def create_impedance_marker_material(grid, model_id: str) -> Material:
     """Return the private voxel marker associated with a surface model."""
 
@@ -331,7 +343,7 @@ def create_impedance_marker_material(grid, model_id: str) -> Material:
     if existing_numid is not None:
         return grid.materials[existing_numid]
 
-    marker_id = f"__impedance_volume__{model_id}"
+    marker_id = impedance_marker_id(model_id)
     if any(material.ID == marker_id for material in grid.materials):
         raise ValueError(
             f"material ID {marker_id!r} conflicts with a reserved internal "
@@ -347,7 +359,7 @@ def create_impedance_marker_material(grid, model_id: str) -> Material:
 
 
 def _sentinel_material(grid, role: str) -> _PrivateImpedanceMaterial:
-    ID = f"__impedance_{role.replace('-', '_')}__"
+    ID = private_impedance_material_id(role)
     existing = next((material for material in grid.materials if material.ID == ID), None)
     if existing is not None:
         if isinstance(existing, _PrivateImpedanceMaterial) and existing.impedance_role == role:
@@ -359,6 +371,151 @@ def _sentinel_material(grid, role: str) -> _PrivateImpedanceMaterial:
     material = _PrivateImpedanceMaterial(len(grid.materials), ID, role)
     grid.materials.append(material)
     return material
+
+
+_PRIVATE_IMPEDANCE_ROLES = ("surface-hold", "volume-void")
+
+
+def surface_impedance_model_to_geometry_metadata(model: SurfaceImpedanceModel) -> dict[str, Any]:
+    """Describe one model for the material database paired with a geometry file."""
+
+    requested_order = model.fit_requested_order
+    if requested_order is not None and not isinstance(requested_order, str):
+        requested_order = int(requested_order)
+    return {
+        "ID": model.ID,
+        "A": [[float(value) for value in row] for row in np.asarray(model.A)],
+        "B": [float(value) for value in np.asarray(model.B)],
+        "C": [float(value) for value in np.asarray(model.C)],
+        "D": "inf" if np.isposinf(model.D) else float(model.D),
+        "fit_fmin_hz": float(model.fit_fmin_hz),
+        "fit_fmax_hz": "inf" if np.isposinf(model.fit_fmax_hz) else float(model.fit_fmax_hz),
+        "allow_active": bool(model.allow_active),
+        "preset": model.preset,
+        "provenance": model.provenance,
+        "conductivity_s_per_m": (
+            None if model.conductivity_s_per_m is None else float(model.conductivity_s_per_m)
+        ),
+        "fit_requested_order": requested_order,
+        "fit_pole_count": model.fit_pole_count,
+        "fit_tolerance": model.fit_tolerance,
+        "fit_max_relative_error": model.fit_max_relative_error,
+        "fit_rms_relative_error": model.fit_rms_relative_error,
+        "fit_method": model.fit_method,
+        "plot_fit_in_full_run": bool(model.plot_fit_in_full_run),
+    }
+
+
+def _geometry_metadata_float(
+    metadata: Mapping[str, Any], key: str, *, positive_infinity: bool = False
+) -> float:
+    value = metadata.get(key)
+    if isinstance(value, str):
+        if positive_infinity and value == "inf":
+            return np.inf
+        raise ValueError(f"Surface-impedance metadata field '{key}' is not a finite number")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"Surface-impedance metadata field '{key}' is not a number")
+    value = float(value)
+    if not np.isfinite(value) and not (positive_infinity and np.isposinf(value)):
+        raise ValueError(f"Surface-impedance metadata field '{key}' is not a finite number")
+    return value
+
+
+def _geometry_metadata_optional_float(
+    metadata: Mapping[str, Any], key: str
+) -> float | None:
+    return None if metadata.get(key) is None else _geometry_metadata_float(metadata, key)
+
+
+def surface_impedance_model_from_geometry_metadata(
+    model_id: str, metadata: Mapping[str, Any]
+) -> SurfaceImpedanceModel:
+    """Rebuild one model from the metadata of an exported geometry database."""
+
+    if not isinstance(metadata, Mapping):
+        raise ValueError(f"Surface-impedance metadata for '{model_id}' must be an object")
+    missing = [key for key in ("A", "B", "C", "D") if key not in metadata]
+    if missing:
+        raise ValueError(
+            f"Surface-impedance metadata for '{model_id}' is missing {', '.join(missing)}"
+        )
+    try:
+        A = np.asarray(metadata["A"], dtype=np.float64)
+        B = np.asarray(metadata["B"], dtype=np.float64)
+        C = np.asarray(metadata["C"], dtype=np.float64)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            f"Surface-impedance metadata for '{model_id}' has invalid coefficients"
+        ) from error
+    allow_active = metadata.get("allow_active")
+    plot_fit = metadata.get("plot_fit_in_full_run")
+    if not isinstance(allow_active, bool) or not isinstance(plot_fit, bool):
+        raise ValueError(
+            f"Surface-impedance metadata for '{model_id}' has invalid boolean flags"
+        )
+    for key in ("preset", "provenance", "fit_method"):
+        if metadata.get(key) is not None and not isinstance(metadata[key], str):
+            raise ValueError(f"Surface-impedance metadata field '{key}' must be a string")
+    requested_order = metadata.get("fit_requested_order")
+    if requested_order is not None and not isinstance(requested_order, (str, int)):
+        raise ValueError(
+            "Surface-impedance metadata field 'fit_requested_order' must be a string or integer"
+        )
+    return SurfaceImpedanceModel(
+        ID=model_id,
+        A=A,
+        B=B,
+        C=C,
+        D=_geometry_metadata_float(metadata, "D", positive_infinity=True),
+        fit_fmin_hz=_geometry_metadata_float(metadata, "fit_fmin_hz"),
+        fit_fmax_hz=_geometry_metadata_float(metadata, "fit_fmax_hz", positive_infinity=True),
+        allow_active=allow_active,
+        preset=metadata.get("preset"),
+        provenance=metadata.get("provenance"),
+        conductivity_s_per_m=_geometry_metadata_optional_float(metadata, "conductivity_s_per_m"),
+        fit_requested_order=requested_order,
+        fit_pole_count=metadata.get("fit_pole_count"),
+        fit_tolerance=_geometry_metadata_optional_float(metadata, "fit_tolerance"),
+        fit_max_relative_error=_geometry_metadata_optional_float(
+            metadata, "fit_max_relative_error"
+        ),
+        fit_rms_relative_error=_geometry_metadata_optional_float(
+            metadata, "fit_rms_relative_error"
+        ),
+        fit_method=metadata.get("fit_method"),
+        plot_fit_in_full_run=plot_fit,
+    )
+
+
+def restore_surface_impedance_model(
+    grid, model_id: str, metadata: Mapping[str, Any]
+) -> SurfaceImpedanceModel:
+    """Restore one exported model, or verify an identical scene definition."""
+
+    incoming = surface_impedance_model_from_geometry_metadata(model_id, metadata)
+    existing = grid.surface_impedance_models.get(model_id)
+    if existing is not None:
+        if surface_impedance_model_to_geometry_metadata(existing) != dict(metadata):
+            raise ValueError(
+                f"Geometry surface-impedance model '{model_id}' conflicts with the model "
+                "already defined in this scene"
+            )
+        return existing
+    if any(material.ID == model_id for material in grid.materials):
+        raise ValueError(
+            f"Geometry surface-impedance ID '{model_id}' conflicts with an existing material ID"
+        )
+    grid.surface_impedance_models[model_id] = incoming
+    return incoming
+
+
+def restore_private_impedance_material(grid, role: str) -> _PrivateImpedanceMaterial:
+    """Recreate one exported private coefficient row under its fixed role ID."""
+
+    if role not in _PRIVATE_IMPEDANCE_ROLES:
+        raise ValueError(f"Unknown private impedance material role {role!r}")
+    return _sentinel_material(grid, role)
 
 
 def _electric_quadrants(owner: npt.NDArray[np.int32], axis: int, *, outside: int = -1):

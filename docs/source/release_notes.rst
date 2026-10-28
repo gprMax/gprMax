@@ -5,6 +5,18 @@ Release notes
 Unreleased / next release
 =========================
 
+Fractal volumes and rough surfaces
+----------------------------------
+
+* **Same-seed fractal geometry can change:** fractal volumes and rough
+  surfaces now centre their spectral filters on the actual FFT DC position.
+  Regenerating them with the same seed can therefore give different geometry
+  when any fractal-generation dimension is odd-sized or a single cell. These
+  are the dimensions of the fractal being generated, not necessarily those of
+  the overall model domain. Fractals whose generation dimensions are all even
+  are unaffected, and previously exported geometry is unchanged; reuse it
+  where earlier geometry must be reproduced exactly.
+
 PMC symmetry boundaries and PML
 -------------------------------
 
@@ -13,6 +25,41 @@ PMC symmetry boundaries and PML
   and late-time instability. Electric and magnetic corrections now include
   the required staggered boundary samples on CPU/MPI, CUDA, OpenCL and Metal;
   ordinary PMLs and internal MPI rank boundaries retain their existing extents.
+
+STLtoVoxel and geometry import
+------------------------------
+
+* **STLtoVoxel cells now match the STL:** the converter fills the cells whose
+  centres are inside each closed surface, on a grid whose lower corner is a
+  whole number of cells from the origin, using STEPtoVoxel's voxeliser.
+  Previously objects were 8--21 % too large and shifted by up to one cell
+  (a 20 mm cube at 2 mm gave 1101 cells instead of 1000). Converted files
+  therefore differ in cell count and grid shape; re-convert STL geometry used
+  in existing models and place it with the printed ``p1``.
+* STLtoVoxel writes the grid origin as ``origin_xyz`` and prints the
+  ``GeometryObjectsRead`` ``p1`` that keeps the STL coordinates. New options
+  ``--rotate``, ``--rotate-about``, ``--scale``, ``--translate``,
+  ``--supersample`` and ``--pad-cells``; the settings are recorded in the
+  ``conversion_settings`` attribute. The ``parallel`` argument of the
+  ``convert`` functions is deprecated and ignored.
+* Imported-geometry grids from STLtoVoxel, STEPtoVoxel and GeometryImport no
+  longer gain an empty upper cell when a bound lies on a cell face.
+* **Faces on cell centres are voxelised consistently** (STEPtoVoxel and
+  STLtoVoxel): a face lying on the plane of the cell centres, such as the top
+  of 35 um copper on 70 um cells, was cut as its own triangles and could come
+  out as wedges (an 8-element patch array lost 23 % of its copper, the
+  ``PROBE_FED`` example half its patch at 70 um), and whether it did depended
+  on the grid's origin, so ``--pad-cells`` changed the result. A cell centre on
+  a face square to an axis is now inside when the face is a lower side of the
+  solid and outside when it is an upper side (a thin part left empty is kept by
+  thin-feature preservation, as before), whatever the origin. Edges within
+  rounding of a cell centre are decided the same way. Geometry converted again
+  can therefore differ where a face or an edge lies on, or within rounding of,
+  a cell centre (``PROBE_FED`` at 0.1 mm: 394 of 263,000 cells). A sample
+  exactly on an oblique face can still be classified differently by different
+  sweep axes, as before.
+* ``GeometryObjectsRead`` names both cell sizes when the file's resolution
+  differs from the model's, and warns when ``p1`` is rounded to a cell corner.
 
 Eigenmode tracking
 ------------------
@@ -46,6 +93,24 @@ Eigenmode tracking
   set ``EigenmodeTrackingConfig(residual_tolerance=1e-9)``; this also tightens
   the other residual checks. The degeneracy and propagation-branch constraints
   still apply. See :doc:`eigenmode_tracking_theory`.
+
+STEPtoVoxel
+-----------
+
+* STEP files can be read with OpenCascade installed by pip:
+  ``pip install "gprMax[step]"`` installs cadquery-ocp as an alternative to
+  conda's pythonocc-core. Both give the same components, names, colours and voxels.
+  See :doc:`inc_STEPtoVoxel`.
+
+* ``--rotate RX RY RZ``, ``--rotate-about`` and ``--rotate-order`` (and the
+  matching ``ConversionConfig`` fields) rotate the model before voxelisation.
+  ``convert`` also prints the ``GeometryObjectsRead`` position that keeps the
+  CAD coordinates.
+
+* Assembly parts that are not split into several solids keep their assembly
+  placement in the reported CAD bounding boxes, and in the voxels when the
+  model is rotated. With pythonocc-core, CAD colours are now read; every part
+  was previously reported grey.
 
 4.0.1 (Caol Ila)
 ================

@@ -1,0 +1,25 @@
+Failed to find real location of C:\Users\Traveler\anaconda3\envs\gprMax2\python.exe
+START square_PEC_24
+COMPLETE square_PEC_24 {'name': 'square_PEC_24', 'status': 'complete', 'modes': 22, 'max_field_residual': 5.6160881710272165e-15, 'min_gauge_overlap': 0.9999999999999618, 'min_continuity': 0.9997234495970305, 'max_parity_error': 1.4506104157763902e-14, 'fallback_groups': [], 'separation_rejections': []}
+START square_PEC_40
+COMPLETE square_PEC_40 {'name': 'square_PEC_40', 'status': 'complete', 'modes': 22, 'max_field_residual': 5.970247612878132e-14, 'min_gauge_overlap': 0.9999999999999409, 'min_continuity': 0.9997198998574648, 'max_parity_error': 3.807304836449454e-14, 'fallback_groups': [], 'separation_rejections': []}
+START circular_PEC_24
+COMPLETE circular_PEC_24 {'name': 'circular_PEC_24', 'status': 'complete', 'modes': 21, 'max_field_residual': 8.141099754042325e-15, 'min_gauge_overlap': 0.9999999999999911, 'min_continuity': 0.9995048528837492, 'max_parity_error': 1.2277583232964525e-12, 'fallback_groups': [], 'separation_rejections': []}
+START circular_PEC_40
+COMPLETE circular_PEC_40 {'name': 'circular_PEC_40', 'status': 'complete', 'modes': 21, 'max_field_residual': 2.1956832477062753e-14, 'min_gauge_overlap': 0.9999999999999869, 'min_continuity': 0.9994962754734374, 'max_parity_error': 8.066144262954242e-13, 'fallback_groups': [], 'separation_rejections': []}
+START square_copper_24
+COMPLETE square_copper_24 {'name': 'square_copper_24', 'status': 'complete', 'modes': 20, 'max_field_residual': 7.026933988769951e-10, 'min_gauge_overlap': 0.999999999999984, 'min_continuity': 0.9997222514068774, 'max_parity_error': 3.0929507292177053e-10, 'fallback_groups': [], 'separation_rejections': []}
+START square_copper_40
+COMPLETE square_copper_40 {'name': 'square_copper_40', 'status': 'complete', 'modes': 20, 'max_field_residual': 6.898979419973824e-10, 'min_gauge_overlap': 0.999999999999976, 'min_continuity': 0.9997197879519732, 'max_parity_error': 3.186506988568249e-10, 'fallback_groups': [], 'separation_rejections': []}
+START circular_copper_24
+COMPLETE circular_copper_24 {'name': 'circular_copper_24', 'status': 'complete', 'modes': 21, 'max_field_residual': 1.3051138364408028e-11, 'min_gauge_overlap': 0.9999999999999878, 'min_continuity': 0.9995049038574073, 'max_parity_error': 2.077559110943059e-10, 'fallback_groups': [], 'separation_rejections': []}
+START circular_copper_40
+COMPLETE circular_copper_40 {'name': 'circular_copper_40', 'status': 'complete', 'modes': 21, 'max_field_residual': 1.5268968442460462e-11, 'min_gauge_overlap': 0.9999999999999847, 'min_continuity': 0.9994963309575072, 'max_parity_error': 8.181394914178954e-10, 'fallback_groups': [], 'separation_rejections': []}
+START square_dielectric_24
+COMPLETE square_dielectric_24 {'name': 'square_dielectric_24', 'status': 'complete', 'modes': 20, 'max_field_residual': 1.0594201667864908e-15, 'min_gauge_overlap': 0.9999999999999865, 'min_continuity': 0.9999059762999324, 'max_parity_error': 6.631181378408606e-13, 'fallback_groups': [], 'separation_rejections': []}
+START square_dielectric_40
+COMPLETE square_dielectric_40 {'name': 'square_dielectric_40', 'status': 'complete', 'modes': 20, 'max_field_residual': 3.738941477491343e-15, 'min_gauge_overlap': 0.9999999999999853, 'min_continuity': 0.9998944658429783, 'max_parity_error': 2.009185944658321e-12, 'fallback_groups': [], 'separation_rejections': []}
+START circular_dielectric_24
+COMPLETE circular_dielectric_24 {'name': 'circular_dielectric_24', 'status': 'complete', 'modes': 20, 'max_field_residual': 1.4749181653140075e-15, 'min_gauge_overlap': 0.9999999999999882, 'min_continuity': 0.9997623856588818, 'max_parity_error': 3.481052882971164e-12, 'fallback_groups': [], 'separation_rejections': []}
+START circular_dielectric_40
+COMPLETE circular_dielectric_40 {'name': 'circular_dielectric_40', 'status': 'complete', 'modes': 20, 'max_field_residual': 2.4633653331074108e-15, 'min_gauge_overlap': 0.9999999999999936, 'min_continuity': 0.9997584155732339, 'max_parity_error': 1.7275182275171606e-12, 'fallback_groups': [], 'separation_rejections': []}

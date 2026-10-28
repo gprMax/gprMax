@@ -104,7 +104,7 @@ def make_grid_from_bbox(
 
     The lower bound is snapped down on a zero-origin voxel lattice. Values
     within 1e-9 voxel units of an integer are snapped to that integer first,
-    so round-off just below a lattice plane does not add a lower cell.
+    so round-off at a lattice plane adds neither a lower nor an upper cell.
     Origin and spacing are stored as float64.
     """
     vmin_world = np.asarray(vmin_world, dtype=np.float64)
@@ -130,9 +130,16 @@ def make_grid_from_bbox(
     k = np.floor(scaled_min).astype(np.int64)
     origin = (k - pad) * dxyz
 
-    # Ensure vmax fits with padding
-    extent_from_origin = (vmax_world - origin) + pad * dxyz
-    nxyz = np.ceil(extent_from_origin / dxyz).astype(np.int64)
+    # Ensure vmax fits with padding. Snap round-off at an upper lattice plane
+    # as at the lower one, so an on-lattice bound does not add an empty cell.
+    scaled_extent = (vmax_world - origin) / dxyz + pad
+    nearest = np.rint(scaled_extent)
+    scaled_extent = np.where(
+        np.isclose(scaled_extent, nearest, rtol=0.0, atol=1e-9),
+        nearest,
+        scaled_extent,
+    )
+    nxyz = np.ceil(scaled_extent).astype(np.int64)
     nxyz = np.maximum(nxyz, 1)
 
     return GridSpec(
@@ -177,6 +184,18 @@ def world_to_voxel_coords(V_world: np.ndarray, grid: GridSpec) -> np.ndarray:
 # =============================================================================
 
 
+# The slices, and the column and row tests of the scanline fill, compare a
+# sample with an offset of SAMPLE_EPS (voxel units) against boundaries closed
+# below and open above (the fill's long-standing rule). A centre on a face
+# square to an axis, or within rounding of it, is then inside when the face is
+# a lower side of the solid and outside when it is an upper side, whichever
+# axis is swept and wherever the grid starts. A sample exactly on an oblique
+# face is not covered: different sweep axes can still classify it differently
+# (as before; recorded as an expected failure in the tests). Samples clearly
+# inside or outside are classified the same by every sweep.
+SAMPLE_EPS = 1e-7
+
+
 def _generate_tri_events(tris_xyz: np.ndarray, eps: float = 1e-7) -> List[Tuple[float, str, int]]:
     """
     Plane sweep events for z slicing.
@@ -200,7 +219,9 @@ def _generate_tri_events(tris_xyz: np.ndarray, eps: float = 1e-7) -> List[Tuple[
     return events
 
 
-def _generate_tri_events_int(tris_xyz: np.ndarray, nz: int) -> List[Tuple[int, str, int]]:
+def _generate_tri_events_int(
+    tris_xyz: np.ndarray, nz: int, eps: float = SAMPLE_EPS
+) -> List[Tuple[int, str, int]]:
     """
     Integer z-layer events based on slicing at z_plane = z + 0.5.
 
@@ -215,9 +236,10 @@ def _generate_tri_events_int(tris_xyz: np.ndarray, nz: int) -> List[Tuple[int, s
         zmin = float(np.min(zs))
         zmax = float(np.max(zs))
 
-        # layer z corresponds to plane at z + 0.5
-        z0 = int(np.ceil(zmin - 0.5))
-        z1 = int(np.floor(zmax - 0.5))
+        # layer z corresponds to plane at z + 0.5; within eps of a plane counts as
+        # reaching it, as in _triangle_to_intersecting_points
+        z0 = int(np.ceil(zmin - 0.5 - eps))
+        z1 = int(np.floor(zmax - 0.5 + eps))
         if z1 < z0:
             continue
 
@@ -252,72 +274,43 @@ def _where_line_crosses_z(p1: np.ndarray, p2: np.ndarray, z: float) -> np.ndarra
 
 
 def _triangle_to_intersecting_points(
-    tri: np.ndarray, z_plane: float, eps: float = 1e-7
+    tri: np.ndarray, z_plane: float, eps: float = SAMPLE_EPS
 ) -> List[np.ndarray]:
     """
-    Return intersection points between triangle edges and plane z=z_plane.
-    Robust to near-plane degeneracy.
+    Return the two ends of the segment where a triangle crosses the plane
+    z=z_plane, or no points.
+
+    Each vertex is either above the plane (``z > z_plane + eps``) or below it
+    (on the plane, within eps, counts as below). A triangle crosses only if it
+    has vertices of both kinds, and then exactly two of its edges do. A
+    triangle lying in the plane, or touching it from below, gives nothing: a
+    face on the plane of the slice centres is decided by the faces that meet
+    it, the same way whatever the last digits of its coordinates. (Cut as its
+    own three edges, such a face once broke the even-odd fill into wedges,
+    e.g. 35 um copper on 70 um cells.) A cell centre on a face in the plane
+    is therefore inside when the face is a bottom of the solid and outside when
+    it is a top (SAMPLE_EPS).
 
     eps is in voxel units. With float64 voxel coords, 1e-7 is conservative.
     """
     tri = np.asarray(tri, dtype=np.float64)
-    points: List[np.ndarray] = []
     assert tri.shape == (3, 3)
+    above = tri[:, 2] > z_plane + eps
+    if above.all() or not above.any():
+        return []
 
-    def near(z: float) -> bool:
-        return abs(z - z_plane) <= eps
-
-    def add_point(pt: np.ndarray) -> None:
-        # Deduplicate by XY (Z is ~z_plane anyway)
-        for p in points:
-            if abs(float(p[0]) - float(pt[0])) <= eps and abs(float(p[1]) - float(pt[1])) <= eps:
-                return
-        points.append(pt)
-
-    # Loop edges
+    points: List[np.ndarray] = []
     for e in range(3):
-        p = tri[e]
-        q = tri[(e + 1) % 3]
-        pz, qz = float(p[2]), float(q[2])
-
-        p_on = near(pz)
-        q_on = near(qz)
-
-        if p_on and q_on:
-            # Edge lies (almost) in the plane: add both endpoints (dedup handles repeats)
-            add_point(p)
-            add_point(q)
+        if above[e] == above[(e + 1) % 3]:
             continue
-
-        if p_on:
-            add_point(p)
-            continue
-        if q_on:
-            add_point(q)
-            continue
-
-        # Proper straddle (with epsilon band)
-        below = pz < z_plane - eps and qz > z_plane + eps
-        above = qz < z_plane - eps and pz > z_plane + eps
-        if below or above:
-            add_point(_where_line_crosses_z(p, q, z_plane))
-
-    # Most of the time we want exactly 0 or 2 points for a clean segment.
-    if len(points) <= 2:
-        return points
-
-    # Degenerate: choose the two farthest points in XY (stable segment)
-    best_i, best_j = 0, 1
-    best_d2 = -1.0
-    for i in range(len(points)):
-        for j in range(i + 1, len(points)):
-            dx = float(points[i][0] - points[j][0])
-            dy = float(points[i][1] - points[j][1])
-            d2 = dx * dx + dy * dy
-            if d2 > best_d2:
-                best_d2 = d2
-                best_i, best_j = i, j
-    return [points[best_i], points[best_j]]
+        p, q = tri[e], tri[(e + 1) % 3]
+        if abs(float(p[2]) - z_plane) <= eps:
+            points.append(p.copy())
+        elif abs(float(q[2]) - z_plane) <= eps:
+            points.append(q.copy())
+        else:
+            points.append(_where_line_crosses_z(p, q, z_plane))
+    return points
 
 
 # -----------------------------------------------------------------------------
@@ -535,8 +528,9 @@ def _generate_line_events_int(
     nx: int,
 ) -> List[Tuple[int, str, int]]:
     """
-    Integer x-events so a segment is active for columns x where (x+0.5) lies inside
-    the segment's x-range. This avoids float-event bugs.
+    Integer x-events so a segment is active for columns x where (x+0.5) lies in
+    the segment's x-range [xmin, xmax) (see _y_at_x_halfopen). This avoids
+    float-event bugs.
     """
     events: List[Tuple[int, str, int]] = []
     for i, (a, b) in enumerate(line_list):
@@ -548,9 +542,10 @@ def _generate_line_events_int(
         xmin = min(x1, x2)
         xmax = max(x1, x2)
 
-        # Segment contributes to column x if x+0.5 ∈ [xmin, xmax]
-        x_start = int(np.ceil(xmin - 0.5))
-        x_end = int(np.floor(xmax - 0.5))
+        # Segment contributes to column x if x+0.5 lies in [xmin, xmax), within
+        # SAMPLE_EPS (a sample is taken SAMPLE_EPS above the centre on every axis)
+        x_start = int(np.ceil(xmin - 0.5 - SAMPLE_EPS))
+        x_end = int(np.ceil(xmax - 0.5 - SAMPLE_EPS)) - 1
 
         if x_end < 0 or x_start >= nx:
             continue
@@ -573,7 +568,10 @@ def _y_at_x_halfopen(
 
     Robust rules:
       - ignore vertical segments
-      - use half-open x-interval [xmin, xmax) to avoid double-counting shared vertices
+      - use the half-open x-interval [xmin, xmax) to avoid double-counting shared
+        vertices. Closed below and open above, as the slices
+        (_triangle_to_intersecting_points), so a sample on a face square to an
+        axis is inside when the face is a lower side of the solid (SAMPLE_EPS).
     """
     x1, y1 = p1
     x2, y2 = p2
@@ -582,14 +580,9 @@ def _y_at_x_halfopen(
         return None  # vertical -> skip (handled implicitly by other edges)
 
     # Half-open interval: include left, exclude right
-    if x1 < x2:
-        xmin, xmax = x1, x2
-        if not (xmin <= xq < xmax):
-            return None
-    else:
-        xmin, xmax = x2, x1
-        if not (xmin <= xq < xmax):
-            return None
+    xmin, xmax = (x1, x2) if x1 < x2 else (x2, x1)
+    if not (xmin <= xq + SAMPLE_EPS < xmax):
+        return None
 
     t = (xq - x1) / (x2 - x1)
     return y1 + t * (y2 - y1)
@@ -632,7 +625,7 @@ def _column_intervals_even_odd(
 
 
 def _segment_active_at_xq(
-    a: Tuple[float, float], b: Tuple[float, float], xq: float, *, eps: float = 1e-12
+    a: Tuple[float, float], b: Tuple[float, float], xq: float, *, eps: float = 0.0
 ) -> bool:
     ax, ay = a
     bx, by = b
@@ -642,8 +635,9 @@ def _segment_active_at_xq(
     xmin = ax if ax < bx else bx
     xmax = bx if ax < bx else ax
 
-    # Half-open interval: xmin <= xq < xmax (with tiny eps)
-    return (xq + eps) >= xmin and (xq - eps) < xmax
+    # Half-open interval: xmin <= xq < xmax, the sample SAMPLE_EPS above xq
+    # (as _y_at_x_halfopen); eps widens it for a caller that wants slack
+    return xmin - eps <= xq + SAMPLE_EPS < xmax + eps
 
 
 def _sample_offsets(samples: int) -> tuple[float, ...]:
@@ -678,10 +672,11 @@ def _lines_to_vote_counts(
             intervals = _column_intervals_even_odd(active_lines, xq=xq)
             for y_offset in offsets:
                 for lower, upper in intervals:
-                    y0 = int(np.ceil(lower - y_offset))
-                    # The upper contour is half-open, avoiding a double vote
-                    # when a sample lies exactly on a shared polygon boundary.
-                    y1 = int(np.floor(np.nextafter(upper - y_offset, -np.inf)))
+                    # Closed below, open above (as along x and the swept
+                    # axis): a sample on a shared polygon boundary is voted
+                    # once, a sample on a lower boundary is inside.
+                    y0 = int(np.ceil(lower - y_offset - SAMPLE_EPS))
+                    y1 = int(np.ceil(upper - y_offset - SAMPLE_EPS)) - 1
                     y0 = max(y0, 0)
                     y1 = min(y1, ny - 1)
                     if y1 >= y0:
@@ -761,7 +756,7 @@ def _paint_z_plane(
 ) -> np.ndarray:
     lines: List[Tuple[Tuple[float, float], Tuple[float, float]]] = []
     for tri in active_tris:
-        pts = _triangle_to_intersecting_points(tri, z_plane, eps=1e-07)
+        pts = _triangle_to_intersecting_points(tri, z_plane)
         if len(pts) == 2:
             a, b = pts
             lines.append(((float(a[0]), float(a[1])), (float(b[0]), float(b[1]))))

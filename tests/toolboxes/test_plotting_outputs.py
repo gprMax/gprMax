@@ -225,3 +225,52 @@ def test_plot_bscan_gather_filename(tmp_path):
     gathered_file = tmp_path / "receivers_gathered.png"
     assert gathered_file.exists()
     assert rx2_file.read_bytes() == rx2_content
+
+
+def test_plot_ascan_unnamed_receiver_and_byte_name(tmp_path):
+    filename = tmp_path / "unnamed.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 2
+        output.attrs["dt"] = 1e-10
+        rx1 = output.create_group("rxs/rx1")
+        rx1.create_dataset("Ez", data=[1.0, 2.0, 3.0])
+        rx1.create_dataset("Ex", data=[4.0, 5.0, 6.0])
+        rx2 = output.create_group("rxs/rx2")
+        rx2.attrs["Name"] = b"named_rx"
+        rx2.create_dataset("Ez", data=[7.0, 8.0, 9.0])
+        rx2.create_dataset("Ex", data=[10.0, 11.0, 12.0])
+
+    plt.close("all")
+    pyplot = mpl_plot(filename, ["Ez"], show=False)
+    assert len(pyplot.get_fignums()) == 2
+    pyplot.close("all")
+
+    pyplot = mpl_plot(filename, ["Ez"], fft=True, show=False)
+    assert len(pyplot.get_fignums()) == 2
+    pyplot.close("all")
+
+    pyplot = mpl_plot(filename, ["Ex", "Ez"], show=False)
+    assert len(pyplot.get_fignums()) == 2
+    pyplot.close("all")
+
+
+def test_missing_nrx_attribute_raises_value_error(tmp_path):
+    filename = tmp_path / "no_nrx.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["dt"] = 1e-10
+
+    with pytest.raises(ValueError, match="No receivers found"):
+        mpl_plot(filename, ["Ez"], show=False)
+
+    with pytest.raises(ValueError, match="No receivers found"):
+        gather_receiver_outputs(filename, "Ez")
+
+
+def test_gather_receiver_outputs_empty_receivers_raises_value_error(tmp_path):
+    filename = tmp_path / "empty_rxs.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 1
+        output.attrs["dt"] = 1e-10
+
+    with pytest.raises(ValueError, match="No receivers found"):
+        gather_receiver_outputs(filename, "Ez")

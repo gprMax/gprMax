@@ -95,7 +95,7 @@ def test_physical_moment_basis_agrees_after_independent_complex_raw_gauges():
 
 
 @pytest.mark.parametrize('labels',[(1,2),(7,8,9,10)])
-def test_without_certified_symmetry_keeps_full_power_basis(monkeypatch,labels):
+def test_without_certified_symmetry_keeps_separated_power_basis(monkeypatch,labels):
     import gprMax.eigenmode_symmetry as symmetry
     # Isolate fallback policy while retaining a real positive-power Maxwell
     # eigenspace. The control deliberately withholds symmetry certification.
@@ -103,11 +103,15 @@ def test_without_certified_symmetry_keeps_full_power_basis(monkeypatch,labels):
     with _configured_solver_constants():
         bank=[fd_solver(f*1e9,(12,12),.02/12,(2,2,2),count=12) for f in (19,20)]
         owner,grid,e,h=aligned_bank(bank,labels)
-        assert owner.symmetry_detection['groups'][0]['applied']=='power_whitening'
+        assert owner.symmetry_detection['groups'][0]['applied']=='longitudinal_gradient'
+        assert [len(b) for b in owner.separation_diagnostics[0]['blocks']] == [1]*len(labels)
         assert owner.symmetry_diagnostics==[]
         assert owner.degenerate_diagnostics[0]['modes']==labels
         from gprMax.eigenmode_tracking import _power
-        np.testing.assert_allclose(_power(owner,grid,e[0],h[0]),np.eye(len(labels)),atol=1e-10)
+        power = _power(owner,grid,e[0],h[0])
+        np.testing.assert_allclose(np.diag(power),np.ones(len(labels)),atol=1e-10)
+        # Families retain their cross-power instead of being remixed by global whitening.
+        assert np.linalg.eigvalsh(power).min() > .9
 
 
 

@@ -443,6 +443,104 @@ def test_directional_geometry_rejects_invalid_references(tmp_path, references):
         )
 
 
+def _nest_directional_database(path):
+    database = json.loads(path.read_text())
+    entries = database["materials"]
+    outer_key = next(
+        key
+        for key, entry in entries.items()
+        if "directional_materials" in entry.get("metadata", {})
+    )
+    outer = entries[outer_key]
+    references = outer["metadata"]["directional_materials"]
+    nested_keys = []
+    for axis, reference in enumerate(references):
+        nested_key = f"nested_axis_{axis}"
+        nested = json.loads(json.dumps(entries[reference]))
+        nested["name"] = nested_key
+        nested.setdefault("metadata", {})["original_id"] = nested_key
+        entries[nested_key] = nested
+        nested_keys.append(nested_key)
+    middle_key = "nested_middle"
+    middle = json.loads(json.dumps(outer))
+    middle["name"] = middle_key
+    middle["metadata"]["directional_materials"] = nested_keys
+    middle["metadata"]["original_id"] = middle_key
+    entries[middle_key] = middle
+    outer["metadata"]["directional_materials"] = [middle_key] * 3
+    path.write_text(json.dumps(database), encoding="utf-8")
+    return outer_key, middle_key
+
+
+def test_directional_geometry_resolves_nested_references(tmp_path):
+    geometry = tmp_path / "tensor"
+    scene, _, rad = three_d_scene(export=geometry)
+    gprMax.run(
+        scenes=[scene],
+        outputfile=tmp_path / "reference",
+        cpu_precision="double",
+        hide_progress_bars=True,
+    )
+    expected = rad.result.absorbed_power_density.copy()
+    _nest_directional_database(tmp_path / "tensor_materials.json")
+    scene, _, rad = three_d_scene(geometry=geometry)
+    gprMax.run(
+        scenes=[scene],
+        outputfile=tmp_path / "nested",
+        cpu_precision="double",
+        hide_progress_bars=True,
+    )
+    np.testing.assert_array_equal(rad.result.absorbed_power_density, expected)
+
+
+def test_directional_geometry_rejects_nested_reference_cycles(tmp_path):
+    geometry = tmp_path / "tensor"
+    scene, _, _ = three_d_scene(export=geometry)
+    gprMax.run(
+        scenes=[scene],
+        outputfile=tmp_path / "reference",
+        geometry_only=True,
+        hide_progress_bars=True,
+    )
+    outer_key, middle_key = _nest_directional_database(tmp_path / "tensor_materials.json")
+    path = tmp_path / "tensor_materials.json"
+    database = json.loads(path.read_text())
+    database["materials"][middle_key]["metadata"]["directional_materials"] = [outer_key] * 3
+    path.write_text(json.dumps(database), encoding="utf-8")
+    scene, _, _ = three_d_scene(geometry=geometry)
+    with pytest.raises(ValueError, match="Invalid x/y/z directional material references"):
+        gprMax.run(
+            scenes=[scene],
+            outputfile=tmp_path / "invalid",
+            geometry_only=True,
+            hide_progress_bars=True,
+        )
+
+
+def test_directional_geometry_rejects_nested_density_conflict(tmp_path):
+    geometry = tmp_path / "tensor"
+    scene, _, _ = three_d_scene(export=geometry)
+    gprMax.run(
+        scenes=[scene],
+        outputfile=tmp_path / "reference",
+        geometry_only=True,
+        hide_progress_bars=True,
+    )
+    _, middle_key = _nest_directional_database(tmp_path / "tensor_materials.json")
+    path = tmp_path / "tensor_materials.json"
+    database = json.loads(path.read_text())
+    database["materials"][middle_key]["mass_density_kg_per_m3"] = 2000
+    path.write_text(json.dumps(database), encoding="utf-8")
+    scene, _, _ = three_d_scene(geometry=geometry)
+    with pytest.raises(ValueError, match="Directional cell density"):
+        gprMax.run(
+            scenes=[scene],
+            outputfile=tmp_path / "invalid",
+            geometry_only=True,
+            hide_progress_bars=True,
+        )
+
+
 def test_directional_record_cannot_be_loaded_as_scalar_material(tmp_path, monkeypatch):
     geometry = tmp_path / "tensor"
     scene, _, _ = three_d_scene(export=geometry)

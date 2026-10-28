@@ -1944,6 +1944,10 @@ class NTFFCompiledOutputs:
                 for component, data in monitor.surface_data.items():
                     component_group = dft_group.create_group(component)
                     component_group.attrs["compatibility_signature"] = data.compatibility_signature
+                    component_group.attrs["logical_lower"] = data.surface.lower
+                    component_group.attrs["logical_upper"] = data.surface.upper
+                    component_group.attrs["grid_spacing"] = data.surface.grid_spacing
+                    component_group.attrs["field_shape"] = data.surface.field_shape
                     component_group["field"] = data.field
                     component_group["normal_derivative"] = data.normal_derivative
                     component_group["patch_positions"] = data.surface.patch_positions

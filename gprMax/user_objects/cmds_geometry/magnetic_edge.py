@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+import math
 
 import gprMax.config as config
 from gprMax.cython.geometry_primitives import (
@@ -63,17 +64,25 @@ class MagneticEdge(GeometryUserObject):
             logger.exception(f"{self.__str__()} requires exactly 3 parameters")
             raise
 
-        if config.get_model_config().mode.startswith("2D"):
-            raise ValueError(
-                f"{self.__str__()} is not yet supported in 2D mode - which axis "
-                "is physically meaningful for a magnetic edge differs from "
-                "#edge's own 2D rule and has not yet been verified."
-            )
-
         uip = self._create_uip(grid)
+        mode = config.get_model_config().mode
+        invariant_axis = "xyz".index(mode[-1]) if mode.startswith("2D") else None
 
+        orig_p1, orig_p2 = p1, p2
         p1 = uip.resolve_inf_point(p1, role="lower")
         p2 = uip.resolve_inf_point(p2, role="upper")
+
+        # A TM magnetic edge runs in-plane, so its invariant coordinate stays on the active layer.
+        if invariant_axis is not None and "TM" in mode:
+            axis = invariant_axis
+            if math.isinf(orig_p1[axis]) or math.isinf(orig_p2[axis]):
+                reference = 0.0
+                p1, p2 = list(p1), list(p2)
+                if math.isinf(orig_p1[axis]):
+                    p1[axis] = reference
+                if math.isinf(orig_p2[axis]):
+                    p2[axis] = reference
+                p1, p2 = tuple(p1), tuple(p2)
 
         edge_within_grid, discretised_p1, discretised_p2 = uip.check_box_points(
             p1, p2, self.__str__()
@@ -103,6 +112,22 @@ class MagneticEdge(GeometryUserObject):
         ):
             logger.exception(f"{self.__str__()} the edge is not specified correctly")
             raise ValueError
+
+        if invariant_axis is not None:
+            run_axis = 0 if xs != xf else 1 if ys != yf else 2 if zs != zf else None
+            if run_axis is not None:
+                if "TM" in mode and run_axis == invariant_axis:
+                    raise ValueError(
+                        f"{self.__str__()} in 2D TM mode, a magnetic edge is only "
+                        "physically meaningful running along a non-invariant axis "
+                        f"- the invariant H-component ('{mode[-1]}') has no effect there."
+                    )
+                if "TE" in mode and run_axis != invariant_axis:
+                    raise ValueError(
+                        f"{self.__str__()} in 2D TE mode, a magnetic edge is only "
+                        f"physically meaningful running along the invariant axis "
+                        f"('{mode[-1]}') - the other H-components are forced to zero there."
+                    )
 
         if xs != xf:
             for i in range(xs, xf):

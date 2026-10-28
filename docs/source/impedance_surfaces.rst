@@ -199,9 +199,14 @@ Those sheet and line objects have retained fields on both sides and require a
 two-sided sheet transition condition rather than the implemented one-sided
 opaque-volume boundary.
 
-Impedance geometry cannot currently be exported and reimported using
-``GeometryObjectsWrite`` and ``GeometryObjectsRead``. Recreate the
-``SurfaceImpedance`` definition and native geometry in the destination scene.
+Impedance geometry can be exported and reimported with
+``GeometryObjectsWrite`` and ``GeometryObjectsRead``. The paired JSON
+material database records each model's continuous realization and the
+private marker rows that identify its voxel boundary. Reimport restores
+the model under its original ID, applies the ``SurfaceImpedance``
+time-step margin automatically, and reuses an identical model already
+defined in the destination scene. A destination model with the same ID
+but different coefficients is rejected rather than silently replaced.
 
 The volume must occupy at least one cell along every non-empty axis and there
 must be at least one retained cell between the complete impedance region and

@@ -179,12 +179,23 @@ class Scene:
         a local list: a Scene and its user commands may be reused across runs.
         """
         from gprMax.impedance_surfaces import MAX_SIBC_TIMESTEP_FACTOR
+        from gprMax.user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
         from gprMax.user_objects.cmds_multiuse import SurfaceImpedance
 
         grid_objects = [self.grid_objects, *(obj.children_grid for obj in self.subgrid_objects)]
-        if not any(
+        geometry_objects = [
+            self.geometry_objects,
+            *(obj.children_geometry for obj in self.subgrid_objects),
+        ]
+        declared = any(
             isinstance(obj, SurfaceImpedance) for objects in grid_objects for obj in objects
-        ):
+        )
+        imported = any(
+            isinstance(obj, GeometryObjectsRead) and obj.declares_surface_impedance()
+            for objects in geometry_objects
+            for obj in objects
+        )
+        if not (declared or imported):
             return self.single_use_objects
 
         requested = next(
@@ -201,7 +212,7 @@ class Scene:
         effective = TimeStepStabilityFactor(f=MAX_SIBC_TIMESTEP_FACTOR)
         objects.append(effective)
         logger.info(
-            f"Surface impedance (SIBC) declared: automatically applying {effective} "
+            f"Surface impedance (SIBC) geometry detected: automatically applying {effective} "
             f"(requested factor {factor:g}) to maintain a margin below CFL. "
             "Smaller user-specified factors are preserved."
         )

@@ -296,6 +296,7 @@ def check_cmd_names(processedlines, checkessential=True):
         "#cone",
         "#cylinder",
         "#cylindrical_sector",
+        "#helix",
         "#rebar_mesh",
         "#fractal_box",
         "#add_surface_roughness",

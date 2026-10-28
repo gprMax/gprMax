@@ -1,0 +1,556 @@
+{
+  "circular": {
+    "angular_pairs": [
+      {
+        "family": "TE",
+        "angular_order": 0,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          0.0
+        ],
+        "sum_eigenvalues": [
+          14.681970642123899
+        ],
+        "kc_squared": 14.681970642123895,
+        "moment_singular_values": [
+          2.27461855893675e-16
+        ],
+        "c4v_content": "A2"
+      },
+      {
+        "family": "TE",
+        "angular_order": 1,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          -3.113396302721768,
+          3.1133963027217684
+        ],
+        "sum_eigenvalues": [
+          3.3899577166719,
+          3.3899577166719004
+        ],
+        "kc_squared": 3.3899577166718897,
+        "moment_singular_values": [
+          2.985327393438137,
+          2.9853273934381366
+        ],
+        "c4v_content": "E"
+      },
+      {
+        "family": "TE",
+        "angular_order": 2,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          -7.332105439609379e-17,
+          7.332105439609379e-17
+        ],
+        "sum_eigenvalues": [
+          9.32836321374639,
+          9.32836321374639
+        ],
+        "kc_squared": 9.328363213746359,
+        "moment_singular_values": [
+          2.897926841416666e-16,
+          6.626809343369505e-17
+        ],
+        "c4v_content": "B1+B2"
+      },
+      {
+        "family": "TE",
+        "angular_order": 3,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          1.7140508198282928e-15,
+          1.838662858972216e-15
+        ],
+        "sum_eigenvalues": [
+          17.6499885197497,
+          17.64998851974971
+        ],
+        "kc_squared": 17.64998851974964,
+        "moment_singular_values": [
+          4.994126134736413e-16,
+          7.135958486736358e-17
+        ],
+        "c4v_content": "E"
+      },
+      {
+        "family": "TE",
+        "angular_order": 4,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          1.2661814732558417e-15,
+          2.2865322055446577e-15
+        ],
+        "sum_eigenvalues": [
+          28.276371248725766,
+          28.27637124872578
+        ],
+        "kc_squared": 28.27637124872566,
+        "moment_singular_values": [
+          7.736363565879717e-16,
+          2.6608033112923093e-16
+        ],
+        "c4v_content": "A1+A2"
+      },
+      {
+        "family": "TM",
+        "angular_order": 0,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          0.0
+        ],
+        "sum_eigenvalues": [
+          5.783185962946763
+        ],
+        "kc_squared": 5.783185962946783,
+        "moment_singular_values": [
+          1.4675602656605815e-16
+        ],
+        "c4v_content": "A1"
+      },
+      {
+        "family": "TM",
+        "angular_order": 1,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          -7.340985321061928,
+          7.340985321061927
+        ],
+        "sum_eigenvalues": [
+          14.681970642123852,
+          14.681970642123854
+        ],
+        "kc_squared": 14.681970642123895,
+        "moment_singular_values": [
+          2.3067803837342978e-14,
+          2.1156510908745907e-14
+        ],
+        "c4v_content": "E"
+      },
+      {
+        "family": "TM",
+        "angular_order": 2,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          -1.782223857361879e-15,
+          5.867017961628942e-18
+        ],
+        "sum_eigenvalues": [
+          26.374616427163307,
+          26.374616427163307
+        ],
+        "kc_squared": 26.374616427163392,
+        "moment_singular_values": [
+          3.9383939637435625e-16,
+          2.904869293124088e-16
+        ],
+        "c4v_content": "B1+B2"
+      },
+      {
+        "family": "TM",
+        "angular_order": 3,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          -7.153750792665946e-15,
+          7.153750792665954e-15
+        ],
+        "sum_eigenvalues": [
+          40.70646581820021,
+          40.706465818200215
+        ],
+        "kc_squared": 40.70646581820033,
+        "moment_singular_values": [
+          8.524233357549806e-16,
+          4.638169878951452e-16
+        ],
+        "c4v_content": "E"
+      },
+      {
+        "family": "TM",
+        "angular_order": 4,
+        "radial_order": 1,
+        "difference_eigenvalues": [
+          -6.130667269887099e-15,
+          -9.747600877139372e-16
+        ],
+        "sum_eigenvalues": [
+          57.58294090329089,
+          57.582940903290925
+        ],
+        "kc_squared": 57.582940903291124,
+        "moment_singular_values": [
+          1.0211778293194696e-15,
+          3.6916352557611796e-16
+        ],
+        "c4v_content": "A1+A2"
+      }
+    ],
+    "radial_orders": [
+      {
+        "family": "TE",
+        "difference_norm": 4.0695357563104954e-15,
+        "sum_eigenvalues": [
+          14.68197064212395,
+          49.2184563216948
+        ],
+        "expected_kc_squared": [
+          14.681970642123895,
+          49.2184563216946
+        ],
+        "mixing_allowed": false,
+        "reason": "Distinct cutoffs: diagnostic comparison only."
+      },
+      {
+        "family": "TM",
+        "difference_norm": 1.7997904454655817e-15,
+        "sum_eigenvalues": [
+          5.783185962946764,
+          30.471262343661977
+        ],
+        "expected_kc_squared": [
+          5.783185962946783,
+          30.471262343662087
+        ],
+        "mixing_allowed": false,
+        "reason": "Distinct cutoffs: diagnostic comparison only."
+      }
+    ]
+  },
+  "square": [
+    {
+      "cells": 12,
+      "frequency_hz": 20000000000.0,
+      "width_m": 0.02,
+      "epsilon": 2,
+      "labels": [
+        1,
+        2
+      ],
+      "proposed_templates": [
+        {
+          "name": "TE_01",
+          "score": 1.0
+        },
+        {
+          "name": "TE_10",
+          "score": 1.0
+        }
+      ],
+      "current_templates": [
+        {
+          "name": "TE_01",
+          "score": 1.0
+        },
+        {
+          "name": "TE_10",
+          "score": 1.0
+        }
+      ],
+      "difference_scores": [
+        -24533.40507187084,
+        24533.40507187082
+      ],
+      "sum_scores": [
+        24533.40507187083,
+        24533.405071870817
+      ],
+      "rotation_squared_trace": -1.9999999999999882,
+      "rotation_closure": 3.303292709260801e-15,
+      "mixed_residual": [
+        8.290168472083864e-16,
+        6.683370403859316e-16
+      ],
+      "current_irreps": [
+        "E"
+      ]
+    },
+    {
+      "cells": 12,
+      "frequency_hz": 20000000000.0,
+      "width_m": 0.02,
+      "epsilon": 2,
+      "labels": [
+        5,
+        6
+      ],
+      "proposed_templates": [
+        {
+          "name": "TE_02",
+          "score": 1.0
+        },
+        {
+          "name": "TE_20",
+          "score": 1.0
+        }
+      ],
+      "current_templates": [
+        {
+          "name": "TE_02",
+          "score": 1.0
+        },
+        {
+          "name": "TE_20",
+          "score": 1.0
+        }
+      ],
+      "difference_scores": [
+        -96461.7092752042,
+        96461.7092752042
+      ],
+      "sum_scores": [
+        96461.70927520414,
+        96461.7092752042
+      ],
+      "rotation_squared_trace": 1.999999999999995,
+      "rotation_closure": 3.928525816177638e-15,
+      "mixed_residual": [
+        1.683409582638642e-15,
+        1.1545007060378254e-15
+      ],
+      "current_irreps": [
+        "A2+B2",
+        "A2+B2"
+      ]
+    },
+    {
+      "cells": 12,
+      "frequency_hz": 20000000000.0,
+      "width_m": 0.02,
+      "epsilon": 2,
+      "labels": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "proposed_templates": [
+        {
+          "name": "TE_12",
+          "score": 1.0
+        },
+        {
+          "name": "TE_21",
+          "score": 1.0
+        },
+        {
+          "name": "TM_12",
+          "score": 1.0
+        },
+        {
+          "name": "TM_21",
+          "score": 1.0
+        }
+      ],
+      "current_templates": [
+        {
+          "name": "TE_21",
+          "score": 1.0
+        },
+        {
+          "name": "TE_12",
+          "score": 1.0
+        },
+        {
+          "name": "TM_21",
+          "score": 1.0
+        },
+        {
+          "name": "TM_12",
+          "score": 1.0
+        }
+      ],
+      "difference_scores": [
+        -71928.30420333336,
+        71928.30420333339,
+        -71928.30420333342,
+        71928.30420333335
+      ],
+      "sum_scores": [
+        120995.11434707504,
+        120995.11434707508,
+        120995.11434707502,
+        120995.11434707502
+      ],
+      "rotation_squared_trace": -3.999999999999995,
+      "rotation_closure": 3.797648648362788e-15,
+      "mixed_residual": [
+        2.8014647663971467e-15,
+        1.6330131744261632e-15,
+        1.6166628991780203e-15,
+        1.5542162499644655e-15
+      ],
+      "current_irreps": [
+        "E",
+        "E"
+      ]
+    },
+    {
+      "cells": 20,
+      "frequency_hz": 20000000000.0,
+      "width_m": 0.02,
+      "epsilon": 2,
+      "labels": [
+        1,
+        2
+      ],
+      "proposed_templates": [
+        {
+          "name": "TE_01",
+          "score": 1.0
+        },
+        {
+          "name": "TE_10",
+          "score": 1.0
+        }
+      ],
+      "current_templates": [
+        {
+          "name": "TE_01",
+          "score": 1.0
+        },
+        {
+          "name": "TE_10",
+          "score": 1.0
+        }
+      ],
+      "difference_scores": [
+        -24623.318809724555,
+        24623.31880972455
+      ],
+      "sum_scores": [
+        24623.31880972455,
+        24623.318809724547
+      ],
+      "rotation_squared_trace": -1.9999999999999993,
+      "rotation_closure": 4.047655501292333e-15,
+      "mixed_residual": [
+        2.1784982461518633e-15,
+        2.277952082903818e-15
+      ],
+      "current_irreps": [
+        "E"
+      ]
+    },
+    {
+      "cells": 20,
+      "frequency_hz": 20000000000.0,
+      "width_m": 0.02,
+      "epsilon": 2,
+      "labels": [
+        5,
+        6
+      ],
+      "proposed_templates": [
+        {
+          "name": "TE_02",
+          "score": 1.0
+        },
+        {
+          "name": "TE_20",
+          "score": 1.0
+        }
+      ],
+      "current_templates": [
+        {
+          "name": "TE_02",
+          "score": 1.0
+        },
+        {
+          "name": "TE_20",
+          "score": 1.0
+        }
+      ],
+      "difference_scores": [
+        -97886.96740969285,
+        97886.96740969297
+      ],
+      "sum_scores": [
+        97886.96740969286,
+        97886.96740969297
+      ],
+      "rotation_squared_trace": 1.9999999999999667,
+      "rotation_closure": 1.0102067243784399e-14,
+      "mixed_residual": [
+        3.8663079542245685e-15,
+        3.636261160026288e-15
+      ],
+      "current_irreps": [
+        "A2+B2",
+        "A2+B2"
+      ]
+    },
+    {
+      "cells": 20,
+      "frequency_hz": 20000000000.0,
+      "width_m": 0.02,
+      "epsilon": 2,
+      "labels": [
+        7,
+        8,
+        9,
+        10
+      ],
+      "proposed_templates": [
+        {
+          "name": "TE_12",
+          "score": 1.0
+        },
+        {
+          "name": "TE_21",
+          "score": 1.0
+        },
+        {
+          "name": "TM_12",
+          "score": 1.0
+        },
+        {
+          "name": "TM_21",
+          "score": 1.0
+        }
+      ],
+      "current_templates": [
+        {
+          "name": "TE_21",
+          "score": 1.0
+        },
+        {
+          "name": "TE_12",
+          "score": 1.0
+        },
+        {
+          "name": "TM_21",
+          "score": 1.0
+        },
+        {
+          "name": "TM_12",
+          "score": 1.0
+        }
+      ],
+      "difference_scores": [
+        -73263.64859996832,
+        73263.64859996826,
+        -73263.64859996834,
+        73263.64859996835
+      ],
+      "sum_scores": [
+        122510.2862194174,
+        122510.2862194173,
+        122510.28621941738,
+        122510.2862194174
+      ],
+      "rotation_squared_trace": -3.9999999999999893,
+      "rotation_closure": 7.043169962667435e-15,
+      "mixed_residual": [
+        6.348128422766309e-15,
+        4.120821441593595e-15,
+        4.7025759246939195e-15,
+        3.6203720442420945e-15
+      ],
+      "current_irreps": [
+        "E",
+        "E"
+      ]
+    }
+  ]
+}
