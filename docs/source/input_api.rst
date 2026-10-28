@@ -2036,6 +2036,27 @@ compatible saved surface spectrum after a run, while
 ``spherical_observation_points`` constructs Cartesian exact-field receiver
 locations from spherical coordinates.
 
+A ``KSIRFrequencyTransform`` saves its surface DFT by default, so its far field
+can be evaluated again for other directions or another phase-reference origin
+by naming the transform. Symmetry completion is taken from the saved surface;
+the result holds range-normalised Cartesian components:
+
+.. code-block:: python
+
+    from gprMax.ntff.evaluator import project_cartesian_to_spherical
+
+    saved = gprMax.evaluate_saved_surface_dft(
+        "model.h5", "spectrum", theta=np.arange(1, 180), phi=[0, 90]
+    )
+    cartesian = np.stack(
+        [saved.range_normalized_fields[c] for c in ("Ex", "Ey", "Ez")], axis=-1
+    )
+    _, e_theta, e_phi = np.moveaxis(
+        project_cartesian_to_spherical(cartesian, saved.theta, saved.phi, degrees=True),
+        -1,
+        0,
+    )
+
 A layered transform reuses the same far-field request classes. For example,
 air above a finite dielectric layer and a lower dielectric half-space can be
 declared independently of the geometry objects which build those layers:
