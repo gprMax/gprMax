@@ -39,3 +39,5 @@ Recorded simulation plots
 .. image:: square_crossing_mode4_results.png
    :width: 100%
    :alt: Mode 4 reflection, transmission, and interior Ex polarization.
+
+Both launched-mode results were regenerated on 24 October 2026. ``recorded_results.json`` retains source hashes, commands, power-wave validity and scattering measurements.

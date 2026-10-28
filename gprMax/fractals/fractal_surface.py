@@ -179,11 +179,12 @@ class FractalSurface:
 
         self.fractalsurface = np.zeros(surfacedims, dtype=self.dtype)
 
-        # Positional vector at centre of array, scaled by weighting
+        # Positional vector of the DC component, scaled by weighting. The
+        # kernel shifts index i to (i + n // 2) % n, so DC sits at n // 2.
         v1 = np.array(
             [
-                self.weighting[0] * (surfacedims[0]) / 2,
-                self.weighting[1] * (surfacedims[1]) / 2,
+                self.weighting[0] * (surfacedims[0] // 2),
+                self.weighting[1] * (surfacedims[1] // 2),
             ]
         )
 
@@ -293,6 +294,14 @@ class MPIFractalSurface(FractalSurface):
     def generate_fractal_surface(self) -> bool:
         """Generate a 2D array with a fractal distribution."""
 
+        # Grass blades and roots are stamped by FractalBox from a mask that
+        # is replicated across every rank, so the whole surface has to be
+        # available locally. Fall back to the shared serial generator
+        # instead of the distributed mpi4py_fft path - every rank still
+        # computes the identical surface from the same seed.
+        if self.grass:
+            return FractalSurface.generate_fractal_surface(self)
+
         from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
         from gprMax.mpi_support import require_mpi
         from gprMax.utilities.mpi import get_relative_neighbour
@@ -349,19 +358,10 @@ class MPIFractalSurface(FractalSurface):
                 f" least 1 dimension. Current decompostion is: {self.comm.dims}"
             )
 
-        # Check domain decomosition is valid for the Fractal Volume
-        if len(self.grass) > 0 and self.comm.size > 1:
-            raise ValueError(
-                "Grass cannot currently be split across multiple MPI rank. Either change the MPI "
-                " decomposition such that the grass object is contained within a single MPI rank,"
-                " or divide the grass object into multiple sections. Current decompostion is:"
-                f" {self.comm.dims}"
-            )
-
         surfacedims = self.get_surface_dims()
 
-        # Positional vector at centre of array, scaled by weighting
-        v1 = self.weighting * surfacedims / 2
+        # Positional vector of the DC component (see FractalSurface), scaled by weighting
+        v1 = self.weighting * (np.asarray(surfacedims) // 2)
 
         subcomm = Subcomm(self.comm)
 

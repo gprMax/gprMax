@@ -84,6 +84,13 @@ class AddGrass(GeometryUserObject):
             )
             seed = None
 
+        # Every rank draws the whole grass geometry, so an omitted seed must
+        # be drawn once on the coordinator and shared instead of relying on
+        # each rank's own entropy.
+        if seed is None and getattr(grid, "is_distributed", False):
+            seed = int(np.random.default_rng().integers(0, 2**32)) if grid.is_coordinator() else None
+            seed = grid.comm.bcast(seed, root=grid.COORDINATOR_RANK)
+
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
         if volumes:
@@ -288,12 +295,18 @@ class AddGrass(GeometryUserObject):
         surface.fractalrange = fractalrange
 
         # Set the fractal surface using the pre-calculated spatial distribution
-        # and a random height
+        # and a random height. Store the tops in global coordinates: it is a
+        # non-zero entry that signals a blade to the replicated stamp in
+        # FractalBox.build(), so a rank-local height could alias with the
+        # absent-blade zero or come out different on each rank.
+        lower_extent = getattr(grid, "lower_extent", None)
+        normal = "xyz".index(requestedsurface[0])
+        height_offset = int(lower_extent[normal]) if lower_extent is not None else 0
         heights = np.zeros((density.shape[0], density.shape[1]))
         for i in range(len(bladesindex[0])):
             heights[bladesindex[0][i], bladesindex[1][i]] = R.randint(
                 surface.fractalrange[0], surface.fractalrange[1]
-            )
+            ) + height_offset
 
         if te_axis is not None:
             # Deliberately do NOT broadcast heights to both invariant-axis

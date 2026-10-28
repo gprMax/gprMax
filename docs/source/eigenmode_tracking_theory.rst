@@ -400,8 +400,9 @@ is retained: for simultaneous coefficients :math:`c`, total power is
 multiple ``EigenmodeExcitation`` objects with ``amplitude`` and ``phase_deg``
 for coherent combinations; a 90-degree relative phase drives quadrature.
 
-Explicit directions and the automatic electric-moment fallback use this
-alignment machinery. Native symmetry decomposition uses the power-preserving
+Explicit directions and legacy tracking's inferred electric-moment axes use
+this alignment machinery. Automatic tracking applies explicit directions only
+after certifying an eligible C4v E pair. Native symmetry decomposition uses the power-preserving
 orientation described in :ref:`tracking-symmetry-theory`. With physical directions, alignment is enforced
 independently at every anchor; subsequent tracking diagnostics do not rotate
 those directions. Without usable physical directions, a deterministic
@@ -409,12 +410,14 @@ reference basis is transported outwards using the SVD rotation below.
 Legacy modes without a declared group retain independent-mode phase tracking.
 
 Automatic tracking ignores ``degenerate`` and detects groups from the solved
-spectrum. It separates longitudinal families, resolves symmetry subspaces and
-eligible directional variation, then orients native doublets by electric
-moments or mirror parity. Explicit ``mode_polarizations`` is applied afterward
-within each resolved doublet, preserving its span. A two-mode parent with no
-certified subdivision can use independent electric moments; larger unresolved
-parents cannot be polarized. Legacy tracking applies the direction to its
+spectrum. It separates longitudinal families and eligible directional and total
+gradient variation before detecting spatial symmetry. An independent symmetry
+stage certifies and refines candidate spans, then orients native doublets by
+electric moments or mirror parity. Remaining unresolved blocks then use a final
+blockwise Procrustes alignment; resolved singlets receive only phase alignment.
+Explicit ``mode_polarizations`` is applied
+only within certified C4v E pairs with significant rank-two electric moments,
+preserving each pair's span. Legacy tracking applies the direction to its
 declared pairs without automatic symmetry selection.
 
 Automatic tracking accepts one axis or real transverse vector, or a deprecated
@@ -631,6 +634,16 @@ and aperture. Unequal transverse spacings usually reduce the available
 group to C2v or a subgroup. Detection tests these sampled quantities at
 every solved anchor and takes the strongest supported group common to the bank.
 
+The symmetry actions use the center and extent of the full port aperture;
+they do not remove unused PEC padding or search for a different symmetry
+center. Asymmetric padding can therefore prevent C4v certification even
+when the fields in the guide are unchanged. For explicit automatic
+polarization, the user must preserve C4v in the complete sampled window,
+including PEC masks or SIBC retained samples and boundary rows, as described
+in :ref:`tracking-symmetry-options`. The C4v E and electric-moment eligibility
+checks remain necessary. Lower-symmetry ports retain independent separation
+and unresolved-block continuation without an explicit polarization request.
+
 This bound concerns rotations and mirrors of a square **two-dimensional port
 cross section**, with its normal fixed. A three-dimensional cubic lattice has
 additional operations that exchange the normal with other axes. Other lattice
@@ -727,11 +740,14 @@ two-dimensional representation [tracking-C4v]_. C2v has four singlets:
      - Simultaneous axis-mirror parity separates singlets.
 
 Repeated equivalent representations admit multiple choices of their copies.
-The native path first resolves longitudinal-field families as described
-below, then applies the commutant decomposition within each resolved family.
+Before spatial symmetry detection, the native path resolves longitudinal-field
+families and gradient subspaces as described below. The independent symmetry
+stage applies the commutant decomposition within compatible candidate spans.
 Mirror parity selects partners within each doublet. Compatible equal-parity
 singlets can subsequently be combined into an axis-oriented source basis.
 The original irreducible basis and the final source transform are both saved.
+
+.. _tracking-independent-separation-theory:
 
 Longitudinal-field families
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -754,15 +770,93 @@ longitudinal content. The HE/EH naming convention is explained in
 
 The metric must have condition number below :math:`10^8` and maximum
 eigenvalue above :math:`10^{-12}\|F\|_F^2`, where F is the full E/H frame.
-Adjacent rho values separated by more than :math:`10^{-8}` define distinct
-families. Each selected family must be invariant under the certified
-symmetries, within :math:`10^{-8}`. Singular, insignificant, or unresolved
-longitudinal fields retain the existing symmetry decomposition.
+Complete-link rho clusters with whole-cluster spread at most :math:`10^{-8}`
+define families; the bounded loss tolerance below is used for SIBC. This
+selection does not require material or modal symmetry. Singular or insignificant
+longitudinal fields retain the complete parent span. Equal rho values retain
+an unresolved family that can still be tested with gradient operators.
 
 Each family is power-whitened separately. Cross-family terms remain in the
 full Hermitian power matrix; whitening the complete bank again would mix
 the selected physical families. The usual mixed-vector and reconstructed
 Maxwell residual checks apply to the final E/H fields.
+
+.. _tracking-gradient-separation-theory:
+
+Directional and total gradient separation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For :math:`F_E=E_w` and :math:`F_H=Z_{\rm ref}H_w`, use native forward
+differences :math:`D_u,D_v`, divided by their respective grid spacings:
+
+.. math::
+
+   K_u=\sum_{\alpha\in\{E,H\}}(D_uF_\alpha)^{\mathrm H}D_uF_\alpha,
+   \qquad
+   K_v=\sum_{\alpha\in\{E,H\}}(D_vF_\alpha)^{\mathrm H}D_vF_\alpha.
+
+Within each longitudinal family, solve :math:`(K_u-K_v)c=\eta Mc`.
+Within each unresolved eta block, solve
+:math:`(K_u+K_v)c=sMc`. Complete-link spectral spreads are compared to
+:math:`10^{-8}` times the largest absolute total-gradient generalized eigenvalue
+in the family. A tied spectrum preserves its block rather than assigning
+individual identities to arbitrary eigenvectors. Subgroups are continued by
+principal-angle overlap, with phase or within-block alignment at neighboring
+anchors. A changing block dimension or insufficient overlap rejects the trial.
+
+This hierarchy is not a complete set of mode identifiers. For example, the
+exact circular TE21 cosine/sine pair has equal rho, zero projected directional
+difference, and total gradient proportional to M. It remains one block until
+symmetry resolves its B1/B2 singlets. Higher odd angular orders can similarly
+remain E doublets with zero electric moments.
+
+The gradient comparisons use the same longitudinal metric M. If M is
+insignificant, singular, or ill-conditioned, the independent stage returns
+the parent block without attempting either gradient eigenproblem. Equal rho
+scores with a usable M instead retain a family on which both gradient tests
+can operate. The hierarchy is a sequence of restricted generalized
+eigenproblems, not an assumption that all three operators have a complete
+common eigenbasis.
+
+Independent symmetry certification after separation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Only after this separation passes the mixed eigen-residual, reconstructed
+Maxwell, positive-power, and complete measurement-basis checks is spatial
+symmetry detected. Within a family, blocks with equal absolute eta and matching
+total-gradient scores form candidates for symmetry certification. The complete
+candidate must pass closure, group relations, and irreducible decomposition;
+equal absolute eta alone does not certify an E pair. Failed symmetry trials
+leave the independent separation intact. Failed separation trials retain the
+earlier validated parent basis. The HDF5 ``mode_separation`` group stores the
+pre-symmetry transforms, blocks, selection scores, candidates, and rejected-trial
+reasons separately from ``symmetry_subspaces``. If independent separation
+was rejected, the certified symmetry trial can still attempt longitudinal
+selection within the retained parent span. C4v is tried first when supported,
+followed by C2v if necessary; neither trial relaxes the physical acceptance
+criteria.
+
+.. _tracking-unresolved-transport-theory:
+
+Final transport within unresolved blocks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+After both selection stages, each remaining unresolved block is transported
+independently. If F contains its current full E/H columns and R its neighboring
+reference columns, the SVD :math:`F^{\rm H}R=U\Sigma V^{\rm H}` gives the
+unitary Procrustes transform :math:`T=UV^{\rm H}`. The transform is applied to
+all E/H components of this block. A resolved singleton can change only its
+phase, and this final stage cannot reassign established blocks or combine
+different families. At the reference anchor, the previously selected basis
+is retained. Certified symmetry-oriented channels do not undergo this fallback.
+
+The complete final trial must again pass overlap, mixed eigen-residual,
+reconstructed Maxwell, positive-power, and measurement-conditioning checks
+at every active anchor. Rejection retains the earlier validated bank and
+records its reason. Procrustes makes a continuous basis within an unresolved
+subspace; it does not assert unique physical identities for its individual
+columns. The HDF5 ``unresolved_transport`` group records block methods, final
+transforms, residuals, power matrices, and rejected trials.
 
 .. _tracking-axis-selection:
 
@@ -776,15 +870,10 @@ An axis-oriented source basis can recover the individual fields by measuring
 directional variation. This operation uses the fields, with no prescribed
 mode indices or analytical templates.
 
-For :math:`F_E=E_w` and :math:`F_H=Z_{\rm ref}H_w`, use native forward
-differences :math:`D_u,D_v`, divided by their respective grid spacings:
-
-.. math::
-
-   K_u=\sum_{\alpha\in\{E,H\}}(D_uF_\alpha)^{\mathrm H}D_uF_\alpha,
-   \qquad
-   K_v=\sum_{\alpha\in\{E,H\}}(D_vF_\alpha)^{\mathrm H}D_vF_\alpha.
-
+Use the native gradient matrices defined in
+:ref:`tracking-gradient-separation-theory`. This post-symmetry orientation
+step complements the independent gradient separation: symmetry may have
+expressed a directional pair as combinations of rotation irreps.
 Restrict these matrices and M to singlets with matching mirror parities and
 longitudinal scores agreeing within :math:`10^{-8}`. The restricted electric
 matrix must also satisfy :math:`\|L_E-\rho M\|_2\le10^{-8}\lambda_{\max}(M)`;
@@ -833,6 +922,8 @@ Axis orientation can combine distinct irreps of a degenerate span. In HDF5,
 ``A2+B2`` state their symmetry content. ``axis_sensitive`` records decisions
 and directional scores; it does not introduce a new user parameter.
 
+.. _tracking-moment-orientation-theory:
+
 Electric moments first, mirror parity second
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -854,12 +945,21 @@ a quarter turn relates the two zero-moment partners. Continue each channel
 with a scalar phase at subsequent anchors, preserving these parities even
 when the electric moments vanish or reappear.
 
-If no symmetry decomposition is accepted, a two-mode group uses independent
-electric moments when they define axes throughout the active bank. Otherwise
-the whole group uses deterministic power whitening and SVD transport. Two
-integrated transverse moments cannot uniquely orient a larger-dimensional
-group. Increasing a candidate search gap does not change this dimension
-count or relax the separate mixing-residual test.
+If no symmetry decomposition is accepted, retain the validated longitudinal/
+gradient separation. Each remaining unresolved block may undergo the
+:ref:`final Procrustes continuation <tracking-unresolved-transport-theory>`,
+preserving its span without asserting unique physical identities for its
+individual columns. A failed independent-separation trial retains the
+previously validated parent basis.
+
+Explicit user polarization in automatic tracking requires a certified C4v E
+pair and sufficiently strong, well-conditioned rank-two electric moments at
+every active anchor. Independent moments alone do not certify a pair. An E
+pair with canceling or rank-deficient moments can retain its automatic
+mirror-parity orientation but cannot accept an electric-direction request.
+Legacy declared pairs use the separate alignment rules in
+:ref:`eigenmode-degenerate-theory`. Increasing a candidate search gap does
+not relax any mixing-residual or polarization-eligibility requirement.
 
 All accepted transformations act identically on E and H and pass the mixed
 eigen-residual, available reconstructed-field residual, power checks, and
@@ -1025,6 +1125,11 @@ profiles remain in use and that injection or S-parameter accuracy may be
 reduced. No recommendation warning is emitted merely for selecting legacy
 tracking.
 
+.. _tracking-hdf5-theory:
+
+Saved tracking diagnostics and indexing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 The shared resolved bank is reused by sources, receivers, cached studies,
 virtual guides, and plots. Geometry-only runs can inspect dispersion and E/H
 profiles without time stepping. Diagnostic markers distinguish questionable
@@ -1037,10 +1142,12 @@ is version 1:
 
 * Attributes identify the tracking/verification policy, source revision,
   reference-anchor index, verification solve count, and detected groups.
-* ``candidate_indices`` records original, zero-based solver candidate indices
-  after assignment to tracked labels; public mode labels remain one-based.
+* ``candidate_indices`` records zero-based solver slots after subspace
+  recovery and assignment to tracked labels; public mode labels remain one-based.
   Hidden partners can appear in the internal mapping without becoming public
-  measurement channels.
+  measurement channels. When recovery occurred, ``subspace_recovery`` stores
+  its original candidate/reference indices, transforms, residuals, overlap,
+  and field-residual bound. Its record numbers start at zero.
 * ``tracking_overlaps``, ``eigenpair_residuals``, ``field_residuals``,
   ``combined_residuals``, and ``numerical_valid`` preserve assignment and
   numerical evidence.
@@ -1056,6 +1163,43 @@ is version 1:
   anchor, transforms, power matrices, residuals, overlaps, retained flags, and
   physical directions/moments when available. Its transformation convention
   is ``aligned fields = raw fields @ transform``.
+
+The stage diagnostics are siblings of ``mode_tracking`` under the port
+group; the :ref:`user-guide HDF5 tables <tracking-hdf5-results>` identify
+the simulation and native-field-export root paths. ``mode_separation``,
+``symmetry_subspaces``, ``unresolved_transport``, ``polarization_subspaces``,
+and ``degenerate_groups`` number their records from one. Their ``anchorN``
+suffix is a zero-based index into the candidate/solve anchor array, not
+the measurement-frequency array. Use the per-record mode-label attributes
+to map columns; a diagnostic record number is not a mode label.
+
+In ``mode_separation``, root attribute ``Method`` is
+``longitudinal_directional_total_gradient_v1``. ``RejectedTrials`` and
+per-anchor ``Selection`` are JSON attributes. ``Selection`` contains
+longitudinal ``scores``, ``applied``, and ``reason``; gradient records with
+``difference_scores``, ``sum_scores``, and split flags; and zero-based
+``candidates`` column lists in the separated parent basis. The group
+``Blocks`` attribute instead uses one-based public/internal mode labels.
+Each successful anchor also stores ``transform``, ``residual``, ``power``,
+and ``field_residual`` datasets.
+
+``symmetry_detection`` stores ``Detected`` and JSON ``Details`` attributes.
+``Details`` includes per-anchor geometry tests and each parent's applied
+choice and failed attempts. Successful ``symmetry_subspaces`` records name
+their ``Symmetry`` and source-block ``Irreps`` and retain the original
+``irreducible_basis`` separately. ``unresolved_transport`` stores
+``BlockMethods`` (``procrustes`` or ``phase``), parent labels, blocks,
+per-anchor transforms and validation data, and JSON ``RejectedTrials``.
+``mode_separation`` and ``unresolved_transport`` can contain only rejection
+records when no trial succeeded.
+
+``polarization_subspaces`` contains ``requested_directions`` and local
+pair transforms with convention
+``final pair fields = symmetry-aligned pair fields @ transform``. The
+final cumulative transform is stored in ``degenerate_groups``. Separation
+and symmetry records describe earlier stages; do not multiply their saved
+transforms together as if they were a chain of incremental rotations.
+Native exported ``fields`` already use the final tracked basis.
 
 Older output files without these groups remain readable. Existing
 ``anchor_mode_valid``, ``anchor_mode_reference_valid``, and measurement power
@@ -1148,9 +1292,10 @@ diagnostics are described in :doc:`output`.
 Eigenmode tracking: analytical validation
 -----------------------------------------
 
-Validation has two folders: ``degenerate_subspace`` and ``branch_crossing``.
-Every case compares tracked FDFD modal profiles and propagation constants
-with an independent continuum solution. These are undriven eigenproblems.
+The reference galleries use ``degenerate_subspace`` and ``branch_crossing``.
+Each compares tracked FDFD modal profiles and propagation constants with an
+independent continuum solution. Additional dated audits test higher orders,
+repeated irreps, and raw-basis invariance. These are undriven eigenproblems.
 
 Profiles show phase-aligned, separately normalized longitudinal fields.
 The quantitative comparison uses all six components, with magnetic fields
@@ -1162,6 +1307,38 @@ unique individual orientation. Staircase-split cylindrical modes are also
 compared with their complete smooth analytical pair. A square Cartesian
 mesh retains C4v rather than continuous rotational symmetry, so not every
 cylindrical pair remains numerically degenerate.
+
+.. _tracking-circular-avoided-crossing:
+
+Higher-order and repeated-irrep audit, 24 October 2026
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The combined pipeline passed twelve 60-channel banks at 79--81 GHz:
+square and circular PEC, copper, and dielectric guides on two meshes.
+Random complex changes of basis within exact eigenspaces recovered the same
+numerical channels. Controlled crossings between repeated C4v E copies also
+preserved the resolved families, including an exact TE14/TE41--TM23/TM32
+coincidence. This is evidence for the tested banks and crossings, rather than
+a guarantee that these operators uniquely resolve every eigenspace.
+
+Smooth-circle identities can differ from these valid discrete eigenmodes.
+For the circular dielectric guide, EH11/HE31 individual squared full-vector
+overlaps improve from about 0.746 to 0.968 and 0.986 on 40-, 64-, and 96-cell
+meshes. These channels occur at ranks 7--10 in the audited 40 GHz bank.
+At the TE03/HE42 same-A2 interaction near 36.742 GHz, the C4v staircase
+eigenbranches undergo an avoided crossing and exchange analytical character.
+Forcing pure analytical identities there violates the Maxwell residual
+tolerance. Tracking therefore retains the valid numerical branches;
+electric-moment polarization within a certified E pair does not undo this
+interaction between distinct eigenvalues.
+
+:download:`Detailed higher-order and analytical-identity assessment
+<../../testing/validation/higher_identity_20261024/assessment.rst>` and
+:download:`CPU, CUDA and OpenCL release verification
+<../../testing/validation/tracking_release_20261024/verification.json>`
+retain the measured scope and provenance. The targeted regression selection
+has 684 passing tests, including automatic tracking on both device backends;
+this count excludes the separate gallery regeneration runs.
 
 Degenerate subspace
 ^^^^^^^^^^^^^^^^^^^

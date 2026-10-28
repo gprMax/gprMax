@@ -447,4 +447,68 @@ def test_legacy_conversion_copies_arrays_and_adds_keys(tmp_path):
     assert entries[keys[1]]["metadata"]["original_id"] == "soil-with.punctuation"
 
 
+def _infinite_conductor(field, **extra):
+    return {"model": "constant", "base": {"relative_permittivity": 1.0, field: "inf"}, **extra}
+
+
+@pytest.mark.parametrize(
+    "entry",
+    (
+        {"model": "builtin", "builtin": "pec", "averagable": True},
+        {"model": "builtin", "builtin": "pmc", "averagable": True},
+        _infinite_conductor("electric_conductivity_s_per_m", averagable=True),
+        _infinite_conductor("magnetic_conductivity_s_per_m", averagable=True),
+    ),
+)
+def test_perfect_conductors_cannot_be_marked_averagable(tmp_path, entry):
+    # Matches #material, which never smooths infinite-conductivity materials.
+    (tmp_path / "local.json").write_text(json.dumps(_database({"conductor": entry})))
+    with pytest.raises(ValueError, match="cannot set 'averagable' to true"):
+        load_material_spec("local", "conductor", search_directory=tmp_path)
+
+
+@pytest.mark.parametrize(
+    "entry, averagable",
+    (
+        ({"model": "builtin", "builtin": "pec"}, False),
+        ({"model": "builtin", "builtin": "pmc", "averagable": False}, False),
+        ({"model": "builtin", "builtin": "free_space", "averagable": True}, True),
+        (_infinite_conductor("electric_conductivity_s_per_m"), False),
+        (_infinite_conductor("magnetic_conductivity_s_per_m", averagable=False), False),
+        ({**_constant(), "averagable": True}, True),
+        ({**_constant(), "averagable": False}, False),
+    ),
+)
+def test_supported_averaging_flags_build(tmp_path, fake_grid, entry, averagable):
+    (tmp_path / "local.json").write_text(json.dumps(_database({"sample": entry})))
+    spec = load_material_spec("local", "sample", search_directory=tmp_path)
+    material = build_material_from_spec(fake_grid(dt=1e-12), spec, "sample")
+
+    assert spec.averagable is averagable
+    assert material.averagable is averagable
+
+
+@pytest.mark.parametrize("attribute", ("se", "sm"))
+def test_exported_perfect_conductor_is_not_averagable_and_reloads(tmp_path, attribute):
+    material = Material(3, "conductor")
+    setattr(material, attribute, float("inf"))
+    assert material.averagable is True
+
+    entry = material_to_database_entry(material)
+    assert entry["averagable"] is False
+
+    (tmp_path / "local.json").write_text(json.dumps(_database({"conductor": entry})))
+    spec = load_material_spec("local", "conductor", search_directory=tmp_path)
+    assert np.isinf(spec.electric_conductivity if attribute == "se" else spec.magnetic_conductivity)
+    assert spec.averagable is False
+
+
+def test_exported_finite_material_keeps_averaging_flag():
+    material = Material(3, "dielectric")
+    material.er = 4.0
+    assert material_to_database_entry(material)["averagable"] is True
+    material.averagable = False
+    assert material_to_database_entry(material)["averagable"] is False
+
+
 pytestmark = pytest.mark.unit

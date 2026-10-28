@@ -229,12 +229,13 @@ class FractalVolume:
 
         self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=self.dtype)
 
-        # Positional vector at centre of array, scaled by weighting
+        # Positional vector of the DC component, scaled by weighting. The
+        # kernel shifts index i to (i + n // 2) % n, so DC sits at n // 2.
         v1 = np.array(
             [
-                self.weighting[0] * self.nx / 2,
-                self.weighting[1] * self.ny / 2,
-                self.weighting[2] * self.nz / 2,
+                self.weighting[0] * (self.nx // 2),
+                self.weighting[1] * (self.ny // 2),
+                self.weighting[2] * (self.nz // 2),
             ]
         )
 
@@ -357,6 +358,11 @@ class MPIFractalVolume(FractalVolume):
         self.comm = comm
         self.upper_bound = upper_bound
 
+        # Keep the global object bounds before they are clipped to this
+        # rank's local grid; the replicated grass build needs them.
+        self.unclipped_original_start = self.original_start.copy()
+        self.unclipped_original_stop = self.original_stop.copy()
+
         # Limit the original start and stop to within the local bounds
         self.original_start = np.maximum(self.original_start, 0)
         self.original_stop = np.minimum(self.original_stop, self.upper_bound)
@@ -412,8 +418,8 @@ class MPIFractalVolume(FractalVolume):
         # Adjust weighting to account for filter scaling
         self.weighting = np.multiply(self.weighting, filterscaling)
 
-        # Positional vector at centre of array, scaled by weighting
-        v1 = self.weighting * self.size / 2
+        # Positional vector of the DC component (see FractalVolume), scaled by weighting
+        v1 = self.weighting * (self.size // 2)
 
         subcomm = Subcomm(self.comm)
         A = DistArray(self.size, subcomm, dtype=self.dtype)

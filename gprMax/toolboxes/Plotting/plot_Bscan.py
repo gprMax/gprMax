@@ -36,14 +36,16 @@ from ..Utilities.trace_time import (
 def gather_receiver_outputs(filename, rxcomponent, *, return_time_offset=False):
     """Gather one component from all receivers without duplicating rx1."""
     with h5py.File(filename, "r") as output:
-        nrx = int(output.attrs["nrx"])
+        rxs = output.get("rxs", {})
+        nrx = int(output.attrs.get("nrx", 0))
         receivers = [
             key
-            for key in sorted(output.get("rxs", {}), key=natural_key)
-            if receiver_recorded(output["rxs"][key])
+            for key in sorted(rxs, key=natural_key)
+            if receiver_recorded(rxs[key])
         ]
+        has_receivers = len(rxs) > 0
 
-    if nrx == 0:
+    if nrx == 0 or not has_receivers:
         raise ValueError(f"No receivers found in {filename}")
     if not receivers:
         raise ValueError(f"No recorded receivers found in {filename}; every receiver has Recorded=false")
@@ -266,13 +268,15 @@ if __name__ == "__main__":
         )
     else:
         with h5py.File(args.outputfile, "r") as f:
-            nrx = int(f.attrs["nrx"])
+            rxs = f.get("rxs", {})
+            nrx = int(f.attrs.get("nrx", 0))
             receivers = [
                 key
-                for key in sorted(f.get("rxs", {}), key=natural_key)
-                if receiver_recorded(f["rxs"][key])
+                for key in sorted(rxs, key=natural_key)
+                if receiver_recorded(rxs[key])
             ]
-        if nrx == 0:
+            has_receivers = len(rxs) > 0
+        if nrx == 0 or not has_receivers:
             raise ValueError(f"No receivers found in {args.outputfile}")
         if not receivers:
             raise ValueError(

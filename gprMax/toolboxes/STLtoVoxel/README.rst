@@ -11,7 +11,7 @@ Information
 
 This package provides the ability to directly model real objects without having to build their geometries manually using geometry primitives such as the ``#edge``, ``#plate``, ``#box`` etc.. commands. It specifically provides a tool to convert a `STL file <https://en.wikipedia.org/wiki/STL_(file_format)>`_, which can be produced by many CAD software packages, to a voxelised mesh (FDTD Yee cells) which is saved as a geometry file in HDF5 format suitable for directly importing into gprMax.
 
-This package was created as part of the `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ programme 2021 which gprMax participated. The package uses the `stl-to-voxel <https://github.com/cpederkoff/stl-to-voxel>`_ Python library by Christian Pederkoff.
+This package was created as part of the `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ programme 2021 which gprMax participated. Its first versions used the `stl-to-voxel <https://github.com/cpederkoff/stl-to-voxel>`_ Python library by Christian Pederkoff. It now voxelises with the scanline voxeliser of the ``STEPtoVoxel`` toolbox, which needs no CAD kernel.
 
 **License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
 
@@ -22,8 +22,8 @@ Package contents
 
 * ``stltovoxel.py`` is the main script which should be executed to convert a STL file to a voxelised mesh which is saved as a geometry file in HDF5 format suitable for directly importing into gprMax.
 * ``examples`` is a folder containing example STL files as well as gprMax input files that can be used to import the resulting HDF5 geometry files.
-* ``convert.py``, ``perimeter.py``, ``slice.py`` are modules adapted from the `stl-to-voxel <https://github.com/cpederkoff/stl-to-voxel>`_ Python library by Christian Pederkoff.
-* ``license.md`` is the license for the `stl-to-voxel <https://github.com/cpederkoff/stl-to-voxel>`_ Python library by Christian Pederkoff.
+* ``convert.py`` reads the STL files, applies any rotation, scaling and translation, and voxelises them on the model's cell grid.
+* ``license.md`` is the license for the `stl-to-voxel <https://github.com/cpederkoff/stl-to-voxel>`_ Python library by Christian Pederkoff, which earlier versions of this package adapted.
 
 Installation
 ============
@@ -38,7 +38,19 @@ How to use the package
 The main script is ``stltovoxel.py`` which should be run at the command line and takes two arguments:
 
 * ``path`` is base path to the folder containing the STL file(s) to convert.
-* ``-dxdydz`` is the spatial discretisation of the generated voxelised mesh. It should be given as a floating point number.
+* ``-dxdydz`` is the spatial discretisation of the generated voxelised mesh, in metres. It should be given as a floating point number and must equal the model's ``#dx_dy_dz``: ``GeometryObjectsRead`` refuses a file whose cell size differs from the model's.
+
+Optional arguments:
+
+* ``--unit m|mm|um`` is the unit of the STL coordinates (default ``mm``).
+* ``--rotate RX RY RZ`` rotates the geometry by ``RX``, ``RY`` and ``RZ`` degrees about the x, y and z axes, applied in that order about fixed axes (anticlockwise when looking along each axis towards the origin).
+* ``--rotate-about bbox|origin`` is the centre of rotation: the centre of the bounding box of all included STL files (default), or the coordinate origin.
+* ``--scale S`` scales the geometry uniformly by ``S`` about the coordinate origin, for example ``--scale 25.4`` with ``--unit mm`` for an STL drawn in inches.
+* ``--translate DX DY DZ`` moves the geometry, in the ``--unit`` unit, after rotating and scaling.
+* ``--supersample N`` samples each cell ``N`` times along each axis and fills it when most samples are inside. The default, 1, fills a cell when its centre is inside a closed surface, which is what gprMax's own geometry primitives do.
+* ``--pad-cells N`` adds ``N`` empty cells on every side (default 0). Empty cells leave the model unchanged when imported.
+
+The settings used are recorded as JSON in the ``conversion_settings`` attribute of the HDF5 file.
 
 STL has no standard coordinate unit. The historical toolbox assumed
 millimetres and this remains the default. Use ``--unit m``, ``--unit mm``, or
@@ -74,14 +86,45 @@ The source filename itself need not change. The same restriction applies to
 companion JSON database. This does not restrict averaged materials restored
 from files produced by gprMax's ``GeometryObjectsWrite``.
 
-The physical dimensions of the voxelised object will depend on the size of the object in the original STL file and the spatial discretisation chosen.
+Where the cells are and how to place them
+=========================================
 
-Method of rotating STL file
-===========================
+The converter fills each cell whose centre lies inside a closed STL surface,
+on a grid aligned with the model's: the grid's lower corner is a whole number
+of cells from the coordinate origin. It is written to the HDF5 file as the
+``origin_xyz`` attribute (in metres) and printed after conversion, for example:
+
+.. code-block:: none
+
+    Grid origin (lower corner of the first cell): (-0.024, -0.043, 0.005) m
+    To keep the STL coordinates, place it with GeometryObjectsRead p1 = (-0.024, -0.043, 0.005) m; ...
+
+Placing the file with ``GeometryObjectsRead`` at ``p1`` equal to this origin
+puts every cell where the STL is, the same cells that gprMax's ``Box``,
+``Sphere`` and other primitives would fill for the same shape. To move the
+object, shift ``p1`` by whole cells (gprMax rounds ``p1`` to the nearest cell
+corner and warns when it does), or convert again with ``--translate``.
+The object's size depends only on the STL and on the cell size.
+
+Overlapping files are resolved per cell: a file with a higher priority in the
+assignment CSV (or, for equal priorities, the later file) overwrites a lower
+one.
+
+Rotating a STL file
+===================
+
+The quickest way to turn an object is ``--rotate`` (see above), for example
+to turn the Stanford bunny upside down:
+
+.. code-block:: none
+
+    python -m gprMax.toolboxes.STLtoVoxel.stltovoxel gprMax/toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny.stl -dxdydz 0.001 --rotate 180 0 0
+
+The object can also be oriented in another application before conversion.
 
 **Author/Contact**: Owen Wilkinson (owenwilkinson39@gmail.com)
 
-The STLtoVoxel command enables real-world objects saved in stl format to be converted and imported directly into gprMax. However, this command currently does not support directional manipulation of geometries once inside gprMax.  `Bambu Studio
+`Bambu Studio
 <https://bambulab.com/en/download/studio>`_, is a free, open-source application commonly used for slicing 3D printing models that provides a simple solution to this limitation. Importantly, Bambu Studio uses the same axis orientation as gprMax, making it well-suited for preparing stl, 3mf, oltp, stp, step,svg, amf or obj files before importing. The software is lightweight, intuitive, and requires no account creation. Skipping all setup steps will open a basic workspace with a printing base plate visible. Using the previous example of the Stanford Bunny, opening its STL file in Bambu Studio will display the model positioned on the base plate, as shown below.
 
 .. figure:: ../../images_shared/Rotated_Bunny_Import.png
@@ -118,7 +161,7 @@ To create a voxelised mesh (HDF5 geometry file) from the ubiquitous `Stanford bu
 
     python -m gprMax.toolboxes.STLtoVoxel.stltovoxel gprMax/toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny.stl -dxdydz 0.001
 
-Since the number of voxels are 108 x 88 x 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108m.
+The grid is 109 x 89 x 109 cells of 1mm, so the imported geometry occupies 0.109 x 0.089 x 0.109m from ``p1``, and its origin is (-0.024, -0.043, 0.005) m. The example script below places it at ``p1 = (0.020, 0.020, 0.020)``, which moves the bunny by whole cells into the model's domain.
 
 The converter also creates an editable ``_materials.json`` database beside
 the generated HDF5 file. Its

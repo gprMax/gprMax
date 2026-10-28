@@ -1,0 +1,47 @@
+{
+  "status": "complete",
+  "started_utc": "2026-10-24T09:00:36.215358+00:00",
+  "spacing_m": 0.001,
+  "windows_m": [
+    0.04,
+    0.06
+  ],
+  "cells": [
+    40,
+    60
+  ],
+  "frequencies_GHz": [
+    39,
+    40,
+    41
+  ],
+  "public_modes": 20,
+  "candidates": 24,
+  "cases": [
+    {
+      "name": "square",
+      "status": "complete",
+      "minimum_cropped_overlap": 0.9999999999995672,
+      "maximum_relative_neff_difference": 3.380318860040448e-13
+    },
+    {
+      "name": "circular",
+      "status": "complete",
+      "minimum_cropped_overlap": 0.9999999999997278,
+      "maximum_relative_neff_difference": 2.273664741914711e-13
+    }
+  ],
+  "source_sha256": {
+    "testing\\eigenmode_support\\identification\\combined_identity_window_check.py": "d5f238b039fe8b514d1dbb72fdd3b68319bf477cb7e9668111213311bfe05750",
+    "testing\\eigenmode_support\\identification\\combined_identity_audit.py": "b62012f9bf7923a9b4e3bfeaa935a97e7b3ee08d0e7c8dfd8f801b9349753073",
+    "testing\\eigenmode_support\\dielectric\\dielectric_mode_separation.py": "780566929c66759628e945a76d14cb96412165855079c922f0cea74cb615b918",
+    "gprMax\\eigenmode_symmetry.py": "d1f2cf91b3c237d507bfebf6455639e73e7896e409d70495bfb2d96e7a841358",
+    "gprMax\\eigenmode_tracking.py": "1e4ff16d41c93f54ccab2252106c5a250125fda0a70454a66e4942206b7e94df",
+    "gprMax/fdfd_eigenmode_solver/fdfd_2d_mode_solver.py": "ad6e68797ea71c0a839d9fe916ff76af0aeed1afaf365e46807f7144231f2218",
+    "gprMax/fdfd_eigenmode_solver/surface_impedance_operator.py": "24baa590d527568701638b8a25a2f026e4d62f80936c8a5fdc751636ce7f6bca",
+    "gprMax/eigenmode_config.py": "1cb58e6b48d324691b003e8a4d96fedf0181514b64636cd1633d0dc70b5fe291"
+  },
+  "finished_utc": "2026-10-24T09:00:45.513302+00:00",
+  "git_head": "8d010441b4a6223dea01e8653a4aa62434eb13a4",
+  "git_branch": "auto-tracking-improve"
+}

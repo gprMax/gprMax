@@ -1,6 +1,14 @@
 Eigenmode tracking examples
 ==========================
 
+All eleven galleries were regenerated on 24 October 2026. The pipeline
+separates longitudinal TE/TM content, Ku-Kv and Ku+Kv before symmetry
+refinement, then transports any remaining unresolved blocks. User polarization
+mixing requires a certified C4v E pair with significant, well-conditioned
+rank-two electric moments. Gallery manifests retain source hashes and validity
+checks. The finite copper windows retain artificial-edge confinement warnings;
+these numerical modes still require aperture-convergence assessment.
+
 The first nine undriven geometry-only cases cover every PEC/copper/dielectric and
 rectangular/square/cylindrical combination. Each script automatically tracks
 at least sixteen channels and writes native modal fields, real/imaginary
@@ -39,5 +47,5 @@ These focused crossing cases use two and eight channels. Example 11 combines
 geometry-only port snapshots with an undriven material-parameter FDFD sweep
 and an independent analytical comparison.
 
-Numbered folders include descriptive geometry/material names. Historical
-run metadata preserves the original numbered source paths and hashes.
+Numbered folders include descriptive geometry/material names. Recorded
+metadata identifies the executed sources, including the tracking implementation.

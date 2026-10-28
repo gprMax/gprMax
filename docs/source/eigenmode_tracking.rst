@@ -196,7 +196,7 @@ of fields associated across anchors. A **degenerate group** contains independent
 fields with the same propagation constant; its individual eigenvectors can
 rotate while their combined span stays unchanged.
 
-.. figure:: ../../images_shared/mode_tracking_workflow.png
+.. figure:: ../../images_shared/mode_tracking_workflow.svg
    :width: 100%
    :alt: Tracking workflow from independent solves through association and basis selection to a checked field bank.
 
@@ -217,27 +217,26 @@ rotate while their combined span stays unchanged.
    depth, frequency spacing, or solve budget; unresolved intervals retain their
    diagnostic status.
 4. **Construct a reproducible basis.** Align each isolated mode's common E/H
-   phase. For a persistent degenerate group, **field mixing** means applying
-   the same linear combination to all E and H components. Verify the discrete
-   symmetry, separate longitudinal-field families, and resolve irreducible
-   subspaces. Electric moments or mirror parity orient each doublet;
-   directional field variation separates compatible equal-parity singlets.
-   The fallback retains a power-whitened basis for the full group. An explicit
-   direction is applied afterward within each eligible doublet. No waveguide
-   preset or mode-index template is required.
+   phase. Within a degenerate group, first compare longitudinal electric and
+   magnetic content, then directional and total field variation (Ku-Kv and
+   Ku+Kv). Use symmetry afterward to refine compatible groups. Keep any
+   successful separation if symmetry cannot be certified, and smoothly align
+   only the blocks that remain unresolved. Apply a requested polarization
+   only to eligible C4v E pairs. Every proposed change must pass the physical
+   validity checks. The :ref:`step-by-step explanation
+   <tracking-separation-explained>` below describes these decisions without
+   requiring group theory or matrix algebra.
 5. **Check and use the bank.** Record identity, residual, propagation, power,
    and boundary diagnostics separately. Eligible propagating fields supply
    excitation. Receiving references can also describe evanescent fields, with
    finite normalization and valid coefficient decomposition.
 
-Power whitening transforms the group's full real-power matrix to the identity.
-Consequently a coefficient vector has power equal to its squared norm, and
-unitary changes of basis preserve that power. It supplies a stable numerical
-basis when a physical orientation cannot be determined.
-
-After physical families are separated, whitening is applied within each
-retained block. Cross-block power terms are retained: the complete bank's
-power is evaluated with its full Hermitian power matrix.
+**Power whitening** normalizes a group's field combinations so their
+coefficients have a consistent power scale. It provides a stable starting
+basis even when the mode orientations are unresolved. After separation,
+normalization stays within each retained block, preserving the families
+already found. Power calculations still include any interference between
+blocks. The matrix formulation is in :ref:`eigenmode-degenerate-theory`.
 
 The candidate-cluster gap and the mixing tolerance serve different purposes.
 ``cluster_gap`` searches for nearby branches; the stricter eigenvalue-spread
@@ -296,9 +295,23 @@ propagation constants; tracking does not average them together.
 
 In the plots, follow one label across neighbouring frequencies: its field
 should change consistently. A crossing in the dispersion plot is not itself
-an error. At an avoided crossing, the physical fields can gradually exchange
-character; tracking is not a rule that forces every mode to stay x-polarized
-or y-polarized forever.
+an error.
+
+An **avoided crossing** looks different: two propagation curves approach
+each other, turn apart, and leave a gap. As you follow either curve, its
+field pattern can gradually change from resembling one mode family to
+resembling the other. The changing pattern can be the correct solution of
+the waveguide equations. Tracking follows that valid branch through the
+change; forcing it to keep its original appearance can produce an invalid
+field.
+
+For example, a smooth circular dielectric guide can have an exact crossing
+that becomes an avoided crossing when its boundary is represented by a
+Cartesian staircase. The :ref:`TE03/HE42 validation example
+<tracking-circular-avoided-crossing>` shows this effect and explains why
+mixing the numerical branches back into pure analytical patterns fails the
+field-equation checks. This differs from an arbitrary rotation of an exactly
+degenerate pair, which can be corrected without changing the physical modes.
 
 When polarization rotates arbitrarily: the circular TE11 pair
 -------------------------------------------------------------
@@ -413,8 +426,8 @@ Which option should I use?
   to mean vertical and mode 2 horizontal for a z-directed guide. gprMax
   enforces those physical directions independently at each retained anchor.
   Use the same assignments at the receiving port to measure the same labels.
-* Use ``tracking="auto"`` to detect groups and select their bases through
-  symmetry, electric moments, and mirror parity. The fundamental circular
+* Use ``tracking="auto"`` to detect groups, separate their field families,
+  and use symmetry to refine and orient compatible modes. The fundamental circular
   pair selects transverse directions as in :ref:`eigenmode-example-8`.
   ``degenerate`` is ignored in this mode; ``mode_polarizations`` remains useful
   for rotating or swapping the default directions.
@@ -433,6 +446,107 @@ or numerically unresolved degeneracy for mixing. It rejects resolved splitting
 in a declared group and keeps split automatic branches separate; the
 thresholds and alignment method are in :ref:`eigenmode-degenerate-theory`.
 
+.. _tracking-separation-explained:
+
+How automatic tracking separates a degenerate group
+---------------------------------------------------
+
+At a degeneracy, the solver may return mixtures of several underlying
+patterns. Their equal propagation constants give no way to tell those
+mixtures apart. The tracker looks for distinguishable patterns within
+their combined space. It takes new linear combinations of the returned
+fields, applying the same combination to all electric and magnetic
+components. This is a change of basis.
+
+Each separation step divides a group where its field comparison can
+distinguish the members. A group of one is a resolved channel; a larger
+group, called a **block**, needs another criterion to choose its individual
+patterns. Symmetry can also bring compatible blocks together to check how
+they transform as a group. The method works from the computed fields,
+without a preset list of TE, TM, HE, or EH mode shapes.
+
+1. Separate longitudinal field families: TE/TM first. Longitudinal means
+   along the guide, while transverse means across its cross-section. A TE
+   mode has no longitudinal electric field; a TM mode has no longitudinal
+   magnetic field. The tracker finds combinations with different balances
+   of these two fields. This can recover a TE family and a TM family from
+   mixtures returned at a degeneracy. Dielectric modes usually contain both
+   components, so distinct balances can separate hybrid families without
+   automatically assigning them HE or EH names. Equal balances leave a
+   block for the next step. If the longitudinal fields are too weak or
+   unreliable to compare, this entire longitudinal/gradient stage keeps
+   the existing block for symmetry testing.
+
+2. Compare variation in the two transverse directions: Ku-Kv. Call the
+   two cross-section directions u and v; for a z-directed port they are x
+   and y. Ku measures how strongly the longitudinal fields vary along u,
+   and Kv does the same along v. Their difference distinguishes patterns
+   that vary mainly in one direction from patterns that vary mainly in the
+   other. For example, square-guide mixtures of TE20 and TE02 can be
+   separated into their individual axis-oriented patterns. This step can
+   work even when the port has no certified spatial symmetry.
+
+3. Compare total variation: Ku+Kv. Two patterns can have the same
+   directional balance but different amounts of spatial variation. Within
+   a block still tied after Ku-Kv, the sum supplies an additional distinction.
+   A smoother pattern can have a lower total score than one that varies
+   more across the cross-section. This can help separate radial patterns,
+   but it is not a radial mode number: different modes can share both
+   gradient scores. A tied score keeps the block intact.
+
+4. Use symmetry as an independent check and further separator. The
+   tracker now tests rotations and reflections of the sampled geometry,
+   materials, boundaries, and fields. These operations can distinguish
+   patterns that the preceding comparisons leave together. For example,
+   an ideal circular TE21 angular pair can share all three scores but
+   have different reflection symmetries. A quarter turn can also exchange
+   two partners and reverse the sign of Ku-Kv. The tracker therefore
+   considers blocks in the same longitudinal family with matching absolute
+   directional scores and total-variation scores together for certification.
+   Matching scores identify candidates; the rotation/reflection tests must
+   still confirm their symmetry. A failed symmetry trial keeps the already
+   validated field separation.
+
+5. Continue any remaining unresolved block smoothly. If the available
+   criteria still cannot distinguish individual patterns, the tracker keeps
+   the whole block and chooses combinations that best match the neighboring
+   frequency anchor. This is called **Procrustes alignment**. It stabilizes
+   interpolation within that block without mixing it with already separated
+   families. An isolated channel needs only a common E/H phase adjustment.
+   Smooth continuation of a block does not establish unique physical names
+   for its individual members.
+
+6. Apply the user's polarization choice to an eligible pair. A certified
+   **C4v E pair** is a two-channel space whose members transform together
+   under the square grid's rotations and reflections. The tracker also
+   requires usable integrated transverse electric fields, called electric
+   moments: the two moments must be strong enough and point in independent
+   directions. Only then can ``mode_polarizations`` set a reliable electric
+   direction. Higher-order pairs can have electric fields that cancel on
+   integration; they retain their automatic orientation, often selected by
+   reflection symmetry. An unsupported explicit request raises an error.
+
+For example, suppose a four-mode degeneracy contains two TE and two TM
+patterns. The first step can divide it into a TE block and a TM block.
+Directional or total variation may then separate members of either block;
+symmetry can identify any remaining compatible singlets or pairs. If a
+two-mode block is still unresolved, only that block receives the final
+smooth alignment. The tracker does not recombine all four modes.
+
+Every accepted transformation must preserve a valid solution: the field
+equations, propagation behavior, power, and receiving-port decomposition
+must still pass their checks. A rejected trial leaves the preceding validated
+basis in place. Near an avoided crossing, this means retaining the actual
+numerical eigenmodes even when their resemblance to analytical patterns
+changes. The criteria resolve the tested mode families, but they do not
+guarantee a unique decomposition of every possible degenerate space.
+
+For the equations and acceptance tolerances, see :ref:`longitudinal and
+gradient separation <tracking-independent-separation-theory>`,
+:ref:`symmetry certification <tracking-symmetry-theory>`,
+:ref:`unresolved-block continuation <tracking-unresolved-transport-theory>`,
+and :ref:`electric-moment orientation <tracking-moment-orientation-theory>`.
+
 Physically labeled degenerate modes
 -----------------------------------
 
@@ -444,12 +558,17 @@ axis crossed with it. For a z-normal port, ``"y"`` gives y/-x. This convention
 is independent of propagation sign. Use the same setting at both ports.
 
 With ``tracking="auto"``, the complete parent group is tracked and subdivided
-by longitudinal content, symmetry, and directional variation first. The
-requested direction is then applied independently inside each resolved
-two-dimensional block. Singlets remain unchanged: two accidentally degenerate
-singlets are not combined into a polarization pair. If symmetry selection is
-unavailable, an entire two-mode parent can be oriented when its integrated
-electric moments are independent; larger unresolved parents cannot.
+by longitudinal content, then directional and total gradient variation before
+spatial symmetry is detected. Unresolved blocks remain subspaces. Symmetry is
+certified independently and may refine these blocks; failure retains the
+validated separation. After symmetry, remaining unresolved blocks use Procrustes
+transport across frequency. This final step preserves each block's span and
+cannot mix it with resolved modes; resolved singlets receive only phase alignment.
+The requested direction is applied only inside resolved,
+certified C4v E pairs with significant, well-conditioned rank-two integrated
+electric moments. Singlets and uncertified two-mode parents are not eligible.
+This is the supported scope of automatic polarization, not a general prohibition
+on superpositions in other degenerate subspaces.
 
 With ``tracking="legacy"``, the direction applies to the declared two-mode
 pairs, without automatic symmetry selection. In either mode, a request with
@@ -559,100 +678,159 @@ in :ref:`eigenmode-degenerate-theory`.
 Automatic symmetry detection
 ----------------------------
 
-With ``tracking="auto"``, no symmetry label is required. ``EigenmodePort`` detects C4v or
-C2v from the discretized port at every solved anchor and uses the strongest
-group common to the bank. C4v requires a square mesh with equal spacing;
-C2v requires the two grid-axis mirrors and also applies to rectangular meshes.
-The tests compare complex diagonal material tensors and PEC/PMC masks about
-the port-window center (relative tolerance ``1e-10``, absolute ``1e-12``).
-Resolved eigenvalues remain separate tracking branches.
+With ``tracking="auto"``, no symmetry label is required. Symmetry is tested
+**after** the longitudinal and gradient comparisons in
+:ref:`tracking-separation-explained`. The tests use the actual sampled port,
+including materials and boundaries, rather than the intended geometric name.
+They check every solved anchor and use the strongest supported symmetry
+common to the bank.
 
-Native rotations and reflections act on the complete staggered E/H fields.
-Their modal representations must preserve each eligible span and its power
-metric, and satisfy the group relations before decomposition. Centered
-circular and octagonal interfaces can preserve C4v after staircasing; a
-hexagonal interface can retain C2v. C4v produces singlets or E doublets;
-C2v produces singlets. C2v labels use the port normal as the twofold axis,
-with B1 u-like and B2 v-like under the two mirrors.
-The algorithm supports any group dimension: repeated C4v doublets can produce
-``2+2+2`` from a six-dimensional span or ten doublets from a twenty-dimensional
-span. One-dimensional representations remain single channels. Frequency
-continuation aligns the resulting blocks across the active anchor range.
+.. important::
 
-Repeated copies of the same symmetry can contain different field families.
-The code first compares longitudinal electric and magnetic content through
-a small generalized eigenproblem. In a uniform metallic guide this separates
-TE and TM copies. In a dielectric guide it supplies a field-based family
-selection when the longitudinal scores are distinct. Singular or unresolved
-scores retain the existing symmetry decomposition.
+   To use ``mode_polarizations`` with ``tracking="auto"`` in a PEC or SIBC
+   waveguide, keep the complete port window C4v-symmetric. Use a square
+   window with equal transverse cell spacing, center the guide in it, and
+   keep padding equal on opposite sides. The sampled materials and boundary
+   treatment must also preserve quarter turns and reflections. Avoid
+   symmetry-breaking elements within the port cross-section.
 
-Within each native doublet, the code first tries to align the integrated
-transverse electric moments with the u and v axes. It uses a unitary polar
-factor to preserve whitened power, accepting moments with relative strength
-above ``1e-12``, condition number below ``1e8``, and the expected vector
-mirror parities. If this test fails, diagonalizing the u-mirror selects its
-odd and even partners, in that order. The v-mirror supplies an independent
-parity check. Reflections act on E as a polar vector and H as an axial vector.
-These parity labels describe the complete E/H field, not each component
-separately, and do not assign conventional TE/TM or numerical mode indices.
+   Symmetry is checked about the center of the full port window. Even an
+   extra PEC cell on just one side can prevent certification and cause an
+   explicit polarization request to be rejected. For SIBC walls, the
+   retained samples and surface-impedance rows must also map under these
+   symmetry operations. Geometry symmetry alone is insufficient: the
+   selected modes must form a certified C4v E pair with usable electric
+   moments.
 
-Reference phases are deterministic; a quarter turn relates zero-moment
-doublet partners. Subsequent anchors transport individual phases without
-mixing opposite parities. Each anchor records the orientation method,
-moment strength, vector parities, parity residual, and individual channel
-overlaps under ``symmetry_subspaces/.../anchor.../orientation``.
+   C4v is required for this automatic polarization choice. Ports with lower
+   symmetry can still use automatic tracking and field-family separation
+   with ``mode_polarizations=None``.
 
-Equal-parity singlets can still represent rotated partners. Within one
-eligible longitudinal family, the axis-sensitive step compares variation
-along u and v and selects combinations with distinct directional scores.
-For example, it converts the square-guide combinations TE20 +/- TE02 into
-individual TE20 and TE02 fields. The same operation accepts hybrid E/H
-fields. Unresolved directional scores retain the established basis.
+* **C4v** includes quarter turns and reflections, as for a centered square
+  on a square mesh with equal transverse spacing. A centered staircased
+  circle can also have C4v symmetry.
+* **C2v** includes a half turn and two axis reflections, as for a centered
+  rectangle. It can be available when quarter-turn symmetry is absent.
 
-Axis selection can combine different rotation irreps. Each anchor therefore
-stores the original ``irreducible_basis`` separately from the final source
-``transform``. ``axis_sensitive`` records the selected blocks and scores;
-``longitudinal`` records family selection. A source-block symmetry label such
-as ``A2+B2`` describes the irreps contributing to that source field.
+The geometry test identifies possible symmetries. The field test then checks
+whether rotating or reflecting a candidate group keeps its fields inside
+that same group and preserves their validity. This is what **certified**
+means here. Symmetry can identify single channels (singlets) or, under C4v,
+two-channel E pairs (doublets). Several different pairs can share the E
+label, so that label alone does not distinguish their physical families.
 
-Each group is tested independently. If C4v decomposition fails, C2v is tried
-when supported; if neither succeeds, the group retains its power-whitened
-basis at its full dimension. A requested direction can then orient a complete
-two-mode parent with independent electric moments.
-Two transverse electric moments cannot fully orient a group larger than two.
-Trials check span closure, continuity, mixed eigen-residuals,
-reconstructed Maxwell residuals when available, positive full-group power,
-and unit power within each retained block before
-publishing any fields. SIBC ports additionally certify retained electric and
-magnetic samples, complex boundary permittivities, and signed circulation
-coefficients per retained dual area. Symmetric copper walls can therefore
-use the same decomposition and axis selection; uncertified boundaries and
-unsupported transverse solvers use the fallback. HDF5 ``symmetry_detection`` records detected
-symmetries at each anchor, the applied choice per group, and rejected-trial
-reasons; ``symmetry_subspaces`` stores successful decompositions.
+Within a certified E pair, the default orientation uses electric moments
+when they define reliable directions. Otherwise, reflection symmetry selects
+the partners. These reflection labels describe how the complete vector field
+transforms; they cannot be read from the sign of just one plotted component.
+The mathematics and numerical thresholds are in
+:ref:`tracking-moment-orientation-theory`.
 
-Before accepting a selected basis, the complete power-wave measurement bank
-must pass the modal coefficient solver's precision budget for both electric
-and magnetic Gram matrices, including coupling to modes outside the selected
-group. Single precision allows a condition number of about ``8.4e3``;
-double precision allows ``1e10``. The separate positive-power and symmetry
-checks also apply. A rejected trial tries the next certified symmetry and
-then retains the fallback basis if needed. Inspect the rejected-trial reasons
-in ``symmetry_detection`` when the selected basis differs between precisions.
+Symmetry can express an axis-oriented pattern as combinations such as
+TE20 + TE02 and TE20 - TE02. A further axis-selection step can recover
+the individual TE20 and TE02 patterns within compatible candidates. The
+output saves both the symmetry basis and the basis used for the source;
+a label such as ``A2+B2`` records contributions from both symmetry types.
+See :ref:`tracking-axis-selection` for this distinction.
 
-Neighboring fields continue the selected families and orientations across
-frequency. The original tracking group remains available in
-``degenerate_groups``; the selected source subspaces and their transformations
-are stored in ``symmetry_subspaces`` in the HDF5 output.
+If a C4v trial fails, the tracker tries C2v when supported. If neither is
+accepted, successful longitudinal/gradient separation remains in place,
+with smooth continuation only inside remaining unresolved blocks. Copper
+surface-impedance boundaries have additional symmetry checks. Any rejected
+change retains the preceding validated fields. The full-field, power, and
+measurement-conditioning requirements are detailed in
+:ref:`tracking-symmetry-theory`.
 
-Explicit ``mode_polarizations`` is applied after automatic subgroup selection.
-The native symmetry basis passes mirror-parity checks before the requested
-rotation. A diagonal polarized channel need not itself be a mirror eigenvector;
-its two-dimensional span retains the certified symmetry. Final fields still
-pass eigen-residual, Maxwell-residual, and measurement-conditioning checks.
-``symmetry_subspaces`` describes the certified basis before this rotation;
-``polarization_subspaces`` stores the pairwise rotations and requested directions.
-The parent ``degenerate_groups`` transformations describe the final fields.
+An explicit ``mode_polarizations`` direction is applied afterward, only to
+certified C4v E pairs with usable electric moments. A diagonal polarization
+need not itself have a single reflection parity; its two-channel space
+retains the certified symmetry. The final fields must still pass all
+physical and measurement checks.
+
+.. _tracking-hdf5-results:
+
+Reading the saved HDF5 results
+------------------------------
+
+Two output types share the tracking diagnostics. In a simulation's HDF5
+output, port 1 is under ``/eigenmode_ports/port1``. In a native modal-field
+export created by ``EigenmodeFieldOutput``, it is under ``/ports/1``.
+The paths in the first table are relative to either port group.
+
+.. list-table:: Saved tracking results and how to use them
+   :class: api-parameters
+   :header-rows: 1
+   :widths: 25 38 37
+
+   * - Group or dataset
+     - What it records
+     - What to look for
+   * - ``mode_tracking``
+     - Anchor matching, overlaps, numerical residuals, and requested/adaptive frequencies.
+     - Use ``numerical_valid`` and residuals to assess solved fields. Check ``unresolved_interval_*`` for intervals whose mode assignment remains uncertain.
+   * - ``mode_tracking/anchor_quality``
+     - Mode/frequency rows with confinement, artifact, edge-fraction, validity, and reason fields.
+     - Inspect ``confinement``, ``artifact``, and ``reasons`` for aperture or box-mode warnings, even when the numerical solve is valid.
+   * - ``mode_tracking/subspace_recovery``
+     - Candidate indices and transforms used to recover persistent groups at crossings, when needed.
+     - Explains how a group was recovered from a larger solver cluster. Each record's ``candidate_indices`` identifies the original zero-based solver slots used in that recovery.
+   * - ``mode_separation``
+     - The pre-symmetry TE/TM, Ku-Kv, and Ku+Kv decisions. Each numbered group has ``ParentModes`` and ``Blocks`` attributes; each ``anchorN`` has a ``Selection`` attribute.
+     - Decode ``Selection`` as JSON to inspect longitudinal scores, gradient scores, and symmetry candidates. Root attribute ``RejectedTrials`` records unsuccessful trials.
+   * - ``symmetry_detection``
+     - Geometry/boundary detection and the applied choice or rejected trials for each parent group, in attributes including ``Detected`` and JSON ``Details``.
+     - A detected geometry symmetry is a candidate. Check the per-group applied result and ``symmetry_subspaces`` for successful field certification.
+   * - ``symmetry_subspaces``
+     - Certified blocks, symmetry labels, transforms, residuals, and per-anchor orientation records before explicit user polarization.
+     - ``Symmetry`` and ``Irreps`` identify certified E pairs. ``orientation`` explains moment/parity selection; ``irreducible_basis`` and ``axis_sensitive`` distinguish symmetry fields from axis-oriented source fields.
+   * - ``unresolved_transport``
+     - Final alignment of unresolved blocks, with ``Blocks``, ``BlockMethods``, per-anchor transforms, and rejected trials.
+     - ``procrustes`` means a block was continued smoothly; it does not certify a unique identity for every member. ``phase`` means only a singleton phase was aligned.
+   * - ``polarization_subspaces``
+     - Requested directions and accepted pairwise transforms, moment conditioning, and channel overlaps.
+     - Present for accepted explicit automatic polarization. These transforms act on the certified pair basis.
+   * - ``degenerate_groups``
+     - Parent groups, final orientation, per-anchor transforms, power matrices, residuals, active/retained flags, and available directions/moments.
+     - These are the final parent transforms, including later orientation choices: ``aligned fields = raw fields @ transform``.
+   * - ``anchor_mode_valid``, ``anchor_mode_reference_valid``, ``anchor_mode_propagating``, ``anchor_balanced_power``
+     - Anchor eligibility for excitation, reference use, propagation, and power normalization.
+     - Check the mask for the intended use. A valid evanescent reference is not a propagating power wave; a confinement warning is separate from these masks.
+
+Numbered diagnostic groups such as ``mode_separation/1`` identify records,
+not public mode 1. Read their ``ParentModes``, ``ModeIndices``, or ``Blocks``
+attributes to find the affected channels. Public mode labels are one-based;
+``anchor0`` is the first anchor. Diagnostic arrays can include internally
+solved partners as well as requested channels. Optional groups appear only
+when the corresponding stage has records; absence by itself does not mean
+that a run failed. JSON-valued attributes are read through ``group.attrs``,
+not as HDF5 datasets.
+
+The main ``mode_tracking/candidate_indices`` array maps tracked channels to
+zero-based solver slots after recovery. The indices inside a
+``subspace_recovery`` record instead identify the inputs to that recovery.
+Neither array assigns analytical mode names.
+
+.. list-table:: Modal fields versus driven simulation results
+   :class: api-parameters
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - Output
+     - Saved quantities
+     - Interpretation
+   * - Native field export: ``/ports/1``
+     - ``frequencies``, ``mode_indices``, ``neff``, optional ``operator_neff``, and ``fields/Ex`` through ``fields/Hz``.
+     - Each component stores ``values`` in anchor, mode, u, v order, plus its own ``u`` and ``v`` coordinates for the staggered grid. These are modal profiles, not driven FDTD fields or S-parameters.
+   * - Simulation output: ``/eigenmode_ports/port1``
+     - ``frequency``, ``incident``, ``outgoing``, and ``S`` when available; solve frequencies and mode labels are in ``CandidateAnchorFrequencies`` and ``ModeIndices`` attributes, with ``anchor_complex_neff`` as a dataset.
+     - Measurement frequencies differ from solve anchors. Use ``coefficient_valid`` for modal coefficients and ``power_wave_valid`` for power waves; use the corresponding ``*_S`` masks for S-parameters.
+
+A smooth dispersion curve or an empty ``unresolved_interval_modes`` array
+does not establish that every degenerate block has a unique physical basis.
+Inspect ``mode_separation``, ``symmetry_subspaces``, and
+``unresolved_transport`` for that question. For valid S-parameters, also
+require their validity masks and finite complex values. The detailed schema
+and transform conventions are in :ref:`tracking-hdf5-theory`.
 
 .. _tracking-hybrid-conventions:
 
@@ -810,12 +988,30 @@ Run these commands from the repository root in that order:
 runs. The result plotter produces the modal S-parameter and receiver-trace
 figures after each full run. This example uses ``verification="fast"`` for
 inspection; when adapting the model, omit that setting or select ``"full"``
-for the additional convergence checks. In the recorded double-precision
-CPU run, worst co-polarized S11 was about -62.9 dB for either polarization,
-with co-polarized S21 near 0 dB.
+for the additional convergence checks. The double-precision CPU runs were
+regenerated on 24 October 2026. Worst co-polarized S11 is -62.9 dB for either
+polarization, and the largest co-polarized S21 magnitude deviation from
+0 dB is 0.0000326 dB. Both launches retain valid power-wave masks, finite
+scattering data, and no unresolved tracking intervals.
 
 :download:`Complete simulation model <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11.py>`
 and :download:`simulation result plotter <../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/plot_results.py>`.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode1_results.png
+   :width: 95%
+   :alt: Circular TE11 mode 1 reflection, transmission, and receiver polarization.
+
+   Launching the first automatically oriented TE11 channel.
+
+.. figure:: ../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/auto_degenerate_te11_mode2_results.png
+   :width: 95%
+   :alt: Circular TE11 mode 2 reflection, transmission, and receiver polarization.
+
+   Launching its orthogonal partner. User polarization mixing requires a
+   certified C4v E pair with significant, well-conditioned rank-two electric moments.
+
+:download:`Recorded measurements and source hashes
+<../../examples/features/eigenmode_ports/example_8_auto_degenerate_te11/recorded_results.json>`.
 
 .. _eigenmode-example-9:
 
@@ -868,7 +1064,7 @@ and :download:`result plotter <../../examples/features/eigenmode_ports/example_9
    Launching tracked mode 4: TE02 / Ex. Both full runs retain valid power-wave
    masks over the measurement band and have no unresolved tracking intervals.
 
-The recorded double-precision CPU runs have worst co-channel S11 of
+The double-precision CPU runs regenerated on 24 October 2026 have worst co-channel S11 of
 -81.1 dB and -62.4 dB for launched modes 3 and 4. The largest co-channel
 S21 magnitude deviation from 0 dB is 0.000102 dB. These results concern the
 represented mesh and port sampling; they do not establish convergence to
@@ -935,6 +1131,15 @@ conductivity surface-impedance preset with an ADE fit over 1–120 GHz.
 Dielectric apertures have distant artificial PEC rims, and cylindrical
 boundaries are staircased. Detected symmetry labels describe that sampled
 problem.
+
+All eleven galleries were regenerated on 24 October 2026 with longitudinal
+TE/TM separation followed by Ku-Kv and Ku+Kv, symmetry refinement, and
+Procrustes transport within any remaining unresolved blocks. Every retained
+gallery mode passes the numerical and reference-validity checks, with no
+unresolved tracking intervals. The finite copper windows retain
+``unbound_suspect`` confinement flags from artificial-edge participation;
+their manifests preserve these warnings. Numerical validity alone does not
+establish aperture convergence or an exact continuum modal identity.
 
 To regenerate a gallery, run its script from the repository root, for example::
 
@@ -1151,6 +1356,12 @@ geometry-only native port snapshots with an undriven material-parameter
 FDFD sweep and analytical comparisons. At the exact numerical coincidence,
 all four input modes are deliberately mixed, and tracking recovers the two
 persistent pairs.
+
+In the regenerated 64- and 96-cell parameter sweeps, the maximum relative
+propagation-constant error is below 0.000157, the minimum analytical profile
+subspace overlap exceeds 0.9999999, and the maximum Maxwell residual is
+below 2.2e-12. The recorded sweep includes the deliberately mixed exact
+crossing at each mesh's numerical coincidence.
 
 Regenerate them with::
 

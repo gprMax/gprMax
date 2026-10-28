@@ -171,7 +171,11 @@ def create_solver(model: Model) -> Solver:
                 source_grid.halo_swap_electric()
                 source_grid.complete_halo_swaps()
 
-    if config.sim_config.general["subgrid"]:
+    if getattr(grid, "is_distributed", False) is True and getattr(model, "subgrids", ()):
+        # Defence in depth: SubGridBase.setup normally rejects this earlier.
+        raise ValueError("Subgrids cannot be coupled to an MPI domain-decomposed grid.")
+
+    if config.sim_config.general["subgrid"] and getattr(grid, "is_distributed", False) is not True:
         updates = create_subgrid_updates(model)
         # CPU only: the CUDA path picks its dispersive kernels at build
         # time, and this would replace them with Cython function pointers.

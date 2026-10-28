@@ -1,0 +1,527 @@
+{
+  "started_utc": "2026-10-24T10:04:40.390964+00:00",
+  "status": "complete",
+  "modes": 16,
+  "spacing_mm": 0.25,
+  "verification": "fast",
+  "anchors_hz": {
+    "pec_rectangular": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "pec_square": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "pec_cylindrical": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "copper_rectangular": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "copper_square": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "copper_cylindrical": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "dielectric_rectangular": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "dielectric_square": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ],
+    "dielectric_cylindrical": [
+      39000000000.0,
+      39500000000.0,
+      40000000000.0,
+      40500000000.0,
+      41000000000.0
+    ]
+  },
+  "excitation": false,
+  "geometry_only": true,
+  "time_stepping": false,
+  "cases": [
+    {
+      "case": "pec_rectangular",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "c2v",
+      "symmetry_groups": [
+        {
+          "modes": [
+            2,
+            3
+          ],
+          "applied": "c2v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            4,
+            5
+          ],
+          "applied": "c2v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            6,
+            7
+          ],
+          "applied": "c2v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            9,
+            10
+          ],
+          "applied": "c2v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            11,
+            12
+          ],
+          "applied": "c2v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            13,
+            14
+          ],
+          "applied": "c2v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            15,
+            16,
+            17,
+            18
+          ],
+          "applied": "c2v",
+          "attempts": []
+        }
+      ],
+      "automatic_groups": "2,3;4,5;6,7;9,10;11,12;13,14;15,16,17,18",
+      "maximum_residual": 1.0002066984499842e-12,
+      "minimum_real_neff": 0.5116120655109513,
+      "plots": [
+        "pec_rectangular_dispersion.png",
+        "pec_rectangular_E_modes.png",
+        "pec_rectangular_H_modes.png"
+      ]
+    },
+    {
+      "case": "pec_square",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "c4v",
+      "symmetry_groups": [
+        {
+          "modes": [
+            1,
+            2
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            3,
+            4
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            5,
+            6
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            11,
+            12
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            13,
+            14
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            15,
+            16,
+            17,
+            18
+          ],
+          "applied": "c4v",
+          "attempts": []
+        }
+      ],
+      "automatic_groups": "1,2;3,4;5,6;7,8,9,10;11,12;13,14;15,16,17,18",
+      "maximum_residual": 4.111829580581124e-13,
+      "minimum_real_neff": 0.7945465784899262,
+      "plots": [
+        "pec_square_dispersion.png",
+        "pec_square_E_modes.png",
+        "pec_square_H_modes.png"
+      ]
+    },
+    {
+      "case": "pec_cylindrical",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "c4v",
+      "symmetry_groups": [
+        {
+          "modes": [
+            1,
+            2
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            7,
+            8
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            9,
+            10
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            15,
+            16
+          ],
+          "applied": "c4v",
+          "attempts": []
+        }
+      ],
+      "automatic_groups": "1,2;7,8;9,10;15,16",
+      "maximum_residual": 4.706900043655839e-13,
+      "minimum_real_neff": 0.7583168890598989,
+      "plots": [
+        "pec_cylindrical_dispersion.png",
+        "pec_cylindrical_E_modes.png",
+        "pec_cylindrical_H_modes.png"
+      ]
+    },
+    {
+      "case": "copper_rectangular",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "not applied",
+      "symmetry_groups": [],
+      "automatic_groups": "",
+      "maximum_residual": 3.5673674595582635e-12,
+      "minimum_real_neff": 0.5117178067818944,
+      "plots": [
+        "copper_rectangular_dispersion.png",
+        "copper_rectangular_E_modes.png",
+        "copper_rectangular_H_modes.png"
+      ]
+    },
+    {
+      "case": "copper_square",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "c4v",
+      "symmetry_groups": [
+        {
+          "modes": [
+            1,
+            2
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            5,
+            6
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            7,
+            8
+          ],
+          "applied": "c2v",
+          "attempts": [
+            {
+              "symmetry": "c4v",
+              "reason": "Symmetry action 'rotation_90' does not preserve modal group (7, 8)."
+            }
+          ]
+        },
+        {
+          "modes": [
+            9,
+            10
+          ],
+          "applied": "c2v",
+          "attempts": [
+            {
+              "symmetry": "c4v",
+              "reason": "Symmetry action 'rotation_90' does not preserve modal group (9, 10)."
+            }
+          ]
+        },
+        {
+          "modes": [
+            13,
+            14
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            15,
+            16
+          ],
+          "applied": "c4v",
+          "attempts": []
+        }
+      ],
+      "automatic_groups": "1,2;5,6;7,8;9,10;13,14;15,16",
+      "maximum_residual": 4.656600239527518e-13,
+      "minimum_real_neff": 0.7945897201159604,
+      "plots": [
+        "copper_square_dispersion.png",
+        "copper_square_E_modes.png",
+        "copper_square_H_modes.png"
+      ]
+    },
+    {
+      "case": "copper_cylindrical",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "c4v",
+      "symmetry_groups": [
+        {
+          "modes": [
+            1,
+            2
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            7,
+            8
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            9,
+            10
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            15,
+            16
+          ],
+          "applied": "c4v",
+          "attempts": []
+        }
+      ],
+      "automatic_groups": "1,2;7,8;9,10;15,16",
+      "maximum_residual": 4.816026376836144e-13,
+      "minimum_real_neff": 0.7583450501108516,
+      "plots": [
+        "copper_cylindrical_dispersion.png",
+        "copper_cylindrical_E_modes.png",
+        "copper_cylindrical_H_modes.png"
+      ]
+    },
+    {
+      "case": "dielectric_rectangular",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "not applied",
+      "symmetry_groups": [],
+      "automatic_groups": "",
+      "maximum_residual": 2.85442411989045e-14,
+      "minimum_real_neff": 1.7414870949696404,
+      "plots": [
+        "dielectric_rectangular_dispersion.png",
+        "dielectric_rectangular_E_modes.png",
+        "dielectric_rectangular_H_modes.png"
+      ]
+    },
+    {
+      "case": "dielectric_square",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "c4v",
+      "symmetry_groups": [
+        {
+          "modes": [
+            1,
+            2
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            7,
+            8
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            9,
+            10
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            11,
+            12
+          ],
+          "applied": "c4v",
+          "attempts": []
+        }
+      ],
+      "automatic_groups": "1,2;7,8;9,10;11,12",
+      "maximum_residual": 2.0582062035883292e-14,
+      "minimum_real_neff": 1.8942053842302438,
+      "plots": [
+        "dielectric_square_dispersion.png",
+        "dielectric_square_E_modes.png",
+        "dielectric_square_H_modes.png"
+      ]
+    },
+    {
+      "case": "dielectric_cylindrical",
+      "mode_count": 16,
+      "anchor_count": 5,
+      "detected_symmetry": "c4v",
+      "symmetry_groups": [
+        {
+          "modes": [
+            1,
+            2
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            7,
+            8
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            9,
+            10
+          ],
+          "applied": "c4v",
+          "attempts": []
+        },
+        {
+          "modes": [
+            11,
+            12
+          ],
+          "applied": "c4v",
+          "attempts": []
+        }
+      ],
+      "automatic_groups": "1,2;7,8;9,10;11,12",
+      "maximum_residual": 2.1707185856120507e-14,
+      "minimum_real_neff": 1.8631405140459698,
+      "plots": [
+        "dielectric_cylindrical_dispersion.png",
+        "dielectric_cylindrical_E_modes.png",
+        "dielectric_cylindrical_H_modes.png"
+      ]
+    }
+  ],
+  "source_sha256": {
+    "gallery.py": "e5f92deb332b2814e660efeb8e423f321328d5620cc010f5228ee75aaea48b24",
+    "plot_results.py": "735470618f522a9ba333d053d3f849f4b8e1328e2b829a3a7c08c9052fc653b4"
+  }
+}

@@ -152,6 +152,9 @@ and the general inclusive pole representation used internally by gprMax.
 Field names carry units explicitly; for example a Debye pole uses
 ``relative_permittivity_difference`` and ``relaxation_time_s``. Perfect
 conductors use the ``builtin`` model rather than non-standard JSON infinity.
+Perfect conductors, whether ``builtin`` or with ``"inf"`` conductivity, do
+not participate in dielectric smoothing: ``averagable`` may be omitted or
+``false`` for them, and ``true`` is rejected.
 The optional ``mass_density_kg_per_m3`` field is finite and strictly positive.
 It is retained as cell-centred physical metadata and does not participate in
 electromagnetic material averaging. When omitted, density is unspecified;
@@ -262,11 +265,15 @@ These are three keys in the same JSON database, not numeric grid IDs. The
 scalar base values on that record are display/estimate means, not a substitute
 for the directional constitutive definitions. ``GeometryObjectsRead`` restores
 the referenced materials before the cell record, including dispersion and
-density. Such files require the complete ``ID``, ``rigidE``, and ``rigidH``
-arrays; scalar voxel-only reconstruction would lose the directional model
-and is rejected. Do not load a generated directional record with
-``MaterialFromDatabase`` as an ordinary scalar material. Existing isotropic
-geometry files require no new metadata.
+density. A reference may itself be directional: each outer axis follows the
+same axis of the nested record until it reaches a scalar material, so nested
+records are equivalent to the diagonal tensor formed by their scalar leaves.
+Referenced entries may exist only in the JSON database and need not appear in
+``/material_keys``. Circular references are rejected. Such files require the
+complete ``ID``, ``rigidE``, and ``rigidH`` arrays; scalar voxel-only
+reconstruction would lose the directional model and is rejected. Do not load
+a generated directional record with ``MaterialFromDatabase`` as an ordinary
+scalar material. Existing isotropic geometry files require no new metadata.
 
 Regenerate older anisotropic geometry exports from their input models if they
 lack these directional references: scalar mean cell properties alone do not

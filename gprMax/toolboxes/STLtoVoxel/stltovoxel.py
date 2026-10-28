@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+import h5py
 import numpy as np
 
 from gprMax.material_database import create_database_document, make_database_id, write_database
@@ -18,7 +19,7 @@ from gprMax.toolboxes.GeometryImport.common import (
     write_geometry_hdf5,
 )
 
-from .convert import convert_files
+from .convert import ROTATE_ABOUT, voxelise_stl_files
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +203,53 @@ def main():
         default="mm",
         help="unit used by STL coordinates (default: mm for backwards compatibility)",
     )
+    parser.add_argument(
+        "--rotate",
+        type=float,
+        nargs=3,
+        metavar=("RX", "RY", "RZ"),
+        help=(
+            "rotate the geometry by RX, RY and RZ degrees about the x, y and z axes, "
+            "in that order (fixed axes, anticlockwise looking towards the origin)"
+        ),
+    )
+    parser.add_argument(
+        "--rotate-about",
+        choices=ROTATE_ABOUT,
+        default="bbox",
+        help=(
+            "centre of rotation: the centre of the bounding box of all included STL files "
+            "(default) or the coordinate origin"
+        ),
+    )
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=1.0,
+        help="uniform scale factor applied about the coordinate origin (default: 1)",
+    )
+    parser.add_argument(
+        "--translate",
+        type=float,
+        nargs=3,
+        metavar=("DX", "DY", "DZ"),
+        help="move the geometry by DX, DY and DZ, in the --unit unit, after rotating and scaling",
+    )
+    parser.add_argument(
+        "--supersample",
+        type=int,
+        default=1,
+        help=(
+            "samples per cell and axis; 1 (default) fills a cell when its centre is inside, "
+            "larger values when most of its samples are inside"
+        ),
+    )
+    parser.add_argument(
+        "--pad-cells",
+        type=int,
+        default=0,
+        help="empty cells added on every side of the geometry (default: 0)",
+    )
     args = parser.parse_args()
 
     input_path = Path(args.stlfiles)
@@ -226,6 +274,14 @@ def main():
         return
     if args.dxdydz is None:
         parser.error("-dxdydz is required when converting STL geometry")
+    if not args.dxdydz > 0:
+        parser.error("-dxdydz must be positive")
+    if not args.scale > 0:
+        parser.error("--scale must be positive")
+    if args.supersample < 1:
+        parser.error("--supersample must be at least 1")
+    if args.pad_cells < 0:
+        parser.error("--pad-cells must be non-negative")
 
     try:
         assignments = read_assignments(files, args.assignments)
@@ -243,7 +299,21 @@ def main():
 
     newline = "\n\t"
     logger.info(f"\nConverting STL file(s): {newline.join(map(str, files))}")
-    component_array = convert_files(files, dxdydz, source_unit=args.unit)
+    placement = {
+        "rotate": args.rotate,
+        "rotate_about": args.rotate_about,
+        "scale": args.scale,
+        "translate": args.translate,
+    }
+    voxels = voxelise_stl_files(
+        files,
+        dxdydz,
+        source_unit=args.unit,
+        pad=args.pad_cells,
+        supersample=args.supersample,
+        **placement,
+    )
+    component_array = voxels.data
     logger.info(
         "Number of voxels: "
         f"{component_array.shape[0]} x {component_array.shape[1]} x "
@@ -285,12 +355,29 @@ def main():
         filename_hdf5,
         material_array,
         dxdydz,
+        origin=voxels.origin,
         material_keys=material_keys,
         material_database=database_id,
         tag_data=tag_data,
         tag_names=tag_names,
     )
+    settings = {
+        "tool": "STLtoVoxel",
+        "source_files": [str(path) for path in files],
+        "unit": args.unit,
+        "supersample": args.supersample,
+        "pad_cells": args.pad_cells,
+        **placement,
+    }
+    with h5py.File(filename_hdf5, "a") as geometry:
+        geometry.attrs["conversion_settings"] = json.dumps(settings)
     logger.info(f"Written geometry object file: {filename_hdf5}")
+    origin = ", ".join(f"{value:.9g}" for value in voxels.origin)
+    logger.info(f"Grid origin (lower corner of the first cell): ({origin}) m")
+    logger.info(
+        f"To keep the STL coordinates, place it with GeometryObjectsRead p1 = ({origin}) m; "
+        "to move it, shift p1 by whole cells or convert with --translate"
+    )
 
     # Do not silently invent properties for CAD/STL solids. The null values
     # make this an editable template and produce a clear validation error if
