@@ -129,6 +129,30 @@ def resolve_geometry_materials(
     return materials
 
 
+def fractal_seed(value, where):
+    """A fractal's seed as a whole number (None when none is given).
+
+    Given as a number or as text (from an input file), it must be whole (42, 42.0 or "42"): a
+    value such as 4.2 is refused rather than cut down to 4.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, np.integer)) and not isinstance(value, bool):
+        return int(value)
+    text = str(value).strip()
+    try:
+        return int(text)
+    except ValueError:
+        pass
+    try:
+        number = float(text)
+    except ValueError:
+        number = float("nan")
+    if not np.isfinite(number) or not number.is_integer():
+        raise ValueError(f"{where} the seed must be a whole number, not {value!r}")
+    return int(number)
+
+
 def geometry_tag_args(grid, tag):
     """Return the optional dense map and compact ID expected by Cython builders."""
 

@@ -314,9 +314,11 @@ class Waveform(GridUserObject):
         amp (float): Factor to scale the maximum amplitude of the
             waveform by. (For a #hertzian_dipole the units will be Amps,
             for a #voltage_source or #transmission_line the units will
-            be Volts).
+            be Volts). Required, except for a 'user' waveform, which is used
+            as given (this is not read).
         freq: Centre frequency (Hz) of the waveform. In the case of the
-            Gaussian waveform it is related to the pulse width.
+            Gaussian waveform it is related to the pulse width. Required,
+            except for a 'user' waveform (this is not read).
         id (str): Identifier of the waveform.
         user_values: Optional 1D array of amplitude values to use with
             user waveform.
@@ -4131,9 +4133,12 @@ class Material(GridUserObject):
 class MaterialFromDatabase(GridUserObject):
     """Create a material from a versioned JSON material database.
 
-    Official databases are installed with gprMax. A user database is a JSON
-    file named ``<database>.json`` beside the input file, or in the current
-    working directory for a direct Python API model.
+    Official databases are installed with gprMax. At present only
+    ``fundamental`` (``vacuum``, ``pec``, ``pmc``) has entries; ``gpr``,
+    ``antenna`` and ``bioem`` are reserved for curated material models and are
+    empty. A user database is a JSON file named ``<database>.json`` beside the
+    input file, or in the current working directory for a direct Python API
+    model.
 
     Args:
         database (str): Name of an official database or of a local JSON database.
@@ -5051,7 +5056,9 @@ class PMLCFS(GridUserObject):
         sigmascalingdirection: string required for direction of scaling to use
                                 for CFS sigma parameter.
         sigmamin: float required for minimum value for the CFS sigma parameter.
-        sigmamax: float required for maximum value for the CFS sigma parameter.
+        sigmamax: float or None, required: maximum value for the CFS sigma
+                                parameter. None (or 'None' in an input file)
+                                lets gprMax work out the optimal value.
         profile_id: optional reusable PML-profile identifier. If omitted, the
             parameters modify the global domain-PML configuration.
     """

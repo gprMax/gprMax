@@ -23,6 +23,7 @@ from .user_objects.cmds_geometry.add_grass import AddGrass
 from .user_objects.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .user_objects.cmds_geometry.add_surface_water import AddSurfaceWater
 from .user_objects.cmds_geometry.box import Box
+from .user_objects.cmds_geometry.cmds_geometry import fractal_seed
 from .user_objects.cmds_geometry.cone import Cone
 from .user_objects.cmds_geometry.cylinder import Cylinder
 from .user_objects.cmds_geometry.cylindrical_sector import CylindricalSector
@@ -575,7 +576,7 @@ def process_geometrycmds(geometry):
                     n_materials=n_materials,
                     mixing_model_id=mixing_model_id,
                     id=ID,
-                    seed=int(tmp[14]),
+                    seed=fractal_seed(tmp[14], "'" + " ".join(tmp) + "'"),
                     tag=tag,
                 )
             elif len(tmp) == 16:
@@ -587,7 +588,7 @@ def process_geometrycmds(geometry):
                     n_materials=n_materials,
                     mixing_model_id=mixing_model_id,
                     id=ID,
-                    seed=tmp[14],
+                    seed=fractal_seed(tmp[14], "'" + " ".join(tmp) + "'"),
                     averaging=tmp[15],
                     tag=tag,
                 )
@@ -636,7 +637,7 @@ def process_geometrycmds(geometry):
                             weighting=weighting,
                             limits=limits,
                             fractal_box_id=fractal_box_id,
-                            seed=int(tmp[13]),
+                            seed=fractal_seed(tmp[13], "'" + " ".join(tmp) + "'"),
                         )
                     else:
                         logger.exception(
@@ -700,7 +701,7 @@ def process_geometrycmds(geometry):
                             limits=limits,
                             n_blades=n_blades,
                             fractal_box_id=fractal_box_id,
-                            seed=int(tmp[12]),
+                            seed=fractal_seed(tmp[12], "'" + " ".join(tmp) + "'"),
                         )
                     else:
                         logger.exception(

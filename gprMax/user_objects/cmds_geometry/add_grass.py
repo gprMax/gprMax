@@ -24,6 +24,7 @@ from gprMax.fractals.fractal_surface import FractalSurface
 from gprMax.fractals.grass import Grass
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_grass
+from gprMax.user_objects.cmds_geometry.cmds_geometry import fractal_seed
 from gprMax.user_objects.user_objects import GeometryUserObject
 from gprMax.utilities.utilities import round_value
 
@@ -75,7 +76,7 @@ class AddGrass(GeometryUserObject):
             raise
 
         try:
-            seed = int(self.kwargs["seed"])
+            seed = fractal_seed(self.kwargs["seed"], self.__str__())
         except KeyError:
             logger.warning(
                 f"{self.__str__()} no value for seed detected. This "

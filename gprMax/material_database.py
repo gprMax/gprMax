@@ -397,10 +397,15 @@ def load_material_spec(
             f"'{database}'"
         )
     if material not in materials:
-        choices = ", ".join(sorted(materials)) or "(none)"
+        if not materials:
+            raise KeyError(
+                f"Material '{material}' does not exist in database '{database}': it has no "
+                "materials yet"
+                + (" (it is reserved for curated material models)" if official else "")
+            )
         raise KeyError(
             f"Material '{material}' does not exist in database '{database}'. "
-            f"Available entries: {choices}"
+            f"Available entries: {', '.join(sorted(materials))}"
         )
     entry = materials[material]
     if not isinstance(entry, dict):
