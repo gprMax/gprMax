@@ -17,6 +17,16 @@ Fractal volumes and rough surfaces
   are unaffected, and previously exported geometry is unchanged; reuse it
   where earlier geometry must be reproduced exactly.
 
+Subgrids
+--------
+
+* A subgrid whose Outer Surface (``is_os_sep`` main grid cells outside it) is
+  not at least one main grid cell inside the domain is now rejected when the
+  model is built, with a message naming the axis. Previously such a model
+  failed once time stepping started, with a segmentation fault, an
+  ``OverflowError`` or an ``IndexError``. A subgrid whose Outer Surface lay
+  exactly on the domain's upper edge used to run; it is now rejected too.
+
 PMC symmetry boundaries and PML
 -------------------------------
 

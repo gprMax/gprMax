@@ -241,7 +241,8 @@ class SubGridHSG(SubGridBase):
         id (str): Required nonempty string identifier, unique within the Scene.
             Path separators, NUL, '.' and '..' are not allowed.
         is_os_sep (int): Number of main grid cells between the Inner Surface and
-            the Outer Surface. Defaults to 3.
+            the Outer Surface. Defaults to 3. The Outer Surface must lie at least
+            one main grid cell inside the domain on every side.
         pml_separation (int): Retained for API compatibility, but the HSG
             formulation fixes the number of sub-grid cells between the Outer
             Surface and the PML at ``ratio // 2 + 2``. Any supplied value is

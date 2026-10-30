@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
+from decimal import Decimal, InvalidOperation
 
 import numpy as np
 
@@ -133,24 +134,34 @@ def fractal_seed(value, where):
     """A fractal's seed as a whole number (None when none is given).
 
     Given as a number or as text (from an input file), it must be whole (42, 42.0 or "42"): a
-    value such as 4.2 is refused rather than cut down to 4.
+    value such as 4.2 is refused rather than cut down to 4. The check is exact: a binary float
+    is taken at its exact value, and text (or a Decimal) is read as an exact decimal, so a large
+    seed keeps every digit and a tiny fraction such as "1e-400" is refused, not rounded away.
     """
     if value is None:
         return None
     if isinstance(value, (int, np.integer)) and not isinstance(value, bool):
         return int(value)
-    text = str(value).strip()
-    try:
-        return int(text)
-    except ValueError:
-        pass
-    try:
-        number = float(text)
-    except ValueError:
-        number = float("nan")
-    if not np.isfinite(number) or not number.is_integer():
-        raise ValueError(f"{where} the seed must be a whole number, not {value!r}")
-    return int(number)
+    if isinstance(value, (float, np.floating)):
+        try:
+            top, bottom = value.as_integer_ratio()
+        except (OverflowError, ValueError):  # inf or nan
+            bottom = 0
+        if bottom == 1:
+            return int(top)
+    elif not isinstance(value, bool):
+        text = str(value).strip()
+        try:
+            return int(text)
+        except ValueError:
+            pass
+        try:
+            number = Decimal(text)
+        except InvalidOperation:
+            number = None
+        if number is not None and number.is_finite() and number == number.to_integral_value():
+            return int(number)
+    raise ValueError(f"{where} the seed must be a whole number, not {value!r}")
 
 
 def geometry_tag_args(grid, tag):
