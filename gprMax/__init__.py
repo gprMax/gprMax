@@ -72,6 +72,7 @@ from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRea
 from .user_objects.cmds_geometry.helix import Helix
 from .user_objects.cmds_geometry.magnetic_edge import MagneticEdge
 from .user_objects.cmds_geometry.plate import Plate
+from .user_objects.cmds_geometry.rebar_mesh import RebarMesh
 from .user_objects.cmds_geometry.sphere import Sphere
 from .user_objects.cmds_geometry.thin_wire import ThinWire
 from .user_objects.cmds_geometry.triangle import Triangle

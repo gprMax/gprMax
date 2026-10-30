@@ -33,6 +33,7 @@ from .user_objects.cmds_geometry.fractal_box import FractalBox
 from .user_objects.cmds_geometry.helix import Helix
 from .user_objects.cmds_geometry.magnetic_edge import MagneticEdge
 from .user_objects.cmds_geometry.plate import Plate
+from .user_objects.cmds_geometry.rebar_mesh import RebarMesh
 from .user_objects.cmds_geometry.sphere import Sphere
 from .user_objects.cmds_geometry.thin_wire import ThinWire
 from .user_objects.cmds_geometry.triangle import Triangle
@@ -106,6 +107,7 @@ def process_geometrycmds(geometry):
             "#triangle:": 12,
             "#box:": 8,
             "#cylinder:": 9,
+            "#rebar_mesh:": 13,
             "#cone:": 10,
             "#cylindrical_sector:": 10,
             "#helix:": 13,
@@ -121,6 +123,12 @@ def process_geometrycmds(geometry):
                 # smoothing marker and tag. Directional primitives already
                 # disable smoothing, so only their three material IDs remain.
                 tag, tmp = tmp[-1], tmp[:-2]
+            elif (
+                tmp[0] == "#rebar_mesh:"
+                and len(tmp) == base_length + 3
+                and tmp[-1].lower() in {"y", "n"}
+            ):
+                tmp = tmp[:-1]
 
         # A fractal tag follows the existing seed and y/n smoothing values.
         elif tmp[0] == "#fractal_box:":
@@ -314,6 +322,68 @@ def process_geometrycmds(geometry):
 
             scene_objects.append(cylinder)
 
+        elif tmp[0] == "#rebar_mesh:":
+            if len(tmp) < 13:
+                logger.exception(
+                    "'" + " ".join(tmp) + "' requires at least twelve parameters"
+                )
+                raise ValueError
+
+            p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
+            p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
+            spacing = (float(tmp[7]), float(tmp[8]))
+            diameter = float(tmp[9])
+            cover = float(tmp[10])
+            layer_spacing = float(tmp[11])
+
+            # Isotropic case with no user specified averaging
+            if len(tmp) == 13:
+                rebar_mesh = RebarMesh(
+                    p1=p1,
+                    p2=p2,
+                    spacing=spacing,
+                    diameter=diameter,
+                    cover=cover,
+                    layer_spacing=layer_spacing,
+                    material_id=tmp[12],
+                    tag=tag,
+                )
+
+            # Isotropic case with user specified averaging
+            elif len(tmp) == 14:
+                rebar_mesh = RebarMesh(
+                    p1=p1,
+                    p2=p2,
+                    spacing=spacing,
+                    diameter=diameter,
+                    cover=cover,
+                    layer_spacing=layer_spacing,
+                    material_id=tmp[12],
+                    averaging=tmp[13],
+                    tag=tag,
+                )
+
+            # Uniaxial anisotropic case
+            elif len(tmp) == 15:
+                rebar_mesh = RebarMesh(
+                    p1=p1,
+                    p2=p2,
+                    spacing=spacing,
+                    diameter=diameter,
+                    cover=cover,
+                    layer_spacing=layer_spacing,
+                    material_ids=tmp[12:],
+                    tag=tag,
+                )
+
+            else:
+                logger.exception(
+                    "'" + " ".join(tmp) + "' too many parameters have been given"
+                )
+                raise ValueError
+
+            scene_objects.append(rebar_mesh)
+
         elif tmp[0] == "#helix:":
             if len(tmp) < 13:
                 logger.exception(
@@ -370,7 +440,9 @@ def process_geometrycmds(geometry):
                 )
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
+                logger.exception(
+                    "'" + " ".join(tmp) + "' too many parameters have been given"
+                )
                 raise ValueError
 
             scene_objects.append(helix)
