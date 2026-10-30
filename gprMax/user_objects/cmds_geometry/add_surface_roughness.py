@@ -21,6 +21,7 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.user_objects.cmds_geometry.cmds_geometry import fractal_seed
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
@@ -43,8 +44,9 @@ class AddSurfaceRoughness(GeometryUserObject):
             which the surface roughness can vary.
         fractal_box_id: string identifier for the FractalBox class that
             the surface roughness should be applied to.
-        seed: (optional) float parameter which controls the seeding of
-            the random number generator used to create the fractals.
+        seed: (optional) whole number seeding the random number generator used
+            to create the fractals: the same seed gives the same surface. Without
+            one the surface differs from run to run.
     """
 
     @property
@@ -71,7 +73,7 @@ class AddSurfaceRoughness(GeometryUserObject):
             raise
 
         try:
-            seed = int(self.kwargs["seed"])
+            seed = fractal_seed(self.kwargs["seed"], self.__str__())
         except KeyError:
             logger.warning(
                 f"{self.__str__()} no value for seed detected. This "

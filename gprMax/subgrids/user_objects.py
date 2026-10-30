@@ -118,6 +118,30 @@ class SubGridBase(ModelUserObject):
         """Sets number of iterations that will take place in the subgrid."""
         sg.iterations = model.iterations * sg.ratio
 
+    def check_outer_surface(self, uip: MainGridUserInput, grid: FDTDGrid, p1, p2):
+        """The Outer Surface, ``is_os_sep`` main grid cells outside the Inner Surface, must lie
+        at least one cell inside the main grid on every side: the coupling there reads the main
+        grid's fields on both sides of it. Without this check a subgrid near the domain's edge
+        failed only once time stepping started, with a segmentation fault, an OverflowError or
+        an IndexError."""
+        sep = self.kwargs["is_os_sep"]
+        if hasattr(grid, "global_size"):
+            size = np.asarray(grid.global_size)
+        else:
+            size = np.array([grid.nx, grid.ny, grid.nz])
+        lower = uip.discretise_static_point(p1) - sep
+        upper = uip.discretise_static_point(p2) + sep
+        axes = [a for a, lo, hi, n in zip("xyz", lower, upper, size) if lo < 1 or hi > n - 1]
+        if axes:
+            raise ValueError(
+                f"{self.__str__()} the Outer Surface ({sep} main grid cells outside the subgrid) "
+                "must lie at least one cell inside the domain; "
+                f"it does not along {', '.join(axes)} "
+                f"(Outer Surface from cell {list(map(int, lower))} to {list(map(int, upper))}, "
+                f"domain {list(map(int, size))} cells). Move the subgrid further in or make the "
+                "domain larger."
+            )
+
     def setup(self, sg: SubGridBaseGrid, model: Model):
         """ "Common setup to both all subgrid types."""
         validate_subgrid_id(self.kwargs["id"])
@@ -144,6 +168,7 @@ class SubGridBase(ModelUserObject):
                 mpi_tasks=model.G.mpi_tasks,
             )
         _, p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+        self.check_outer_surface(uip, model.G, self.kwargs["p1"], self.kwargs["p2"])
 
         self.set_discretisation(sg, model.G)
 
@@ -216,7 +241,8 @@ class SubGridHSG(SubGridBase):
         id (str): Required nonempty string identifier, unique within the Scene.
             Path separators, NUL, '.' and '..' are not allowed.
         is_os_sep (int): Number of main grid cells between the Inner Surface and
-            the Outer Surface. Defaults to 3.
+            the Outer Surface. Defaults to 3. The Outer Surface must lie at least
+            one main grid cell inside the domain on every side.
         pml_separation (int): Retained for API compatibility, but the HSG
             formulation fixes the number of sub-grid cells between the Outer
             Surface and the PML at ``ratio // 2 + 2``. Any supplied value is

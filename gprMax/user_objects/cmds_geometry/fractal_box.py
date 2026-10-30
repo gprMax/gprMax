@@ -25,6 +25,7 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import ListMaterial
 from gprMax.user_objects.cmds_geometry.cmds_geometry import (
     check_averaging,
+    fractal_seed,
     geometry_tag_args,
     resolve_geometry_materials,
 )
@@ -53,8 +54,9 @@ class FractalBox(GeometryUserObject):
                             material. Several boxes may share a mixing model;
                             each box uses its own n_materials bin mapping.
         id: string identifier for the fractal box itself.
-        seed: (optional) float parameter which controls the seeding of the
-                random number generator used to create the fractals.
+        seed: (optional) whole number seeding the random number generator used
+                to create the fractals: the same seed gives the same fractal. Without
+                one the fractal differs from run to run.
         averaging: string (y or n) used to switch on and off dielectric smoothing.
         tag: optional semantic geometry-tag string written to the final cells
             occupied by the fractal volume.
@@ -87,7 +89,7 @@ class FractalBox(GeometryUserObject):
             raise
 
         try:
-            seed = int(self.kwargs["seed"])
+            seed = fractal_seed(self.kwargs["seed"], self.__str__())
         except KeyError:
             logger.warning(
                 f"{self.__str__()} no value for seed detected. This "

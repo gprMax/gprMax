@@ -2205,6 +2205,14 @@ subgrids without that flag is rejected before model construction. Every subgrid
 must have a nonempty ``id`` unique within its Scene. IDs cannot contain path
 separators or NUL, or be ``.`` or ``..``, because they identify HDF5 groups.
 
+The subgrid is coupled to the main grid on its Outer Surface, which lies
+``is_os_sep`` main grid cells (default 3) outside ``p1`` and ``p2``. This
+surface must be at least one main grid cell inside the domain on every side,
+so ``p1`` must be at least ``is_os_sep + 1`` cells above the lower edge of the
+domain and ``p2`` at least ``is_os_sep + 1`` cells below its upper edge (4 cells
+with the default). A subgrid closer to the edge is rejected when the model is
+built.
+
 ``ratio=1`` selects an **equal-resolution embedded region**. This is exposed
 through ``SubGridHSG`` to avoid a second, overlapping object API, but it does
 not refine space or time: values are transferred directly on the shared Yee
