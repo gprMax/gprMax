@@ -86,7 +86,7 @@ def read_time_history(dataset, *, allow_matrix=False):
     if not isinstance(dataset, h5py.Dataset):
         raise ValueError("A time-domain HDF5 dataset is required")
     values = np.asarray(dataset)
-    if values.ndim not in ((1, 2) if allow_matrix else (1,)) or values.shape[0] == 0:
+    if values.ndim not in ((1, 2) if allow_matrix else (1,)) or 0 in values.shape:
         raise ValueError(
             f"{dataset.name} must be a nonempty {'one- or two-' if allow_matrix else 'one-'}dimensional history"
         )

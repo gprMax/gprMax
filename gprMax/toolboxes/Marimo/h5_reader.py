@@ -181,8 +181,17 @@ def get_time_axis(
     if receiver is not None or component is not None:
         if receiver is None or component is None:
             raise ValueError("receiver and component must be supplied together")
+        if receiver not in file_data["receivers"]:
+            raise KeyError(
+                f"Receiver '{receiver}' not found in file. Available: {list_receivers(file_data)}"
+            )
+        rx_info = file_data["receivers"][receiver]
+        if not rx_info.get("recorded", True):
+            raise ValueError(
+                f"Receiver '{receiver}' was not recorded (record=false); "
+                "it contains no stored trace data"
+            )
         try:
-            rx_info = file_data["receivers"][receiver]
             iterations = len(rx_info["components"][component])
             component_meta = rx_info.get("component_meta", {}).get(component, {})
         except KeyError as exc:
@@ -262,12 +271,24 @@ def get_trace(
         component = component[:-1]
         polarity = -1
 
+    if receiver not in file_data["receivers"]:
+        raise KeyError(
+            f"Receiver '{receiver}' not found in file. Available: {list_receivers(file_data)}"
+        )
+
+    rx_info = file_data["receivers"][receiver]
+    if not rx_info.get("recorded", True):
+        raise ValueError(
+            f"Receiver '{receiver}' was not recorded (record=false); "
+            "it contains no stored trace data"
+        )
+
     try:
-        arr = file_data["receivers"][receiver]["components"][component]
+        arr = rx_info["components"][component]
     except KeyError:
         available = list_components(file_data, receiver)
         raise KeyError(
-            f"Component '{component}' not found in {receiver}. " f"Available: {available}"
+            f"Component '{component}' not found in {receiver}. Available: {available}"
         )
 
     return arr * polarity

@@ -80,12 +80,23 @@ def _mpl_plot_file(file, outputs, fft, show, f):
     paths = ["/"]
 
     # Check if any subgrids and add path(s)
-    is_subgrids = "/subgrids" in f
+    is_subgrids = isinstance(f.get("/subgrids"), h5py.Group)
     if is_subgrids:
-        paths = paths + ["/subgrids/" + path + "/" for path in f["/subgrids"].keys()]
+        paths = paths + [
+            "/subgrids/" + path + "/"
+            for path in f["/subgrids"].keys()
+            if isinstance(f["/subgrids"][path], h5py.Group)
+        ]
 
     # Get number of receivers in grid(s)
-    paths = [path for path in paths if f[path].attrs.get("nrx", 0) > 0]
+    paths = [
+        path
+        for path in paths
+        if f.get(path) is not None
+        and f[path].attrs.get("nrx", 0) > 0
+        and isinstance(f.get(path + "rxs"), h5py.Group)
+        and len(f[path + "rxs"]) > 0
+    ]
 
     # Check there are any receivers
     if not paths:
