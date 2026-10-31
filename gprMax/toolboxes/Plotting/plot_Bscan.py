@@ -94,7 +94,7 @@ def _validate_missing_traces(filename, outputdata, rxnumber, rxcomponent, trace_
                 path = f"rxs/rx{rxnumber}"
             else:
                 path = str(trace_group).strip("/")
-                if path.startswith(("name:", "study:", "build:", "rxs/")):
+                if path.startswith(("name:", "study:", "build:", "rxs/", "rx")) or path.isdigit():
                     path = select_receiver(receiver_catalogue(output), path).path
             group = output.get(path)
             dataset = group.get(rxcomponent) if isinstance(group, h5py.Group) else None
@@ -229,8 +229,9 @@ if __name__ == "__main__":
     if args.trace_group is not None:
         if args.gather:
             parser.error("--trace-group and -gather cannot be used together")
-        if args.rx_component != "Vtotal" and not args.trace_group.startswith(
-            ("name:", "study:", "build:", "rxs/")
+        if args.rx_component != "Vtotal" and not (
+            args.trace_group.startswith(("name:", "study:", "build:", "rxs/", "rx"))
+            or args.trace_group.strip("/").isdigit()
         ):
             parser.error("--trace-group requires the Vtotal component")
         outputdata, dt, offset = get_output_data(

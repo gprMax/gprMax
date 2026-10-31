@@ -274,3 +274,59 @@ def test_gather_receiver_outputs_empty_receivers_raises_value_error(tmp_path):
 
     with pytest.raises(ValueError, match="No receivers found"):
         gather_receiver_outputs(filename, "Ez")
+
+
+def test_plot_ascan_missing_rxs_group_raises_value_error(tmp_path):
+    filename = tmp_path / "missing_rxs.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 1
+        output.attrs["dt"] = 1e-10
+
+    with pytest.raises(ValueError, match="No receivers found"):
+        mpl_plot(filename, ["Ez"], show=False)
+
+
+def test_plot_ascan_empty_rxs_group_raises_value_error(tmp_path):
+    filename = tmp_path / "empty_rxs_group.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 1
+        output.attrs["dt"] = 1e-10
+        output.create_group("rxs")
+
+    with pytest.raises(ValueError, match="No receivers found"):
+        mpl_plot(filename, ["Ez"], show=False)
+
+
+def test_plot_ascan_all_unrecorded_receivers_raises_value_error(tmp_path):
+    filename = tmp_path / "unrecorded_rxs.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 1
+        output.attrs["dt"] = 1e-10
+        rx1 = output.create_group("rxs/rx1")
+        rx1.attrs["Recorded"] = False
+
+    with pytest.raises(ValueError, match="No recorded receivers found"):
+        mpl_plot(filename, ["Ez"], show=False)
+
+
+def test_plot_bscan_trace_group_rx_prefix(tmp_path):
+    from gprMax.toolboxes.Plotting.plot_Bscan import mpl_plot as bscan_plot
+    filename = tmp_path / "bscan_rx.h5"
+    with h5py.File(filename, "w") as output:
+        output.attrs["nrx"] = 1
+        output.attrs["dt"] = 1e-10
+        rx1 = output.create_group("rxs/rx1")
+        rx1.create_dataset("Ez", data=np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+    plt.close("all")
+    pyplot = bscan_plot(
+        filename,
+        np.array([[1.0, 2.0], [3.0, 4.0]]),
+        1e-10,
+        1,
+        "Ez",
+        trace_group="rx1",
+        show=False,
+    )
+    assert len(pyplot.get_fignums()) == 1
+    pyplot.close("all")
