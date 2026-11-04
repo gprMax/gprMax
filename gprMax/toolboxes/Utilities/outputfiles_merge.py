@@ -86,7 +86,7 @@ def get_output_data(
             )
         else:
             path = str(trace_group).strip("/")
-            if path.startswith(("name:", "study:", "build:", "rxs/")):
+            if path.startswith(("name:", "study:", "build:", "rxs/", "rx")) or path.isdigit():
                 path = select_receiver(receiver_catalogue(grid), path).path
                 allowed = TIME_DOMAIN_RECEIVER_OUTPUTS
             else:

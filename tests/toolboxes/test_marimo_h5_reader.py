@@ -296,6 +296,15 @@ class TestGetTimeAxis:
         with pytest.raises(ValueError, match="supplied together"):
             get_time_axis(loaded, receiver="rx1")
 
+    def test_missing_receiver_raises_key_error(self, loaded):
+        with pytest.raises(KeyError, match="Receiver 'rx99' not found in file"):
+            get_time_axis(loaded, receiver="rx99", component="Ez")
+
+    def test_unrecorded_receiver_raises_value_error(self, loaded):
+        loaded["receivers"]["rx1"]["recorded"] = False
+        with pytest.raises(ValueError, match="Receiver 'rx1' was not recorded"):
+            get_time_axis(loaded, receiver="rx1", component="Ez")
+
     @pytest.mark.parametrize(
         ("component", "expected"), [("Ex", 0.0), ("Ez", 0.0), ("Hx", -0.5 * DT), ("Hz", -0.5 * DT)]
     )
@@ -373,6 +382,15 @@ class TestGetTrace:
     def test_missing_component_raises(self, loaded):
         with pytest.raises(KeyError, match="Iz"):
             get_trace(loaded, "Iz")
+
+    def test_missing_receiver_raises_key_error(self, loaded):
+        with pytest.raises(KeyError, match="Receiver 'rx99' not found in file"):
+            get_trace(loaded, "Ez", receiver="rx99")
+
+    def test_unrecorded_receiver_raises_value_error(self, loaded):
+        loaded["receivers"]["rx1"]["recorded"] = False
+        with pytest.raises(ValueError, match="Receiver 'rx1' was not recorded"):
+            get_trace(loaded, "Ez", receiver="rx1")
 
 
 # get_unit_label

@@ -212,7 +212,7 @@ def collect_traces(
             receiver_path = trace_group.strip("/") if trace_group is not None else f"rxs/rx{rxnumber}"
             # Public paths/selectors identify the first file's receiver;
             # source/terminal trace groups keep their independent namespaces.
-            if receiver_path.startswith(("rxs/", "name:", "study:", "build:")):
+            if receiver_path.startswith(("rxs/", "name:", "study:", "build:", "rx")) or receiver_path.isdigit():
                 catalogue = receiver_catalogue(grid)
                 selected = (
                     select_receiver(catalogue, receiver_path)
