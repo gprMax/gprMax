@@ -81,3 +81,29 @@ def test_extract_head_rejects_an_invalid_first_plane(tmp_path):
 
     with np.testing.assert_raises_regex(ValueError, "between 0 and 7"):
         extract_head(source, first_head_plane=8)
+
+
+def test_extract_head_crops_component_and_tag_arrays_with_the_voxels(tmp_path):
+    source = tmp_path / "body.h5"
+    data = np.arange(2 * 3 * 8, dtype=np.int16).reshape(2, 3, 8)
+    ID = np.arange(6 * 3 * 4 * 9, dtype=np.uint32).reshape(6, 3, 4, 9)
+    rigidE = np.arange(12 * 2 * 3 * 8, dtype=np.int8).reshape(12, 2, 3, 8)
+    rigidH = np.arange(6 * 2 * 3 * 8, dtype=np.int8).reshape(6, 2, 3, 8)
+    tag_data = np.arange(2 * 3 * 8, dtype=np.uint16).reshape(2, 3, 8)
+    with h5py.File(source, "w") as output:
+        output.attrs["dx_dy_dz"] = (0.002, 0.002, 0.002)
+        output.create_dataset("data", data=data)
+        output.create_dataset("ID", data=ID)
+        output.create_dataset("rigidE", data=rigidE)
+        output.create_dataset("rigidH", data=rigidH)
+        output.create_dataset("tag_data", data=tag_data)
+
+    head = extract_head(source, first_head_plane=5)
+
+    with h5py.File(head, "r") as output:
+        np.testing.assert_array_equal(output["data"], data[:, :, 5:])
+        np.testing.assert_array_equal(output["ID"], ID[..., 5:])
+        np.testing.assert_array_equal(output["rigidE"], rigidE[..., 5:])
+        np.testing.assert_array_equal(output["rigidH"], rigidH[..., 5:])
+        np.testing.assert_array_equal(output["tag_data"], tag_data[..., 5:])
+        assert output["ID"].shape[1:] == tuple(n + 1 for n in output["data"].shape)

@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 _SPACING_ATTRIBUTE = "dx_dy_dz"
 _LEGACY_SPACING_ATTRIBUTE = "dx, dy, dz"
+_SPATIAL_DATASETS = ("data", "tag_data", "ID", "rigidE", "rigidH")
 
 
 def _geometry_spacing(source, filename):
@@ -48,6 +49,8 @@ def extract_head(filename, outputfile=None, first_head_plane=None):
     upper eighth is selected. ``first_head_plane`` can be supplied explicitly
     for another model version or anatomical extent. All root attributes and
     auxiliary datasets are preserved, including material-database keys.
+    Component (``ID``, ``rigidE``, ``rigidH``) and ``tag_data`` arrays are
+    cropped with the voxels so they stay aligned with ``data``.
     """
     filename = Path(filename)
     outputfile = (
@@ -88,14 +91,19 @@ def extract_head(filename, outputfile=None, first_head_plane=None):
             destination.attrs[_SPACING_ATTRIBUTE] = spacing
             destination.attrs["HeadExtractionFirstPlane"] = first_head_plane
             destination.attrs["HeadExtractionOriginalDimensions"] = data.shape
-            destination.create_dataset(
-                "data",
-                data=data[:, :, first_head_plane:],
-                dtype=data.dtype,
-                **_dataset_creation_options(data, output_shape),
-            )
             for name in source:
-                if name != "data":
+                dataset = source[name]
+                if name in _SPATIAL_DATASETS and isinstance(dataset, h5py.Dataset):
+                    cropped = dataset[..., first_head_plane:]
+                    copy = destination.create_dataset(
+                        name,
+                        data=cropped,
+                        dtype=dataset.dtype,
+                        **_dataset_creation_options(dataset, cropped.shape),
+                    )
+                    for key, value in dataset.attrs.items():
+                        copy.attrs[key] = value
+                else:
                     source.copy(name, destination, name=name)
 
     return outputfile
