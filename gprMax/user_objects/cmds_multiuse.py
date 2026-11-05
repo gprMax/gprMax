@@ -2187,12 +2187,16 @@ class DiscretePlaneWaveAngles(GridUserObject):
             is currently rejected.
         termination: string optional for the termination of the auxiliary
             1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
-            (the termination of gprMax 4.0.1 and earlier, reproduced exactly)
-            or ``"extended"`` (equivalent to an infinite 1D grid; a reference
-            for testing that uses more memory and time). Python API only.
+            (the termination of gprMax 4.0.1 and earlier; earlier results are
+            reproduced exactly except for the corrected axial-y ``Ex``
+            TF/SF update, which is kept) or ``"extended"`` (equivalent to an
+            infinite 1D grid; a reference for testing that uses more memory
+            and time). Python API only.
         pml_cells: int optional for ``N``; the absorbing layer is
             ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
-            and 20 in single precision. Python API only.
+            and 20 in single precision. Longer layers cost memory and time;
+            layers thinner than 20 cells advance the arrival of axial plane
+            waves (a warning is logged). Python API only.
         pml_order: float optional for the polynomial grading order of the
             absorbing layer (>= 1). Default is 6. Python API only.
         pml_r0_db: float optional for the target reflection (dB, negative)
@@ -2376,12 +2380,16 @@ class DiscretePlaneWaveVector(GridUserObject):
             is currently rejected.
         termination: string optional for the termination of the auxiliary
             1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
-            (the termination of gprMax 4.0.1 and earlier, reproduced exactly)
-            or ``"extended"`` (equivalent to an infinite 1D grid; a reference
-            for testing that uses more memory and time). Python API only.
+            (the termination of gprMax 4.0.1 and earlier; earlier results are
+            reproduced exactly except for the corrected axial-y ``Ex``
+            TF/SF update, which is kept) or ``"extended"`` (equivalent to an
+            infinite 1D grid; a reference for testing that uses more memory
+            and time). Python API only.
         pml_cells: int optional for ``N``; the absorbing layer is
             ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
-            and 20 in single precision. Python API only.
+            and 20 in single precision. Longer layers cost memory and time;
+            layers thinner than 20 cells advance the arrival of axial plane
+            waves (a warning is logged). Python API only.
         pml_order: float optional for the polynomial grading order of the
             absorbing layer (>= 1). Default is 6. Python API only.
         pml_r0_db: float optional for the target reflection (dB, negative)
@@ -2549,12 +2557,16 @@ class DiscretePlaneWaveAxial(GridUserObject):
             is currently rejected.
         termination: string optional for the termination of the auxiliary
             1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
-            (the termination of gprMax 4.0.1 and earlier, reproduced exactly)
-            or ``"extended"`` (equivalent to an infinite 1D grid; a reference
-            for testing that uses more memory and time). Python API only.
+            (the termination of gprMax 4.0.1 and earlier; earlier results are
+            reproduced exactly except for the corrected axial-y ``Ex``
+            TF/SF update, which is kept) or ``"extended"`` (equivalent to an
+            infinite 1D grid; a reference for testing that uses more memory
+            and time). Python API only.
         pml_cells: int optional for ``N``; the absorbing layer is
             ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
-            and 20 in single precision. Python API only.
+            and 20 in single precision. Longer layers cost memory and time;
+            layers thinner than 20 cells advance the arrival of axial plane
+            waves (a warning is logged). Python API only.
         pml_order: float optional for the polynomial grading order of the
             absorbing layer (>= 1). Default is 6. Python API only.
         pml_r0_db: float optional for the target reflection (dB, negative)

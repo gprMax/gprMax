@@ -5184,7 +5184,8 @@ class DiscretePlaneWave(Source):
                 logger.warning(
                     f"Discrete plane wave: a 1D termination thinner than 20 cells "
                     f"moves the axial incident wave {legacy_distance - self.origin_axial} "
-                    f"1D cells earlier than the default layout."
+                    f"1D cells earlier than the default layout. Use pml_cells >= 20 "
+                    f"when the arrival time matters."
                 )
 
         # self.length = 8000  # For testing purposes, limit length to 8000 cells

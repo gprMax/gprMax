@@ -1483,8 +1483,35 @@ an absorbing layer. By default the layer is designed for the precision of the
 solver: it is ``sum(|m_i|) * N`` 1D cells long, with ``N = 160`` in double
 precision and ``N = 20`` in single precision, a polynomial grading of order
 ``p = 6`` and a target reflection of -320 dB. Its conductivity is normalised
-to the medium at each end of the 1D grid. Reflections from the end of the 1D
-grid are then below the round-off level of the solver.
+to the medium at each end of the 1D grid.
+
+The -320 dB figure is the design target of the conductivity profile, not a
+guarantee for every model. The reflection actually reached by a discrete,
+broadband pulse depends on the propagation direction, on the medium at the end
+of the 1D grid and on the spectrum of the waveform. In the test models of the
+release notes the error relative to an infinite 1D grid is between -214 and
+-302 dB in double precision, where the earlier termination gave between -121
+and -191 dB. In single precision it is at the round-off level of the solver,
+as it was before.
+
+**Cost.** The length of the 1D grid, and with it its memory and the time of
+its update, grow with the layer length ``sum(|m_i|) * N``. The
+double-precision default layer is eight times longer than the 20-cell layer
+used before, so a plane wave with a large integer direction mapping (large
+``sum(|m_i|)``) can take substantially more CPU time than it did. The new
+default is an accuracy improvement, not a speed improvement. Where the earlier
+accuracy is enough, ``pml_cells=20`` or ``pml_cells=40`` keeps most of the
+earlier cost (-141 to -192 dB and -171 to -198 dB in the same test models).
+
+**Timing of axial plane waves.** The hard source of an axial plane wave is
+placed a fixed distance before the total-field box, the distance of a 20-cell
+layer, so the incident pulse reaches the box at the same time for every
+termination with ``pml_cells >= 20`` and for ``"extended"``. A thinner layer
+cannot hold that distance: the source moves ``(20 - N) * sum(|m_i|)`` 1D cells
+closer to the box and the incident pulse arrives correspondingly earlier,
+which gprMax reports with a warning. Thinner layers are accepted; use at least
+20 cells when the arrival time matters, for example when comparing with
+earlier results or with another solver.
 
 The Python-API classes ``DiscretePlaneWaveAngles``, ``DiscretePlaneWaveVector``
 and ``DiscretePlaneWaveAxial`` accept optional keyword arguments that change
@@ -1492,12 +1519,18 @@ the termination of that plane wave only. They are not available in hash
 commands.
 
 * ``termination``: ``"pml"`` (default), ``"legacy"`` or ``"extended"``.
-  ``"legacy"`` reproduces the termination of gprMax 4.0.1 and earlier exactly.
+  ``"legacy"`` restores the termination of gprMax 4.0.1 and earlier (20 cells,
+  order 4 and the earlier peak conductivity) and reproduces those results
+  exactly, with one exception: the corrected total-field/scattered-field
+  update of ``Ex`` on the y faces of axial plane waves (see the release notes)
+  is kept whatever the termination. Earlier results of axial y plane waves
+  with an ``Ex`` component are therefore not reproduced; they were wrong.
   ``"extended"`` makes the 1D grid long enough that no reflection from its end
   can reach the total-field box within the time window. The result is then the
   same as for an infinite 1D grid. It is meant as a reference for testing and
   uses more memory and time.
-* ``pml_cells``: ``N`` in the layer length ``sum(|m_i|) * N``.
+* ``pml_cells``: ``N`` in the layer length ``sum(|m_i|) * N``. Values below
+  20 advance the arrival of axial plane waves (see above).
 * ``pml_order``: the grading order ``p``.
 * ``pml_r0_db``: the target reflection in dB, which sets the peak conductivity.
   It must be negative.
