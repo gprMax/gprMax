@@ -134,6 +134,29 @@ def _require_complete_source_time_window(user_object, start, stop):
         raise ValueError(f"{user_object.params_str()} start and stop times must be finite")
 
 
+# Optional keyword arguments (Python API only; not exposed in hash commands)
+# controlling the termination of the 1D auxiliary grid of one plane wave.
+# Omitted arguments take the precision-dependent design defaults; see
+# gprMax.sources.resolve_dpw_termination.
+#   termination: "pml" (default) | "extended" (testing reference) | "legacy"
+#   pml_cells:   N, the layer is sum|m_i|*N 1D cells (default 160 double, 20 single)
+#   pml_order:   polynomial grading order p (default 6)
+#   pml_r0_db:   target reflection R0 in dB that sets sigma_max (default -320)
+_DPW_TERMINATION_KWARGS = ("termination", "pml_cells", "pml_order", "pml_r0_db")
+
+
+def _dpw_termination_options(user_object):
+    """Collect and validate the optional DPW termination keyword arguments."""
+    from gprMax.sources import resolve_dpw_termination
+
+    options = {k: user_object.kwargs[k] for k in _DPW_TERMINATION_KWARGS if k in user_object.kwargs}
+    try:
+        resolve_dpw_termination(options)
+    except ValueError as err:
+        raise ValueError(f"{user_object.params_str()} {err}") from None
+    return options
+
+
 def _validate_dpw_precompute(user_object, precompute):
     """Reject the non-functional on-the-fly DPW source option explicitly."""
 
@@ -2175,6 +2198,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
     _allowed_kwargs = frozenset({
         "material_id", "max_angle_diff", "p1", "p2", "phi", "precompute", "psi", "theta",
         "waveform_id", "start", "stop",
+        *_DPW_TERMINATION_KWARGS,
     })
 
     def __init__(self, **kwargs):
@@ -2274,6 +2298,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
 
         startstop = _configure_dpw_time_window(self, DPW, grid)
 
+        DPW.termination_options = _dpw_termination_options(self)
         DPW.initializeDiscretePlaneWave(grid)
 
         if precompute:
@@ -2345,6 +2370,7 @@ class DiscretePlaneWaveVector(GridUserObject):
     _allowed_kwargs = frozenset({
         "m_vec", "material_id", "p1", "p2", "precompute", "psi", "waveform_id", "start",
         "stop",
+        *_DPW_TERMINATION_KWARGS,
     })
 
     def __init__(self, **kwargs):
@@ -2432,6 +2458,7 @@ class DiscretePlaneWaveVector(GridUserObject):
 
         startstop = _configure_dpw_time_window(self, DPW, grid)
 
+        DPW.termination_options = _dpw_termination_options(self)
         DPW.initializeDiscretePlaneWave(grid)
 
         if precompute:
@@ -2498,6 +2525,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
     _allowed_kwargs = frozenset({
         "axis", "p1", "p2", "precompute", "psi", "waveform_id", "start", "stop",
+        *_DPW_TERMINATION_KWARGS,
     })
 
     def __init__(self, **kwargs):
@@ -2579,6 +2607,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
         startstop = _configure_dpw_time_window(self, DPW, grid)
 
+        DPW.termination_options = _dpw_termination_options(self)
         DPW.initializeDiscretePlaneWave(grid)
 
         if precompute:

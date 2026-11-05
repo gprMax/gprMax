@@ -730,7 +730,8 @@ class TestDiscretePlaneWaveInit:
     def test_default_scalar_fields(self):
         dpw = DiscretePlaneWave(G=None)  # __init__ does not use G
         assert dpw.materialID is None  # upstream made material optional
-        assert dpw.pml_cells == 20
+        assert dpw.pml_cells is None  # resolved from the precision at set-up
+        assert dpw.termination_options == {}
         assert dpw.buffercells_axial == 5
         assert dpw.axial == 0
         assert dpw.speed == c

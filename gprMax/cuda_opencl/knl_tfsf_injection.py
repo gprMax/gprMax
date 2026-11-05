@@ -1102,7 +1102,7 @@ inject_axial_ylow_E = {
     // index uses (j-1-Oy) staggering for y_start face.
     // GID comp=2 (Ez mat), comp=1 (Ey mat) for Ex correction. Column=2 (CBy).
     //   Ez[i,j,k] += updatecoeffsE[GID[2,i,j,k], 2] * H_x[index]
-    //   Ex[i,j,k] -= updatecoeffsE[GID[1,i,j,k], 2] * H_z[index]  (note: GID[1] used in Cython)
+    //   Ex[i,j,k] -= updatecoeffsE[GID[0,i,j,k], 2] * H_z[index]
 
     $TFSF_IDX
 
@@ -1121,7 +1121,7 @@ inject_axial_ylow_E = {
 
     if (i < x_stop && k <= z_stop) {
         index = O_axial + m_x * (i - Ox) + m_y * (j - 1 - Oy) + m_z * (k - Oz);
-        mat = ID[IDX4D_ID(1, i, j, k)];
+        mat = ID[IDX4D_ID(0, i, j, k)];
         Ex[IDX3D_FIELDS(i, j, k)] -= updatecoeffsE[IDX2D_MAT(mat, 2)] * H_z[index];
     }
     """),
@@ -1136,9 +1136,10 @@ inject_axial_yhigh_E = {
     "func": Template("""
     // Axial TF/SF electric correction - y_high face.
     // y_stop uses (j-Oy) - no staggering. Signs flipped vs y_low.
-    // NOTE: Cython uses (j-1-Oy) for Ex correction at y_stop too - preserved here.
     //   Ez[i,j,k] -= updatecoeffsE[GID[2,i,j,k], 2] * H_x[index]
-    //   Ex[i,j,k] += updatecoeffsE[GID[1,i,j,k], 2] * H_z[index]
+    //   Ex[i,j,k] += updatecoeffsE[GID[0,i,j,k], 2] * H_z[index]
+    // (Ex uses its own material ID and the unstaggered (j-Oy) index at
+    //  y_stop, as in the non-axial correction; fixed Nov 2026.)
 
     $TFSF_IDX
 
@@ -1156,8 +1157,8 @@ inject_axial_yhigh_E = {
     }
 
     if (i < x_stop && k <= z_stop) {
-        index = O_axial + m_x * (i - Ox) + m_y * (j - 1 - Oy) + m_z * (k - Oz);
-        mat = ID[IDX4D_ID(1, i, j, k)];
+        index = O_axial + m_x * (i - Ox) + m_y * (j - Oy) + m_z * (k - Oz);
+        mat = ID[IDX4D_ID(0, i, j, k)];
         Ex[IDX3D_FIELDS(i, j, k)] += updatecoeffsE[IDX2D_MAT(mat, 2)] * H_z[index];
     }
     """),
