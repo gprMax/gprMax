@@ -1473,6 +1473,51 @@ profile is assembled once from the distributed grid's actual update
 coefficients, including multi-pole dispersive coefficients; no additional
 plane-wave communication occurs during timestepping.
 
+.. _dpw-termination:
+
+Termination of the auxiliary 1D grid
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The auxiliary one-dimensional grid that drives each discrete plane wave ends in
+an absorbing layer. By default the layer is designed for the precision of the
+solver: it is ``sum(|m_i|) * N`` 1D cells long, with ``N = 160`` in double
+precision and ``N = 20`` in single precision, a polynomial grading of order
+``p = 6`` and a target reflection of -320 dB. Its conductivity is normalised
+to the medium at each end of the 1D grid. Reflections from the end of the 1D
+grid are then below the round-off level of the solver.
+
+The Python-API classes ``DiscretePlaneWaveAngles``, ``DiscretePlaneWaveVector``
+and ``DiscretePlaneWaveAxial`` accept optional keyword arguments that change
+the termination of that plane wave only. They are not available in hash
+commands.
+
+* ``termination``: ``"pml"`` (default), ``"legacy"`` or ``"extended"``.
+  ``"legacy"`` reproduces the termination of gprMax 4.0.1 and earlier exactly.
+  ``"extended"`` makes the 1D grid long enough that no reflection from its end
+  can reach the total-field box within the time window. The result is then the
+  same as for an infinite 1D grid. It is meant as a reference for testing and
+  uses more memory and time.
+* ``pml_cells``: ``N`` in the layer length ``sum(|m_i|) * N``.
+* ``pml_order``: the grading order ``p``.
+* ``pml_r0_db``: the target reflection in dB, which sets the peak conductivity.
+  It must be negative.
+
+.. code-block:: python
+
+    scene.add(gprMax.DiscretePlaneWaveVector(
+        m_vec=(2, 1, 1), psi=30,
+        p1=(0.02, 0.02, 0.02), p2=(0.08, 0.08, 0.08),
+        waveform_id='pulse', pml_cells=40,
+    ))
+
+The environment variable ``GPRMAX_DPW_TERMINATION`` sets the same options for
+every plane wave in a run, including models read from input files with hash
+commands. It takes a termination name, ``key=value`` pairs, or both, separated
+by commas, for example ``GPRMAX_DPW_TERMINATION=extended`` or
+``GPRMAX_DPW_TERMINATION=pml,pml_cells=40,pml_order=4,pml_r0_db=-240``.
+Keyword arguments take precedence over the environment variable, which takes
+precedence over the defaults.
+
 Excitation File
 ---------------
 .. autoclass:: gprMax.user_objects.cmds_multiuse.ExcitationFile

@@ -17,6 +17,33 @@ Fractal volumes and rough surfaces
   are unaffected, and previously exported geometry is unchanged; reuse it
   where earlier geometry must be reproduced exactly.
 
+Discrete plane waves
+--------------------
+
+* **New default termination of the auxiliary 1D grid:** the absorbing layer
+  at the end of each plane wave's 1D grid is now designed for the solver
+  precision: ``sum(|m_i|) * N`` cells with ``N = 160`` in double and ``N = 20``
+  in single precision, grading order 6 and a target reflection of -320 dB.
+  The previous peak conductivity was too large by a factor of the relative
+  permittivity of the background medium. In double precision, the error
+  relative to an infinite 1D grid falls from between -121 and -191 dB to
+  between -214 and -302 dB. Single-precision results change only at round-off
+  level. ``termination="legacy"`` reproduces the previous results exactly.
+  See :ref:`dpw-termination`.
+* New optional Python-API keyword arguments ``termination``, ``pml_cells``,
+  ``pml_order`` and ``pml_r0_db`` on ``DiscretePlaneWaveAngles``,
+  ``DiscretePlaneWaveVector`` and ``DiscretePlaneWaveAxial``, set per plane
+  wave. The environment variable ``GPRMAX_DPW_TERMINATION`` applies them to a
+  whole run, including hash-command input files.
+* Axial plane waves: the incident pulse now reaches the total-field box at the
+  same time whatever the termination.
+* **Fixed leakage of axial plane waves along y:** the electric TF/SF
+  correction for ``Ex`` on the y faces used the material of ``Ey`` and the
+  wrong index on the upper face. Axial y plane waves with an ``Ex`` component
+  leaked -12 to -23 dB into the scattered-field region; leakage is now below
+  -295 dB in double precision. Fixed on CPU/MPI, CUDA, OpenCL and Metal. Re-run
+  affected models.
+
 Subgrids
 --------
 

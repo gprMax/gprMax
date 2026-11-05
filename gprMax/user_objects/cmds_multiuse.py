@@ -2185,6 +2185,23 @@ class DiscretePlaneWaveAngles(GridUserObject):
             auxiliary plane-wave source history before time stepping.
             ``False`` is reserved for a future on-the-fly implementation and
             is currently rejected.
+        termination: string optional for the termination of the auxiliary
+            1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
+            (the termination of gprMax 4.0.1 and earlier, reproduced exactly)
+            or ``"extended"`` (equivalent to an infinite 1D grid; a reference
+            for testing that uses more memory and time). Python API only.
+        pml_cells: int optional for ``N``; the absorbing layer is
+            ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
+            and 20 in single precision. Python API only.
+        pml_order: float optional for the polynomial grading order of the
+            absorbing layer (>= 1). Default is 6. Python API only.
+        pml_r0_db: float optional for the target reflection (dB, negative)
+            that sets the peak conductivity of the absorbing layer. Default
+            is -320. Python API only.
+
+    The environment variable ``GPRMAX_DPW_TERMINATION`` sets the termination
+    options for every plane wave in a run; the keyword arguments take
+    precedence. See :ref:`dpw-termination`.
     """
 
     @property
@@ -2357,6 +2374,23 @@ class DiscretePlaneWaveVector(GridUserObject):
             auxiliary plane-wave source history before time stepping.
             ``False`` is reserved for a future on-the-fly implementation and
             is currently rejected.
+        termination: string optional for the termination of the auxiliary
+            1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
+            (the termination of gprMax 4.0.1 and earlier, reproduced exactly)
+            or ``"extended"`` (equivalent to an infinite 1D grid; a reference
+            for testing that uses more memory and time). Python API only.
+        pml_cells: int optional for ``N``; the absorbing layer is
+            ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
+            and 20 in single precision. Python API only.
+        pml_order: float optional for the polynomial grading order of the
+            absorbing layer (>= 1). Default is 6. Python API only.
+        pml_r0_db: float optional for the target reflection (dB, negative)
+            that sets the peak conductivity of the absorbing layer. Default
+            is -320. Python API only.
+
+    The environment variable ``GPRMAX_DPW_TERMINATION`` sets the termination
+    options for every plane wave in a run; the keyword arguments take
+    precedence. See :ref:`dpw-termination`.
     """
 
     @property
@@ -2513,6 +2547,23 @@ class DiscretePlaneWaveAxial(GridUserObject):
             auxiliary plane-wave source history before time stepping.
             ``False`` is reserved for a future on-the-fly implementation and
             is currently rejected.
+        termination: string optional for the termination of the auxiliary
+            1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
+            (the termination of gprMax 4.0.1 and earlier, reproduced exactly)
+            or ``"extended"`` (equivalent to an infinite 1D grid; a reference
+            for testing that uses more memory and time). Python API only.
+        pml_cells: int optional for ``N``; the absorbing layer is
+            ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
+            and 20 in single precision. Python API only.
+        pml_order: float optional for the polynomial grading order of the
+            absorbing layer (>= 1). Default is 6. Python API only.
+        pml_r0_db: float optional for the target reflection (dB, negative)
+            that sets the peak conductivity of the absorbing layer. Default
+            is -320. Python API only.
+
+    The environment variable ``GPRMAX_DPW_TERMINATION`` sets the termination
+    options for every plane wave in a run; the keyword arguments take
+    precedence. See :ref:`dpw-termination`.
     """
 
     @property
