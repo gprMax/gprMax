@@ -20,8 +20,8 @@ from string import Template
 # DEVICE-RESIDENT SOURCE INITIALISATION
 
 # The delayed waveform values are prepared once during model setup. This
-# kernel copies one whole- or half-timestep slice into the first M samples of
-# the appropriate auxiliary grid without a host-to-device transfer inside the
+# kernel copies one whole- or half-timestep slice into samples S0 .. S0+M-1 of
+# the appropriate auxiliary grid (S0 = 0 except for the axial source grid) without a host-to-device transfer inside the
 # FDTD time loop.
 initialise_1d_source = {
     "args_cuda": Template(
@@ -29,6 +29,7 @@ initialise_1d_source = {
         __global__ void initialise_1d_source(
             const int N,
             const int M,
+            const int S0,
             const int timestep,
             $REAL* __restrict__ fields,
             const $REAL* __restrict__ source_values
@@ -39,6 +40,7 @@ initialise_1d_source = {
         """
         const int N,
         const int M,
+        const int S0,
         const int timestep,
         __global $REAL* restrict fields,
         __global const $REAL* restrict source_values
@@ -49,6 +51,7 @@ initialise_1d_source = {
         kernel void initialise_1d_source(
             device const int& N,
             device const int& M,
+            device const int& S0,
             device const int& timestep,
             device $REAL* fields,
             device const $REAL* source_values,
@@ -64,7 +67,7 @@ initialise_1d_source = {
     if (i < count) {
         int component = i / M;
         int r = i - component * M;
-        fields[component * N + r] = source_values[timestep * count + i];
+        fields[component * N + S0 + r] = source_values[timestep * count + i];
     }
 """
     ),
@@ -767,6 +770,7 @@ update_1d_magnetic_axial_source = {
         __global__ void __launch_bounds__(256, 4) update_1d_magnetic_axial_source(
             const int N,
             const int M,
+            const int S0,
             const int m_x,
             const int m_y,
             const int m_z,
@@ -786,6 +790,7 @@ update_1d_magnetic_axial_source = {
         """
         const int N,
         const int M,
+        const int S0,
         const int m_x,
         const int m_y,
         const int m_z,
@@ -805,6 +810,7 @@ update_1d_magnetic_axial_source = {
         kernel void update_1d_magnetic_axial_source(
             device const int& N,
             device const int& M,
+            device const int& S0,
             device const int& m_x,
             device const int& m_y,
             device const int& m_z,
@@ -843,7 +849,7 @@ update_1d_magnetic_axial_source = {
 
     $CUDA_IDX
 
-    int j = i + M;
+    int j = i + S0 + M;   // source grid starts at S0 (axial)
     if (j >= N - M) return;
 
     // Fixed material IDs at position 2 for each H component
@@ -1667,6 +1673,7 @@ update_1d_electric_axial_source = {
         __global__ void __launch_bounds__(256, 4) update_1d_electric_axial_source(
             const int N,
             const int M,
+            const int S0,
             const int m_x,
             const int m_y,
             const int m_z,
@@ -1686,6 +1693,7 @@ update_1d_electric_axial_source = {
         """
         const int N,
         const int M,
+        const int S0,
         const int m_x,
         const int m_y,
         const int m_z,
@@ -1705,6 +1713,7 @@ update_1d_electric_axial_source = {
         kernel void update_1d_electric_axial_source(
             device const int& N,
             device const int& M,
+            device const int& S0,
             device const int& m_x,
             device const int& m_y,
             device const int& m_z,
@@ -1731,7 +1740,7 @@ update_1d_electric_axial_source = {
 
     $CUDA_IDX
 
-    int j = i + M;
+    int j = i + S0 + M;   // source grid starts at S0 (axial)
     if (j >= N - M) return;
 
     int mat_ex = GID[0 * N + 2];   // GID[0, 2]
@@ -2715,6 +2724,7 @@ update_1d_electric_dispersive_axial_source = {
         __global__ void __launch_bounds__(256, 4) update_1d_electric_dispersive_axial_source(
             const int N,
             const int M,
+            const int S0,
             const int m_x,
             const int m_y,
             const int m_z,
@@ -2738,6 +2748,7 @@ update_1d_electric_dispersive_axial_source = {
         """
         const int N,
         const int M,
+        const int S0,
         const int m_x,
         const int m_y,
         const int m_z,
@@ -2761,6 +2772,7 @@ update_1d_electric_dispersive_axial_source = {
         kernel void update_1d_electric_dispersive_axial_source(
             device const int& N,
             device const int& M,
+            device const int& S0,
             device const int& m_x,
             device const int& m_y,
             device const int& m_z,
@@ -2789,7 +2801,7 @@ update_1d_electric_dispersive_axial_source = {
 
     $CUDA_IDX
 
-    int j = i + M;
+    int j = i + S0 + M;   // source grid starts at S0 (axial)
     if (j >= N - M) return;
 
     $REAL phi;
@@ -2844,6 +2856,7 @@ update_1d_electric_dispersive_axial_source_T = {
         __global__ void __launch_bounds__(256, 4) update_1d_electric_dispersive_axial_source_T(
             const int N,
             const int M,
+            const int S0,
             const int num_poles,
             $COMPLEX* __restrict__ T_x_s,
             $COMPLEX* __restrict__ T_y_s,
@@ -2860,6 +2873,7 @@ update_1d_electric_dispersive_axial_source_T = {
         """
         const int N,
         const int M,
+        const int S0,
         const int num_poles,
         __global $COMPLEX* restrict T_x_s,
         __global $COMPLEX* restrict T_y_s,
@@ -2876,6 +2890,7 @@ update_1d_electric_dispersive_axial_source_T = {
         kernel void update_1d_electric_dispersive_axial_source_T(
             device const int& N,
             device const int& M,
+            device const int& S0,
             device const int& num_poles,
             device $COMPLEX* T_x_s,
             device $COMPLEX* T_y_s,
@@ -2896,7 +2911,7 @@ update_1d_electric_dispersive_axial_source_T = {
 
     $CUDA_IDX
 
-    int j = i + M;
+    int j = i + S0 + M;   // source grid starts at S0 (axial)
     if (j >= N - M) return;
 
     int pole;

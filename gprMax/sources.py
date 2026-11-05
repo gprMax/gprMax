@@ -4786,6 +4786,101 @@ class MagneticFrillSource(Source):
         self._previous_half_current = current_new
 
 
+
+# ---------------------------------------------------------------------------
+# Termination of the 1D auxiliary DPW grid
+# ---------------------------------------------------------------------------
+# Design (see "Terminating the discrete plane-wave grid of FDTD TF/SF sources"):
+# a polynomial-graded RIPML with kappa = 1, alpha = 0, thickness N_T = sum|m_i|*N
+# 1D cells, and sigma_max set from a target reflection R0 for the actual layer
+# thickness, normalised for the background medium of that end of the 1D grid.
+# N depends on the solver precision: in single precision a 20-cell layer is
+# already at the round-off floor; in double precision 160 cells reach
+# <= -230 dB for oblique m and leave no late-time (DC) residue.
+#
+# termination:
+#   "pml"      - design above (default)
+#   "legacy"   - the pre-2026 parameters (20 cells, p = 4, 0.8(p+1)/(Z |m| ds));
+#                bit-identical to the earlier implementation, kept for regression.
+#   "extended" - testing reference: sigma = 0 and each end lengthened beyond the
+#                backward light cone of the run, so no reflection can reach the
+#                TF/SF region before the last iteration. The result is then
+#                bit-identical to an infinitely long 1D grid (no kernel changes).
+DPW_TERMINATIONS = ("pml", "legacy", "extended")
+DPW_TERMINATION_DEFAULTS = {
+    "single": {"termination": "pml", "pml_cells": 20, "pml_order": 6, "pml_r0_db": -320.0},
+    "double": {"termination": "pml", "pml_cells": 160, "pml_order": 6, "pml_r0_db": -320.0},
+}
+DPW_TERMINATION_KEYS = ("termination", "pml_cells", "pml_order", "pml_r0_db")
+DPW_TERMINATION_ENV = "GPRMAX_DPW_TERMINATION"
+
+
+def _dpw_precision_key():
+    """Return 'single' or 'double' from the configured solver precision."""
+    try:
+        dtype = config.sim_config.dtypes["float_or_double"]
+    except Exception:  # config not yet initialised (unit tests)
+        return "double"
+    return "single" if np.dtype(dtype) == np.float32 else "double"
+
+
+def _parse_dpw_termination_env(text):
+    """Parse GPRMAX_DPW_TERMINATION, e.g. 'extended' or
+    'pml,pml_cells=40,pml_order=4,pml_r0_db=-240'."""
+    out = {}
+    for item in (t.strip() for t in text.split(",")):
+        if not item:
+            continue
+        if "=" not in item:
+            out["termination"] = item.lower()
+            continue
+        key, value = (t.strip() for t in item.split("=", 1))
+        key = key.lower()
+        if key not in DPW_TERMINATION_KEYS:
+            raise ValueError(f"{DPW_TERMINATION_ENV}: unknown key '{key}'")
+        out[key] = value.lower() if key == "termination" else float(value)
+    return out
+
+
+def resolve_dpw_termination(options=None, precision=None, environ=None):
+    """Resolve the 1D-grid termination of one plane wave.
+
+    Precedence: explicit per-plane-wave options > GPRMAX_DPW_TERMINATION >
+    precision-dependent defaults. Returns a validated dict.
+    """
+    import os
+
+    precision = precision or _dpw_precision_key()
+    resolved = dict(DPW_TERMINATION_DEFAULTS[precision])
+    environ = os.environ if environ is None else environ
+    env = environ.get(DPW_TERMINATION_ENV, "").strip()
+    if env:
+        resolved.update(_parse_dpw_termination_env(env))
+    for key, value in (options or {}).items():
+        if value is not None:
+            resolved[key] = value
+
+    term = str(resolved["termination"]).lower()
+    if term not in DPW_TERMINATIONS:
+        raise ValueError(f"DPW termination must be one of {DPW_TERMINATIONS}, got '{term}'")
+    resolved["termination"] = term
+    cells = resolved["pml_cells"]
+    if not float(cells).is_integer() or int(cells) < 1:
+        raise ValueError(f"DPW pml_cells must be a positive integer, got {cells}")
+    resolved["pml_cells"] = int(cells)
+    order = float(resolved["pml_order"])
+    if not np.isfinite(order) or order < 1:
+        raise ValueError(f"DPW pml_order must be >= 1, got {resolved['pml_order']}")
+    resolved["pml_order"] = order
+    r0 = float(resolved["pml_r0_db"])
+    if not np.isfinite(r0) or r0 >= 0:
+        raise ValueError(f"DPW pml_r0_db must be negative (dB), got {resolved['pml_r0_db']}")
+    resolved["pml_r0_db"] = r0
+    if term == "legacy":
+        resolved.update(pml_cells=20, pml_order=4.0)
+    return resolved
+
+
 class DiscretePlaneWave(Source):
     """Implements the discrete plane wave (DPW) formulation as described in
     Tan, T.; Potter, M. (2010). FDTD Discrete Planewave (FDTD-DPW)
@@ -4842,8 +4937,15 @@ class DiscretePlaneWave(Source):
         self.speed = config.c
         self.axial = 0
         self.dispersive = False
-        self.pml_cells = 20
+        # 1D-grid termination: per-plane-wave overrides (API keyword arguments);
+        # resolved against the precision defaults in initializeDiscretePlaneWave.
+        self.termination_options = {}
+        self.termination = None
+        self.pml_cells = None
+        self.pml_order = None
+        self.pml_r0_db = None
         self.buffercells_axial = 5
+        self.source_offset_axial = 0
         self.psi = 0.0
         self.phi = 0.0
         self.theta = 0.0
@@ -5025,12 +5127,24 @@ class DiscretePlaneWave(Source):
         else:
             self.ds = px * G.dx / self.m[0]
 
-        # get the number of 1D DPW grid PML cells from the number of 3D FDTD PML cells used for terminating the 1D grid. This is set to 20 cells by default.
-        self.pml_length = (
-            np.abs(self.m[0]) * self.pml_cells
-            + np.abs(self.m[1]) * self.pml_cells
-            + np.abs(self.m[2]) * self.pml_cells
-        )
+        # 1D-grid termination (see resolve_dpw_termination). The layer has
+        # N_T = sum|m_i| * N 1D cells, i.e. physical thickness N sum k_i dx_i,
+        # which depends only on the propagation direction.
+        term = resolve_dpw_termination(self.termination_options)
+        self.termination = term["termination"]
+        self.pml_cells = term["pml_cells"]
+        self.pml_order = term["pml_order"]
+        self.pml_r0_db = term["pml_r0_db"]
+        if self.termination == "extended":
+            # Each 1D step moves information at most max|m_i| cells in either
+            # direction, so a reflection from an end D cells beyond the TF/SF
+            # span returns after >= 2D/max|m_i| steps. D >= max|m_i| (Nt + 1)/2
+            # (+ margin) keeps every reflection out of the run.
+            self.pml_length = int(
+                math.ceil(self.max_m * (int(G.iterations) + 1) / 2) + 4 * self.max_m
+            )
+        else:
+            self.pml_length = int(np.sum(np.abs(self.m[:3]))) * self.pml_cells
         # Set few buffer FDTD cells as extra
         buffercells = (
             np.abs(self.m[0]) * self.max_m
@@ -5058,6 +5172,21 @@ class DiscretePlaneWave(Source):
                 + buffercells
             )
             self.origin_axial = self.pml_length + buffercells
+            # The source grid is read only at origin_axial (injection at
+            # origin_axial - 2 for H, - 1 for E). Its hard source is placed a
+            # fixed distance before that point - the distance of the original
+            # 20-cell layout - so the incident arrival time does not depend on
+            # the termination (thickness or 'extended' mode). Cells below the
+            # source offset are never updated.
+            legacy_distance = 20 * int(np.sum(np.abs(self.m[:3]))) + buffercells
+            self.source_offset_axial = max(0, self.origin_axial - legacy_distance)
+            if self.origin_axial < legacy_distance:
+                logger.warning(
+                    f"Discrete plane wave: a 1D termination thinner than 20 cells "
+                    f"moves the axial incident wave {legacy_distance - self.origin_axial} "
+                    f"1D cells earlier than the default layout. Use pml_cells >= 20 "
+                    f"when the arrival time matters."
+                )
 
         # self.length = 8000  # For testing purposes, limit length to 8000 cells
 
@@ -5675,6 +5804,7 @@ class DiscretePlaneWave(Source):
                 nthreads,
                 self.skip_axis,
                 self.origin_axial,
+                self.source_offset_axial,
                 self.H_fields,
                 self.E_fields,
                 self.H_fields_s,
@@ -5807,6 +5937,7 @@ class DiscretePlaneWave(Source):
                 nthreads,
                 self.skip_axis,
                 self.origin_axial,
+                self.source_offset_axial,
                 self.H_fields,
                 self.E_fields,
                 self.H_fields_s,
@@ -5940,6 +6071,7 @@ class DiscretePlaneWave(Source):
                 nthreads,
                 self.skip_axis,
                 self.origin_axial,
+                self.source_offset_axial,
                 self.H_fields,
                 self.E_fields,
                 self.H_fields_s,
@@ -6607,412 +6739,98 @@ class DiscretePlaneWave(Source):
 
         return m_vec, actual_angles_deg, errors_deg, total_error_deg
 
+    def _dpw_sigma_max(self, Z, speed):
+        """sigma_max of one end of the 1D grid.
+
+        Z, speed: impedance and phase speed of the background medium at that
+        end. The RIPML coefficients are normalised by e0, so the stretch is
+        s = 1 + sigma/(j w e0) and the attenuation in a medium of index
+        n = c/speed is proportional to n*sigma; the consistent sigma for a
+        target R0 therefore carries 1/(eta0 n), as for the 3D PML
+        (pml.py calculate_sigmamax).
+        """
+        if self.termination == "extended":
+            return 0.0
+        if self.termination == "legacy":
+            Order = 4
+            return 0.8 * (Order + 1) / (
+                Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds
+            )
+        n = config.c / speed
+        thickness = self.pml_length * abs(self.ds)
+        lnR = -self.pml_r0_db / 20.0 * math.log(10.0)
+        eta0 = math.sqrt(config.m0 / config.e0)
+        return (self.pml_order + 1) * lnR / (2.0 * eta0 * n * thickness)
+
+    def _ripml_coefficients(self, G, sigma_max):
+        """RIPML update coefficients [RA, RB, RC, RD] x pml_length for the six
+        1D field components, graded as sigma_max * (depth/N_T)^p with each
+        component evaluated at its own 1D offset. kappa = 1 and alpha = 0
+        (alpha > 0 makes the PEC-backed 1D layer grow at late time)."""
+        Order = 4 if self.termination == "legacy" else self.pml_order
+        if Order == int(Order):
+            Order = int(Order)
+        KOrder = 1
+        AOrder = 1
+        Kappa_max = 1.0
+        Alpha_max = 0.0
+        L = self.pml_length
+        depth = np.arange(L)
+        i_arr = np.arange(L, 0, -1)
+        dtype = config.sim_config.dtypes["float_or_double"]
+        offsets = {
+            "ex": self.m[0] * 0.5,
+            "ey": self.m[1] * 0.5,
+            "ez": self.m[2] * 0.5,
+            "hx": (self.m[1] + self.m[2]) * 0.5,
+            "hy": (self.m[0] + self.m[2]) * 0.5,
+            "hz": (self.m[0] + self.m[1]) * 0.5,
+        }
+        out = {}
+        for name, off in offsets.items():
+            s_base = (depth + off) / L
+            a_base = (i_arr + off) / L
+            sg = sigma_max * np.maximum(0, s_base) ** Order
+            kp = 1.0 + (Kappa_max - 1.0) * s_base**KOrder
+            al = Alpha_max * a_base**AOrder
+            den = 2 * config.e0 * kp + G.dt * kp * al + G.dt * sg
+            RA = (2 * config.e0 * (1 - kp) + G.dt * al * (1 - kp) - G.dt * sg) / den
+            RB = 2 / den
+            RC = G.dt * (kp * al + sg)
+            RD = G.dt * (al * (1 - kp) - sg)
+            out[name] = np.array([RA, RB, RC, RD], order="C", dtype=dtype)
+        return out
+
     def _get_pml_parameters(self, G):
-        """
-        Calculates and sets the DPW PML parameters based on RIPML formulation.
-                The forumlation can handle full CFS PML parameters but these are not needed and cannot be set by the user.
-                Hence only sigma_max is calculated here based on the standard formula for PMLs. The other parameters are set to values that disable their grading
-                but they can be edited here for testing purposes.
+        """Set the RIPML coefficients of the 1D DPW grid.
 
-                This method uses NumPy vectorization for high performance.
+        Non-axial: one layer at the far end, in the plane wave's background.
+        Axial: the far-end layer uses the medium sampled near the far end
+        (materialPML); the start layer and the source grid use the medium at
+        the origin (materialPML0). Each end is homogeneous, so each layer is
+        designed exactly for its own medium.
         """
-
         if self.axial == 0:
-            Z = self.materialZ
-
-            # --- PML Configuration ---
-            Order = 4
-            KOrder = 1
-            AOrder = 1
-            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
-            # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (
-                0.8
-                * (Order + 1)
-                / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
-            )
-            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
-            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-
-            # --- Create helper arrays for vectorized calculations ---
-            # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
-            depth = np.arange(self.pml_length)
-            # 'i_arr' array runs from PMLSize down to 0 (for alpha calculations)
-            i_arr = np.arange(self.pml_length, 0, -1)
-
-            # --- E-Field PML Parameters (Vectorized) ---
-            sEx_base = (depth + self.m[0] * 0.5) / self.pml_length
-            aEx_base = (i_arr + self.m[0] * 0.5) / self.pml_length
-            sEx = sigma_max * np.maximum(0, sEx_base) ** Order
-            kEx = 1.0 + (Kappa_max - 1.0) * sEx_base**KOrder
-            aEx = Alpha_max * aEx_base**AOrder
-
-            sEy_base = (depth + self.m[1] * 0.5) / self.pml_length
-            aEy_base = (i_arr + self.m[1] * 0.5) / self.pml_length
-            sEy = sigma_max * np.maximum(0, sEy_base) ** Order
-            kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
-            aEy = Alpha_max * aEy_base**AOrder
-
-            sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
-            aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
-            sEz = sigma_max * np.maximum(0, sEz_base) ** Order
-            kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
-            aEz = Alpha_max * aEz_base**AOrder
-
-            # --- H-Field PML Parameters (Vectorized) ---
-            sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            sHx = sigma_max * np.maximum(0, sHx_base) ** Order
-            kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
-            aHx = Alpha_max * aHx_base**AOrder
-
-            sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            sHy = sigma_max * np.maximum(0, sHy_base) ** Order
-            kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
-            aHy = Alpha_max * aHy_base**AOrder
-
-            sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            sHz = sigma_max * np.maximum(0, sHz_base) ** Order
-            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
-            aHz = Alpha_max * aHz_base**AOrder
-
-            # --- Final Update Coefficients (Vectorized) ---
-            # Denominators for E and H field updates
-            den_Ex = 2 * config.e0 * kEx + G.dt * kEx * aEx + G.dt * sEx
-            den_Ey = 2 * config.e0 * kEy + G.dt * kEy * aEy + G.dt * sEy
-            den_Ez = 2 * config.e0 * kEz + G.dt * kEz * aEz + G.dt * sEz
-            den_Hx = 2 * config.e0 * kHx + G.dt * kHx * aHx + G.dt * sHx
-            den_Hy = 2 * config.e0 * kHy + G.dt * kHy * aHy + G.dt * sHy
-            den_Hz = 2 * config.e0 * kHz + G.dt * kHz * aHz + G.dt * sHz
-
-            # RA Coefficients
-            RAEx = (2 * config.e0 * (1 - kEx) + G.dt * aEx * (1 - kEx) - G.dt * sEx) / den_Ex
-            RAEy = (2 * config.e0 * (1 - kEy) + G.dt * aEy * (1 - kEy) - G.dt * sEy) / den_Ey
-            RAEz = (2 * config.e0 * (1 - kEz) + G.dt * aEz * (1 - kEz) - G.dt * sEz) / den_Ez
-            RAHx = (2 * config.e0 * (1 - kHx) + G.dt * aHx * (1 - kHx) - G.dt * sHx) / den_Hx
-            RAHy = (2 * config.e0 * (1 - kHy) + G.dt * aHy * (1 - kHy) - G.dt * sHy) / den_Hy
-            RAHz = (2 * config.e0 * (1 - kHz) + G.dt * aHz * (1 - kHz) - G.dt * sHz) / den_Hz
-
-            # RB Coefficients
-            RBEx, RBEy, RBEz = 2 / den_Ex, 2 / den_Ey, 2 / den_Ez
-            RBHx, RBHy, RBHz = 2 / den_Hx, 2 / den_Hy, 2 / den_Hz
-
-            # RC Coefficients
-            RCEx = G.dt * (kEx * aEx + sEx)
-            RCEy = G.dt * (kEy * aEy + sEy)
-            RCEz = G.dt * (kEz * aEz + sEz)
-            RCHx = G.dt * (kHx * aHx + sHx)
-            RCHy = G.dt * (kHy * aHy + sHy)
-            RCHz = G.dt * (kHz * aHz + sHz)
-
-            # RD Coefficients
-            RDEx = G.dt * (aEx * (1 - kEx) - sEx)
-            RDEy = G.dt * (aEy * (1 - kEy) - sEy)
-            RDEz = G.dt * (aEz * (1 - kEz) - sEz)
-            RDHx = G.dt * (aHx * (1 - kHx) - sHx)
-            RDHy = G.dt * (aHy * (1 - kHy) - sHy)
-            RDHz = G.dt * (aHz * (1 - kHz) - sHz)
-
-            # --- Combine Coefficients into Single Matrices ---
-            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
-            # Hz, Hy, Hz components
-            self.pml_rex = np.array(
-                [RAEx, RBEx, RCEx, RDEx],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rey = np.array(
-                [RAEy, RBEy, RCEy, RDEy],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rez = np.array(
-                [RAEz, RBEz, RCEz, RDEz],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-
-            self.pml_rhx = np.array(
-                [RAHx, RBHx, RCHx, RDHx],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rhy = np.array(
-                [RAHy, RBHy, RCHy, RDHy],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rhz = np.array(
-                [RAHz, RBHz, RCHz, RDHz],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-
+            c = self._ripml_coefficients(G, self._dpw_sigma_max(self.materialZ, self.speed))
+            suffix = ""
+            self.pml_sigma_max = float(self._dpw_sigma_max(self.materialZ, self.speed))
+            ends = [("", c)]
         else:
-            Z = self.materialPMLZ
-
-            # --- PML Configuration ---
-            Order = 4
-            KOrder = 1
-            AOrder = 1
-            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
-            # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (
-                0.8
-                * (Order + 1)
-                / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
-            )
-            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
-            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-
-            # --- Create helper arrays for vectorized calculations ---
-            # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
-            depth = np.arange(self.pml_length)
-            # 'i_arr' array runs from PMLSize down to 0 (for alpha calculations)
-            i_arr = np.arange(self.pml_length, 0, -1)
-
-            # --- E-Field PML Parameters (Vectorized) ---
-            sEx_base = (depth + self.m[0] * 0.5) / self.pml_length
-            aEx_base = (i_arr + self.m[0] * 0.5) / self.pml_length
-            sEx = sigma_max * np.maximum(0, sEx_base) ** Order
-            kEx = 1.0 + (Kappa_max - 1.0) * sEx_base**KOrder
-            aEx = Alpha_max * aEx_base**AOrder
-
-            sEy_base = (depth + self.m[1] * 0.5) / self.pml_length
-            aEy_base = (i_arr + self.m[1] * 0.5) / self.pml_length
-            sEy = sigma_max * np.maximum(0, sEy_base) ** Order
-            kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
-            aEy = Alpha_max * aEy_base**AOrder
-
-            sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
-            aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
-            sEz = sigma_max * np.maximum(0, sEz_base) ** Order
-            kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
-            aEz = Alpha_max * aEz_base**AOrder
-
-            # --- H-Field PML Parameters (Vectorized) ---
-            sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            sHx = sigma_max * np.maximum(0, sHx_base) ** Order
-            kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
-            aHx = Alpha_max * aHx_base**AOrder
-
-            sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            sHy = sigma_max * np.maximum(0, sHy_base) ** Order
-            kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
-            aHy = Alpha_max * aHy_base**AOrder
-
-            sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            sHz = sigma_max * np.maximum(0, sHz_base) ** Order
-            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
-            aHz = Alpha_max * aHz_base**AOrder
-
-            # --- Final Update Coefficients (Vectorized) ---
-            # Denominators for E and H field updates
-            den_Ex = 2 * config.e0 * kEx + G.dt * kEx * aEx + G.dt * sEx
-            den_Ey = 2 * config.e0 * kEy + G.dt * kEy * aEy + G.dt * sEy
-            den_Ez = 2 * config.e0 * kEz + G.dt * kEz * aEz + G.dt * sEz
-            den_Hx = 2 * config.e0 * kHx + G.dt * kHx * aHx + G.dt * sHx
-            den_Hy = 2 * config.e0 * kHy + G.dt * kHy * aHy + G.dt * sHy
-            den_Hz = 2 * config.e0 * kHz + G.dt * kHz * aHz + G.dt * sHz
-
-            # RA Coefficients
-            RAEx = (2 * config.e0 * (1 - kEx) + G.dt * aEx * (1 - kEx) - G.dt * sEx) / den_Ex
-            RAEy = (2 * config.e0 * (1 - kEy) + G.dt * aEy * (1 - kEy) - G.dt * sEy) / den_Ey
-            RAEz = (2 * config.e0 * (1 - kEz) + G.dt * aEz * (1 - kEz) - G.dt * sEz) / den_Ez
-            RAHx = (2 * config.e0 * (1 - kHx) + G.dt * aHx * (1 - kHx) - G.dt * sHx) / den_Hx
-            RAHy = (2 * config.e0 * (1 - kHy) + G.dt * aHy * (1 - kHy) - G.dt * sHy) / den_Hy
-            RAHz = (2 * config.e0 * (1 - kHz) + G.dt * aHz * (1 - kHz) - G.dt * sHz) / den_Hz
-
-            # RB Coefficients
-            RBEx, RBEy, RBEz = 2 / den_Ex, 2 / den_Ey, 2 / den_Ez
-            RBHx, RBHy, RBHz = 2 / den_Hx, 2 / den_Hy, 2 / den_Hz
-
-            # RC Coefficients
-            RCEx = G.dt * (kEx * aEx + sEx)
-            RCEy = G.dt * (kEy * aEy + sEy)
-            RCEz = G.dt * (kEz * aEz + sEz)
-            RCHx = G.dt * (kHx * aHx + sHx)
-            RCHy = G.dt * (kHy * aHy + sHy)
-            RCHz = G.dt * (kHz * aHz + sHz)
-
-            # RD Coefficients
-            RDEx = G.dt * (aEx * (1 - kEx) - sEx)
-            RDEy = G.dt * (aEy * (1 - kEy) - sEy)
-            RDEz = G.dt * (aEz * (1 - kEz) - sEz)
-            RDHx = G.dt * (aHx * (1 - kHx) - sHx)
-            RDHy = G.dt * (aHy * (1 - kHy) - sHy)
-            RDHz = G.dt * (aHz * (1 - kHz) - sHz)
-
-            # --- Combine Coefficients into Single Matrices ---
-            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
-            # Hz, Hy, Hz components
-            self.pml_rex = np.array(
-                [RAEx, RBEx, RCEx, RDEx],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rey = np.array(
-                [RAEy, RBEy, RCEy, RDEy],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rez = np.array(
-                [RAEz, RBEz, RCEz, RDEz],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-
-            self.pml_rhx = np.array(
-                [RAHx, RBHx, RCHx, RDHx],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rhy = np.array(
-                [RAHy, RBHy, RCHy, RDHy],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rhz = np.array(
-                [RAHz, RBHz, RCHz, RDHz],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-
-            # --- Repeat for PML0 ---
-
-            Z = self.materialPML0Z
-
-            # --- PML Configuration ---
-            Order = 4
-            KOrder = 1
-            AOrder = 1
-            # Sigma Max is calcualted in the same way to the main grid PMls. It must take into account the
-            # actual physical step size of the DPW grid when calcualting the step value which is not just ds.
-            sigma_max = (
-                0.8
-                * (Order + 1)
-                / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
-            )
-            Kappa_max = 1.0  # No kappa grading for DPW as it is not needed. You can change this value for testing purposes.
-            Alpha_max = 0.0  # No alpha grading for DPW as it is not needed. You can change this value for testing purposes.
-
-            # --- Create helper arrays for vectorized calculations ---
-            # 'depth' array runs from 0 to PMLSize-1  (for sigma and kappa calculations)
-            depth = np.arange(self.pml_length)
-            # 'i_arr' array runs from PMLSize down to 0 (for alpha calculations)
-            i_arr = np.arange(self.pml_length, 0, -1)
-
-            # --- E-Field PML Parameters (Vectorized) ---
-            sEx_base = (depth + self.m[0] * 0.5) / self.pml_length
-            aEx_base = (i_arr + self.m[0] * 0.5) / self.pml_length
-            sEx = sigma_max * np.maximum(0, sEx_base) ** Order
-            kEx = 1.0 + (Kappa_max - 1.0) * sEx_base**KOrder
-            aEx = Alpha_max * aEx_base**AOrder
-
-            sEy_base = (depth + self.m[1] * 0.5) / self.pml_length
-            aEy_base = (i_arr + self.m[1] * 0.5) / self.pml_length
-            sEy = sigma_max * np.maximum(0, sEy_base) ** Order
-            kEy = 1.0 + (Kappa_max - 1.0) * sEy_base**KOrder
-            aEy = Alpha_max * aEy_base**AOrder
-
-            sEz_base = (depth + self.m[2] * 0.5) / self.pml_length
-            aEz_base = (i_arr + self.m[2] * 0.5) / self.pml_length
-            sEz = sigma_max * np.maximum(0, sEz_base) ** Order
-            kEz = 1.0 + (Kappa_max - 1.0) * sEz_base**KOrder
-            aEz = Alpha_max * aEz_base**AOrder
-
-            # --- H-Field PML Parameters (Vectorized) ---
-            sHx_base = (depth + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            aHx_base = (i_arr + (self.m[1] + self.m[2]) * 0.5) / self.pml_length
-            sHx = sigma_max * np.maximum(0, sHx_base) ** Order
-            kHx = 1.0 + (Kappa_max - 1.0) * sHx_base**KOrder
-            aHx = Alpha_max * aHx_base**AOrder
-
-            sHy_base = (depth + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            aHy_base = (i_arr + (self.m[0] + self.m[2]) * 0.5) / self.pml_length
-            sHy = sigma_max * np.maximum(0, sHy_base) ** Order
-            kHy = 1.0 + (Kappa_max - 1.0) * sHy_base**KOrder
-            aHy = Alpha_max * aHy_base**AOrder
-
-            sHz_base = (depth + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            aHz_base = (i_arr + (self.m[0] + self.m[1]) * 0.5) / self.pml_length
-            sHz = sigma_max * np.maximum(0, sHz_base) ** Order
-            kHz = 1.0 + (Kappa_max - 1.0) * sHz_base**KOrder
-            aHz = Alpha_max * aHz_base**AOrder
-
-            # --- Final Update Coefficients (Vectorized) ---
-            # Denominators for E and H field updates
-            den_Ex = 2 * config.e0 * kEx + G.dt * kEx * aEx + G.dt * sEx
-            den_Ey = 2 * config.e0 * kEy + G.dt * kEy * aEy + G.dt * sEy
-            den_Ez = 2 * config.e0 * kEz + G.dt * kEz * aEz + G.dt * sEz
-            den_Hx = 2 * config.e0 * kHx + G.dt * kHx * aHx + G.dt * sHx
-            den_Hy = 2 * config.e0 * kHy + G.dt * kHy * aHy + G.dt * sHy
-            den_Hz = 2 * config.e0 * kHz + G.dt * kHz * aHz + G.dt * sHz
-
-            # RA Coefficients
-            RAEx = (2 * config.e0 * (1 - kEx) + G.dt * aEx * (1 - kEx) - G.dt * sEx) / den_Ex
-            RAEy = (2 * config.e0 * (1 - kEy) + G.dt * aEy * (1 - kEy) - G.dt * sEy) / den_Ey
-            RAEz = (2 * config.e0 * (1 - kEz) + G.dt * aEz * (1 - kEz) - G.dt * sEz) / den_Ez
-            RAHx = (2 * config.e0 * (1 - kHx) + G.dt * aHx * (1 - kHx) - G.dt * sHx) / den_Hx
-            RAHy = (2 * config.e0 * (1 - kHy) + G.dt * aHy * (1 - kHy) - G.dt * sHy) / den_Hy
-            RAHz = (2 * config.e0 * (1 - kHz) + G.dt * aHz * (1 - kHz) - G.dt * sHz) / den_Hz
-
-            # RB Coefficients
-            RBEx, RBEy, RBEz = 2 / den_Ex, 2 / den_Ey, 2 / den_Ez
-            RBHx, RBHy, RBHz = 2 / den_Hx, 2 / den_Hy, 2 / den_Hz
-
-            # RC Coefficients
-            RCEx = G.dt * (kEx * aEx + sEx)
-            RCEy = G.dt * (kEy * aEy + sEy)
-            RCEz = G.dt * (kEz * aEz + sEz)
-            RCHx = G.dt * (kHx * aHx + sHx)
-            RCHy = G.dt * (kHy * aHy + sHy)
-            RCHz = G.dt * (kHz * aHz + sHz)
-
-            # RD Coefficients
-            RDEx = G.dt * (aEx * (1 - kEx) - sEx)
-            RDEy = G.dt * (aEy * (1 - kEy) - sEy)
-            RDEz = G.dt * (aEz * (1 - kEz) - sEz)
-            RDHx = G.dt * (aHx * (1 - kHx) - sHx)
-            RDHy = G.dt * (aHy * (1 - kHy) - sHy)
-            RDHz = G.dt * (aHz * (1 - kHz) - sHz)
-
-            # --- Combine Coefficients into Single Matrices ---
-            # Creates 2D arrays (4 rows x pml_length columns) for the PML coefficients RA row: 0, RB row: 1, RC rowe:2 and RD row: 3 for the Ex,Ey,Ez,
-            # Hz, Hy, Hz components
-            self.pml_rex0 = np.array(
-                [RAEx, RBEx, RCEx, RDEx],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rey0 = np.array(
-                [RAEy, RBEy, RCEy, RDEy],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rez0 = np.array(
-                [RAEz, RBEz, RCEz, RDEz],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-
-            self.pml_rhx0 = np.array(
-                [RAHx, RBHx, RCHx, RDHx],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rhy0 = np.array(
-                [RAHy, RBHy, RCHy, RDHy],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
-            self.pml_rhz0 = np.array(
-                [RAHz, RBHz, RCHz, RDHz],
-                order="C",
-                dtype=config.sim_config.dtypes["float_or_double"],
-            )
+            far = self._dpw_sigma_max(self.materialPMLZ, self.PMLspeed)
+            start = self._dpw_sigma_max(self.materialPML0Z, self.PML0speed)
+            self.pml_sigma_max = float(far)
+            self.pml_sigma_max0 = float(start)
+            ends = [("", self._ripml_coefficients(G, far)),
+                    ("0", self._ripml_coefficients(G, start))]
+        for suffix, c in ends:
+            setattr(self, "pml_rex" + suffix, c["ex"])
+            setattr(self, "pml_rey" + suffix, c["ey"])
+            setattr(self, "pml_rez" + suffix, c["ez"])
+            setattr(self, "pml_rhx" + suffix, c["hx"])
+            setattr(self, "pml_rhy" + suffix, c["hy"])
+            setattr(self, "pml_rhz" + suffix, c["hz"])
+        logger.debug(
+            f"DPW 1D termination: {self.termination}, {self.pml_length} cells "
+            f"(N = {self.pml_cells}, p = {self.pml_order}, R0 = {self.pml_r0_db} dB), "
+            f"sigma_max = {self.pml_sigma_max:.6g} S/m"
+        )

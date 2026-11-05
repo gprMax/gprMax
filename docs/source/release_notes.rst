@@ -17,6 +17,47 @@ Fractal volumes and rough surfaces
   are unaffected, and previously exported geometry is unchanged; reuse it
   where earlier geometry must be reproduced exactly.
 
+Discrete plane waves
+--------------------
+
+* **New default termination of the auxiliary 1D grid:** the absorbing layer
+  at the end of each plane wave's 1D grid is now designed for the solver
+  precision: ``sum(|m_i|) * N`` cells with ``N = 160`` in double and ``N = 20``
+  in single precision, grading order 6 and a design target of -320 dB for the
+  reflection of the conductivity profile. The previous peak conductivity was
+  too large by a factor of the relative permittivity of the background medium.
+  The reflection reached by a discrete broadband pulse depends on the model:
+  in the test models, the double-precision error relative to an infinite 1D
+  grid falls from between -121 and -191 dB to between -214 and -302 dB.
+  Single-precision results change only at round-off level.
+  ``termination="legacy"`` restores the previous termination and reproduces
+  the previous results exactly, except that the axial-y ``Ex`` correction
+  below is kept. See :ref:`dpw-termination`.
+* **Cost of the new default:** in double precision the layer is eight times
+  longer than before (160 instead of 20 cells per unit of ``sum(|m_i|)``).
+  This improves absorption but increases the memory of the 1D grid and can
+  increase CPU time substantially for plane waves with large integer direction
+  mappings. It is not an execution-speed improvement; ``pml_cells=20`` or
+  ``40`` keeps most of the earlier cost at reduced accuracy.
+* New optional Python-API keyword arguments ``termination``, ``pml_cells``,
+  ``pml_order`` and ``pml_r0_db`` on ``DiscretePlaneWaveAngles``,
+  ``DiscretePlaneWaveVector`` and ``DiscretePlaneWaveAxial``, set per plane
+  wave. The environment variable ``GPRMAX_DPW_TERMINATION`` applies them to a
+  whole run, including hash-command input files.
+* Axial plane waves: the hard source of the 1D grid now sits a fixed distance
+  before the total-field box, so the incident pulse arrives at the same time
+  for every termination with at least 20 cells and for ``"extended"``. A layer
+  thinner than 20 cells advances the arrival by ``(20 - N) * sum(|m_i|)`` 1D
+  cells and is reported with a warning; use at least 20 cells when the arrival
+  time matters.
+* **Fixed leakage of axial plane waves along y:** the electric TF/SF
+  correction for ``Ex`` on the y faces used the material of ``Ey`` and the
+  wrong index on the upper face. Axial y plane waves with an ``Ex`` component
+  leaked -12 to -23 dB into the scattered-field region; leakage is now below
+  -295 dB in double precision. Fixed on CPU/MPI, CUDA, OpenCL and Metal. The
+  correction applies whatever the termination, including ``"legacy"``, so
+  earlier results of affected models change. Re-run affected models.
+
 Subgrids
 --------
 

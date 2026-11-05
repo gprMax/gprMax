@@ -1914,6 +1914,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 dpw.initialise_1d_source_dev(
                     n,
                     M,
+                    np.int32(0 if dpw.axial == 0 else dpw.source_offset_axial),
                     np.int32(iteration),
                     target,
                     dpw.source_h_dev,
@@ -2041,6 +2042,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                     dpw.update_1d_magnetic_axial_source_dev(
                         n,
                         M,
+                        np.int32(dpw.source_offset_axial),
                         mx,
                         my,
                         mz,
@@ -2274,6 +2276,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                 dpw.initialise_1d_source_dev(
                     n,
                     M,
+                    np.int32(0 if dpw.axial == 0 else dpw.source_offset_axial),
                     np.int32(iteration + 1),
                     target,
                     dpw.source_e_dev,
@@ -2508,6 +2511,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                         dpw.update_1d_electric_axial_source_dev(
                             n,
                             M,
+                            np.int32(dpw.source_offset_axial),
                             mx,
                             my,
                             mz,
@@ -2714,6 +2718,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                         dpw.update_1d_electric_dispersive_axial_source_dev(
                             n,
                             M,
+                            np.int32(dpw.source_offset_axial),
                             mx,
                             my,
                             mz,
@@ -2782,6 +2787,7 @@ class CUDAUpdates(Updates[CUDAGrid]):
                         dpw.update_1d_electric_dispersive_axial_source_T_dev(
                             n,
                             M,
+                            np.int32(dpw.source_offset_axial),
                             num_poles,
                             dpw.Px_s_dev,
                             dpw.Py_s_dev,

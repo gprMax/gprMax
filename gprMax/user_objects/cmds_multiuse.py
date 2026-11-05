@@ -134,6 +134,29 @@ def _require_complete_source_time_window(user_object, start, stop):
         raise ValueError(f"{user_object.params_str()} start and stop times must be finite")
 
 
+# Optional keyword arguments (Python API only; not exposed in hash commands)
+# controlling the termination of the 1D auxiliary grid of one plane wave.
+# Omitted arguments take the precision-dependent design defaults; see
+# gprMax.sources.resolve_dpw_termination.
+#   termination: "pml" (default) | "extended" (testing reference) | "legacy"
+#   pml_cells:   N, the layer is sum|m_i|*N 1D cells (default 160 double, 20 single)
+#   pml_order:   polynomial grading order p (default 6)
+#   pml_r0_db:   target reflection R0 in dB that sets sigma_max (default -320)
+_DPW_TERMINATION_KWARGS = ("termination", "pml_cells", "pml_order", "pml_r0_db")
+
+
+def _dpw_termination_options(user_object):
+    """Collect and validate the optional DPW termination keyword arguments."""
+    from gprMax.sources import resolve_dpw_termination
+
+    options = {k: user_object.kwargs[k] for k in _DPW_TERMINATION_KWARGS if k in user_object.kwargs}
+    try:
+        resolve_dpw_termination(options)
+    except ValueError as err:
+        raise ValueError(f"{user_object.params_str()} {err}") from None
+    return options
+
+
 def _validate_dpw_precompute(user_object, precompute):
     """Reject the non-functional on-the-fly DPW source option explicitly."""
 
@@ -2162,6 +2185,27 @@ class DiscretePlaneWaveAngles(GridUserObject):
             auxiliary plane-wave source history before time stepping.
             ``False`` is reserved for a future on-the-fly implementation and
             is currently rejected.
+        termination: string optional for the termination of the auxiliary
+            1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
+            (the termination of gprMax 4.0.1 and earlier; earlier results are
+            reproduced exactly except for the corrected axial-y ``Ex``
+            TF/SF update, which is kept) or ``"extended"`` (equivalent to an
+            infinite 1D grid; a reference for testing that uses more memory
+            and time). Python API only.
+        pml_cells: int optional for ``N``; the absorbing layer is
+            ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
+            and 20 in single precision. Longer layers cost memory and time;
+            layers thinner than 20 cells advance the arrival of axial plane
+            waves (a warning is logged). Python API only.
+        pml_order: float optional for the polynomial grading order of the
+            absorbing layer (>= 1). Default is 6. Python API only.
+        pml_r0_db: float optional for the target reflection (dB, negative)
+            that sets the peak conductivity of the absorbing layer. Default
+            is -320. Python API only.
+
+    The environment variable ``GPRMAX_DPW_TERMINATION`` sets the termination
+    options for every plane wave in a run; the keyword arguments take
+    precedence. See :ref:`dpw-termination`.
     """
 
     @property
@@ -2175,6 +2219,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
     _allowed_kwargs = frozenset({
         "material_id", "max_angle_diff", "p1", "p2", "phi", "precompute", "psi", "theta",
         "waveform_id", "start", "stop",
+        *_DPW_TERMINATION_KWARGS,
     })
 
     def __init__(self, **kwargs):
@@ -2274,6 +2319,7 @@ class DiscretePlaneWaveAngles(GridUserObject):
 
         startstop = _configure_dpw_time_window(self, DPW, grid)
 
+        DPW.termination_options = _dpw_termination_options(self)
         DPW.initializeDiscretePlaneWave(grid)
 
         if precompute:
@@ -2332,6 +2378,27 @@ class DiscretePlaneWaveVector(GridUserObject):
             auxiliary plane-wave source history before time stepping.
             ``False`` is reserved for a future on-the-fly implementation and
             is currently rejected.
+        termination: string optional for the termination of the auxiliary
+            1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
+            (the termination of gprMax 4.0.1 and earlier; earlier results are
+            reproduced exactly except for the corrected axial-y ``Ex``
+            TF/SF update, which is kept) or ``"extended"`` (equivalent to an
+            infinite 1D grid; a reference for testing that uses more memory
+            and time). Python API only.
+        pml_cells: int optional for ``N``; the absorbing layer is
+            ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
+            and 20 in single precision. Longer layers cost memory and time;
+            layers thinner than 20 cells advance the arrival of axial plane
+            waves (a warning is logged). Python API only.
+        pml_order: float optional for the polynomial grading order of the
+            absorbing layer (>= 1). Default is 6. Python API only.
+        pml_r0_db: float optional for the target reflection (dB, negative)
+            that sets the peak conductivity of the absorbing layer. Default
+            is -320. Python API only.
+
+    The environment variable ``GPRMAX_DPW_TERMINATION`` sets the termination
+    options for every plane wave in a run; the keyword arguments take
+    precedence. See :ref:`dpw-termination`.
     """
 
     @property
@@ -2345,6 +2412,7 @@ class DiscretePlaneWaveVector(GridUserObject):
     _allowed_kwargs = frozenset({
         "m_vec", "material_id", "p1", "p2", "precompute", "psi", "waveform_id", "start",
         "stop",
+        *_DPW_TERMINATION_KWARGS,
     })
 
     def __init__(self, **kwargs):
@@ -2432,6 +2500,7 @@ class DiscretePlaneWaveVector(GridUserObject):
 
         startstop = _configure_dpw_time_window(self, DPW, grid)
 
+        DPW.termination_options = _dpw_termination_options(self)
         DPW.initializeDiscretePlaneWave(grid)
 
         if precompute:
@@ -2486,6 +2555,27 @@ class DiscretePlaneWaveAxial(GridUserObject):
             auxiliary plane-wave source history before time stepping.
             ``False`` is reserved for a future on-the-fly implementation and
             is currently rejected.
+        termination: string optional for the termination of the auxiliary
+            1D grid of this plane wave: ``"pml"`` (default), ``"legacy"``
+            (the termination of gprMax 4.0.1 and earlier; earlier results are
+            reproduced exactly except for the corrected axial-y ``Ex``
+            TF/SF update, which is kept) or ``"extended"`` (equivalent to an
+            infinite 1D grid; a reference for testing that uses more memory
+            and time). Python API only.
+        pml_cells: int optional for ``N``; the absorbing layer is
+            ``sum(|m_i|) * N`` 1D cells. Default is 160 in double precision
+            and 20 in single precision. Longer layers cost memory and time;
+            layers thinner than 20 cells advance the arrival of axial plane
+            waves (a warning is logged). Python API only.
+        pml_order: float optional for the polynomial grading order of the
+            absorbing layer (>= 1). Default is 6. Python API only.
+        pml_r0_db: float optional for the target reflection (dB, negative)
+            that sets the peak conductivity of the absorbing layer. Default
+            is -320. Python API only.
+
+    The environment variable ``GPRMAX_DPW_TERMINATION`` sets the termination
+    options for every plane wave in a run; the keyword arguments take
+    precedence. See :ref:`dpw-termination`.
     """
 
     @property
@@ -2498,6 +2588,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
     _allowed_kwargs = frozenset({
         "axis", "p1", "p2", "precompute", "psi", "waveform_id", "start", "stop",
+        *_DPW_TERMINATION_KWARGS,
     })
 
     def __init__(self, **kwargs):
@@ -2579,6 +2670,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
 
         startstop = _configure_dpw_time_window(self, DPW, grid)
 
+        DPW.termination_options = _dpw_termination_options(self)
         DPW.initializeDiscretePlaneWave(grid)
 
         if precompute:
