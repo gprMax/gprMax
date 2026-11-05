@@ -59,7 +59,7 @@ def _output_pair(outputfile: str | Path) -> tuple[Path, Path]:
     base = Path(outputfile)
     if base.suffix.lower() in {".dt1", ".hd"}:
         base = base.with_suffix("")
-    return base.with_suffix(".DT1"), base.with_suffix(".HD")
+    return base.with_name(base.name + ".DT1"), base.with_name(base.name + ".HD")
 
 
 def _survey_positions(records: list[TraceRecord]) -> np.ndarray:

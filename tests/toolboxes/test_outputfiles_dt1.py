@@ -7,7 +7,7 @@ import h5py
 import numpy as np
 import pytest
 
-from gprMax.toolboxes.Utilities.outputfiles_dt1 import TRACE_HEADER_FORMAT, export_dt1
+from gprMax.toolboxes.Utilities.outputfiles_dt1 import TRACE_HEADER_FORMAT, export_dt1, main
 
 
 def _write_output(filename, trace_number=1, *, dt=4.7e-12, samples=6, title="DT1 export test"):
@@ -136,3 +136,26 @@ def test_export_dt1_handles_non_ascii_title_metadata(tmp_path):
     hd_lines = summary.hd_outputfile.read_text(encoding="ascii").splitlines()
     assert any("GPRMAX TITLE = Survey: ?_r=9.0, 20?C ? model 1" in line for line in hd_lines)
 
+
+def test_main_keeps_dotted_base_names_and_component(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for number in (1, 2):
+        _write_output(tmp_path / f"antenna_1.5GHz{number}.h5", number)
+
+    assert main(["antenna_1.5GHz", "Ez"]) == 0
+    assert (tmp_path / "antenna_1.5GHz_Ez.DT1").is_file()
+    assert (tmp_path / "antenna_1.5GHz_Ez.HD").is_file()
+    assert not (tmp_path / "antenna_1.DT1").exists()
+
+
+@pytest.mark.parametrize(
+    "outputfile, expected",
+    [("survey.v2", "survey.v2"), ("survey.v2.dt1", "survey.v2"), ("survey.v2.HD", "survey.v2")],
+)
+def test_export_dt1_only_replaces_dt1_or_hd_suffix(tmp_path, outputfile, expected):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    summary = export_dt1([filename], tmp_path / outputfile, 1, "Ez")
+    assert summary.dt1_outputfile.name == f"{expected}.DT1"
+    assert summary.hd_outputfile.name == f"{expected}.HD"
