@@ -4,6 +4,8 @@ from pathlib import Path
 
 import h5py
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
+
 logger = logging.getLogger(__name__)
 
 _SPACING_ATTRIBUTE = "dx_dy_dz"
@@ -53,23 +55,28 @@ def extract_head(filename, outputfile=None, first_head_plane=None):
     cropped with the voxels so they stay aligned with ``data``.
     """
     filename = Path(filename)
+    if not filename.is_file():
+        raise FileNotFoundError(f"Austin geometry file does not exist: {filename}")
     outputfile = (
         Path(outputfile)
         if outputfile is not None
         else filename.with_name(f"{filename.stem}_head.h5")
     )
+    validate_output_path(
+        outputfile, [filename], message="Extracted head geometry must not overwrite the input file"
+    )
 
     with h5py.File(filename, "r") as source:
-        if "data" not in source:
+        if "data" not in source or not isinstance(source["data"], h5py.Dataset):
             raise ValueError(f"{filename} is not a gprMax geometry file with a data dataset")
         spacing = _geometry_spacing(source, filename)
         data = source["data"]
-        if data.ndim != 3:
-            raise ValueError(f"Expected three-dimensional geometry data in {filename}")
+        if data.ndim != 3 or 0 in data.shape:
+            raise ValueError(f"Expected non-empty three-dimensional geometry data in {filename}")
 
         if first_head_plane is None:
             first_head_plane = 7 * (data.shape[2] // 8)
-        if not isinstance(first_head_plane, int):
+        if not isinstance(first_head_plane, int) or isinstance(first_head_plane, bool):
             raise TypeError("first_head_plane must be an integer")
         if first_head_plane < 0 or first_head_plane >= data.shape[2]:
             raise ValueError(
@@ -82,7 +89,7 @@ def extract_head(filename, outputfile=None, first_head_plane=None):
             *output_shape,
         )
 
-        with h5py.File(outputfile, "w") as destination:
+        with atomic_output_path(outputfile) as temporary, h5py.File(temporary, "w") as destination:
             for name, value in source.attrs.items():
                 destination.attrs[name] = value
             # Austin v2.3 files use the historical ``dx, dy, dz`` name.
@@ -109,7 +116,7 @@ def extract_head(filename, outputfile=None, first_head_plane=None):
     return outputfile
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Writes a HDF5 file of an AustinMan or AustinWoman head.",
         usage="python -m gprMax.toolboxes.AustinManWoman.head_only_h5 filename",
@@ -124,10 +131,11 @@ def main():
         type=int,
         help="optional zero-based first z plane to retain (default: upper eighth)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     outputfile = extract_head(args.filename, args.output, args.first_plane)
     logger.info("Written head geometry file: %s", outputfile)
+    return outputfile
 
 
 if __name__ == "__main__":

@@ -53,6 +53,10 @@ class TestMainValidation:
         with pytest.raises(ValueError, match="Time window"):
             main(["gaussian", "1", "1e9", "0", "1.926e-12", "-save"])
 
+    def test_rejects_an_infinite_time_window(self):
+        with pytest.raises(ValueError, match="Time window must have a finite value greater than zero"):
+            main(["gaussian", "1", "1e9", "inf", "1.926e-12", "-save"])
+
     def test_unknown_waveform_exits_with_usage_error(self, capsys):
         with pytest.raises(SystemExit) as excinfo:
             main(["nosuchwaveform", "1", "1e9", "6e-9", "1.926e-12", "-save"])
@@ -92,3 +96,8 @@ class TestCheckTimewindow:
         timewindow, iterations = check_timewindow("6e-9", 1.926e-12)
         assert iterations > 1
         assert timewindow > 0
+
+    @pytest.mark.parametrize("tw", ["inf", "nan", "-inf", float("inf"), float("nan")])
+    def test_rejects_a_non_finite_time_window(self, tw):
+        with pytest.raises(ValueError, match="Time window must have a finite value greater than zero"):
+            check_timewindow(tw, 1.926e-12)

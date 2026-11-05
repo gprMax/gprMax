@@ -18,7 +18,8 @@
 import h5py
 import numpy as np
 
-from gprMax.toolboxes.AustinManWoman.head_only_h5 import extract_head
+from gprMax.toolboxes.AustinManWoman.head_only_h5 import extract_head, main
+import pytest
 
 
 def test_extract_head_is_import_safe_and_preserves_geometry_metadata(tmp_path):
@@ -107,3 +108,64 @@ def test_extract_head_crops_component_and_tag_arrays_with_the_voxels(tmp_path):
         np.testing.assert_array_equal(output["rigidH"], rigidH[..., 5:])
         np.testing.assert_array_equal(output["tag_data"], tag_data[..., 5:])
         assert output["ID"].shape[1:] == tuple(n + 1 for n in output["data"].shape)
+
+
+def test_extract_head_rejects_missing_file(tmp_path):
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        extract_head(tmp_path / "nonexistent.h5")
+
+
+def test_extract_head_rejects_overwriting_input_file(tmp_path):
+    source = tmp_path / "body.h5"
+    with h5py.File(source, "w") as output:
+        output.attrs["dx_dy_dz"] = (0.002, 0.002, 0.002)
+        output.create_dataset("data", data=np.zeros((2, 2, 8), dtype=np.uint16))
+
+    with pytest.raises(ValueError, match="must not overwrite the input file"):
+        extract_head(source, outputfile=source)
+
+
+def test_extract_head_rejects_boolean_first_plane(tmp_path):
+    source = tmp_path / "body.h5"
+    with h5py.File(source, "w") as output:
+        output.attrs["dx_dy_dz"] = (0.002, 0.002, 0.002)
+        output.create_dataset("data", data=np.zeros((2, 2, 8), dtype=np.uint16))
+
+    with pytest.raises(TypeError, match="must be an integer"):
+        extract_head(source, first_head_plane=True)
+
+
+def test_extract_head_preserves_destination_on_failure(tmp_path, monkeypatch):
+    source = tmp_path / "body.h5"
+    with h5py.File(source, "w") as output:
+        output.attrs["dx_dy_dz"] = (0.002, 0.002, 0.002)
+        output.create_dataset("data", data=np.zeros((2, 2, 8), dtype=np.uint16))
+
+    destination = tmp_path / "destination.h5"
+    previous = b"existing file content"
+    destination.write_bytes(previous)
+
+    def fail_dataset_options(*args):
+        raise OSError("injected write failure")
+
+    monkeypatch.setattr("gprMax.toolboxes.AustinManWoman.head_only_h5._dataset_creation_options", fail_dataset_options)
+
+    with pytest.raises(OSError, match="injected write failure"):
+        extract_head(source, outputfile=destination, first_head_plane=4)
+
+    assert destination.read_bytes() == previous
+
+
+def test_extract_head_main_cli(tmp_path):
+    source = tmp_path / "body.h5"
+    data = np.arange(2 * 2 * 10, dtype=np.uint16).reshape(2, 2, 10)
+    with h5py.File(source, "w") as output:
+        output.attrs["dx_dy_dz"] = (0.002, 0.002, 0.002)
+        output.create_dataset("data", data=data)
+
+    out = tmp_path / "custom_head.h5"
+    result = main([str(source), "-o", str(out), "--first-plane", "4"])
+    assert result == out
+    assert out.is_file()
+    with h5py.File(out, "r") as output:
+        np.testing.assert_array_equal(output["data"], data[:, :, 4:])
