@@ -58,11 +58,13 @@ def check_timewindow(timewindow, dt):
         timewindow = (timewindow - 1) * dt
 
     except ValueError:
-        timewindow = float(timewindow)
-        if timewindow > 0:
-            iterations = int(np.ceil(timewindow / dt)) + 1
-        else:
-            raise ValueError("Time window must have a value greater than zero")
+        try:
+            timewindow = float(timewindow)
+        except ValueError:
+            raise ValueError(f"Time window {timewindow!r} is not a valid number")
+        if not np.isfinite(timewindow) or timewindow <= 0:
+            raise ValueError("Time window must have a finite value greater than zero")
+        iterations = int(np.ceil(timewindow / dt)) + 1
 
     return timewindow, iterations
 
