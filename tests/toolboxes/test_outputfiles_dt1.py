@@ -87,7 +87,9 @@ def test_export_dt1_headers_geometry_quantisation_and_hd_metadata(tmp_path):
     assert values["GPRMAX COMPONENT"] == "Ez"
     assert values["GPRMAX ORIGINAL UNITS"] == "V/m"
     assert float(values["GPRMAX COUNT SCALE"]) == summary.count_scale
-    assert re.match(r"SI_VALUE = INTEGER_COUNT \* GPRMAX_COUNT_SCALE", values["GPRMAX AMPLITUDE CONVERSION"])
+    assert re.match(
+        r"SI_VALUE = INTEGER_COUNT \* GPRMAX_COUNT_SCALE", values["GPRMAX AMPLITUDE CONVERSION"]
+    )
 
 
 def test_export_dt1_is_readable_by_common_32_float_header_layout(tmp_path):
@@ -104,7 +106,9 @@ def test_export_dt1_is_readable_by_common_32_float_header_layout(tmp_path):
     last_trace_number = int(struct.unpack_from("<f", raw, len(raw) - trace_bytes)[0])
     data = np.empty((sample_count, last_trace_number), dtype=np.int16)
     for trace in range(last_trace_number):
-        data[:, trace] = np.frombuffer(raw, dtype="<i2", count=sample_count, offset=trace * trace_bytes + 128)
+        data[:, trace] = np.frombuffer(
+            raw, dtype="<i2", count=sample_count, offset=trace * trace_bytes + 128
+        )
 
     assert sample_count == 6
     assert last_trace_number == 2
@@ -159,3 +163,42 @@ def test_export_dt1_only_replaces_dt1_or_hd_suffix(tmp_path, outputfile, expecte
     summary = export_dt1([filename], tmp_path / outputfile, 1, "Ez")
     assert summary.dt1_outputfile.name == f"{expected}.DT1"
     assert summary.hd_outputfile.name == f"{expected}.HD"
+
+
+def test_export_dt1_rejects_input_alias_without_writes(tmp_path):
+    alias_input = tmp_path / "survey.DT1"
+    _write_output(alias_input)
+    original_bytes = alias_input.read_bytes()
+
+    with pytest.raises(ValueError, match="must not overwrite an input HDF5 file"):
+        export_dt1([alias_input], tmp_path / "survey", 1, "Ez", overwrite=True)
+
+    assert alias_input.read_bytes() == original_bytes
+
+
+def test_export_dt1_preserves_destination_on_write_failure(tmp_path, monkeypatch):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    destination_base = tmp_path / "survey"
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+
+    previous_dt1 = b"existing dt1 content"
+    previous_hd = "existing hd content"
+    dt1_file.write_bytes(previous_dt1)
+    hd_file.write_text(previous_hd)
+
+    def fail_trace(*args, **kwargs):
+        raise OSError("injected disk failure")
+
+    monkeypatch.setattr(
+        "gprMax.toolboxes.Utilities.outputfiles_dt1._trace_header",
+        fail_trace,
+    )
+
+    with pytest.raises(OSError, match="injected disk failure"):
+        export_dt1([filename], destination_base, 1, "Ez", overwrite=True)
+
+    assert dt1_file.read_bytes() == previous_dt1
+    assert hd_file.read_text() == previous_hd
