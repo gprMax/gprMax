@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import struct
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +27,7 @@ from typing import Iterable
 
 import numpy as np
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
 from gprMax.toolboxes.Utilities.outputfiles_trace import (
     TraceRecord,
     collect_traces,
@@ -215,18 +215,13 @@ def write_seg2(
     descriptor[11] = 1
     descriptor[12] = ord("\n")
 
-    temporary = destination.with_name(destination.name + ".tmp")
-    try:
+    with atomic_output_path(destination) as temporary:
         with temporary.open("wb") as stream:
             stream.write(descriptor)
             stream.write(struct.pack(f"<{len(pointers)}I", *pointers))
             stream.write(file_strings)
             for block in trace_blocks:
                 stream.write(block)
-        os.replace(temporary, destination)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
     return destination
 
 
@@ -243,6 +238,7 @@ def export_seg2(
 ) -> Seg2ExportSummary:
     """Convert a series of original gprMax A-scan files into SEG-2."""
 
+    destination = validate_output_path(seg2_outputfile, outputfiles)
     records, dt, time_offset, resolved_source, title = collect_traces(
         outputfiles,
         rxnumber,
@@ -253,7 +249,7 @@ def export_seg2(
     )
     destination = write_seg2(
         records,
-        seg2_outputfile,
+        destination,
         dt=dt,
         time_offset=time_offset,
         component=rxcomponent,
@@ -297,7 +293,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--grid", default="/", help="HDF5 grid path (default: /)")
     parser.add_argument("--source", default=None, help="source position path, e.g. srcs/src1")
     parser.add_argument(
-        "--trace-group", default=None, help="trace group (e.g. tls/tl1) or receiver selector (e.g. name:surface)"
+        "--trace-group",
+        default=None,
+        help="trace group (e.g. tls/tl1) or receiver selector (e.g. name:surface)",
     )
     parser.add_argument("--overwrite", action="store_true", help="replace an existing output file")
     args = parser.parse_args(argv)
