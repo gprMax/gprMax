@@ -756,8 +756,8 @@ toolbox from your working directory, for example:
 
 .. code-block:: console
 
-    python -m gprMax.toolboxes.Plotting.plot_Ascan model.h5
-    python -m gprMax.toolboxes.Plotting.plot_port model.h5 --list-ports
+    $ python -m gprMax.toolboxes.Plotting.plot_Ascan model.h5
+    $ python -m gprMax.toolboxes.Plotting.plot_port model.h5 --list-ports
 
 Python model scripts import the same namespace:
 
@@ -769,7 +769,7 @@ To locate toolbox-specific examples, MATLAB utilities or other bundled files:
 
 .. code-block:: console
 
-    python -c "from importlib.resources import files; print(files('gprMax.toolboxes'))"
+    $ python -c "from importlib.resources import files; print(files('gprMax.toolboxes'))"
 
 Copy files you want to edit into your own workspace; do not modify the
 installed package. The example-copy command below copies the main model
@@ -814,7 +814,7 @@ For example to run one of the test models:
 
 To use Apple Metal GPU acceleration on macOS:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -metal
 
