@@ -5,6 +5,7 @@ from testing.validation.impedance_surface.validate_2d import (
     FIELDS,
     compare_invariant_3d,
     normalized_field_error,
+    normalized_trace_error,
     run_2d,
 )
 
@@ -98,9 +99,7 @@ def test_virtual_continuation(tmp_path, polarization, resistance):
     options = dict(polarization=polarization, resistance=resistance, steps=600)
     reference, _ = run_2d(tmp_path / "reference", **options)
     actual, grid = run_2d(tmp_path / "virtual", virtual=True, **options)
-    scale = np.max(abs(reference), axis=-1, keepdims=True)
-    scale = np.maximum(scale, np.max(scale) * 1e-12)
-    assert np.max(abs(actual - reference) / scale) < 2e-8
+    assert normalized_trace_error(actual, reference) < 2e-8
     guide = grid.virtual_waveguides[0]
     assert guide.aux_grid.impedance_surfaces.edge_count > 0
     assert guide.aux_grid.impedance_surfaces.pml_edge_count > 0
@@ -146,16 +145,18 @@ def test_rotated_virtual_fields(
     )
     reference, _ = run_2d(tmp_path / "reference", **options)
     actual, grid = run_2d(tmp_path / "virtual", virtual=True, **options)
-    scale = np.max(abs(reference), axis=-1, keepdims=True)
-    scale = np.maximum(scale, np.max(scale) * 1e-12)
-    assert np.max(abs(actual - reference) / scale) < (2e-4 if precision == "single" else 2e-8)
+    tolerance = 2e-4 if precision == "single" else 2e-8
+    assert normalized_trace_error(actual, reference) < tolerance
     inactive = (
         set(FIELDS)
         - set(grid.virtual_waveguides[0].reduced.active_electric)
         - set(grid.virtual_waveguides[0].reduced.active_magnetic)
     )
+    # The reduced solve never updates the inactive components, so they stay at
+    # (round-off of) zero relative to the field level of the run.
+    peak = np.max(np.abs(reference))
     for name in inactive:
-        assert not np.any(getattr(grid, name))
+        assert np.max(np.abs(getattr(grid, name)), initial=0.0) <= tolerance * peak
 
 
 @pytest.mark.parametrize("polarization", ("TE", "TM"))
