@@ -882,6 +882,9 @@ Optional command line arguments
     * - ``--geometry-fixed``
       - flag
       - Run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
+    * - ``--allow-underresolved``
+      - flag
+      - Warn instead of stopping when the pre-solve wavelength-sampling check finds an under-resolved mesh. For intentional resolution experiments only; does not disable stability checks or output-validity limits.
     * - ``--write-processed``
       - flag
       - Write another input file after any Python blocks and include commands in the original input file have been processed. Useful for checking that any Python blocks are being correctly processed into gprMax commands.
