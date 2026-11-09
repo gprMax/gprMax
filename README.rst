@@ -88,7 +88,7 @@ Using gprMax? Cite us
 
 If you use gprMax and publish your work we would be grateful if you could cite our work using:
 
-* Warren, C., Giannopoulos, A., & Giannakis I. (2016). gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar, `Computer Physics Communications` (http://dx.doi.org/10.1016/j.cpc.2016.08.020)
+* Warren, C., Giannopoulos, A., & Giannakis, I. (2016). gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar, `Computer Physics Communications` (http://dx.doi.org/10.1016/j.cpc.2016.08.020)
 
 For further information on referencing gprMax visit the `Publications section of our website <https://www.gprmax.org/publications.shtml>`_.
 
@@ -480,7 +480,7 @@ macOS
 Microsoft Windows
 """""""""""""""""
 
-* Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK options.
+* Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK' options.
 * Use an **x64 Native Tools Command Prompt for Visual Studio**, then activate
   the chosen Python environment there. The compiler needs its headers and
   libraries as well as its executable; adding a guessed compiler directory
@@ -604,13 +604,13 @@ to the local software stack than the core gprMax package.
 Install FFTW
 """"""""""""
 
-FFTW is a required dependency of mpi4py_fft, however, if you are running gprMax on a HPC system, FFTW may be available already - consult your site's documentation. Otherwise you will need to install it yourself.
+FFTW is a required dependency of mpi4py_fft; however, if you are running gprMax on an HPC system, FFTW may be available already - consult your site's documentation. Otherwise you will need to install it yourself.
 
 Linux
 #####
 
 * It is possible binaries are available via your package manager. E.g. ``libfftw3-dev`` on Ubuntu.
-* Otherwise you can find the latest source code on the `fftw downloads page <https://fftw.org/download.html>`_. There are instructions to build from source in the `fftw docs <https://fftw.org/fftw3_doc/Installation-on-Unix.html>`_.
+* Otherwise you can find the latest source code on the `FFTW downloads page <https://fftw.org/download.html>`_. There are instructions to build from source in the `FFTW docs <https://fftw.org/fftw3_doc/Installation-on-Unix.html>`_.
 
 macOS
 #####
@@ -855,7 +855,7 @@ Optional command line arguments
       - Model number to start/restart the simulation from. It would typically be used to restart a series of models from a specific model number, with the n argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces.
     * - ``-t`` or ``--taskfarm``
       - flag
-      - Flag to use Message Passing Interface (MPI) taskfarm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI taskfarm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm``. For further details see the
+      - Flag to use Message Passing Interface (MPI) taskfarm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using an MPI taskfarm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm``. For further details see the
         `MPI task-farm section of the User Guide <https://docs.gprmax.com/en/latest/accelerators.html#task-farm>`_
     * - ``--mpi``
       - list
