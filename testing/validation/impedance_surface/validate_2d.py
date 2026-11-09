@@ -23,6 +23,29 @@ def normalized_field_error(reference, actual):
     )
 
 
+def normalized_trace_error(actual, reference, silent_fraction=1e-6):
+    """Largest trace error relative to the amplitude each component carries.
+
+    Components that carry signal are scaled by their own peak, so the weaker
+    magnetic traces are held to the same relative accuracy as the strong
+    electric ones. A component whose reference peak is below ``silent_fraction``
+    of the global peak has no amplitude of its own (for example the
+    out-of-plane fields of a reduced 2D run, which are identically zero), so
+    its error is measured against the global peak instead. Dividing such a
+    component by a tiny floor would turn round-off noise into a large
+    "relative" error, which made these comparisons fail intermittently on
+    hosted CI runners.
+    """
+    reference = np.asarray(reference)
+    error = np.abs(np.asarray(actual) - reference)
+    peak = float(np.max(np.abs(reference)))
+    if peak == 0.0:
+        return float(np.max(error))
+    scale = np.max(np.abs(reference), axis=-1, keepdims=True)
+    scale = np.where(scale > silent_fraction * peak, scale, peak)
+    return float(np.max(error / scale))
+
+
 def scene_2d(
     *,
     polarization="TM",
