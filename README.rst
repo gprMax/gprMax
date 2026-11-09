@@ -197,8 +197,8 @@ command is:
 
     $ python -m pip install gprMax
 
-These PyPI commands apply after the v4 release is published. To install an
-unpublished development version, use `Installing from source`_ instead.
+To install an unpublished development version, use `Installing from source`_
+instead.
 
 Python 3.11--3.13 is supported, with Python 3.12 recommended. Release wheels
 target 64-bit Linux x86-64, Windows x86-64, and Intel and Apple Silicon macOS.
