@@ -522,14 +522,15 @@ There is no need to replace an existing Conda installation or make its Python
 the system-wide default. The Python in Conda's base environment can differ
 from Python 3.12 in the development environment.
 
-The following commands select the ``devel`` branch for v4 development, not a
-pinned release. To build a published release instead, check out that release's
-tag in the new checkout before creating its environment. Use a new directory
-and environment name; do not reuse your v3 checkout or environment:
+The following commands check out the default ``master`` branch, which carries
+current v4 development, not a pinned release. To build a published release
+instead, check out that release's tag in the new checkout before creating its
+environment. Use a new directory and environment name; do not reuse your v3
+checkout or environment:
 
 .. code-block:: console
 
-    $ git clone --branch devel https://github.com/gprMax/gprMax.git gprMax-v4-src
+    $ git clone https://github.com/gprMax/gprMax.git gprMax-v4-src
     $ cd gprMax-v4-src
     $ conda env create -f conda_env.yml
     $ conda activate gprMax-v4
