@@ -38,7 +38,6 @@ from gprMax.cython.yee_cell_setget_rigid cimport (
 
 from gprMax.utilities.utilities import round_value
 
-
 ctypedef fused voxel_material_id_t:
     np.int16_t
     np.int32_t

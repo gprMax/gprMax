@@ -108,6 +108,7 @@ class TestEdgeBuild:
         with pytest.raises(KeyError):
             Edge(p1=(2 * DL, 3 * DL, 4 * DL)).build(g)
 
+
 class TestPlateBuild:
     # xy-plane plate from cell (1, 1) to (4, 3) at z-level 2: the face
     # builder runs over cells i in 1..3, j in 1..2.
@@ -118,8 +119,12 @@ class TestPlateBuild:
         plate = Plate(p1=(1 * DL, 1 * DL, 2 * DL), p2=(4 * DL, 3 * DL, 2 * DL), material_id="metal")
         plate.build(g)
 
-        expected_id0 = {(i, j, 2) for (i, j) in self.CELLS} | {(i, j + 1, 2) for (i, j) in self.CELLS}
-        expected_id1 = {(i, j, 2) for (i, j) in self.CELLS} | {(i + 1, j, 2) for (i, j) in self.CELLS}
+        expected_id0 = {(i, j, 2) for (i, j) in self.CELLS} | {
+            (i, j + 1, 2) for (i, j) in self.CELLS
+        }
+        expected_id1 = {(i, j, 2) for (i, j) in self.CELLS} | {
+            (i + 1, j, 2) for (i, j) in self.CELLS
+        }
         assert nonzero_set(g.ID[0]) == expected_id0
         assert nonzero_set(g.ID[1]) == expected_id1
         assert not g.ID[2].any()
@@ -269,7 +274,9 @@ class TestCylinderBuild:
 
     def test_non_positive_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), r=0.0, material_id="metal")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), r=0.0, material_id="metal"
+        )
         with pytest.raises(ValueError):
             cylinder.build(g)
 
@@ -286,7 +293,9 @@ class TestCylinderBuild:
 
     def test_missing_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), material_id="metal")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), material_id="metal"
+        )
         with pytest.raises(KeyError):
             cylinder.build(g)
 
