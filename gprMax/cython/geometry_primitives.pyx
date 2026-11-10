@@ -560,7 +560,7 @@ cpdef Py_ssize_t build_triangle(
     """
 
     cdef Py_ssize_t i, j, k, occupied = 0
-    cdef int i1, i2, j1, j2, levelcells, thicknesscells
+    cdef int i1, i2, j1, j2, levelcells, thicknesscells, stopcells
     cdef int u1, v1, u2, v2, u3, v3
     cdef long long bu, bv, cu, cv, qu2, qv2
     cdef long long denominator, s_num2, t_num2
@@ -590,6 +590,7 @@ cpdef Py_ssize_t build_triangle(
         levelcells = round_value(x1 / dx)
         thicknesscells = round_value(thickness / dx)
         i2, j2 = min(i2, solid.shape[1]), min(j2, solid.shape[2])
+        stopcells = min(levelcells + thicknesscells, solid.shape[0])
     elif normal == 'y':
         u1, u2, u3 = round_value(x1 / dx), round_value(x2 / dx), round_value(x3 / dx)
         v1, v2, v3 = round_value(z1 / dz), round_value(z2 / dz), round_value(z3 / dz)
@@ -598,6 +599,7 @@ cpdef Py_ssize_t build_triangle(
         levelcells = round_value(y1 /dy)
         thicknesscells = round_value(thickness / dy)
         i2, j2 = min(i2, solid.shape[0]), min(j2, solid.shape[2])
+        stopcells = min(levelcells + thicknesscells, solid.shape[1])
     elif normal == 'z':
         u1, u2, u3 = round_value(x1 / dx), round_value(x2 / dx), round_value(x3 / dx)
         v1, v2, v3 = round_value(y1 / dy), round_value(y2 / dy), round_value(y3 / dy)
@@ -606,6 +608,7 @@ cpdef Py_ssize_t build_triangle(
         levelcells = round_value(z1 / dz)
         thicknesscells = round_value(thickness / dz)
         i2, j2 = min(i2, solid.shape[0]), min(j2, solid.shape[1])
+        stopcells = min(levelcells + thicknesscells, solid.shape[2])
 
     # Bound to the start of the grid
     if i1 < 0:
@@ -659,7 +662,7 @@ cpdef Py_ssize_t build_triangle(
                                       rigidE, rigidH, ID)
                     occupied += 1
                 else:
-                    for k in range(levelcells, levelcells + thicknesscells):
+                    for k in range(levelcells, stopcells):
                         if normal == 'x':
                             build_voxel(k, i, j, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
@@ -784,7 +787,7 @@ cpdef Py_ssize_t build_cylindrical_sector(
                                       rigidE, rigidH, ID)
                         occupied += 1
                     else:
-                        for x in range(levelcells, levelcells + thicknesscells):
+                        for x in range(levelcells, min(levelcells + thicknesscells, solid.shape[0])):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)
@@ -822,7 +825,7 @@ cpdef Py_ssize_t build_cylindrical_sector(
                                       rigidE, rigidH, ID)
                         occupied += 1
                     else:
-                        for y in range(levelcells, levelcells + thicknesscells):
+                        for y in range(levelcells, min(levelcells + thicknesscells, solid.shape[1])):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)
@@ -860,7 +863,7 @@ cpdef Py_ssize_t build_cylindrical_sector(
                                       rigidE, rigidH, ID)
                         occupied += 1
                     else:
-                        for z in range(levelcells, levelcells + thicknesscells):
+                        for z in range(levelcells, min(levelcells + thicknesscells, solid.shape[2])):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, pec_x, pec_y, pec_z,
                                         solid, rigidE, rigidH, ID)

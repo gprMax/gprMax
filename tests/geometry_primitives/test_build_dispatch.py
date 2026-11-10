@@ -238,6 +238,29 @@ class TestTriangleBuild:
         with pytest.raises(KeyError):
             Triangle(**self.KWARGS).build(g)
 
+    def test_overhanging_slab_becomes_face_on_end_plane(self, dispatch_grid):
+        """A slab overhanging the x end by less than half a cell rounds up
+        onto the terminal node; its in-domain remainder is empty, so it
+        must become a face on the end plane (ID[1]/ID[2] at x == nx, with
+        rigid neighbours pulled in at nx - 1), never a voxel past the
+        last cell."""
+        g = dispatch_grid(10, 8, 8)
+        Triangle(
+            p1=(9.6 * DL, 2 * DL, 2 * DL),
+            p2=(9.6 * DL, 6 * DL, 2 * DL),
+            p3=(9.6 * DL, 2 * DL, 5 * DL),
+            thickness=0.6 * DL,
+            material_id="metal",
+        ).build(g)
+
+        assert not g.solid.any()
+        assert np.any(g.ID[1, 10])
+        assert np.any(g.ID[2, 10])
+        assert not g.ID[0, 10].any()
+        assert set(np.nonzero(g.ID.any(axis=(0, 2, 3)))[0]) == {10}
+        assert np.any(g.rigidE[:, 9])
+        assert set(np.nonzero(g.rigidE.any(axis=(0, 2, 3)))[0]) == {9}
+
 
 class TestCylinderBuild:
     CROSS_SECTION = {(4, 4), (4, 5), (5, 4), (5, 5)}
@@ -395,6 +418,32 @@ class TestCylindricalSectorBuild:
         g = dispatch_grid()
         with pytest.raises(KeyError):
             CylindricalSector(normal="z", ctr1=5 * DL, ctr2=5 * DL).build(g)
+
+    def test_overhanging_slab_becomes_face_on_end_plane(self, dispatch_grid):
+        """A sector slab overhanging the z end by less than half a cell
+        rounds up onto the terminal node and must become a face on the
+        end plane (ID[0]/ID[1] at z == nz, rigid neighbours at nz - 1),
+        never a voxel past the last cell."""
+        g = dispatch_grid(8, 8, 10)
+        CylindricalSector(
+            normal="z",
+            ctr1=3 * DL,
+            ctr2=3 * DL,
+            extent1=9.6 * DL,
+            extent2=10.2 * DL,
+            r=2.5 * DL,
+            start=0.0,
+            end=90.0,
+            material_id="metal",
+        ).build(g)
+
+        assert not g.solid.any()
+        assert np.any(g.ID[0, :, :, 10])
+        assert np.any(g.ID[1, :, :, 10])
+        assert not g.ID[2, :, :, 10].any()
+        assert set(np.nonzero(g.ID.any(axis=(0, 1, 2)))[0]) == {10}
+        assert np.any(g.rigidE[:, :, :, 9])
+        assert set(np.nonzero(g.rigidE.any(axis=(0, 1, 2)))[0]) == {9}
 
 
 class TestGeometryObjectsReadBuild:
