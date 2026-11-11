@@ -36,7 +36,9 @@ class Grass:
         """
 
         if isinstance(numblades, bool) or not isinstance(numblades, Integral) or numblades < 0:
-            raise ValueError(f"Grass requires a non-negative integer blade count, got {numblades!r}")
+            raise ValueError(
+                f"Grass requires a non-negative integer blade count, got {numblades!r}"
+            )
         self.numblades = int(numblades)
         self.geometryparams = np.zeros(
             (self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"]
