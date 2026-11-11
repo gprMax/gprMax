@@ -4178,9 +4178,16 @@ class RxArray(GridUserObject):
             raise ValueError(f"{self.params_str()} the step size should not be less than zero.")
         # Rounding can shrink or erase a sub-cell step, so validate the
         # requested value. Singleton axes resolve to one point whatever
-        # the non-negative step, and zero keeps its documented role.
+        # the non-negative step, and zero keeps its documented role. The
+        # one-cell minimum carries a relative tolerance so a step that
+        # means exactly one cell still builds when float arithmetic lands
+        # it a hair under (0.011 - 0.010 on a 1 mm grid, nextafter(dl, 0),
+        # float32-origin spacing); float round-off stays orders below the
+        # tolerance while any meaningful sub-cell request sits far above.
         if any(
-            (raw_dl > 0) & (raw_dl < grid.dl) & (discretised_lower_point != discretised_upper_point)
+            (raw_dl > 0)
+            & (raw_dl < grid.dl * (1 - 1e-9))
+            & (discretised_lower_point != discretised_upper_point)
         ):
             raise ValueError(
                 f"{self.params_str()} the step size should not be less than the spatial discretisation."

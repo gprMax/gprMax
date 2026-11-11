@@ -29,6 +29,7 @@ requested step, exempting singleton axes (equal endpoints, including the
 
 from itertools import product
 
+import numpy as np
 import pytest
 
 import gprMax
@@ -167,3 +168,71 @@ def test_2d_invariant_axis_accepts_sub_cell_step(monkeypatch, tmp_path):
     assert all(rx.coord[2] == 1 for rx in grid.rxs)
     assert [rx.coord[0] for rx in grid.rxs] == [2, 2, 2, 4, 4, 4, 6, 6, 6]
     assert [rx.coord[1] for rx in grid.rxs] == [2, 4, 6] * 3
+
+
+@pytest.mark.parametrize("axis", range(3))
+def test_one_cell_step_with_float_round_off_is_accepted(monkeypatch, tmp_path, axis):
+    """A step that means exactly one cell must build even when float
+    arithmetic lands it a hair under: 0.011 - 0.010 on a 1 mm grid is
+    0.0009999999999999992, and rejecting it would break models that
+    compute spacing from coordinates."""
+    step = 0.011 - 0.010
+    dl = [0.0, 0.0, 0.0]
+    dl[axis] = step
+    lower = [0.005] * 3
+    upper = list(lower)
+    upper[axis] = 0.007
+    scene = _scene()
+    scene.add(gprMax.RxArray(p1=tuple(lower), p2=tuple(upper), dl=tuple(dl)))
+    grid = _build(scene, monkeypatch, tmp_path, f"round_off_axis_{axis}")
+    assert len(grid.rxs) == 3
+    assert [tuple(rx.coord)[axis] for rx in grid.rxs] == [5, 6, 7]
+    assert all(
+        tuple(rx.coord)[(axis + 1) % 3] == 5 and tuple(rx.coord)[(axis + 2) % 3] == 5
+        for rx in grid.rxs
+    )
+
+
+def test_nextafter_below_one_cell_is_accepted(monkeypatch, tmp_path):
+    """np.nextafter(dl, 0) is the closest float under one cell and is a
+    one-cell request, not a sub-cell one."""
+    scene = _scene()
+    scene.add(
+        gprMax.RxArray(
+            p1=(0.002, 0.006, 0.006), p2=(0.010, 0.006, 0.006), dl=(np.nextafter(DL, 0.0), 0, 0)
+        )
+    )
+    grid = _build(scene, monkeypatch, tmp_path, "nextafter_step")
+    assert [rx.coord[0] for rx in grid.rxs] == [2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+
+def test_float32_origin_step_is_accepted(monkeypatch, tmp_path):
+    """Spacing imported from float32 data sits just above one cell and
+    must keep stepping at one cell."""
+    scene = _scene()
+    scene.add(
+        gprMax.RxArray(
+            p1=(0.002, 0.006, 0.006), p2=(0.010, 0.006, 0.006), dl=(float(np.float32(DL)), 0, 0)
+        )
+    )
+    grid = _build(scene, monkeypatch, tmp_path, "float32_step")
+    assert [rx.coord[0] for rx in grid.rxs] == [2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+
+def test_genuinely_sub_cell_step_still_rejected(tmp_path):
+    """The tolerance only covers round-off: a real sub-cell request stays
+    an error."""
+    scene = _scene()
+    scene.add(
+        gprMax.RxArray(p1=(0.002, 0.006, 0.006), p2=(0.010, 0.006, 0.006), dl=(0.00099, 0, 0))
+    )
+    with pytest.raises(
+        ValueError, match="step size should not be less than the spatial discretisation"
+    ):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "still_reject",
+            hide_progress_bars=True,
+        )
