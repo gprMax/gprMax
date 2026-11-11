@@ -4173,15 +4173,20 @@ class RxArray(GridUserObject):
             raise ValueError(
                 f"{self.params_str()} the lower coordinates should be less than the upper coordinates."
             )
-        if any(discretised_dl < 0):
+        raw_dl = np.asarray(self.dl)
+        if any(raw_dl < 0):
             raise ValueError(f"{self.params_str()} the step size should not be less than zero.")
-
-        discretised_dl = np.where(discretised_dl == 0, 1, discretised_dl)
-
-        if any(discretised_dl < 1):
+        # Rounding can shrink or erase a sub-cell step, so validate the
+        # requested value. Singleton axes resolve to one point whatever
+        # the non-negative step, and zero keeps its documented role.
+        if any(
+            (raw_dl > 0) & (raw_dl < grid.dl) & (discretised_lower_point != discretised_upper_point)
+        ):
             raise ValueError(
                 f"{self.params_str()} the step size should not be less than the spatial discretisation."
             )
+
+        discretised_dl = np.where(discretised_dl == 0, 1, discretised_dl)
 
         # Iterate in the user's coordinate frame, on this grid's lattice.
         # The checked points above may already be translated to local MPI
