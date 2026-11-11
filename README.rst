@@ -88,7 +88,7 @@ Using gprMax? Cite us
 
 If you use gprMax and publish your work we would be grateful if you could cite our work using:
 
-* Warren, C., Giannopoulos, A., & Giannakis I. (2016). gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar, `Computer Physics Communications` (http://dx.doi.org/10.1016/j.cpc.2016.08.020)
+* Warren, C., Giannopoulos, A., & Giannakis, I. (2016). gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar, `Computer Physics Communications` (http://dx.doi.org/10.1016/j.cpc.2016.08.020)
 
 For further information on referencing gprMax visit the `Publications section of our website <https://www.gprmax.org/publications.shtml>`_.
 
@@ -197,8 +197,8 @@ command is:
 
     $ python -m pip install gprMax
 
-These PyPI commands apply after the v4 release is published. To install an
-unpublished development version, use `Installing from source`_ instead.
+To install an unpublished development version, use `Installing from source`_
+instead.
 
 Python 3.11--3.13 is supported, with Python 3.12 recommended. Release wheels
 target 64-bit Linux x86-64, Windows x86-64, and Intel and Apple Silicon macOS.
@@ -480,7 +480,7 @@ macOS
 Microsoft Windows
 """""""""""""""""
 
-* Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK options.
+* Download and install Microsoft `Build Tools for Visual Studio 2022 <https://aka.ms/vs/17/release/vs_BuildTools.exe>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2022', then clicking the download button next to 'Build Tools for Visual Studio 2022'. When installing, choose the 'Desktop development with C++' Workload and select only 'MSVC v143' and 'Windows 10 SDK' or 'Windows 11 SDK' options.
 * Use an **x64 Native Tools Command Prompt for Visual Studio**, then activate
   the chosen Python environment there. The compiler needs its headers and
   libraries as well as its executable; adding a guessed compiler directory
@@ -604,13 +604,13 @@ to the local software stack than the core gprMax package.
 Install FFTW
 """"""""""""
 
-FFTW is a required dependency of mpi4py_fft, however, if you are running gprMax on a HPC system, FFTW may be available already - consult your site's documentation. Otherwise you will need to install it yourself.
+FFTW is a required dependency of mpi4py_fft; however, if you are running gprMax on an HPC system, FFTW may be available already - consult your site's documentation. Otherwise you will need to install it yourself.
 
 Linux
 #####
 
 * It is possible binaries are available via your package manager. E.g. ``libfftw3-dev`` on Ubuntu.
-* Otherwise you can find the latest source code on the `fftw downloads page <https://fftw.org/download.html>`_. There are instructions to build from source in the `fftw docs <https://fftw.org/fftw3_doc/Installation-on-Unix.html>`_.
+* Otherwise you can find the latest source code on the `FFTW downloads page <https://fftw.org/download.html>`_. There are instructions to build from source in the `FFTW docs <https://fftw.org/fftw3_doc/Installation-on-Unix.html>`_.
 
 macOS
 #####
@@ -756,8 +756,8 @@ toolbox from your working directory, for example:
 
 .. code-block:: console
 
-    python -m gprMax.toolboxes.Plotting.plot_Ascan model.h5
-    python -m gprMax.toolboxes.Plotting.plot_port model.h5 --list-ports
+    $ python -m gprMax.toolboxes.Plotting.plot_Ascan model.h5
+    $ python -m gprMax.toolboxes.Plotting.plot_port model.h5 --list-ports
 
 Python model scripts import the same namespace:
 
@@ -769,7 +769,7 @@ To locate toolbox-specific examples, MATLAB utilities or other bundled files:
 
 .. code-block:: console
 
-    python -c "from importlib.resources import files; print(files('gprMax.toolboxes'))"
+    $ python -c "from importlib.resources import files; print(files('gprMax.toolboxes'))"
 
 Copy files you want to edit into your own workspace; do not modify the
 installed package. The example-copy command below copies the main model
@@ -814,7 +814,7 @@ For example to run one of the test models:
 
 To use Apple Metal GPU acceleration on macOS:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ python -m gprMax examples/gpr/basic/cylinder_Ascan_2D.in -metal
 
@@ -855,7 +855,7 @@ Optional command line arguments
       - Model number to start/restart the simulation from. It would typically be used to restart a series of models from a specific model number, with the n argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces.
     * - ``-t`` or ``--taskfarm``
       - flag
-      - Flag to use Message Passing Interface (MPI) taskfarm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI taskfarm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm``. For further details see the
+      - Flag to use Message Passing Interface (MPI) taskfarm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using an MPI taskfarm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``$ python -m gprMax examples/gpr/basic/cylinder_Bscan_2D.in -n 60 --taskfarm``. For further details see the
         `MPI task-farm section of the User Guide <https://docs.gprmax.com/en/latest/accelerators.html#task-farm>`_
     * - ``--mpi``
       - list
@@ -882,6 +882,9 @@ Optional command line arguments
     * - ``--geometry-fixed``
       - flag
       - Run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
+    * - ``--allow-underresolved``
+      - flag
+      - Warn instead of stopping when the pre-solve wavelength-sampling check finds an under-resolved mesh. For intentional resolution experiments only; does not disable stability checks or output-validity limits.
     * - ``--write-processed``
       - flag
       - Write another input file after any Python blocks and include commands in the original input file have been processed. Useful for checking that any Python blocks are being correctly processed into gprMax commands.
