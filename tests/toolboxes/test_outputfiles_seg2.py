@@ -155,3 +155,37 @@ def test_export_seg2_accepts_largest_finite_float32_amplitudes(tmp_path):
 
     stored = np.frombuffer(destination.read_bytes()[-8:], dtype="<f4")
     np.testing.assert_array_equal(stored, samples)
+
+
+def test_export_seg2_rejects_input_alias_without_writes(tmp_path):
+    files = [tmp_path / f"scan{number}.h5" for number in range(1, 3)]
+    for number, filename in enumerate(files, start=1):
+        _write_output(filename, number)
+    original_bytes = [f.read_bytes() for f in files]
+
+    with pytest.raises(ValueError, match="must not overwrite an input HDF5 file"):
+        export_seg2(files, files[0], 1, "Ez", overwrite=True)
+
+    assert [f.read_bytes() for f in files] == original_bytes
+
+
+def test_export_seg2_preserves_destination_on_write_failure(tmp_path, monkeypatch):
+    files = [tmp_path / "scan1.h5"]
+    _write_output(files[0])
+
+    destination = tmp_path / "scan_Ez.sg2"
+    previous = b"existing seg2 content"
+    destination.write_bytes(previous)
+
+    def fail_write(*args, **kwargs):
+        raise OSError("injected disk failure")
+
+    monkeypatch.setattr(
+        "gprMax.toolboxes.Utilities.outputfiles_seg2._trace_block",
+        fail_write,
+    )
+
+    with pytest.raises(OSError, match="injected disk failure"):
+        export_seg2(files, destination, 1, "Ez", overwrite=True)
+
+    assert destination.read_bytes() == previous

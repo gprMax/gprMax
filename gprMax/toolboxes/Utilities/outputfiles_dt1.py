@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import struct
 from dataclasses import dataclass
 from datetime import date
@@ -27,6 +26,7 @@ from typing import Iterable
 
 import numpy as np
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
 from gprMax.toolboxes.Utilities.outputfiles_trace import (
     TraceRecord,
     collect_traces,
@@ -261,9 +261,10 @@ def write_dt1(
         stacks=stacks,
     )
 
-    dt1_temporary = dt1_destination.with_name(dt1_destination.name + ".tmp")
-    hd_temporary = hd_destination.with_name(hd_destination.name + ".tmp")
-    try:
+    with (
+        atomic_output_path(dt1_destination) as dt1_temporary,
+        atomic_output_path(hd_destination) as hd_temporary,
+    ):
         with dt1_temporary.open("wb") as stream:
             for trace_number, (record, samples, position) in enumerate(
                 zip(records, quantised, positions, strict=True),
@@ -282,12 +283,6 @@ def write_dt1(
                 )
                 stream.write(samples.tobytes(order="C"))
         hd_temporary.write_text(hd, encoding="ascii", errors="replace", newline="")
-        os.replace(dt1_temporary, dt1_destination)
-        os.replace(hd_temporary, hd_destination)
-    finally:
-        for temporary in (dt1_temporary, hd_temporary):
-            if temporary.exists():
-                temporary.unlink()
     return dt1_destination, hd_destination, count_scale
 
 
@@ -305,6 +300,10 @@ def export_dt1(
     overwrite: bool = False,
 ) -> Dt1ExportSummary:
     """Convert a series of original gprMax A-scan files into DT1/HD."""
+
+    dt1_destination, hd_destination = _output_pair(dt1_outputfile)
+    validate_output_path(dt1_destination, outputfiles)
+    validate_output_path(hd_destination, outputfiles)
 
     records, dt, time_offset, resolved_source, title = collect_traces(
         outputfiles,
@@ -364,7 +363,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--grid", default="/", help="HDF5 grid path (default: /)")
     parser.add_argument("--source", default=None, help="source position path, e.g. srcs/src1")
     parser.add_argument(
-        "--trace-group", default=None, help="trace group (e.g. tls/tl1) or receiver selector (e.g. name:surface)"
+        "--trace-group",
+        default=None,
+        help="trace group (e.g. tls/tl1) or receiver selector (e.g. name:surface)",
     )
     parser.add_argument(
         "--nominal-frequency",

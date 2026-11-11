@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import struct
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +42,7 @@ from typing import Iterable
 
 import numpy as np
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
 from gprMax.toolboxes.Utilities.outputfiles_trace import (
     TraceRecord,
     collect_traces,
@@ -402,8 +402,7 @@ def write_segy(
     )
     binary = _build_binary_header(len(output_records), sample_count, dt, line_number, profile)
 
-    temporary = destination.with_name(destination.name + ".tmp")
-    try:
+    with atomic_output_path(destination) as temporary:
         with temporary.open("wb") as stream:
             stream.write(textual)
             stream.write(binary)
@@ -412,10 +411,6 @@ def write_segy(
                     _build_trace_header(record, trace_number, sample_count, dt, component, profile)
                 )
                 stream.write(np.asarray(record.samples, dtype=">f4").tobytes(order="C"))
-        os.replace(temporary, destination)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
     return destination
 
 
@@ -434,6 +429,7 @@ def export_segy(
 ) -> SegyExportSummary:
     """Convert a series of original gprMax A-scan files into SEG-Y."""
 
+    destination = validate_output_path(segy_outputfile, outputfiles)
     records, dt, time_offset, resolved_source, title = collect_traces(
         outputfiles,
         rxnumber,
@@ -444,7 +440,7 @@ def export_segy(
     )
     destination = write_segy(
         records,
-        segy_outputfile,
+        destination,
         dt=dt,
         time_offset=time_offset,
         component=rxcomponent,
@@ -483,7 +479,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Export a naturally ordered gprMax A-scan series as SEG-Y.",
         usage=(
-            "python -m gprMax.toolboxes.Utilities.outputfiles_segy " "basefilename component [options]"
+            "python -m gprMax.toolboxes.Utilities.outputfiles_segy "
+            "basefilename component [options]"
         ),
     )
     parser.add_argument("basefilename", help="base name of the gprMax .h5 A-scan series")
