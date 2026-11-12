@@ -8,15 +8,22 @@
 """Plot finite-radius field-intensity patterns for a GPR antenna."""
 
 import argparse
+import os
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
+
 
 def load_pattern_data(filename):
     """Load the processed pattern data and metadata."""
+
+    filename = Path(filename)
+    if not filename.is_file():
+        raise FileNotFoundError(f"Pattern data file does not exist: {filename}")
 
     with np.load(filename) as data:
         required = {
@@ -51,9 +58,22 @@ def ring_ticks(minimum_db, ring_step_db):
     return ticks, labels
 
 
+def _resolve_plot_destination(destination, default_format=None):
+    """Return the final plot path and explicit Matplotlib format for a destination."""
+
+    destination = Path(destination)
+    plot_format = destination.suffix[1:].lower()
+    if not plot_format:
+        plot_format = (default_format or plt.rcParams["savefig.format"]).lower()
+        destination = destination.with_suffix(f".{plot_format}")
+    return destination, plot_format
+
+
 def plot_pattern(data, destination, minimum_db=-72, ring_step_db=12, show=False):
     """Create the polar GPR antenna field-intensity plot."""
 
+    destination, plot_format = _resolve_plot_destination(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     ticks, labels = ring_ticks(minimum_db, ring_step_db)
     patterns = np.asarray(data["patterns"], dtype=np.float64)
     radii = np.asarray(data["radii"], dtype=np.float64)
@@ -80,7 +100,8 @@ def plot_pattern(data, destination, minimum_db=-72, ring_step_db=12, show=False)
     colourmap = plt.get_cmap("rainbow")
     axes.set_prop_cycle("color", [colourmap(value) for value in np.linspace(0, 1, radii.size)])
 
-    if epsr is not None:
+    critical_angle = None
+    if epsr is not None and epsr * mur > 1:
         critical_angle = np.rad2deg(np.arcsin(1 / np.sqrt(epsr * mur)))
         axes.plot([0, np.deg2rad(180 - critical_angle)], [minimum_db, 0], color="0.7", lw=2)
         axes.plot([0, np.deg2rad(180 + critical_angle)], [minimum_db, 0], color="0.7", lw=2)
@@ -119,7 +140,8 @@ def plot_pattern(data, destination, minimum_db=-72, ring_step_db=12, show=False)
     if epsr is not None:
         velocity = c / np.sqrt(epsr * mur)
         wavelength = velocity / frequency
-        print(f"Critical angle for relative permittivity {epsr:g}: {critical_angle:.1f} degrees")
+        if critical_angle is not None:
+            print(f"Critical angle for relative permittivity {epsr:g}: {critical_angle:.1f} degrees")
         print(f"Wavelength in the homogeneous half-space: {wavelength:.3f} m")
         print(
             "Reactive/radiating near-field boundary: "
@@ -130,15 +152,21 @@ def plot_pattern(data, destination, minimum_db=-72, ring_step_db=12, show=False)
             f"{2 * antenna_dimension**2 / wavelength:.3f} m"
         )
 
-    figure.savefig(destination, bbox_inches="tight", pad_inches=0.1)
+    try:
+        with atomic_output_path(destination) as temporary:
+            figure.savefig(temporary, format=plot_format, bbox_inches="tight", pad_inches=0.1)
+    except Exception:
+        plt.close(figure)
+        raise
     print(f"Written plot: {destination}")
     if show:
         plt.show()
     else:
         plt.close(figure)
+    return destination
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Plot processed finite-radius GPR antenna field-intensity patterns.",
         usage="python -m gprMax.toolboxes.AntennaPatterns.plot_fields patternfile",
@@ -148,11 +176,19 @@ def main():
     parser.add_argument("--minimum-db", type=float, default=-72, help="radial plot minimum")
     parser.add_argument("--ring-step-db", type=float, default=12, help="radial ring spacing")
     parser.add_argument("--show", action="store_true", help="open the interactive plot window")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     patternfile = args.patternfile.resolve()
-    destination = args.output.resolve() if args.output else patternfile.with_suffix(".pdf")
-    plot_pattern(
+    destination = (
+        Path(os.path.abspath(args.output)) if args.output else patternfile.with_suffix(".pdf")
+    )
+    destination, _ = _resolve_plot_destination(destination)
+    validate_output_path(
+        destination,
+        [patternfile],
+        message="Plot destination must not overwrite the input pattern data file",
+    )
+    return plot_pattern(
         load_pattern_data(patternfile),
         destination,
         minimum_db=args.minimum_db,
