@@ -743,7 +743,9 @@ Neighboring subspaces provide a continuation probe for repeated copies;
 principal-angle matching keeps the selected blocks continuous across anchors.
 
 C4v has four one-dimensional irreducible representations and one
-two-dimensional representation [tracking-C4v]_. C2v has four singlets:
+two-dimensional representation [tracking-C4v]_. All other supported groups
+have only one-dimensional irreducible representations over the complex
+numbers. The table uses the labels stored by the implementation:
 
 .. list-table:: Native irreducible subspaces
    :class: api-parameters
@@ -756,9 +758,31 @@ two-dimensional representation [tracking-C4v]_. C2v has four singlets:
    * - C4v
      - A1, A2, B1, B2 (dimension 1); E (dimension 2)
      - Can contain several E doublets, singlets, or both. For example, six dimensions may decompose as three doublets.
-   * - C2v
+   * - C2v (axis mirrors)
      - A1, A2, B1, B2 (dimension 1)
      - Simultaneous axis-mirror parity separates singlets.
+   * - C2v (diagonal mirrors)
+     - A1, A2, B1, B2 (dimension 1)
+     - Simultaneous diagonal- and antidiagonal-mirror parity separates singlets.
+   * - C4
+     - A, B, E+, E- (dimension 1 over the complex numbers)
+     - Quarter-turn eigenvalues are :math:`+1,-1,+i,-i`, respectively. E+ and E- are separate complex singlets, not a C4v E doublet.
+   * - C2
+     - A, B (dimension 1)
+     - Half-turn eigenvalues :math:`+1` and :math:`-1` distinguish even and odd singlets.
+   * - Cs (u, v, diagonal, or antidiagonal mirror)
+     - A', A'' (dimension 1)
+     - Eigenvalues :math:`+1` and :math:`-1` of the selected vector mirror distinguish even and odd singlets.
+   * - C1
+     - A (dimension 1)
+     - Identity has eigenvalue :math:`+1` for every mode. Symmetry cannot distinguish copies, so automatic tracking retains independent separation and unresolved-block continuation.
+
+For either C2v embedding, the mirror-parity pairs for A1, A2, B1, and B2
+are :math:`(+,+),(-,-),(-,+),(+,-)`, respectively. The generator order is
+u-mirror then v-mirror for axis C2v, and diagonal mirror then antidiagonal
+mirror for diagonal C2v. For Cs, A' and A'' refer only to its selected mirror.
+All parities describe the complete vector fields, including the axial-vector
+transformation of H.
 
 Repeated equivalent representations admit multiple choices of their copies.
 Before spatial symmetry detection, the native path resolves longitudinal-field
