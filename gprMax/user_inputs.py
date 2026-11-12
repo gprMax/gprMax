@@ -380,14 +380,19 @@ class MainGridUserInput(UserInput[GridType]):
         # TODO: Can this be structured so these checks happen in the
         # MPIGridUserInput object?
         if lower_extent < 0:
-            thickness += lower_extent
-            lower_extent = 0
-        # lower_extent and thickness are rounded independently, so their
-        # cell sum can overshoot the axis end by one even when the upper
-        # face itself discretises in-bounds; clip to the last cell so the
-        # returned pair always satisfies lower_extent + thickness <= size.
+            thickness = max(thickness + lower_extent, 0.0)
+            lower_extent = 0.0
+        # lower_extent and thickness are independently discretised, so
+        # their cell sum can overshoot the axis end by one even when
+        # the upper face itself discretises in-bounds. Clip thickness
+        # so the returned pair always satisfies lower_extent + thickness <= size,
+        # the contract the Cython volume loops rely on.
         if lower_extent + thickness > size:
             thickness = size - lower_extent
+
+        # Ensure the returned thickness is non-negative after clipping.
+        # This can happen when lower_extent was already at or beyond size.
+        thickness = max(thickness, 0.0)
 
         dl = self.grid.dl[index]
 
