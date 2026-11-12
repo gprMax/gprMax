@@ -13,7 +13,7 @@ import h5py
 import numpy as np
 import pytest
 
-from gprMax.toolboxes.Utilities.outputfiles_segy import export_segy
+from gprMax.toolboxes.Utilities.outputfiles_segy import export_segy, main
 
 
 def _write_output(
@@ -267,3 +267,20 @@ def test_export_accepts_largest_finite_float32_amplitudes(tmp_path):
 
     stored = np.frombuffer(destination.read_bytes()[-8:], dtype=">f4")
     np.testing.assert_array_equal(stored, samples)
+
+
+@pytest.mark.parametrize("folder", ["survey", "survey[1]"])
+def test_cli_exports_only_the_named_series(tmp_path, folder, capsys):
+    directory = tmp_path / folder
+    directory.mkdir()
+    for number in range(1, 4):
+        _write_output(directory / f"cylinder_Bscan_2D{number}.h5", number)
+    for number in range(1, 3):
+        _write_output(directory / f"cylinder_Bscan_2D_study{number}.h5", number)
+
+    assert main([str(directory / "cylinder_Bscan_2D"), "Ez"]) == 0
+
+    raw = (directory / "cylinder_Bscan_2D_Ez.sgy").read_bytes()
+    assert _read("Q", raw[3200:3600], 312) == 3
+    assert len(raw) == 3200 + 400 + 3 * (240 + 5 * 4)
+    assert "Written 3 traces" in capsys.readouterr().out
