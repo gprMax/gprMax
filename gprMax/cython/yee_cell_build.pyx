@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
+import gprMax.config as config
 
 cimport cython
 cimport numpy as np
@@ -29,8 +30,39 @@ from gprMax.cython.yee_cell_setget_rigid cimport (
     get_rigid_Hz,
 )
 
-from gprMax.materials import Material, create_electric_average_material
+from gprMax.materials import Material, DispersiveMaterial, create_electric_average_material
 
+
+def _inclusive_material_terms(material):
+    """Return inclusive (W, Q) terms and Drude-equivalent conductivity.
+
+    See create_electric_average_material in gprMax/materials.py for
+    the full docstring and numerical derivation.
+    """
+
+    if getattr(material, "inclusive_w", None):
+        return (
+            list(zip(material.inclusive_w, material.inclusive_q)),
+            material.inclusive_conductivity,
+        )
+
+    terms = []
+    extra_conductivity = 0.0
+    if "debye" in material.type:
+        for deltaer, tau in zip(material.deltaer, material.tau):
+            terms.append((deltaer / tau, -1.0 / tau))
+    elif "lorentz" in material.type:
+        for deltaer, frequency, damping in zip(material.er, material.tau, material.alpha):
+            omega_0_squared = (2 * np.pi * frequency) ** 2
+            beta = np.sqrt(omega_0_squared - damping**2)
+            terms.append((-1j * omega_0_squared * deltaer / beta, -damping + 1j * beta))
+    elif "drude" in material.type:
+        for frequency, collision in zip(material.tau, material.alpha):
+            omega_p_squared = (2 * np.pi * frequency) ** 2
+            extra_conductivity += config.e0 * omega_p_squared / collision
+            terms.append((-omega_p_squared / collision, -collision))
+    return terms, extra_conductivity
+    return terms, extra_conductivity
 
 def _material_id_index(G):
     """Returns a dict mapping material.ID -> material for every entry
