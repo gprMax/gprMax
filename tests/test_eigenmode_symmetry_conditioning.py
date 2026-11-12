@@ -34,6 +34,14 @@ def test_axis_selection_falls_back_when_monitor_precision_requires_it(monkeypatc
     # Exercise the real transactional selection with a directional result from
     # unequal longitudinal norms, isolating it from a particular guide geometry.
     monkeypatch.setattr(symmetry, 'axis_sensitive_blocks', lambda *a, **kw: (blocks, records))
+    # Isolate the axis-selection policy: diagonal/cyclic subgroups do not run
+    # that step and can now legitimately succeed after both axis trials fail.
+    detect = symmetry.detect_symmetry
+    def axis_candidates(solvers):
+        result = detect(solvers)
+        result['candidates'] = [key for key in result['candidates'] if key in ('c4v', 'c2v')]
+        return result
+    monkeypatch.setattr(symmetry, 'detect_symmetry', axis_candidates)
     with _configured_solver_constants():
         config.sim_config.dtypes = {'complex': dtype}
         solver = fd_solver(20e9, (16,16), .02/16, (2,2,2), count=8)
