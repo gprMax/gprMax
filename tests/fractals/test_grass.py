@@ -199,4 +199,61 @@ class TestRootGeometry:
         assert walk_a == walk_b
 
 
+class TestStreamIndependence:
+    """The six streams must be seeded independently.
+
+    All six generators were previously seeded with the same value, so the
+    identically-seeded PCG64 streams emitted identical values: the x and y
+    curvature scales (columns 0/1) and directions (columns 2/3) matched for
+    every blade, forcing each blade to bend only along the y = +/-x
+    diagonals, and the root walk moved x and y by exactly the same amount
+    at every step.
+    """
+
+    def test_curvature_scales_differ_between_x_and_y(self):
+        g = Grass(200, SEED)
+        assert not np.array_equal(g.geometryparams[:, 0], g.geometryparams[:, 1])
+
+    def test_curvature_directions_differ_between_x_and_y(self):
+        g = Grass(200, SEED)
+        assert not np.array_equal(g.geometryparams[:, 2], g.geometryparams[:, 3])
+
+    def test_bending_directions_cover_all_four_quadrants(self):
+        g = Grass(200, SEED)
+        signs = g.geometryparams[:, 2:4]
+        for sx in (-1.0, 1.0):
+            for sy in (-1.0, 1.0):
+                assert np.any((signs[:, 0] == sx) & (signs[:, 1] == sy))
+
+    def test_mixed_sign_blades_are_the_majority(self):
+        # With independent +/-1 draws the mixed-sign fraction concentrates
+        # around one half (binomial sd ~ 7 for 200 blades); the buggy code
+        # yields exactly zero mixed-sign blades for every seed.
+        g = Grass(200, SEED)
+        mixed = np.count_nonzero(g.geometryparams[:, 2] != g.geometryparams[:, 3])
+        assert 60 <= mixed <= 140
+
+    def test_blade_tips_are_not_confined_to_the_diagonals(self):
+        g = Grass(200, SEED)
+        height = 60.0
+        off_diagonal = sum(
+            1
+            for blade in range(200)
+            if abs(g.calculate_blade_geometry(blade, height)[0])
+            != abs(g.calculate_blade_geometry(blade, height)[1])
+        )
+        assert off_diagonal > 0
+
+    def test_root_walk_is_not_locked_to_the_diagonal(self):
+        # R5 and R6 previously shared a seed, so every root step moved x
+        # and y by exactly the same amount (45-degree moves only).
+        g = Grass(1, SEED)
+        xs, ys = [0.0], [0.0]
+        for depth in range(100):
+            g.calculate_root_geometry(0, depth)
+            xs.append(float(g.geometryparams[0, 4]))
+            ys.append(float(g.geometryparams[0, 5]))
+        assert not np.array_equal(np.diff(xs), np.diff(ys))
+
+
 pytestmark = pytest.mark.unit

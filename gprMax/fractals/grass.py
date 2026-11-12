@@ -36,7 +36,9 @@ class Grass:
         """
 
         if isinstance(numblades, bool) or not isinstance(numblades, Integral) or numblades < 0:
-            raise ValueError(f"Grass requires a non-negative integer blade count, got {numblades!r}")
+            raise ValueError(
+                f"Grass requires a non-negative integer blade count, got {numblades!r}"
+            )
         self.numblades = int(numblades)
         self.geometryparams = np.zeros(
             (self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"]
@@ -47,14 +49,19 @@ class Grass:
     def set_geometry_parameters(self):
         """Sets randomly defined parameters that will be used to calculate
         blade and root geometries.
-        """
 
-        self.R1 = np.random.default_rng(seed=self.seed)
-        self.R2 = np.random.default_rng(seed=self.seed)
-        self.R3 = np.random.default_rng(seed=self.seed)
-        self.R4 = np.random.default_rng(seed=self.seed)
-        self.R5 = np.random.default_rng(seed=self.seed)
-        self.R6 = np.random.default_rng(seed=self.seed)
+        The six generators are spawned from a single ``SeedSequence`` so
+        that they are statistically independent. Seeding every generator
+        with the same value (the previous behaviour) made identically-seeded
+        PCG64 streams emit identical values: every blade's x/y curvature
+        scales and directions matched, confining all blade bending to the
+        y = +/-x diagonals, and locking the x and y root-walk steps
+        together.
+        """
+        ss = np.random.SeedSequence(self.seed)
+        self.R1, self.R2, self.R3, self.R4, self.R5, self.R6 = (
+            np.random.default_rng(child) for child in ss.spawn(6)
+        )
 
         for i in range(self.numblades):
             self.geometryparams[i, 0] = 10 + 20 * self.R1.random()
