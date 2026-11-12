@@ -688,17 +688,16 @@ common to the bank.
 .. important::
 
    To use ``mode_polarizations`` with ``tracking="auto"`` in a PEC or SIBC
-   waveguide, keep the complete port window C4v-symmetric. Use a square
-   window with equal transverse cell spacing, center the guide in it, and
-   keep padding equal on opposite sides. The sampled materials and boundary
-   treatment must also preserve quarter turns and reflections. Avoid
-   symmetry-breaking elements within the port cross-section.
+   waveguide, preserve C4v in the active port region with equal transverse
+   cell spacing. Detection uses the centre of that region, allowing unequal
+   exterior PEC padding or unretained SIBC padding. The sampled materials
+   and boundary treatment must preserve quarter turns and reflections.
 
-   Symmetry is checked about the center of the full port window. Even an
-   extra PEC cell on just one side can prevent certification and cause an
-   explicit polarization request to be rejected. For SIBC walls, the
-   retained samples and surface-impedance rows must also map under these
-   symmetry operations. Geometry symmetry alone is insufficient: the
+   Active air padding remains part of the numerical problem: an asymmetric
+   truncation can still prevent certification. Only exterior padding proved
+   inactive by physical PEC constraints or SIBC retention is excluded. For
+   SIBC walls, both retained field families and the signed surface-impedance
+   rows must map under the operations. Geometry symmetry alone is insufficient: the
    selected modes must form a certified C4v E pair with usable electric
    moments.
 
@@ -706,11 +705,47 @@ common to the bank.
    symmetry can still use automatic tracking and field-family separation
    with ``mode_polarizations=None``.
 
+.. _tracking-port-centres-figure:
+
+.. figure:: ../../images_shared/mode_tracking_port_centres.*
+   :width: 100%
+   :alt: An off-centre closed guide excludes inactive exterior padding, while a dielectric core in active air retains the asymmetric window boundary.
+
+   Physical and numerical centres need not coincide. The closed guide uses
+   its active extent; an open structure must retain active air and its
+   truncation boundary in the symmetry test.
+
 * **C4v** includes quarter turns and reflections, as for a centered square
   on a square mesh with equal transverse spacing. A centered staircased
   circle can also have C4v symmetry.
-* **C2v** includes a half turn and two axis reflections, as for a centered
-  rectangle. It can be available when quarter-turn symmetry is absent.
+* **C2v** includes a half turn and two perpendicular reflections. Detection
+  distinguishes axis mirrors (``c2v``) and diagonal mirrors (``c2v_diagonal``).
+* **C4** includes quarter turns without mirrors. Its complex singlets have
+  rotation characters :math:`1,-1,i,-i`, labelled A, B, E+, and E-.
+* **C2** includes a half turn without mirrors, with even A and odd B singlets.
+* **Cs** includes one mirror, with even A' and odd A'' singlets. The embedding
+  identifies the mirror: ``cs_u``, ``cs_v``, ``cs_diagonal``, or
+  ``cs_antidiagonal``. A u-mirror reverses u; a diagonal mirror exchanges u and v.
+* **C1** denotes identity only and keeps independent separation and unresolved
+  continuation. ``none`` indicates that symmetry could not be certified from
+  the supplied samples, or that the port is not a two-dimensional cross section.
+
+.. _tracking-native-group-figure:
+
+.. figure:: ../../images_shared/mode_tracking_native_symmetries.*
+   :width: 100%
+   :alt: Ten certified Yee-grid patterns illustrate C4v, C4, axis and diagonal C2v, C2, four Cs mirror orientations, and C1, with mirror lines and rotation arrows.
+
+   All supported groups and mirror embeddings. Blue squares show a scalar
+   material contrast on longitudinal-electric Yee nodes; transverse tensors
+   are uniform. Dashed lines mark mirrors and curved arrows mark the smallest
+   nonzero rotation. These are geometry examples, not mode-field plots.
+   The detector certifies the illustrated group of each pattern.
+
+Quarter turns and diagonal mirrors require equal transverse spacing and an
+exact mapping of all staggered samples. Across anchors, the mirror lines and
+rotation centres must agree in physical coordinates; equal group names alone
+are insufficient. No interpolation or periodic wrapping is used.
 
 The geometry test identifies possible symmetries. The field test then checks
 whether rotating or reflecting a candidate group keeps its fields inside
@@ -733,8 +768,9 @@ output saves both the symmetry basis and the basis used for the source;
 a label such as ``A2+B2`` records contributions from both symmetry types.
 See :ref:`tracking-axis-selection` for this distinction.
 
-If a C4v trial fails, the tracker tries C2v when supported. If neither is
-accepted, successful longitudinal/gradient separation remains in place,
+If a C4v trial fails, the tracker first tries axis C2v when supported, then
+other certified subgroups. If no trial is accepted, successful
+longitudinal/gradient separation remains in place,
 with smooth continuation only inside remaining unresolved blocks. Copper
 surface-impedance boundaries have additional symmetry checks. Any rejected
 change retains the preceding validated fields. The full-field, power, and

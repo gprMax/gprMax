@@ -634,15 +634,36 @@ and aperture. Unequal transverse spacings usually reduce the available
 group to C2v or a subgroup. Detection tests these sampled quantities at
 every solved anchor and takes the strongest supported group common to the bank.
 
-The symmetry actions use the center and extent of the full port aperture;
-they do not remove unused PEC padding or search for a different symmetry
-center. Asymmetric padding can therefore prevent C4v certification even
-when the fields in the guide are unchanged. For explicit automatic
-polarization, the user must preserve C4v in the complete sampled window,
-including PEC masks or SIBC retained samples and boundary rows, as described
-in :ref:`tracking-symmetry-options`. The C4v E and electric-moment eligibility
-checks remain necessary. Lower-symmetry ports retain independent separation
-and unresolved-block continuation without an explicit polarization request.
+Symmetry uses the midpoint of the active port extent. The extent is derived
+from unconstrained electric Yee samples, with physical tangential PEC walls
+required at any moved face. All exterior electric samples must be clamped;
+the wall constraints then also make their exterior Faraday curls zero. For
+SIBC, the extent includes both retained field families and every boundary-row
+address. Unretained exterior samples can be excluded, but active air padding
+and its artificial boundary remain part of the problem. The original solve
+and field-array shapes are unchanged. Field actions are exact signed
+permutations on the retained extent, extended by zero into inactive padding;
+full-field closure and Maxwell checks still apply.
+
+The detector tests individual operations and enumerates their supported
+subgroups: C4v, axis or diagonal C2v, C4, C2, the four Cs mirror embeddings,
+and C1. Axis-exchanging operations require equal spacing and compatible
+staggered shapes. Only operations with the same affine translation in physical
+coordinates are common across anchors. A single mirror fixes a line, not a
+unique point along that line. C1 provides no additional basis information and
+leaves independent separation and continuation in place. C4 has complex
+one-dimensional characters :math:`1,-1,i,-i`; conjugate characters are not
+automatically combined into a mirror-oriented doublet. Explicit automatic
+polarization still requires a certified C4v E pair with usable electric
+moments, as described in :ref:`tracking-symmetry-options`.
+
+The :ref:`group illustration <tracking-native-group-figure>` shows every
+supported embedding, and the :ref:`centre illustration <tracking-port-centres-figure>`
+distinguishes inactive exterior from active air padding. Both figures can be
+regenerated from the repository root with
+``python -m testing.eigenmode_support.symmetry.illustrate_native_groups``.
+The generator verifies each sampled pattern with the runtime detector before
+writing the SVG and PNG assets.
 
 This bound concerns rotations and mirrors of a square **two-dimensional port
 cross section**, with its normal fixed. A three-dimensional cubic lattice has
@@ -673,14 +694,14 @@ Vector actions and symmetry validation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For an orthogonal spatial transformation :math:`R` acting about the port
-center, the complete fields transform as
+centre :math:`\mathbf c`, the complete fields transform as
 
 .. math::
 
    (\mathcal S_R\mathbf E)(\mathbf x)
-       =R\mathbf E(R^{-1}\mathbf x),\qquad
+       =R\mathbf E(\mathbf c+R^{-1}(\mathbf x-\mathbf c)),\qquad
    (\mathcal S_R\mathbf H)(\mathbf x)
-       =\det(R)R\mathbf H(R^{-1}\mathbf x).
+       =\det(R)R\mathbf H(\mathbf c+R^{-1}(\mathbf x-\mathbf c)).
 
 The determinant accounts for H being an axial vector. For the u-mirror,
 :math:`u\mapsto-u`, E has component signs :math:`(-,+,+)` and H has
@@ -833,8 +854,8 @@ pre-symmetry transforms, blocks, selection scores, candidates, and rejected-tria
 reasons separately from ``symmetry_subspaces``. If independent separation
 was rejected, the certified symmetry trial can still attempt longitudinal
 selection within the retained parent span. C4v is tried first when supported,
-followed by C2v if necessary; neither trial relaxes the physical acceptance
-criteria.
+followed by axis C2v and the other certified subgroups if necessary. No trial
+relaxes the physical acceptance criteria.
 
 .. _tracking-unresolved-transport-theory:
 
@@ -965,8 +986,8 @@ All accepted transformations act identically on E and H and pass the mixed
 eigen-residual, available reconstructed-field residual, power checks, and
 the coefficient solver's precision budget for the complete power-wave
 measurement bank.
-Automatic selection can try C2v after a C4v trial fails, then retain the
-fallback basis. Symmetry selection is enabled by automatic tracking and is
+Automatic selection tries the remaining certified subgroups after a failed
+trial, then retains the fallback basis if none passes. Symmetry selection is enabled by automatic tracking and is
 skipped by legacy tracking.
 The HDF5 diagnostics record which basis was used at each group and anchor.
 
@@ -1185,7 +1206,14 @@ and ``field_residual`` datasets.
 
 ``symmetry_detection`` stores ``Detected`` and JSON ``Details`` attributes.
 ``Details`` includes per-anchor geometry tests and each parent's applied
-choice and failed attempts. Successful ``symmetry_subspaces`` records name
+choice and failed attempts. Method ``native_yee_positioned_subgroups_v2``
+also records the group ``embedding``, per-anchor cell-edge ``bounds``,
+``centre_cells`` and ``window_centre_cells``, the physical ``centre`` in metres,
+and each generator's affine translation in ``positioned_operations``. Direct
+solvers default to a zero window origin; simulation ports record their global
+transverse origin. ``Detected`` uses the group name (for example ``cs``), while
+candidate and applied keys retain the embedding (for example ``cs_u``).
+Successful ``symmetry_subspaces`` records name
 their ``Symmetry`` and source-block ``Irreps`` and retain the original
 ``irreducible_basis`` separately. ``unresolved_transport`` stores
 ``BlockMethods`` (``procrustes`` or ``phase``), parent labels, blocks,

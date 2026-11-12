@@ -44,7 +44,7 @@ def test_asymmetric_surface_changes_fail_certification(copper, change):
         masks = solver.surface_electric_retained if change == 'retained_e' else solver.surface_magnetic_retained
         masks[0][2, 3] = False
     solver.surface_boundary_rows = tuple(rows)
-    assert detect_symmetry([solver])['detected'] == 'none'
+    assert detect_symmetry([solver])['detected'] == 'c1'
     with pytest.raises(ValueError, match='SIBC'):
         validate_material_symmetry(solver, 'c4v')
 
