@@ -183,13 +183,13 @@ cpdef void create_electric_average(
 
 
 cpdef void create_magnetic_average(
-    int i,
-    int j,
-    int k,
-    int numID1,
-    int numID2,
-    int componentID,
-    G,
+    int i=0,
+    int j=0,
+    int k=0,
+    int numID1=-1,
+    int numID2=-1,
+    int componentID=-1,
+    G=None,
     bint harmonic=True,
     bint electric_averaging=False
 ):
@@ -198,14 +198,24 @@ cpdef void create_magnetic_average(
 
     Args:
         i, j, k: ints for cell coordinates.
-        numID: ints for numeric IDs for materials in surrounding cells.
+        numID1, numID2: ints for numeric IDs for materials in surrounding cells.
         componentID: int for numeric ID for magnetic field component.
         G: FDTDGrid class describing a grid in a model.
         harmonic: bool, True to combine mu_r/sigma* with a harmonic mean
             (default, physically correct for the field-normal direction
             these two cells are stacked in - see #magnetic_averaging),
             False for the legacy arithmetic mean.
+        electric_averaging: bool, True for electric averaging, False for
+            legacy arithmetic mean (default).
     """
+
+    if G is None:
+        raise ValueError(
+            "create_magnetic_average() requires a grid argument G. "
+            "Use the proper calling convention: "
+            "create_magnetic_average(i, j, k, numID1, numID2, componentID, G, "
+            "harmonic, electric_averaging)"
+        )
 
     # Make an ID composed of the names of the two materials that will be
     # averaged. Material.create_compound_id() duplicates a 2-material call
