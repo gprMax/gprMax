@@ -43,6 +43,7 @@ from gprMax.toolboxes.GeometryImport.common import (
     write_geometry_hdf5,
     write_null_material_database,
 )
+from gprMax.toolboxes.Utilities.output_paths import validate_output_path
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +184,17 @@ def convert_png(
     geometry_file.parent.mkdir(parents=True, exist_ok=True)
     database_id = make_database_id(f"{geometry_file.stem}_materials", prefix="geometry")
     database_file = geometry_file.with_name(f"{database_id}.json")
+    validate_output_path(
+        geometry_file, [source], message="Geometry file must not overwrite the input image"
+    )
+    validate_output_path(
+        database_file, [source], message="Material database file must not overwrite the input image"
+    )
+    validate_output_path(
+        geometry_file,
+        [database_file],
+        message="Geometry file must not overwrite the material database file",
+    )
     material_names = tuple(_colour_name(colour) for colour in colours)
     metadata = tuple(
         {
@@ -262,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.zcells < 1:
         parser.error("zcells must be greater than zero")
-    if any(value <= 0 for value in args.dxdydz):
+    if any(value <= 0 or not np.isfinite(value) for value in args.dxdydz):
         parser.error("dx, dy, and dz must be greater than zero")
 
     try:

@@ -27,6 +27,7 @@ from gprMax.toolboxes.GeometryImport.common import (
     build_tag_volume,
     unique_normalised_tags,
     write_geometry_hdf5,
+    write_null_material_database,
 )
 from gprMax.toolboxes.GeometryImport.mesh import MeshRegion, MeshSource
 from gprMax.toolboxes.GeometryImport.volume import (
@@ -135,13 +136,86 @@ def test_shared_writer_rejects_invalid_spacing(tmp_path, spacing):
 
 
 def test_shared_writer_rejects_nonfinite_origin(tmp_path):
+    target = tmp_path / "geometry.h5"
     with pytest.raises(ValueError, match="finite coordinates"):
         write_geometry_hdf5(
-            tmp_path / "geometry.h5",
+            target,
             np.zeros((1, 1, 1), dtype=np.int16),
             (1e-3, 1e-3, 1e-3),
             origin=(0.0, np.nan, 0.0),
         )
+    assert not target.exists()
+
+
+def test_shared_writer_preserves_destination_on_failure(tmp_path):
+    target = tmp_path / "geometry.h5"
+    sentinel = b"existing_geometry_file_content"
+    target.write_bytes(sentinel)
+
+    with pytest.raises(ValueError, match="finite coordinates"):
+        write_geometry_hdf5(
+            target,
+            np.zeros((1, 1, 1), dtype=np.int16),
+            (1e-3, 1e-3, 1e-3),
+            origin=(0.0, np.nan, 0.0),
+        )
+
+    assert target.read_bytes() == sentinel
+
+
+def test_shared_writer_preserves_destination_on_hdf5_write_failure(tmp_path, monkeypatch):
+    target = tmp_path / "geometry.h5"
+    sentinel = b"existing_geometry_file_content"
+    target.write_bytes(sentinel)
+    writes_started = []
+
+    def failing_write_tags(h5, *args, **kwargs):
+        assert "data" in h5
+        assert "dx_dy_dz" in h5.attrs
+        writes_started.append(h5.filename)
+        h5.create_dataset("partial_tags", data=np.asarray([1, 2], dtype=np.int16))
+        raise OSError("disk full")
+
+    monkeypatch.setattr(
+        "gprMax.toolboxes.GeometryImport.common.write_tag_datasets",
+        failing_write_tags,
+    )
+
+    with pytest.raises(OSError, match="disk full"):
+        write_geometry_hdf5(
+            target,
+            np.zeros((2, 2, 2), dtype=np.int16),
+            (1e-3, 1e-3, 1e-3),
+            origin=(0.0, 0.0, 0.0),
+            material_keys=["pec"],
+        )
+
+    assert len(writes_started) == 1
+    assert target.read_bytes() == sentinel
+    assert [path.name for path in tmp_path.iterdir()] == ["geometry.h5"]
+
+
+def test_write_null_material_database_preserves_destination_on_error(tmp_path, monkeypatch):
+    target = tmp_path / "materials.json"
+    sentinel = b"previous_database_content"
+    target.write_bytes(sentinel)
+
+    def failing_write_database(*args, **kwargs):
+        raise OSError("injected write failure")
+
+    monkeypatch.setattr("gprMax.toolboxes.GeometryImport.common.write_database", failing_write_database)
+
+    # When target exists and is incompatible, it raises ValueError before write_database
+    # Here test writing to a new target path that fails during write_database
+    new_target = tmp_path / "new_materials.json"
+    with pytest.raises(OSError, match="injected write failure"):
+        write_null_material_database(
+            new_target,
+            "geom_materials",
+            ["mat1"],
+            source="test",
+        )
+    assert not new_target.exists()
 
 
 def test_axis_permutation_and_flip_preserve_label_positions():
