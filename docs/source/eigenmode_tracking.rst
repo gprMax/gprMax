@@ -495,8 +495,8 @@ without a preset list of TE, TM, HE, or EH mode shapes.
    gradient scores. A tied score keeps the block intact.
 
 4. Use symmetry as an independent check and further separator. The
-   tracker now tests rotations and reflections of the sampled geometry,
-   materials, boundaries, and fields. These operations can distinguish
+   tracker now tests the supported rotations and reflections about the active
+   port extent, including sampled materials, boundaries, and fields. These operations can distinguish
    patterns that the preceding comparisons leave together. For example,
    an ideal circular TE21 angular pair can share all three scores but
    have different reflection symmetries. A quarter turn can also exchange
@@ -573,8 +573,9 @@ on superpositions in other degenerate subspaces.
 With ``tracking="legacy"``, the direction applies to the declared two-mode
 pairs, without automatic symmetry selection. In either mode, a request with
 no eligible pair or a pair with zero or ill-conditioned integrated transverse
-E raises an error. Higher-order doublets with vanishing moments retain their
-automatic mirror-based orientation when the option is omitted.
+E raises an error. With automatic tracking, certified C4v E doublets with
+vanishing moments retain their mirror-based orientation when the option is
+omitted. Legacy pairs without usable moments retain subspace continuation.
 
 First and second refer to the lower and higher tracked indices inside the
 resolved pair, including any internally retained partner. The direction must
@@ -682,8 +683,9 @@ With ``tracking="auto"``, no symmetry label is required. Symmetry is tested
 **after** the longitudinal and gradient comparisons in
 :ref:`tracking-separation-explained`. The tests use the actual sampled port,
 including materials and boundaries, rather than the intended geometric name.
-They check every solved anchor and use the strongest supported symmetry
-common to the bank.
+They check every solved anchor and enumerate groups with the same physical
+operations throughout the bank. Candidate groups are tried in a fixed priority
+order; a group accepted by the geometry test must still pass field certification.
 
 .. important::
 
@@ -704,6 +706,16 @@ common to the bank.
    C4v is required for this automatic polarization choice. Ports with lower
    symmetry can still use automatic tracking and field-family separation
    with ``mode_polarizations=None``.
+
+The extent check does not assign an open/closed label. For PEC padding, it
+bounds unconstrained electric samples and requires physical tangential PEC
+walls at every face moved inward. For SIBC, it bounds retained E and H samples
+and checks every installed boundary-row address. If these checks cannot prove
+the exterior inactive, the full window remains. A closed guide filling its
+window also keeps the full extent. Small field amplitudes at an artificial
+boundary do not remove that boundary from the symmetry test; confinement
+diagnostics are a separate check. Active air and the artificial PEC rim are
+part of the finite port problem being certified.
 
 .. _tracking-port-centres-figure:
 
@@ -754,19 +766,25 @@ means here. Symmetry can identify single channels (singlets) or, under C4v,
 two-channel E pairs (doublets). Several different pairs can share the E
 label, so that label alone does not distinguish their physical families.
 
-Within a certified E pair, the default orientation uses electric moments
+Within a certified C4v E pair, the default orientation uses electric moments
 when they define reliable directions. Otherwise, reflection symmetry selects
 the partners. These reflection labels describe how the complete vector field
 transforms; they cannot be read from the sign of just one plotted component.
 The mathematics and numerical thresholds are in
 :ref:`tracking-moment-orientation-theory`.
 
-Symmetry can express an axis-oriented pattern as combinations such as
+Under C4v or axis C2v, symmetry can express an axis-oriented pattern as combinations such as
 TE20 + TE02 and TE20 - TE02. A further axis-selection step can recover
 the individual TE20 and TE02 patterns within compatible candidates. The
 output saves both the symmetry basis and the basis used for the source;
 a label such as ``A2+B2`` records contributions from both symmetry types.
 See :ref:`tracking-axis-selection` for this distinction.
+
+For diagonal C2v, C4, C2, and Cs, the tracker keeps each certified singlet's
+mirror or rotation character and aligns its phase across anchors. It does not
+apply the two-axis-mirror orientation rule to these groups. Repeated singlets
+with the same label still need field and subspace matching to distinguish
+them; see :ref:`tracking-native-singlet-orientation`.
 
 If a C4v trial fails, the tracker first tries axis C2v when supported, then
 other certified subgroups. If no trial is accepted, successful
@@ -815,10 +833,10 @@ The paths in the first table are relative to either port group.
      - Decode ``Selection`` as JSON to inspect longitudinal scores, gradient scores, and symmetry candidates. Root attribute ``RejectedTrials`` records unsuccessful trials.
    * - ``symmetry_detection``
      - Geometry/boundary detection and the applied choice or rejected trials for each parent group, in attributes including ``Detected`` and JSON ``Details``.
-     - A detected geometry symmetry is a candidate. Check the per-group applied result and ``symmetry_subspaces`` for successful field certification.
+     - Inspect ``Details`` for the group embedding, active bounds and centres, and ``bank_reasons`` for incompatible operation positions across anchors. Check the per-group applied result and ``symmetry_subspaces`` for successful field certification; ``c1`` supplies no additional symmetry separation.
    * - ``symmetry_subspaces``
-     - Certified blocks, symmetry labels, transforms, residuals, and per-anchor orientation records before explicit user polarization.
-     - ``Symmetry`` and ``Irreps`` identify certified E pairs. ``orientation`` explains moment/parity selection; ``irreducible_basis`` and ``axis_sensitive`` distinguish symmetry fields from axis-oriented source fields.
+     - Certified blocks, group/irrep labels, transforms, residuals, and applicable orientation records before explicit user polarization.
+     - ``Symmetry``, ``Irreps``, and ``Generators`` identify singlets and C4v E doublets. ``orientation`` describes C4v/axis-C2v moment/parity selection and is absent for the other native groups. ``irreducible_basis`` stores the symmetry basis; ``axis_sensitive`` records any subsequent axis-selection decisions.
    * - ``unresolved_transport``
      - Final alignment of unresolved blocks, with ``Blocks``, ``BlockMethods``, per-anchor transforms, and rejected trials.
      - ``procrustes`` means a block was continued smoothly; it does not certify a unique identity for every member. ``phase`` means only a singleton phase was aligned.

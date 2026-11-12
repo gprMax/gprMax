@@ -225,11 +225,12 @@ reference slots, transformations, and residuals before final reordering.
 Recovery uses field history, without TE/TM labels or spatial symmetry tests.
 A persistent four-dimensional degeneracy with no resolved neighboring
 subgroups remains one tracking group. There is no imposed two-mode limit.
-Automatic detection of the native C4v or C2v symmetry can subsequently
-decompose its source span into irreducible blocks. Detection uses sampled
-materials and boundary masks at every anchor, followed by modal closure,
-power, continuity, and residual checks. If no decomposition passes, the
-power-whitened source span is retained.
+Independent longitudinal/gradient separation and detection of the supported
+native symmetry groups can subsequently decompose its source span. Detection
+uses sampled materials, boundary constraints, and positioned operations at
+every anchor, followed by modal closure, power, continuity, and residual
+checks. If no symmetry decomposition passes, any validated independent
+separation is retained; remaining unresolved blocks use smooth continuation.
 
 After association, automatic mixing groups are partitioned using their
 eigenvalue trajectories throughout the solved bank, with the tighter ``1e-8``
@@ -412,8 +413,9 @@ Legacy modes without a declared group retain independent-mode phase tracking.
 Automatic tracking ignores ``degenerate`` and detects groups from the solved
 spectrum. It separates longitudinal families and eligible directional and total
 gradient variation before detecting spatial symmetry. An independent symmetry
-stage certifies and refines candidate spans, then orients native doublets by
-electric moments or mirror parity. Remaining unresolved blocks then use a final
+stage certifies and refines candidate spans, then orients C4v E doublets by
+electric moments or mirror parity. Other native singlets retain their certified
+symmetry characters and continue by scalar phase. Remaining unresolved blocks then use a final
 blockwise Procrustes alignment; resolved singlets receive only phase alignment.
 Explicit ``mode_polarizations`` is applied
 only within certified C4v E pairs with significant rank-two electric moments,
@@ -552,8 +554,9 @@ angle test above uses Euclidean-orthonormalized spans. The two SVDs answer
 different questions: whether the spans match, and which allowed orientation
 best continues the preceding frame. A physically specified or automatically
 selected electric direction is not subsequently rotated by Procrustes
-transport. Native symmetry doublets instead retain their mirror parities
-and continue each channel by a scalar phase.
+transport. C4v E doublets retain their mirror parities and continue each
+channel by a scalar phase. Native singlets are matched only to compatible
+symmetry labels before phase continuation.
 
 After the final rotation, the code recomputes the mixed eigenpair residual
 for each column against its own stored eigenvalue:
@@ -631,19 +634,25 @@ A quarter turn exchanges the transverse E components and their staggered
 locations, and likewise the H components. To preserve the complete discrete
 problem it must also preserve the material tensors, wall masks, spacing,
 and aperture. Unequal transverse spacings usually reduce the available
-group to C2v or a subgroup. Detection tests these sampled quantities at
-every solved anchor and takes the strongest supported group common to the bank.
+group to axis C2v or one of its subgroups. Detection tests these sampled
+quantities at every solved anchor and enumerates the subgroups whose positioned
+operations are common to the bank. The trial priority is described in
+:ref:`tracking-symmetry-certification-after-separation`.
 
 Symmetry uses the midpoint of the active port extent. The extent is derived
 from unconstrained electric Yee samples, with physical tangential PEC walls
 required at any moved face. All exterior electric samples must be clamped;
 the wall constraints then also make their exterior Faraday curls zero. For
 SIBC, the extent includes both retained field families and every boundary-row
-address. Unretained exterior samples can be excluded, but active air padding
+address; an address outside the proposed extent retains the full window.
+Unretained exterior samples can be excluded, but active air padding
 and its artificial boundary remain part of the problem. The original solve
 and field-array shapes are unchanged. Field actions are exact signed
 permutations on the retained extent, extended by zero into inactive padding;
-full-field closure and Maxwell checks still apply.
+full-field closure and Maxwell checks still apply. This extent check does not
+classify the structure as open or closed and does not threshold field amplitudes.
+If the padding cannot be proved inactive, the full window is used. A closed
+guide that fills its window also retains that full extent.
 
 The detector tests individual operations and enumerates their supported
 subgroups: C4v, axis or diagonal C2v, C4, C2, the four Cs mirror embeddings,
@@ -788,8 +797,10 @@ Repeated equivalent representations admit multiple choices of their copies.
 Before spatial symmetry detection, the native path resolves longitudinal-field
 families and gradient subspaces as described below. The independent symmetry
 stage applies the commutant decomposition within compatible candidate spans.
-Mirror parity selects partners within each doublet. Compatible equal-parity
-singlets can subsequently be combined into an axis-oriented source basis.
+Mirror parity selects partners within each C4v E doublet. Under C4v or axis
+C2v, compatible equal-axis-parity singlets can subsequently be combined into
+an axis-oriented source basis. Diagonal C2v, C4, C2, and Cs retain their
+singlet characters and use phase continuation without that axis-selection step.
 The original irreducible basis and the final source transform are both saved.
 
 .. _tracking-independent-separation-theory:
@@ -863,6 +874,8 @@ can operate. The hierarchy is a sequence of restricted generalized
 eigenproblems, not an assumption that all three operators have a complete
 common eigenbasis.
 
+.. _tracking-symmetry-certification-after-separation:
+
 Independent symmetry certification after separation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -877,9 +890,12 @@ earlier validated parent basis. The HDF5 ``mode_separation`` group stores the
 pre-symmetry transforms, blocks, selection scores, candidates, and rejected-trial
 reasons separately from ``symmetry_subspaces``. If independent separation
 was rejected, the certified symmetry trial can still attempt longitudinal
-selection within the retained parent span. C4v is tried first when supported,
-followed by axis C2v and the other certified subgroups if necessary. No trial
-relaxes the physical acceptance criteria.
+selection within the retained parent span. Supported candidates are tried in
+this order: C4v, axis C2v, diagonal C2v, C4, C2, then Cs with u, v, diagonal,
+and antidiagonal mirrors. This is a deterministic priority among subgroups;
+groups of the same order need not contain one another. C1 supplies no basis
+information and is not an alignment trial. No trial relaxes the physical
+acceptance criteria.
 
 .. _tracking-unresolved-transport-theory:
 
@@ -908,7 +924,8 @@ transforms, residuals, power matrices, and rejected trials.
 Axis-sensitive selection of equal-parity partners
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Some degenerate singlets have the same two mirror parities. For example,
+This post-symmetry step applies to C4v and axis C2v. Some degenerate singlets
+have the same two axis-mirror parities. For example,
 the square-guide combinations :math:`\mathrm{TE}_{20}\pm\mathrm{TE}_{02}`
 belong to different rotation irreps but have identical axis-mirror parities.
 An axis-oriented source basis can recover the individual fields by measuring
@@ -927,7 +944,8 @@ finite conductivity can slightly change this content between partners.
 Both family-comparison bounds use
 :math:`\tau_\rho=\max(10^{-8},\min(10^{-3},\max_j|\operatorname{Im}\lambda_j|/|\lambda_j|))`.
 This bounded loss scale selects candidate partners; the mixed-field and
-Maxwell residual limits remain :math:`10^{-7}`. Solve
+Maxwell residual limits still use ``residual_tolerance`` (default
+:math:`10^{-7}`). Solve
 
 .. math::
 
@@ -972,7 +990,7 @@ and directional scores; it does not introduce a new user parameter.
 Electric moments first, mirror parity second
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Within a native E doublet, form the two transverse moment columns :math:`M`
+Within a certified C4v E doublet, form the two transverse moment columns :math:`M`
 from the power-whitened fields. For :math:`M=U\Sigma V^{\mathrm H}`, try
 :math:`T=VU^{\mathrm H}`. This unitary transformation preserves the identity
 power matrix. Accept it when the moments are strong and independent, align
@@ -989,6 +1007,25 @@ partners. Check them with the v-mirror: their :math:`(u,v)` parities are
 a quarter turn relates the two zero-moment partners. Continue each channel
 with a scalar phase at subsequent anchors, preserving these parities even
 when the electric moments vanish or reappear.
+
+.. _tracking-native-singlet-orientation:
+
+Phase continuation for other native singlets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Diagonal C2v, C4, C2, and Cs use the one-dimensional complex irreducible
+blocks in the table above. At the reference anchor, choose each singlet's
+phase so that its largest-magnitude component in the flattened E/H frame is
+real and positive. At neighboring anchors, match blocks by field overlap
+only when their symmetry labels agree, then align each singlet's scalar
+phase. This preserves the certified mirror or rotation character without
+requiring two axis mirrors or nonzero integrated electric moments.
+
+Repeated copies with the same irrep label still require the independent
+field comparisons and neighboring-subspace probe to distinguish them.
+The label alone does not establish a unique physical identity. C4 E+ and E-
+remain separate complex singlets; C1 retains independent separation and
+unresolved-block continuation without a symmetry alignment trial.
 
 If no symmetry decomposition is accepted, retain the validated longitudinal/
 gradient separation. Each remaining unresolved block may undergo the
@@ -1011,8 +1048,8 @@ eigen-residual, available reconstructed-field residual, power checks, and
 the coefficient solver's precision budget for the complete power-wave
 measurement bank.
 Automatic selection tries the remaining certified subgroups after a failed
-trial, then retains the fallback basis if none passes. Symmetry selection is enabled by automatic tracking and is
-skipped by legacy tracking.
+trial, then retains the fallback basis if none passes. Symmetry selection is
+enabled by automatic tracking and is skipped by legacy tracking.
 The HDF5 diagnostics record which basis was used at each group and anchor.
 
 Symmetry references
@@ -1237,9 +1274,15 @@ and each generator's affine translation in ``positioned_operations``. Direct
 solvers default to a zero window origin; simulation ports record their global
 transverse origin. ``Detected`` uses the group name (for example ``cs``), while
 candidate and applied keys retain the embedding (for example ``cs_u``).
+``bank_reasons`` explains rejections caused by different physical rotation
+centres or mirror lines across otherwise individually symmetric anchors.
 Successful ``symmetry_subspaces`` records name
 their ``Symmetry`` and source-block ``Irreps`` and retain the original
-``irreducible_basis`` separately. ``unresolved_transport`` stores
+``irreducible_basis`` separately. Per-anchor ``orientation`` records describe
+moment/parity orientation for C4v and axis C2v. Diagonal C2v, C4, C2, and Cs
+instead store their singlet characters and phase-aligned transforms without
+an ``orientation`` subgroup. ``axis_sensitive`` is present only when the
+C4v/axis-C2v post-symmetry step has records to report. ``unresolved_transport`` stores
 ``BlockMethods`` (``procrustes`` or ``phase``), parent labels, blocks,
 per-anchor transforms and validation data, and JSON ``RejectedTrials``.
 ``mode_separation`` and ``unresolved_transport`` can contain only rejection
