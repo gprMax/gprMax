@@ -190,7 +190,8 @@ cpdef void create_magnetic_average(
     int numID2,
     int componentID,
     G,
-    bint harmonic
+    bint harmonic=True,
+    bint electric_averaging=False
 ):
     """Creates a new material by averaging the properties of the
         surrounding cells for a magnetic (H) field component.
