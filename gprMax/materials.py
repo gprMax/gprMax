@@ -1434,6 +1434,7 @@ class AdvancedDispersiveMaterial(DispersiveMaterial):
         self.inclusive_w = inclusive_w if inclusive_w is not None else []
         self.inclusive_q = inclusive_q if inclusive_q is not None else []
         self.inclusive_conductivity = inclusive_conductivity
+        self.type = self.model_types[0] if self.model_types else ""
         
         # Validate consistency
         if self.poles > 0:
@@ -1610,7 +1611,23 @@ class AdvancedDispersiveMaterial(DispersiveMaterial):
         except Exception:
             return False
 
+    @property
+    def is_valid(self) -> bool:
+        try:
+            if self.er <= 0:
+                return False
+            if self.poles < 0:
+                return False
+            return True
+        except Exception:
+            return False
+
+        if self.model_types:
+            return self.model_types[0]
+        return ""
+
     def calculate_loss_tangent(self, freq: float) -> complex:
+        er = self.calculate_er(freq)
         if er.real != 0:
             return er.imag / er.real
         return complex(0, 0)

@@ -19,6 +19,7 @@ markers = [
     "slow: normally takes more than 10 seconds on a development machine",
 ]
 
+mocks = ["pytest-mock"]
 [tool.cibuildwheel]
 build = ["cp311-*", "cp312-*", "cp313-*"]
 skip = ["*-musllinux_*", "*-win32"]
@@ -33,5 +34,3 @@ before-all = "bash packaging/build_macos_libomp.sh"
 environment = { MACOSX_DEPLOYMENT_TARGET = "11.0", GPRMAX_LIBOMP_PREFIX = "/tmp/gprmax-libomp" }
 
 
-[mocks]
-    pytest-mock
