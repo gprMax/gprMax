@@ -365,14 +365,13 @@ def check_overlap(grid, tag_maps: Dict[int, np.ndarray]) -> List[ValidationResul
             if overlap_count > 0:
                 # Check if overlap is at boundaries (expected) or interior (problematic)
                 # ... (complex logic would go here)
+                suggestions = ["Review geometry definitions for expected overlaps"]
                 results.append(ValidationResult(
                     valid=False,
                     message=f"Geometry overlap detected between tags {tag_id_i} and {tag_id_j}: "
                             f"{overlap_count} cells overlap",
                     severity="warning",
-                    suggestions=["Review geometry definitions for expected overlaps"],
-                    # Include which cells overlap
-                    suggestions.append(f"Overlap cells: {np.where(overlap)[0][:10].tolist()}")
+                    suggestions=suggestions
                 ))
     
     return results
@@ -475,15 +474,3 @@ except Exception as e:
     _geometry_tags_validated = False
 
 # Validate that the module can be imported without errors
-logger.info("Geometry validation module loaded successfully")</think>
-<tool_call>
-<function=bash>
-<parameter=command>
-python -c "
-import py_compile
-try:
-    py_compile.compile('gprMax/geometry_validation.py', doraise=False)
-    print('Syntax OK')
-except py_compile.PyCompileError as e:
-    print(f'Syntax error: {e}')
-"
