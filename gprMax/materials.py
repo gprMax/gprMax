@@ -1410,3 +1410,55 @@ def process_materials(G):
         materialsdata.append(materialtext)
 
     return materialsdata
+class GradedIndexMaterial(Material):
+    """Graded index material with permittivity varying linearly across the material.
+
+    This material type allows for a spatially varying permittivity, useful for
+    modeling graded index antireflection coatings, parabolic lenses, and other
+    optical elements where the permittivity changes gradually across the material.
+
+    The permittivity at position x is given by:
+        er(x) = er_min + (er_max - er_min) * (x / L)
+    where L is the total extent of the material in the x-direction.
+    """
+
+    def __init__(self, numID, ID, er_min=1.0, er_max=2.0, extent_x=1.0):
+        super().__init__(numID, ID)
+        self.er_min = er_min
+        self.er_max = er_max
+        self.extent_x = extent_x
+        self.type = "graded-index"
+
+    def calculate_er(self, freq, x_position=0.0):
+        """Calculates the complex relative permittivity at a given position.
+
+        Args:
+            freq: float for frequency used to calculate complex relative permittivity.
+            x_position: float for x-position within the material (in meters).
+
+        Returns:
+            er: complex relative permittivity at the given position.
+        """
+        from gprMax.materials import _validate_evaluation_frequency
+        _validate_evaluation_frequency(freq, self.ID)
+
+        # Linear grading from er_min at x=0 to er_max at x=extent_x
+        er_at_position = self.er_min + (self.er_max - self.er_min) * (x_position / self.extent_x)
+
+        # Add any static permittivity (no dispersion terms for this simple material)
+        er = er_at_position
+
+        return er
+
+    def __repr__(self) -> str:
+        return f"GradedIndexMaterial(ID={self.ID!r}, er_min={self.er_min}, er_max={self.er_max}, extent_x={self.extent_x})"
+
+    def copy(self) -> "GradedIndexMaterial":
+        """Create a copy of the material."""
+        return GradedIndexMaterial(
+            numID=self.numID,
+            ID=self.ID,
+            er_min=self.er_min,
+            er_max=self.er_max,
+            extent_x=self.extent_x
+        )
