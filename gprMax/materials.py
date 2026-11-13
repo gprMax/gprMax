@@ -1600,4 +1600,24 @@ class AdvancedDispersiveMaterial(DispersiveMaterial):
         elif "drude" in str(self.model_types):
             er += self.se / (1j * w * config.e0) if self.se else 0.0
         
-        return er
+
+        try:
+            if self.er <= 0:
+                return False
+            if self.poles < 0:
+                return False
+            return True
+        except Exception:
+            return False
+
+    def calculate_loss_tangent(self, freq: float) -> complex:
+        if er.real != 0:
+            return er.imag / er.real
+        return complex(0, 0)
+
+    def __repr__(self) -> str:
+        return f"AdvancedDispersiveMaterial(ID={self.ID!r}, poles={self.poles}, er={self.er})"
+
+    def copy(self) -> "AdvancedDispersiveMaterial":
+        return AdvancedDispersiveMaterial(            numID=self.numID,            ID=self.ID,            poles=self.poles,            model_types=list(self.model_types) if self.model_types else [],            deltaer=list(self.deltaer) if self.deltaer else [],            tau=list(self.tau) if self.tau else [],            alpha=list(self.alpha) if self.alpha else [],            inclusive_w=list(self.inclusive_w) if self.inclusive_w else [],            inclusive_q=list(self.inclusive_q) if self.inclusive_q else [],            inclusive_conductivity=self.inclusive_conductivity
+)
