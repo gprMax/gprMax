@@ -1437,7 +1437,7 @@ class AdvancedDispersiveMaterial(DispersiveMaterial):
         self.type = self.model_types[0] if self.model_types else ""
         
         # Validate consistency
-        if self.poles > 0:
+        if self.poles > 0 and len(self.deltaer) > 0:
             assert len(self.deltaer) == self.poles, "deltaer length must match poles"
             assert len(self.tau) == self.poles, "tau length must match poles"
             if 'lorentz' in self.model_types:
@@ -1602,15 +1602,10 @@ class AdvancedDispersiveMaterial(DispersiveMaterial):
             er += self.se / (1j * w * config.e0) if self.se else 0.0
         
 
-        try:
-            if self.er <= 0:
-                return False
-            if self.poles < 0:
-                return False
-            return True
-        except Exception:
-            return False
+        # Return the calculated complex relative permittivity
+        return er
 
+    @property
     @property
     def is_valid(self) -> bool:
         try:
