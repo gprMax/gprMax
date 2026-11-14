@@ -1,6 +1,5 @@
 [build-system]
-requires = ['setuptools>=64', 'wheel', 'numpy>=1.19.0', 'Cython>=0.29.21',
-            'jinja2']
+requires = ['setuptools>=64', 'wheel', 'numpy>=1.19.0', 'Cython>=0.29.21', 'jinja2']
 build-backend = "setuptools.build_meta"
 
 [tool.black]
@@ -18,6 +17,7 @@ markers = [
     "gpu: requires execution on a real GPU device",
     "slow: normally takes more than 10 seconds on a development machine",
 ]
+mocks = ["pytest-mock"]
 
 [tool.cibuildwheel]
 build = ["cp311-*", "cp312-*", "cp313-*"]

@@ -193,3 +193,35 @@ class GeometryUserObject(GridUserObject):
 
         tag = validate_geometry_tag(self.kwargs.get("tag"))
         return () if tag is None else (tag,)
+    def validate(self, grid) -> list:
+        """Validate this geometry object.
+        """
+        from gprMax.geometry_validation import validate_geometry_object
+        return validate_geometry_object(self, grid)
+    
+    def get_repair_hints(self, grid) -> list:
+        """Get repair hints for this geometry object.
+        """
+        from gprMax.geometry_validation import get_repair_hints
+        return get_repair_hints(self)
+    
+    @property
+    def is_valid_geometry(self, grid) -> bool:
+        """Check if this geometry object is valid for the given grid.
+        """
+        results = self.validate(grid)
+        return all(r.valid for r in results)
+    
+    def build_with_validation(self, grid):
+        """Build the geometry object with validation.
+        """
+        from gprMax.geometry_validation import validate_geometry_object
+        results = validate_geometry_object(self, grid)
+        build_result = self.build(grid)
+        return build_result, results
+    
+    def is_valid_geometry_no_build(self, grid) -> bool:
+        """Check validity without building the geometry.
+        """
+        results = self.validate(grid)
+        return all(r.valid for r in results)
