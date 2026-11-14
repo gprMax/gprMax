@@ -1410,3 +1410,226 @@ def process_materials(G):
         materialsdata.append(materialtext)
 
     return materialsdata
+class AdvancedDispersiveMaterial(DispersiveMaterial):
+    """Advanced dispersive material supporting multiple dispersion models
+    with arbitrary mixing rules and pole configurations.
+    
+    Features:
+    - Multiple dispersion model types (debye, lorentz, drude) in one material
+    - Arbitrary mixing rules for combining poles
+    - Complex permittivity calculation at arbitrary frequencies
+    - Update coefficient calculation with inclusive terms
+    """
+    
+    def __init__(self, numID, ID, poles=None, model_types=None, 
+                 deltaer=None, tau=None, alpha=None, 
+                 inclusive_w=None, inclusive_q=None, 
+                 inclusive_conductivity=0.0):
+        super().__init__(numID, ID)
+        self.poles = poles if poles is not None else 0
+        self.model_types = model_types if model_types is not None else []
+        self.deltaer = deltaer if deltaer is not None else []
+        self.tau = tau if tau is not None else []
+        self.alpha = alpha if alpha is not None else []
+        self.inclusive_w = inclusive_w if inclusive_w is not None else []
+        self.inclusive_q = inclusive_q if inclusive_q is not None else []
+        self.inclusive_conductivity = inclusive_conductivity
+        self.type = self.model_types[0] if self.model_types else ""
+        
+        # Validate consistency
+        if self.poles > 0 and len(self.deltaer) > 0:
+            assert len(self.deltaer) == self.poles, "deltaer length must match poles"
+            assert len(self.tau) == self.poles, "tau length must match poles"
+            if 'lorentz' in self.model_types:
+                assert len(self.alpha) == self.poles, "alpha length must match poles"
+    
+    def calculate_update_coeffsE(self, G):
+        """Calculates the electric update coefficients for advanced dispersive material.
+        
+        Supports multiple dispersion models with different mixing rules.
+        """
+        from gprMax.materials import _validate_evaluation_frequency
+        
+        # Initialize working arrays
+        self.w = np.zeros(
+            G.maxpoles,
+            dtype=G.dispersivedtype,
+        )
+        self.q = np.zeros(
+            G.maxpoles,
+            dtype=G.dispersivedtype,
+        )
+        self.zt = np.zeros(
+            G.maxpoles,
+            dtype=G.dispersivedtype,
+        )
+        self.zt2 = np.zeros(
+            G.maxpoles,
+            dtype=G.dispersivedtype,
+        )
+        self.eqt = np.zeros(
+            G.maxpoles,
+            dtype=G.dispersivedtype,
+        )
+        self.eqt2 = np.zeros(
+            G.maxpoles,
+            dtype=G.dispersivedtype,
+        )
+        
+        # Process each pole with its model type
+        effective_se = self.se
+        coefficient_type = np.result_type(G.dispersivedtype, np.float64).type
+        
+        for x in range(min(self.poles, G.maxpoles)):
+            model = self.model_types[x] if x < len(self.model_types) else 'debye'
+            
+            if self.inclusive_w and x < len(self.inclusive_w):
+                w = self.inclusive_w[x]
+                q = self.inclusive_q[x] if x < len(self.inclusive_q) else 0.0
+            elif model == 'debye':
+                if x < len(self.deltaer) and x < len(self.tau):
+                    w = self.deltaer[x] / self.tau[x]
+                    q = -1 / self.tau[x]
+                else:
+                    w, q = 0.0, 0.0
+            elif model == 'lorentz':
+                if x < len(self.tau) and x < len(self.alpha):
+                    wp2 = (2 * np.pi * self.tau[x]) ** 2
+                    sqrt_term = wp2 - self.alpha[x] ** 2
+                    if sqrt_term > 0:
+                        w = -1j * ((wp2 * self.deltaer[x]) / np.sqrt(sqrt_term))
+                        q = -self.alpha[x] + (1j * np.sqrt(sqrt_term))
+                    else:
+                        w, q = 0.0, 0.0
+                else:
+                    w, q = 0.0, 0.0
+            elif model == 'drude':
+                if x < len(self.tau) and x < len(self.alpha):
+                    wp2 = (2 * np.pi * self.tau[x]) ** 2
+                    effective_se += coefficient_type(config.sim_config.em_consts["e0"] * wp2 / self.alpha[x])
+                    w = -(wp2 / self.alpha[x])
+                    q = -self.alpha[x]
+                else:
+                    w, q = 0.0, 0.0
+            else:
+                w, q = 0.0, 0.0
+            
+            # Form exponential differences
+            w, q = coefficient_type(w), coefficient_type(q)
+            self.w[x], self.q[x] = w, q
+            increment = q * G.dt
+            self.eqt[x] = np.exp(increment)
+            self.eqt2[x] = np.exp(increment / 2)
+            if q != 0:
+                self.zt[x] = -(w / q) * np.expm1(increment) / G.dt
+                self.zt2[x] = -(w / q) * np.expm1(increment / 2)
+            else:
+                self.zt[x], self.zt2[x] = 0.0, 0.0
+        
+        # Add inclusive conductivity
+        effective_se += self.inclusive_conductivity
+        
+        # Calculate EA and EB
+        EA = (
+            (config.sim_config.em_consts["e0"] * self.er / G.dt)
+            + 0.5 * effective_se
+            - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
+        )
+        EB = (
+            (config.sim_config.em_consts["e0"] * self.er / G.dt)
+            - 0.5 * effective_se
+            - (config.sim_config.em_consts["e0"] / G.dt) * np.sum(self.zt2.real)
+        )
+        
+        # Guard against PEC-like behavior
+        if self.ID == "pec" or self.se == float("inf"):
+            self.CA = 0
+            self.CBx = 0
+            self.CBy = 0
+            self.CBz = 0
+            self.srce = 0
+        else:
+            self.CA = EB / EA
+            self.CBx = (1 / G.dx) * 1 / EA
+            self.CBy = (1 / G.dy) * 1 / EA
+            self.CBz = (1 / G.dz) * 1 / EA
+            self.srce = 1 / EA
+    
+    def calculate_er(self, freq):
+        """Calculates the complex relative permittivity at a specific frequency.
+        
+        Args:
+            freq: float for frequency used to calculate complex relative permittivity.
+            
+        Returns:
+            er: complex relative permittivity.
+        """
+        _validate_evaluation_frequency(freq, self.ID)
+        
+        values = np.asarray(freq, dtype=np.float64)
+        if np.any(values == 0):
+            if self.se != 0 or self.inclusive_conductivity != 0:
+                raise ValueError(
+                    f"Material {self.ID!r} includes electric conductivity, "
+                    "which is singular at zero frequency (DC)."
+                )
+        
+        # Permittivity at infinite frequency
+        er = self.er
+        
+        w = 2 * np.pi * freq
+        if self.se != 0:
+            er += self.se / (1j * w * config.e0)
+        if self.inclusive_w:
+            if self.inclusive_conductivity != 0:
+                er += self.inclusive_conductivity / (1j * w * config.e0)
+            for pole_w, pole_q in zip(self.inclusive_w, self.inclusive_q):
+                if np.isclose(np.imag(pole_w), 0.0) and np.isclose(np.imag(pole_q), 0.0):
+                    er += np.real(pole_w) / (1j * w - np.real(pole_q))
+                else:
+                    er += 0.5 * (
+                        pole_w / (1j * w - pole_q)
+                        + np.conjugate(pole_w) / (1j * w - np.conjugate(pole_q))
+                    )
+        elif "debye" in str(self.model_types):
+            for pole in range(min(self.poles, len(self.tau))):
+                er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
+        elif "lorentz" in str(self.model_types):
+            for pole in range(min(self.poles, len(self.tau))):
+                pole_omega = 2 * np.pi * self.tau[pole]
+                er += self.deltaer[pole] / (pole_omega ** 2 - w ** 2 + 1j * self.alpha[pole] * w)
+        elif "drude" in str(self.model_types):
+            er += self.se / (1j * w * config.e0) if self.se else 0.0
+        
+
+        # Return the calculated complex relative permittivity
+        return er
+
+    @property
+    @property
+    def is_valid(self) -> bool:
+        try:
+            if self.er <= 0:
+                return False
+            if self.poles < 0:
+                return False
+            return True
+        except Exception:
+            return False
+
+        if self.model_types:
+            return self.model_types[0]
+        return ""
+
+    def calculate_loss_tangent(self, freq: float) -> complex:
+        er = self.calculate_er(freq)
+        if er.real != 0:
+            return er.imag / er.real
+        return complex(0, 0)
+
+    def __repr__(self) -> str:
+        return f"AdvancedDispersiveMaterial(ID={self.ID!r}, poles={self.poles}, er={self.er})"
+
+    def copy(self) -> "AdvancedDispersiveMaterial":
+        return AdvancedDispersiveMaterial(            numID=self.numID,            ID=self.ID,            poles=self.poles,            model_types=list(self.model_types) if self.model_types else [],            deltaer=list(self.deltaer) if self.deltaer else [],            tau=list(self.tau) if self.tau else [],            alpha=list(self.alpha) if self.alpha else [],            inclusive_w=list(self.inclusive_w) if self.inclusive_w else [],            inclusive_q=list(self.inclusive_q) if self.inclusive_q else [],            inclusive_conductivity=self.inclusive_conductivity
+)
