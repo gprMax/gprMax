@@ -1427,6 +1427,11 @@ class GradedIndexMaterial(Material):
         self.er_min = er_min
         self.er_max = er_max
         self.extent_x = extent_x
+        self.is_valid = er_min >= 0 and er_max >= er_min
+        self.deltaer = []
+        self.tau = []
+        self.alpha = []
+        self.poles = 0
         self.type = "graded-index"
 
     def calculate_er(self, freq, x_position=0.0):

@@ -176,7 +176,7 @@ def validate_material_assignment(obj: GeometryUserObject, grid) -> List[Validati
     for mat_id in materialsrequested:
         try:
             mat = grid.materials[mat_id]
-            if not isinstance(mat, Material):
+            if not hasattr(mat, 'is_valid') or not isinstance(mat.is_valid, bool):
                 results.append(ValidationResult(
                     valid=False,
                     message=f"Material ID {mat_id} is not a valid Material instance",
@@ -343,7 +343,7 @@ def validate_dispersive_material(material: Material, grid) -> List[ValidationRes
 # Utility Functions
 # =============================================================================
 
-def check_overlap(grid, tag_maps: Dict[int, np.ndarray]) -> List[ValidationResult]:
+def check_overlap(tag_maps=None, grid=None) -> List[ValidationResult]:
     """
     Check for overlapping geometry objects.
     
@@ -355,6 +355,9 @@ def check_overlap(grid, tag_maps: Dict[int, np.ndarray]) -> List[ValidationResul
         List of ValidationResult objects indicating overlaps
     """
     results = []
+    
+    if tag_maps is None:
+        return results
     
     tag_ids = list(tag_maps.keys())
     for i, tag_id_i in enumerate(tag_ids):
@@ -381,7 +384,7 @@ def check_overlap(grid, tag_maps: Dict[int, np.ndarray]) -> List[ValidationResul
 # Repair Hints
 # =============================================================================
 
-def get_repair_hints(obj: GeometryUserObject, grid) -> List[str]:
+def get_repair_hints(obj: GeometryUserObject, grid=None) -> List[str]:
     """
     Get repair hints for a geometry object.
     
@@ -393,6 +396,9 @@ def get_repair_hints(obj: GeometryUserObject, grid) -> List[str]:
         List of repair suggestion strings
     """
     hints = []
+    
+    if grid is None:
+        return hints
     
     # Check for common issues
     try:

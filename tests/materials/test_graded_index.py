@@ -72,7 +72,7 @@ class TestGradedIndexMaterialCalculateEr:
         material = GradedIndexMaterial(3, "no-disp-mat", er_min=2.0, er_max=6.0, extent_x=5.0)
         er_1GHz = material.calculate_er(1e9)
         er_10GHz = material.calculate_er(10e9)
-        assert er_1GHz == er_100GHz  # Same permittivity at all frequencies
+        assert er_1GHz == er_10GHz  # Same permittivity at all frequencies
 
 
 class TestGradedIndexMaterialIsValid:
