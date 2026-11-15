@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import math
+import warnings
 
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -58,6 +59,12 @@ class FDFD_1D_mode_solver:
     ``operator_k0`` are the temporal difference symbol and its normalization
     by c. ``operator_neff`` controls field reconstruction; public
     ``complex_neff`` is phase beta / k0.
+
+    ``use_gpu=True`` opts the Arnoldi eigensolve into the experimental GPU
+    path in :mod:`gprMax.fdfd_eigenmode_solver.gpu_backend`. When cuPy or a
+    CUDA device is unavailable, or the device solve fails, the solver warns
+    and falls back to the CPU path, so the flag never changes numerical
+    results.
 
     After :meth:`solve`, ``raw_powers`` contains the complex Poynting power
     before normalization. ``forward_power_metrics`` is its real part divided
@@ -105,11 +112,13 @@ class FDFD_1D_mode_solver:
         fdtd_dt=None,
         propagation_spacing=None,
         surface_boundary=None,
+        use_gpu=None,
     ):
         self.epsilon0 = config.sim_config.em_consts["e0"]
         self.mu0 = config.sim_config.em_consts["m0"]
         self.c = config.sim_config.em_consts["c"]
         self.eta0 = config.sim_config.em_consts["z0"]
+        self.use_gpu = bool(use_gpu) if use_gpu is not None else False
         self.frequency = positive_finite(frequency, "frequency")
         self.fdtd_dt = None if fdtd_dt is None else positive_finite(fdtd_dt, "fdtd_dt")
         self.propagation_spacing = (
@@ -322,25 +331,31 @@ class FDFD_1D_mode_solver:
             # Use a local deterministic vector without mutating NumPy's
             # global random state.
             v0 = np.random.default_rng(0).standard_normal(size)
-            try:
-                values, vectors = eigs(
-                    reduced,
-                    k=self.num_modes,
-                    sigma=self.guess,
-                    v0=v0,
-                )
-            except RuntimeError:
-                # A homogeneous fundamental mode can lie exactly at the
-                # material-derived default shift (for example sigma=-1).
-                # Move the shift by roundoff rather than failing LU
-                # factorisation of A - sigma I.
-                shifted_guess = self.guess * (1.0 + 1e-9) - 1e-12
-                values, vectors = eigs(
-                    reduced,
-                    k=self.num_modes,
-                    sigma=shifted_guess,
-                    v0=v0,
-                )
+            values, vectors = None, None
+            if getattr(self, "use_gpu", False):
+                gpu_result = self._try_gpu_eigensolve(reduced, v0)
+                if gpu_result is not None:
+                    values, vectors = gpu_result
+            if values is None:
+                try:
+                    values, vectors = eigs(
+                        reduced,
+                        k=self.num_modes,
+                        sigma=self.guess,
+                        v0=v0,
+                    )
+                except RuntimeError:
+                    # A homogeneous fundamental mode can lie exactly at the
+                    # material-derived default shift (for example sigma=-1).
+                    # Move the shift by roundoff rather than failing LU
+                    # factorisation of A - sigma I.
+                    shifted_guess = self.guess * (1.0 + 1e-9) - 1e-12
+                    values, vectors = eigs(
+                        reduced,
+                        k=self.num_modes,
+                        sigma=shifted_guess,
+                        v0=v0,
+                    )
 
         order = np.argsort(np.real(values))
         values = values[order]
@@ -348,6 +363,27 @@ class FDFD_1D_mode_solver:
         expanded = np.zeros((free_mask.size, self.num_modes), dtype=np.complex128)
         expanded[free_mask, :] = vectors
         return values, expanded
+
+    def _try_gpu_eigensolve(self, reduced, v0):
+        """Attempt the shift-invert eigensolve on the GPU.
+
+        Returns ``(eigenvalues, eigenvectors)`` on success and ``None`` when
+        the caller should fall back to the CPU path.
+        """
+        from gprMax.fdfd_eigenmode_solver.gpu_backend import gpu_available, gpu_eigs
+
+        if not gpu_available():
+            warnings.warn(
+                "GPU FDFD eigensolve requested but cuPy or a CUDA device is "
+                "unavailable; using the CPU path.",
+                RuntimeWarning,
+            )
+            return None
+        try:
+            return gpu_eigs(reduced, self.num_modes, self.guess, v0=v0)
+        except Exception as exc:
+            warnings.warn(f"GPU FDFD eigensolve failed ({exc}); using the CPU path.", RuntimeWarning)
+            return None
 
     def solve(self):
         if self.polarization == "TM":

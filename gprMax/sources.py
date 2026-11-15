@@ -385,6 +385,7 @@ class EigenmodeSource(Source):
         self.complex_mu_r_ww = None
         self.surface_impedance_fdfd_edges = 0
         self._reported_surface_pec_rows = None
+        self.use_gpu = None  #: True opts the FDFD eigensolve into the GPU path; None keeps the CPU default
         self.fdfd_surface_boundary = None
         self.modal_e = None
         self.modal_h = None
@@ -1803,6 +1804,7 @@ class EigenmodeSource(Source):
             surface_boundary=self.fdfd_surface_boundary,
             fdtd_dt=G.dt,
             propagation_spacing=G.dl[self.normal_axis],
+            use_gpu=self.use_gpu,
         )
         solver.retain_tracking_operator = bool(self.degenerate or self.tracking == "auto")
         solver.calculate_diagnostics = self.tracking == "auto"
@@ -1845,6 +1847,7 @@ class EigenmodeSource(Source):
                 self.transverse_axes.index(self.invariant_axis),
                 1 if self.domain_polarization == "TE" else 0,
             ),
+            use_gpu=self.use_gpu,
             **solver_inputs,
         )
         solver.calculate_diagnostics = self.tracking == "auto"

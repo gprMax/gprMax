@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import math
+import warnings
 
 import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
@@ -114,6 +115,12 @@ class FDFD_2D_mode_solver:
     is phase beta / k0. Material arrays use the solver's ``operator_omega``
     normalization, including the supplied surface-boundary coefficients.
 
+    ``use_gpu=True`` opts the Arnoldi eigensolve into the experimental GPU
+    path in :mod:`gprMax.fdfd_eigenmode_solver.gpu_backend`. When cuPy or a
+    CUDA device is unavailable, or the device solve fails, the solver warns
+    and falls back to the CPU path, so the flag never changes numerical
+    results.
+
     After :meth:`solve`, ``raw_powers`` contains the complex Poynting power
     before normalization. ``forward_power_metrics`` is its real part divided
     by a positive, E/H-balanced transverse field norm; ``power_valid`` applies
@@ -146,11 +153,13 @@ class FDFD_2D_mode_solver:
         artificial_pec_masks=None,
         fdtd_dt=None,
         propagation_spacing=None,
+        use_gpu=None,
     ):
         self.epsilon0 = config.sim_config.em_consts["e0"]
         self.mu0 = config.sim_config.em_consts["m0"]
         self.c = config.sim_config.em_consts["c"]
         self.eta0 = config.sim_config.em_consts["z0"]
+        self.use_gpu = bool(use_gpu) if use_gpu is not None else False
         self.frequency = positive_finite(frequency, "frequency")
         self.fdtd_dt = None if fdtd_dt is None else positive_finite(fdtd_dt, "fdtd_dt")
         self.propagation_spacing = (
@@ -627,34 +636,61 @@ class FDFD_2D_mode_solver:
             # can converge with a missing partner and return a farther mode.
             ncv = min(size, max(4 * self.num_modes + 1, 40))
             v0 = np.random.default_rng(0).standard_normal(size)
-            try:
-                options = {"OPinv": operator.shift_inverse(self.guess)} if isinstance(
-                    operator, _StaticConstraintOperator
-                ) else {}
-                eigenvalues, eigenvectors = eigs(
-                    operator,
-                    k=self.num_modes,
-                    sigma=self.guess,
-                    v0=v0,
-                    ncv=ncv,
-                    **options,
-                )
-            except RuntimeError:
-                shifted_guess = self.guess * (1.0 + 1e-9) - 1e-12
-                options = {"OPinv": operator.shift_inverse(shifted_guess)} if isinstance(
-                    operator, _StaticConstraintOperator
-                ) else {}
-                eigenvalues, eigenvectors = eigs(
-                    operator,
-                    k=self.num_modes,
-                    sigma=shifted_guess,
-                    v0=v0,
-                    ncv=ncv,
-                    **options,
-                )
+            eigenvalues, eigenvectors = None, None
+            if getattr(self, "use_gpu", False):
+                gpu_result = self._try_gpu_eigensolve(operator, v0, ncv)
+                if gpu_result is not None:
+                    eigenvalues, eigenvectors = gpu_result
+            if eigenvalues is None:
+                try:
+                    options = {"OPinv": operator.shift_inverse(self.guess)} if isinstance(
+                        operator, _StaticConstraintOperator
+                    ) else {}
+                    eigenvalues, eigenvectors = eigs(
+                        operator,
+                        k=self.num_modes,
+                        sigma=self.guess,
+                        v0=v0,
+                        ncv=ncv,
+                        **options,
+                    )
+                except RuntimeError:
+                    shifted_guess = self.guess * (1.0 + 1e-9) - 1e-12
+                    options = {"OPinv": operator.shift_inverse(shifted_guess)} if isinstance(
+                        operator, _StaticConstraintOperator
+                    ) else {}
+                    eigenvalues, eigenvectors = eigs(
+                        operator,
+                        k=self.num_modes,
+                        sigma=shifted_guess,
+                        v0=v0,
+                        ncv=ncv,
+                        **options,
+                    )
 
         order = np.argsort(np.real(eigenvalues))
         return eigenvalues[order], eigenvectors[:, order]
+
+    def _try_gpu_eigensolve(self, operator, v0, ncv):
+        """Attempt the shift-invert eigensolve on the GPU.
+
+        Returns ``(eigenvalues, eigenvectors)`` on success and ``None`` when
+        the caller should fall back to the CPU path.
+        """
+        from gprMax.fdfd_eigenmode_solver.gpu_backend import gpu_available, gpu_eigs
+
+        if not gpu_available():
+            warnings.warn(
+                "GPU FDFD eigensolve requested but cuPy or a CUDA device is "
+                "unavailable; using the CPU path.",
+                RuntimeWarning,
+            )
+            return None
+        try:
+            return gpu_eigs(operator, self.num_modes, self.guess, v0=v0, ncv=ncv)
+        except Exception as exc:
+            warnings.warn(f"GPU FDFD eigensolve failed ({exc}); using the CPU path.", RuntimeWarning)
+            return None
 
     def _reduce_transverse_operators(self, P, Q):
         """Enforce the actual electric clamps without adding magnetic clamps.
