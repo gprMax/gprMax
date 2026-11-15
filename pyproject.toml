@@ -19,7 +19,6 @@ markers = [
     "slow: normally takes more than 10 seconds on a development machine",
 ]
 
-mocks = ["pytest-mock"]
 [tool.cibuildwheel]
 build = ["cp311-*", "cp312-*", "cp313-*"]
 skip = ["*-musllinux_*", "*-win32"]

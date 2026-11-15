@@ -1448,8 +1448,6 @@ class AdvancedDispersiveMaterial(DispersiveMaterial):
         
         Supports multiple dispersion models with different mixing rules.
         """
-        from gprMax.materials import _validate_evaluation_frequency
-        
         # Initialize working arrays
         self.w = np.zeros(
             G.maxpoles,
@@ -1557,32 +1555,39 @@ class AdvancedDispersiveMaterial(DispersiveMaterial):
     
     def calculate_er(self, freq):
         """Calculates the complex relative permittivity at a specific frequency.
-        
+
         Args:
             freq: float for frequency used to calculate complex relative permittivity.
-            
+
         Returns:
             er: complex relative permittivity.
         """
         _validate_evaluation_frequency(freq, self.ID)
-        
-        values = np.asarray(freq, dtype=np.float64)
-        if np.any(values == 0):
-            if self.se != 0 or self.inclusive_conductivity != 0:
-                raise ValueError(
-                    f"Material {self.ID!r} includes electric conductivity, "
-                    "which is singular at zero frequency (DC)."
-                )
-        
+
+        at_dc = bool(np.any(np.asarray(freq, dtype=np.float64) == 0))
+        if at_dc and "drude" in self.model_types:
+            raise ValueError(
+                f"Material {self.ID!r} includes a Drude pole, "
+                "which is singular at zero frequency (DC)."
+            )
+
         # Permittivity at infinite frequency
         er = self.er
-        
+
         w = 2 * np.pi * freq
-        if self.se != 0:
-            er += self.se / (1j * w * config.e0)
         if self.inclusive_w:
             if self.inclusive_conductivity != 0:
+                if at_dc:
+                    raise ValueError(
+                        f"Material {self.ID!r} includes electric conductivity, "
+                        "which is singular at zero frequency (DC)."
+                    )
                 er += self.inclusive_conductivity / (1j * w * config.e0)
+            if at_dc and any(pole_q == 0 for pole_q in self.inclusive_q):
+                raise ValueError(
+                    f"Material {self.ID!r} includes an inclusive pole at the origin, "
+                    "which is singular at zero frequency (DC)."
+                )
             for pole_w, pole_q in zip(self.inclusive_w, self.inclusive_q):
                 if np.isclose(np.imag(pole_w), 0.0) and np.isclose(np.imag(pole_q), 0.0):
                     er += np.real(pole_w) / (1j * w - np.real(pole_q))
@@ -1591,45 +1596,67 @@ class AdvancedDispersiveMaterial(DispersiveMaterial):
                         pole_w / (1j * w - pole_q)
                         + np.conjugate(pole_w) / (1j * w - np.conjugate(pole_q))
                     )
-        elif "debye" in str(self.model_types):
-            for pole in range(min(self.poles, len(self.tau))):
-                er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
-        elif "lorentz" in str(self.model_types):
-            for pole in range(min(self.poles, len(self.tau))):
-                pole_omega = 2 * np.pi * self.tau[pole]
-                er += self.deltaer[pole] / (pole_omega ** 2 - w ** 2 + 1j * self.alpha[pole] * w)
-        elif "drude" in str(self.model_types):
-            er += self.se / (1j * w * config.e0) if self.se else 0.0
-        
+        else:
+            # Each pole contributes through the formula of its own model, so
+            # one material can mix Debye, Lorentz, and Drude terms. The
+            # conductivity term of a Debye or Lorentz material is applied by
+            # the FDTD update coefficients rather than the pole formula.
+            for pole in range(self.poles):
+                model = self.model_types[pole] if pole < len(self.model_types) else "debye"
+                if model == "debye":
+                    if pole < len(self.tau) and pole < len(self.deltaer):
+                        er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
+                elif model == "lorentz":
+                    if pole < len(self.tau) and pole < len(self.alpha):
+                        pole_omega = 2 * np.pi * self.tau[pole]
+                        er += self.deltaer[pole] / (
+                            pole_omega**2 - w**2 + 1j * self.alpha[pole] * w
+                        )
+                elif model == "drude":
+                    er += self.se / (1j * w * config.e0)
 
-        # Return the calculated complex relative permittivity
         return er
 
     @property
-    @property
     def is_valid(self) -> bool:
         try:
-            if self.er <= 0:
-                return False
-            if self.poles < 0:
-                return False
-            return True
+            valid = self.er > 0 and self.poles >= 0
+            return bool(valid)
         except Exception:
             return False
 
-        if self.model_types:
-            return self.model_types[0]
-        return ""
-
     def calculate_loss_tangent(self, freq: float) -> complex:
+        """Loss tangent of the material from its electric conductivity.
+
+        Args:
+            freq: float for frequency used to calculate the loss tangent.
+
+        Returns:
+            lt: complex loss tangent.
+        """
         er = self.calculate_er(freq)
-        if er.real != 0:
-            return er.imag / er.real
-        return complex(0, 0)
+        se = self.se + self.inclusive_conductivity
+        if se == 0 or er.real == 0:
+            return complex(0, 0)
+        w = 2 * np.pi * freq
+        return complex(se / (w * config.e0 * er.real))
 
     def __repr__(self) -> str:
         return f"AdvancedDispersiveMaterial(ID={self.ID!r}, poles={self.poles}, er={self.er})"
 
     def copy(self) -> "AdvancedDispersiveMaterial":
-        return AdvancedDispersiveMaterial(            numID=self.numID,            ID=self.ID,            poles=self.poles,            model_types=list(self.model_types) if self.model_types else [],            deltaer=list(self.deltaer) if self.deltaer else [],            tau=list(self.tau) if self.tau else [],            alpha=list(self.alpha) if self.alpha else [],            inclusive_w=list(self.inclusive_w) if self.inclusive_w else [],            inclusive_q=list(self.inclusive_q) if self.inclusive_q else [],            inclusive_conductivity=self.inclusive_conductivity
-)
+        copied = AdvancedDispersiveMaterial(
+            self.numID,
+            self.ID,
+            poles=self.poles,
+            model_types=list(self.model_types),
+            deltaer=list(self.deltaer),
+            tau=list(self.tau),
+            alpha=list(self.alpha),
+            inclusive_w=list(self.inclusive_w),
+            inclusive_q=list(self.inclusive_q),
+            inclusive_conductivity=self.inclusive_conductivity,
+        )
+        copied.er = self.er
+        copied.se = self.se
+        return copied

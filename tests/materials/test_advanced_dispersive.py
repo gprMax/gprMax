@@ -24,7 +24,6 @@ import pytest
 
 import gprMax
 import gprMax.config as config
-import gprMax.model as model_mod
 from gprMax.materials import AdvancedDispersiveMaterial, DispersiveMaterial, Material
 
 
@@ -33,6 +32,18 @@ class _AdvancedMaterialConfig:
     def __init__(self, enabled=True):
         self.dispersive_averaging = enabled
         self.materials = {"maxpoles": 10}
+
+
+class _CoefficientGrid:
+    """Minimal grid stand-in supplying what calculate_update_coeffsE reads."""
+
+    def __init__(self):
+        self.dt = 1e-12
+        self.dx = 1e-3
+        self.dy = 1e-3
+        self.dz = 1e-3
+        self.maxpoles = 10
+        self.dispersivedtype = np.complex128
 
 
 def _advanced_debye(numid, material_id, er, se, deltaer, tau):
@@ -175,7 +186,7 @@ class TestAdvancedDispersiveMaterialCalculateEr:
         """Test Lorentz permittivity calculation."""
         model_config = _AdvancedMaterialConfig()
         monkeypatch.setattr(config, "get_model_config", lambda: model_config)
-        material = _advanced_lorentz(3, "lorentz-mat", 5.0, 0.1, (6.0,), (1e-9,), (0.5,))
+        material = _advanced_lorentz(3, "lorentz-mat", 5.0, 0.1, (6.0,), (1e9,), (0.5,))
 
         er_freq = material.calculate_er(1e9)
         w = 2 * np.pi * 1e9
@@ -213,23 +224,13 @@ class TestAdvancedDispersiveMaterialCalculateEr:
 class TestAdvancedDispersiveMaterialCalculateUpdateCoeffsE:
     """Test the calculate_update_coeffsE method."""
 
-    def test_debye_update_coeffs(self, monkeypatch, mocker):
+    def test_debye_update_coeffs(self, monkeypatch):
         """Test update coefficient calculation for Debye material."""
         model_config = _AdvancedMaterialConfig()
         monkeypatch.setattr(config, "get_model_config", lambda: model_config)
 
-        # Mock the grid
-        mock_grid = mocker.MagicMock()
-        mock_grid.maxpoles = 10
-        mock_grid.dispersivedtype = np.complex128
-        mock_grid.dl = [1e-3]  # spatial step
-        mock_grid.size = [1.0, 1.0, 1.0]
-        mock_grid.nx = 1
-        mock_grid.ny = 1
-        mock_grid.nz = 1
-
         material = _advanced_debye(3, "update-mat", 5.0, 0.1, (6.0,), (1e-11,))
-        material.calculate_update_coeffsE(mock_grid)
+        material.calculate_update_coeffsE(_CoefficientGrid())
 
         # Should not crash and set coefficients
         assert hasattr(material, 'CA')
@@ -238,42 +239,24 @@ class TestAdvancedDispersiveMaterialCalculateUpdateCoeffsE:
         assert hasattr(material, 'CBz')
         assert hasattr(material, 'srce')
 
-    def test_lorentz_update_coeffs(self, monkeypatch, mocker):
+    def test_lorentz_update_coeffs(self, monkeypatch):
         """Test update coefficient calculation for Lorentz material."""
         model_config = _AdvancedMaterialConfig()
         monkeypatch.setattr(config, "get_model_config", lambda: model_config)
 
-        mock_grid = mocker.MagicMock()
-        mock_grid.maxpoles = 10
-        mock_grid.dispersivedtype = np.complex128
-        mock_grid.dl = [1e-3]
-        mock_grid.size = [1.0, 1.0, 1.0]
-        mock_grid.nx = 1
-        mock_grid.ny = 1
-        mock_grid.nz = 1
-
         material = _advanced_lorentz(3, "lorentz-update", 5.0, 0.1, (6.0,), (1e-11,), (0.5,))
-        material.calculate_update_coeffsE(mock_grid)
+        material.calculate_update_coeffsE(_CoefficientGrid())
 
         assert hasattr(material, 'CA')
         assert hasattr(material, 'CBx')
 
-    def test_drude_update_coeffs(self, monkeypatch, mocker):
+    def test_drude_update_coeffs(self, monkeypatch):
         """Test update coefficient calculation for Drude material."""
         model_config = _AdvancedMaterialConfig()
         monkeypatch.setattr(config, "get_model_config", lambda: model_config)
 
-        mock_grid = mocker.MagicMock()
-        mock_grid.maxpoles = 10
-        mock_grid.dispersivedtype = np.complex128
-        mock_grid.dl = [1e-3]
-        mock_grid.size = [1.0, 1.0, 1.0]
-        mock_grid.nx = 1
-        mock_grid.ny = 1
-        mock_grid.nz = 1
-
         material = _advanced_drude(3, "drude-update", 5.0, 0.1, (1e-11,), (0.01,))
-        material.calculate_update_coeffsE(mock_grid)
+        material.calculate_update_coeffsE(_CoefficientGrid())
 
         assert hasattr(material, 'CA')
         assert hasattr(material, 'CBx')
@@ -454,19 +437,10 @@ class TestAdvancedDispersiveMaterialInclusiveTerms:
 class TestAdvancedDispersiveMaterialIntegration:
     """Integration-style tests with mock grids."""
 
-    def test_full_debye_workflow(self, monkeypatch, mocker):
+    def test_full_debye_workflow(self, monkeypatch):
         """Test full workflow: init -> calculate_er -> calculate_update_coeffsE."""
         model_config = _AdvancedMaterialConfig()
         monkeypatch.setattr(config, "get_model_config", lambda: model_config)
-
-        mock_grid = mocker.MagicMock()
-        mock_grid.maxpoles = 10
-        mock_grid.dispersivedtype = np.complex128
-        mock_grid.dl = [1e-3]
-        mock_grid.size = [1.0, 1.0, 1.0]
-        mock_grid.nx = 1
-        mock_grid.ny = 1
-        mock_grid.nz = 1
 
         material = _advanced_debye(3, "workflow-mat", 5.0, 0.1, (6.0,), (1e-11,))
 
@@ -475,33 +449,24 @@ class TestAdvancedDispersiveMaterialIntegration:
         assert isinstance(er, complex)
 
         # Step 2: Calculate update coefficients
-        material.calculate_update_coeffsE(mock_grid)
+        material.calculate_update_coeffsE(_CoefficientGrid())
         assert hasattr(material, 'CA')
         assert hasattr(material, 'srce')
 
         # Step 3: Verify is_valid
         assert material.is_valid is True
 
-    def test_lorentz_full_workflow(self, monkeypatch, mocker):
+    def test_lorentz_full_workflow(self, monkeypatch):
         """Test full Lorentz workflow."""
         model_config = _AdvancedMaterialConfig()
         monkeypatch.setattr(config, "get_model_config", lambda: model_config)
-
-        mock_grid = mocker.MagicMock()
-        mock_grid.maxpoles = 10
-        mock_grid.dispersivedtype = np.complex128
-        mock_grid.dl = [1e-3]
-        mock_grid.size = [1.0, 1.0, 1.0]
-        mock_grid.nx = 1
-        mock_grid.ny = 1
-        mock_grid.nz = 1
 
         material = _advanced_lorentz(3, "lorentz-workflow", 5.0, 0.1, (6.0,), (1e-11,), (0.5,))
 
         er = material.calculate_er(1e9)
         assert isinstance(er, complex)
 
-        material.calculate_update_coeffsE(mock_grid)
+        material.calculate_update_coeffsE(_CoefficientGrid())
         assert hasattr(material, 'CA')
         assert material.is_valid is True
 
