@@ -108,6 +108,7 @@ class TestEdgeBuild:
         with pytest.raises(KeyError):
             Edge(p1=(2 * DL, 3 * DL, 4 * DL)).build(g)
 
+
 class TestPlateBuild:
     # xy-plane plate from cell (1, 1) to (4, 3) at z-level 2: the face
     # builder runs over cells i in 1..3, j in 1..2.
@@ -118,8 +119,12 @@ class TestPlateBuild:
         plate = Plate(p1=(1 * DL, 1 * DL, 2 * DL), p2=(4 * DL, 3 * DL, 2 * DL), material_id="metal")
         plate.build(g)
 
-        expected_id0 = {(i, j, 2) for (i, j) in self.CELLS} | {(i, j + 1, 2) for (i, j) in self.CELLS}
-        expected_id1 = {(i, j, 2) for (i, j) in self.CELLS} | {(i + 1, j, 2) for (i, j) in self.CELLS}
+        expected_id0 = {(i, j, 2) for (i, j) in self.CELLS} | {
+            (i, j + 1, 2) for (i, j) in self.CELLS
+        }
+        expected_id1 = {(i, j, 2) for (i, j) in self.CELLS} | {
+            (i + 1, j, 2) for (i, j) in self.CELLS
+        }
         assert nonzero_set(g.ID[0]) == expected_id0
         assert nonzero_set(g.ID[1]) == expected_id1
         assert not g.ID[2].any()
@@ -233,6 +238,29 @@ class TestTriangleBuild:
         with pytest.raises(KeyError):
             Triangle(**self.KWARGS).build(g)
 
+    def test_overhanging_slab_becomes_face_on_end_plane(self, dispatch_grid):
+        """A slab overhanging the x end by less than half a cell rounds up
+        onto the terminal node; its in-domain remainder is empty, so it
+        must become a face on the end plane (ID[1]/ID[2] at x == nx, with
+        rigid neighbours pulled in at nx - 1), never a voxel past the
+        last cell."""
+        g = dispatch_grid(10, 8, 8)
+        Triangle(
+            p1=(9.6 * DL, 2 * DL, 2 * DL),
+            p2=(9.6 * DL, 6 * DL, 2 * DL),
+            p3=(9.6 * DL, 2 * DL, 5 * DL),
+            thickness=0.6 * DL,
+            material_id="metal",
+        ).build(g)
+
+        assert not g.solid.any()
+        assert np.any(g.ID[1, 10])
+        assert np.any(g.ID[2, 10])
+        assert not g.ID[0, 10].any()
+        assert set(np.nonzero(g.ID.any(axis=(0, 2, 3)))[0]) == {10}
+        assert np.any(g.rigidE[:, 9])
+        assert set(np.nonzero(g.rigidE.any(axis=(0, 2, 3)))[0]) == {9}
+
 
 class TestCylinderBuild:
     CROSS_SECTION = {(4, 4), (4, 5), (5, 4), (5, 5)}
@@ -269,7 +297,9 @@ class TestCylinderBuild:
 
     def test_non_positive_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), r=0.0, material_id="metal")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), r=0.0, material_id="metal"
+        )
         with pytest.raises(ValueError):
             cylinder.build(g)
 
@@ -286,7 +316,9 @@ class TestCylinderBuild:
 
     def test_missing_radius_raises(self, dispatch_grid):
         g = dispatch_grid()
-        cylinder = Cylinder(p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), material_id="metal")
+        cylinder = Cylinder(
+            p1=(5 * DL, 5 * DL, 2 * DL), p2=(5 * DL, 5 * DL, 6 * DL), material_id="metal"
+        )
         with pytest.raises(KeyError):
             cylinder.build(g)
 
@@ -386,6 +418,32 @@ class TestCylindricalSectorBuild:
         g = dispatch_grid()
         with pytest.raises(KeyError):
             CylindricalSector(normal="z", ctr1=5 * DL, ctr2=5 * DL).build(g)
+
+    def test_overhanging_slab_becomes_face_on_end_plane(self, dispatch_grid):
+        """A sector slab overhanging the z end by less than half a cell
+        rounds up onto the terminal node and must become a face on the
+        end plane (ID[0]/ID[1] at z == nz, rigid neighbours at nz - 1),
+        never a voxel past the last cell."""
+        g = dispatch_grid(8, 8, 10)
+        CylindricalSector(
+            normal="z",
+            ctr1=3 * DL,
+            ctr2=3 * DL,
+            extent1=9.6 * DL,
+            extent2=10.2 * DL,
+            r=2.5 * DL,
+            start=0.0,
+            end=90.0,
+            material_id="metal",
+        ).build(g)
+
+        assert not g.solid.any()
+        assert np.any(g.ID[0, :, :, 10])
+        assert np.any(g.ID[1, :, :, 10])
+        assert not g.ID[2, :, :, 10].any()
+        assert set(np.nonzero(g.ID.any(axis=(0, 1, 2)))[0]) == {10}
+        assert np.any(g.rigidE[:, :, :, 9])
+        assert set(np.nonzero(g.rigidE.any(axis=(0, 1, 2)))[0]) == {9}
 
 
 class TestGeometryObjectsReadBuild:

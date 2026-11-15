@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 import gprMax.eigenmode_symmetry as symmetry
+from gprMax.eigenmode_symmetry_geometry import GROUPS
 from gprMax.eigenmode_tracking import _frame, _polarize_resolved_pairs, write_diagnostics
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
 from tests.test_eigenmode_auto_symmetry import aligned_bank
@@ -35,7 +36,7 @@ def no_symmetry(solvers):
     return dict(detected='none', candidates=[], anchors=[], groups=[])
 
 
-def test_physical_te_tm_separation_precedes_detection_without_native_symmetry(monkeypatch, tmp_path):
+def test_physical_te_tm_separation_precedes_off_centre_symmetry(monkeypatch, tmp_path):
     selected = []
     select = symmetry.longitudinal_gradient_blocks
     detect = symmetry.detect_symmetry
@@ -56,8 +57,8 @@ def test_physical_te_tm_separation_precedes_detection_without_native_symmetry(mo
         for solver in bank:
             stress_rotation(solver, [2, 3])
         owner, grid, e, h = aligned_bank(bank, (3, 4))
-        assert owner.symmetry_detection['detected'] == 'none'
-        assert owner.symmetry_diagnostics == []
+        assert owner.symmetry_detection['detected'] == 'c2v'
+        assert owner.symmetry_detection['groups'][0]['applied'] == 'c2v'
         assert owner.separation_attempts == []
         record = owner.separation_diagnostics[0]
         assert [len(b) for b in record['blocks']] == [1, 1]
@@ -69,12 +70,14 @@ def test_physical_te_tm_separation_precedes_detection_without_native_symmetry(mo
             assert row['field_residual'] < 1e-10
             raw = [owner._fields_from_solver_mode(bank[k], m) for m in (3, 4)]
             raw_frame = _frame([a[0] for a in raw], [a[1] for a in raw], owner._tracking_impedance)
-            np.testing.assert_allclose(raw_frame @ row['transform'],
+            # Symmetry may fix phases after the independent separation stage.
+            final_transform = owner.degenerate_diagnostics[0]['anchors'][k]['transform']
+            np.testing.assert_allclose(raw_frame @ final_transform,
                                        _frame(e[k], h[k], owner._tracking_impedance), atol=1e-9)
         with h5py.File(tmp_path/'separation.h5', 'w') as output:
             write_diagnostics(output, owner)
             assert 'mode_separation/1/anchor0/transform' in output
-            assert 'symmetry_subspaces' not in output
+            assert output['symmetry_subspaces/1'].attrs['Symmetry'] == 'c2v'
             assert output['mode_separation'].attrs['RejectedTrials'] == '[]'
         # A full-rank moment check cannot bypass missing C4v certification.
         with pytest.raises(ValueError, match='certified C4v E'):
@@ -266,7 +269,7 @@ def test_final_procrustes_transports_only_unresolved_block_after_symmetry(monkey
 
     def observe(owner, grid, frequencies, solvers, modes, e, h, *, symmetry=None):
         stages.append(symmetry)
-        if symmetry in ('c4v', 'c2v'):
+        if symmetry in GROUPS:
             raise ValueError('Withheld symmetry certification for transport regression')
         if symmetry == 'procrustes':
             before_transport.append((deepcopy(e), deepcopy(h)))
@@ -290,7 +293,7 @@ def test_final_procrustes_transports_only_unresolved_block_after_symmetry(monkey
         rotate_unresolved[0] = True
         stages.clear()
         owner, _, e, h = aligned_bank(bank, (7, 8, 9, 10))
-        assert stages == [None, 'c4v', 'c2v', 'procrustes']
+        assert stages == [None, *owner.symmetry_detection['candidates'], 'procrustes']
         assert owner.symmetry_diagnostics == []
         assert owner.transport_attempts == []
         record = owner.transport_diagnostics[0]

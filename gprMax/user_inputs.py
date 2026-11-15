@@ -382,8 +382,12 @@ class MainGridUserInput(UserInput[GridType]):
         if lower_extent < 0:
             thickness += lower_extent
             lower_extent = 0
-        if upper_extent > size:
-            thickness -= upper_extent - size
+        # lower_extent and thickness are rounded independently, so their
+        # cell sum can overshoot the axis end by one even when the upper
+        # face itself discretises in-bounds; clip to the last cell so the
+        # returned pair always satisfies lower_extent + thickness <= size.
+        if lower_extent + thickness > size:
+            thickness = size - lower_extent
 
         dl = self.grid.dl[index]
 

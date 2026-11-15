@@ -25,6 +25,7 @@ import numpy as np
 from gprMax.geometry_tags import UNTAGGED_NAME, validate_geometry_tag
 from gprMax.material_database import create_database_document, write_database
 from gprMax.materials import validate_user_material_id
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path
 
 
 def validate_material_assignment_name(name: str) -> None:
@@ -155,15 +156,17 @@ def write_null_material_database(
             },
             "metadata": item_metadata,
         }
-    write_database(
-        target,
-        create_database_document(
-            database_id,
-            entries,
-            name="Imported geometry material assignments",
-            description="Replace null constitutive values before importing this geometry.",
-        ),
-    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with atomic_output_path(target) as temporary:
+        write_database(
+            temporary,
+            create_database_document(
+                database_id,
+                entries,
+                name="Imported geometry material assignments",
+                description="Replace null constitutive values before importing this geometry.",
+            ),
+        )
     return keys
 
 
@@ -298,6 +301,12 @@ def write_geometry_hdf5(
     dxyz = tuple(float(value) for value in spacing)
     if len(dxyz) != 3 or not np.isfinite(dxyz).all() or any(value <= 0 for value in dxyz):
         raise ValueError("spacing must contain three positive values in metres")
+    if origin is not None:
+        xyz = tuple(float(value) for value in origin)
+        if len(xyz) != 3 or not np.isfinite(xyz).all():
+            raise ValueError("origin must contain three finite coordinates")
+    else:
+        xyz = None
     if material_keys is not None:
         keys = tuple(str(key) for key in material_keys)
         written = materials >= 0
@@ -306,14 +315,15 @@ def write_geometry_hdf5(
     else:
         keys = None
 
-    with h5py.File(path, "w") as h5:
+    _validate_tags(tag_data, tag_names, materials.shape)
+
+    target_path = Path(path)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    with atomic_output_path(target_path) as temporary, h5py.File(temporary, "w") as h5:
         h5.create_dataset("data", data=materials, compression=compression)
         h5.attrs["dx_dy_dz"] = dxyz
         h5.attrs["shape_nxyz"] = materials.shape
-        if origin is not None:
-            xyz = tuple(float(value) for value in origin)
-            if len(xyz) != 3 or not np.isfinite(xyz).all():
-                raise ValueError("origin must contain three finite coordinates")
+        if xyz is not None:
             h5.attrs["origin_xyz"] = xyz
         if keys is not None:
             h5.create_dataset("material_keys", data=np.asarray(keys, dtype="S"))

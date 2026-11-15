@@ -1804,6 +1804,8 @@ class EigenmodeSource(Source):
             fdtd_dt=G.dt,
             propagation_spacing=G.dl[self.normal_axis],
         )
+        solver.symmetry_origin = tuple(start * G.dl[axis]
+                                       for start, axis in zip(self.transverse_start, self.transverse_axes))
         solver.retain_tracking_operator = bool(self.degenerate or self.tracking == "auto")
         solver.calculate_diagnostics = self.tracking == "auto"
         if self.tracking == "auto":

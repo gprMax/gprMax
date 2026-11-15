@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import glob
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -298,10 +299,11 @@ def discover_files(basefilename: str) -> list[Path]:
     base = Path(basefilename)
     if base.is_file():
         return [base]
+    series = re.compile(re.escape(base.name) + r"\d*")
     matches = [
         Path(filename)
-        for filename in glob.glob(basefilename + "*.h5")
-        if "_merged" not in Path(filename).stem
+        for filename in glob.glob(glob.escape(basefilename) + "*.h5")
+        if series.fullmatch(Path(filename).stem)
     ]
     matches.sort(key=lambda path: natural_keys(str(path)))
     return matches

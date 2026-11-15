@@ -128,11 +128,11 @@ def test_exact_pmc_frequency_response_has_zero_admittance():
 @pytest.mark.parametrize("resistance", [np.inf, 1000.0, "copper"])
 @pytest.mark.integration
 def test_extruded_impedance_virtual_guide_matches_monolithic(tmp_path, resistance):
+    from testing.validation.impedance_surface.validate_2d import normalized_trace_error
+
     reference, _ = run_guide(tmp_path / "reference", virtual=False, resistance=resistance)
     actual, grid = run_guide(tmp_path / "split", virtual=True, resistance=resistance)
-    scale = np.max(np.abs(reference), axis=-1, keepdims=True)
-    scale = np.maximum(scale, np.max(scale) * 1e-12)
-    assert np.max(np.abs(actual - reference) / scale) < 2e-8
+    assert normalized_trace_error(actual, reference) < 2e-8
     guide = grid.virtual_waveguides[0]
     assert guide.aux_grid.impedance_surfaces.edge_count > 0
     assert len(guide.aux_grid.impedance_surfaces.pml_edge_indices) > 0

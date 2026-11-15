@@ -9,11 +9,14 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import h5py
 import numpy as np
 from scipy.constants import physical_constants
+
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
 
 Z0 = physical_constants["characteristic impedance of vacuum"][0]
 
@@ -30,8 +33,31 @@ def _default_config_path(outputfile):
     return outputfile.with_name(f"{outputfile.stem}_pattern_config.json")
 
 
+def _resolve_npz_destination(destination):
+    """Return the exact NPZ file path that NumPy would produce for a destination."""
+
+    destination = Path(destination)
+    if not str(destination).endswith(".npz"):
+        return Path(f"{destination}.npz")
+    return destination
+
+
 def process_pattern(outputfile, configfile, destination):
     """Calculate a time-integrated field-intensity pattern."""
+
+    outputfile = Path(outputfile)
+    if not outputfile.is_file():
+        raise FileNotFoundError(f"gprMax output file does not exist: {outputfile}")
+    configfile = Path(configfile)
+    if not configfile.is_file():
+        raise FileNotFoundError(f"Pattern metadata file does not exist: {configfile}")
+    destination = _resolve_npz_destination(destination)
+    validate_output_path(
+        destination,
+        [outputfile, configfile],
+        message="Pattern output destination must not overwrite an input file",
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
 
     with configfile.open(encoding="utf-8") as stream:
         config = json.load(stream)
@@ -94,6 +120,10 @@ def process_pattern(outputfile, configfile, destination):
 
     epsr = config.get("relative_permittivity")
     mur = config.get("relative_permeability", 1.0)
+    if epsr is not None and (not np.isfinite(epsr) or epsr <= 0):
+        raise ValueError("relative_permittivity must be a finite positive number")
+    if not np.isfinite(mur) or mur <= 0:
+        raise ValueError("relative_permeability must be a finite positive number")
     impedance = np.full(expected_receivers, Z0)
     if config.get("impedance_scaling", False) and epsr is not None:
         impedance[coords[:, 2] < 0] = Z0 * np.sqrt(mur / epsr)
@@ -105,24 +135,27 @@ def process_pattern(outputfile, configfile, destination):
         intensity = field_integral * impedance
     patterns = intensity.reshape(radii.size, theta_degrees.size)
 
-    np.savez(
-        destination,
-        patterns=patterns,
-        radii=radii,
-        theta_degrees=theta_degrees,
-        pattern=pattern,
-        relative_permittivity=np.nan if epsr is None else epsr,
-        relative_permeability=mur,
-        centre_frequency=config["centre_frequency"],
-        antenna_dimension=config["antenna_dimension"],
-        impedance_scaling=config.get("impedance_scaling", False),
-        metric=f"time-integrated {pattern}-theta field intensity",
-    )
+    with atomic_output_path(destination) as temporary:
+        with temporary.open("wb") as stream:
+            np.savez(
+                stream,
+                patterns=patterns,
+                radii=radii,
+                theta_degrees=theta_degrees,
+                pattern=pattern,
+                relative_permittivity=np.nan if epsr is None else epsr,
+                relative_permeability=mur,
+                centre_frequency=config["centre_frequency"],
+                antenna_dimension=config["antenna_dimension"],
+                impedance_scaling=config.get("impedance_scaling", False),
+                metric=f"time-integrated {pattern}-theta field intensity",
+            )
     print(f"Processed {expected_receivers} pattern receivers.")
     print(f"Written pattern data: {destination}")
+    return destination
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description=(
             "Process finite-radius field-intensity patterns sampled around a GPR antenna."
@@ -140,14 +173,14 @@ def main():
         type=Path,
         help="processed NPZ file; defaults to the HDF5 path with an .npz suffix",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     outputfile = args.outputfile.resolve()
     configfile = args.config.resolve() if args.config else _default_config_path(outputfile)
-    destination = args.output.resolve() if args.output else outputfile.with_suffix(".npz")
-    if not configfile.is_file():
-        raise FileNotFoundError(f"Pattern metadata file not found: {configfile}")
-    process_pattern(outputfile, configfile, destination)
+    destination = (
+        Path(os.path.abspath(args.output)) if args.output else outputfile.with_suffix(".npz")
+    )
+    return process_pattern(outputfile, configfile, destination)
 
 
 if __name__ == "__main__":

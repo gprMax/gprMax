@@ -16,6 +16,7 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import os
 from types import SimpleNamespace
 
 import h5py
@@ -25,7 +26,7 @@ from PIL import Image
 
 import gprMax
 import gprMax.model as model_mod
-from gprMax.toolboxes.Utilities.convert_png2h5 import Cursor, convert_png
+from gprMax.toolboxes.Utilities.convert_png2h5 import Cursor, convert_png, main
 
 
 def test_cursor_records_material_on_its_instance(monkeypatch):
@@ -202,3 +203,92 @@ def test_png_geometry_pair_round_trips_through_geometry_objects_read(tmp_path, m
     )
     np.testing.assert_array_equal(imported[:, :, 0], expected_xy)
     np.testing.assert_array_equal(imported[:, :, 1], expected_xy)
+
+
+def test_convert_png_normalizes_image_and_companion_names_safely(tmp_path):
+    image = tmp_path / "layers.png"
+    _png(image)
+    original_image = image.read_bytes()
+
+    from_image_name = convert_png(
+        image,
+        (0.001, 0.001, 0.001),
+        ([255, 0, 0],),
+        output_file=image,
+    )
+    assert from_image_name.geometry_file == tmp_path / "layers.h5"
+    assert from_image_name.material_database_file == tmp_path / "layers_materials.json"
+    assert from_image_name.geometry_file.is_file()
+    assert from_image_name.material_database_file.is_file()
+    assert image.read_bytes() == original_image
+
+    from_db_name = convert_png(
+        image,
+        (0.001, 0.001, 0.001),
+        ([255, 0, 0],),
+        output_file=tmp_path / "layers_materials.json",
+    )
+    assert from_db_name.geometry_file == tmp_path / "layers_materials.h5"
+    assert from_db_name.material_database_file == tmp_path / "layers_materials_materials.json"
+    assert from_db_name.geometry_file.is_file()
+    assert from_db_name.material_database_file.is_file()
+    assert image.read_bytes() == original_image
+
+
+def test_convert_png_rejects_final_path_symlink_and_hardlink_collisions(tmp_path):
+    image = tmp_path / "layers.png"
+    _png(image)
+    original_image = image.read_bytes()
+
+    symlink_h5 = tmp_path / "alias.h5"
+    symlink_h5.symlink_to(image)
+    with pytest.raises(ValueError, match="must not overwrite the input image"):
+        convert_png(
+            image,
+            (0.001, 0.001, 0.001),
+            ([255, 0, 0],),
+            output_file=symlink_h5,
+        )
+
+    hardlink_h5 = tmp_path / "hard.h5"
+    os.link(image, hardlink_h5)
+    with pytest.raises(ValueError, match="must not overwrite the input image"):
+        convert_png(
+            image,
+            (0.001, 0.001, 0.001),
+            ([255, 0, 0],),
+            output_file=hardlink_h5,
+        )
+
+    db_link = tmp_path / "dbtarget_materials.json"
+    db_link.symlink_to(image)
+    with pytest.raises(ValueError, match="must not overwrite the input image"):
+        convert_png(
+            image,
+            (0.001, 0.001, 0.001),
+            ([255, 0, 0],),
+            output_file=tmp_path / "dbtarget.h5",
+        )
+
+    db_real = tmp_path / "same_materials.json"
+    db_real.write_text("{}", encoding="utf-8")
+    geom_link = tmp_path / "same.h5"
+    geom_link.symlink_to(db_real)
+    with pytest.raises(ValueError, match="must not overwrite the material database file"):
+        convert_png(
+            image,
+            (0.001, 0.001, 0.001),
+            ([255, 0, 0],),
+            output_file=geom_link,
+        )
+
+    assert image.read_bytes() == original_image
+
+
+@pytest.mark.parametrize("bad_val", ["inf", "nan", "-inf"])
+def test_convert_png2h5_cli_rejects_non_finite_spacing(tmp_path, bad_val):
+    image = tmp_path / "layers.png"
+    _png(image)
+
+    with pytest.raises(SystemExit):
+        main([str(image), bad_val, "0.001", "0.001"])

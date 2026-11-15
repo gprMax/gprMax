@@ -20,7 +20,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from gprMax.user_inputs import MPIUserInput, SubgridUserInput
+from gprMax.user_inputs import MainGridUserInput, MPIUserInput, SubgridUserInput
 
 
 class _BoundsGrid(SimpleNamespace):
@@ -159,3 +159,97 @@ def test_mpi_thickness_crossing_lower_rank_face_remains_clipped(dimension, axis)
     assert within_grid
     assert local_lower == pytest.approx(0)
     assert local_thickness == pytest.approx(6)
+
+
+def _main_grid_input(size=10):
+    grid = SimpleNamespace(
+        dl=np.full(3, 1e-3),
+        size=np.full(3, size, dtype=np.int32),
+        nx=size,
+        ny=size,
+        nz=size,
+    )
+
+    def within_bounds(point):
+        for index, dimension in enumerate("xyz"):
+            if point[index] < 0 or point[index] > grid.size[index]:
+                raise ValueError(dimension)
+        return True
+
+    grid.within_bounds = within_bounds
+    return MainGridUserInput(grid)
+
+
+@pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
+@pytest.mark.parametrize(
+    ("lower_cells", "thickness_cells", "expected_lower", "expected_thickness"),
+    [
+        (9.6, 0.6, 10, 0),
+        (8.6, 1.6, 9, 1),
+        (9.8, 0.1, 10, 0),
+        (4.0, 1.0, 4, 1),
+    ],
+    ids=["overhang_rounds_up", "overhang_rounds_up_wide", "face_at_end", "fully_inside"],
+)
+def test_main_grid_thickness_never_overshoots_axis_end(
+    dimension, axis, lower_cells, thickness_cells, expected_lower, expected_thickness
+):
+    """Rounding the lower face and the thickness independently can push
+    the discretised slab past the axis end (level + thickness == size + 1)
+    when the upper face lands exactly on it; the returned pair must always
+    satisfy lower + thickness <= size, the contract the Cython volume
+    loops rely on. A slab whose in-domain remainder is empty becomes a
+    face on the end plane (thickness 0)."""
+    user_input = _main_grid_input(size=10)
+    dl = 1e-3
+
+    within_grid, lower, thickness = user_input.check_thickness(
+        dimension,
+        lower_cells * dl,
+        thickness_cells * dl,
+        "#test_object",
+    )
+
+    assert within_grid
+    assert lower == pytest.approx(expected_lower * dl)
+    assert thickness == pytest.approx(expected_thickness * dl)
+    assert round(lower / dl) + round(thickness / dl) <= 10
+
+
+def test_main_grid_thickness_upper_past_end_rejected():
+    """A slab whose discretised upper face passes the axis end is rejected
+    outright on the main grid, as before."""
+    user_input = _main_grid_input(size=10)
+
+    with pytest.raises(ValueError, match="extends beyond the size of the model"):
+        user_input.check_thickness("x", 8.4e-3, 2.2e-3, "#test_object")
+
+
+@pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
+def test_mpi_thickness_overhanging_axis_end_stays_within_local_size(dimension, axis):
+    """On a rank whose local axis ends inside the slab, the upper face
+    rounds past the local end and the (silent) ownership gate lets it
+    through; the returned local pair must still satisfy
+    lower + thickness <= size even when lower and thickness round up
+    independently."""
+    lower_extent = np.zeros(3, dtype=np.int32)
+    lower_extent[axis] = 9
+    grid = _MPIGrid(
+        dl=np.ones(3),
+        size=np.full(3, 11, dtype=np.int32),
+        global_size=np.full(3, 30, dtype=np.int32),
+        lower_extent=lower_extent,
+    )
+    user_input = MPIUserInput(grid)
+
+    within_grid, local_lower, local_thickness = user_input.check_thickness(
+        dimension,
+        11.6,
+        9.6,
+        "#test_object",
+    )
+
+    assert within_grid
+    assert local_lower == pytest.approx(3)
+    assert local_thickness == pytest.approx(8)
+    assert round(local_lower) + round(local_thickness) <= 11

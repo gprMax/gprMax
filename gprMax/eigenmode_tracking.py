@@ -1717,7 +1717,7 @@ def write_diagnostics(group, owner):
     if detection is not None:
         import json
         root = group.create_group("symmetry_detection")
-        root.attrs["Method"] = "native_yee_material_masks_v1"
+        root.attrs["Method"] = "native_yee_positioned_subgroups_v2"
         root.attrs["Requested"] = "auto"
         root.attrs["Detected"] = detection['detected']
         root.attrs["Details"] = json.dumps(detection)

@@ -38,12 +38,14 @@ def test_detection_uses_common_sampled_symmetry_and_masks():
     assert detect_symmetry([square])['detected']=='c4v'
     assert detect_symmetry([rectangle])['detected']=='c2v'
     assert detect_symmetry([sampled_port(dv=2.)])['detected']=='c2v'
+    assert detect_symmetry([square,rectangle])['embedding']=='cs_u'
+    rectangle.symmetry_origin = (0., 1.)  # Align both physical mirror lines.
     assert detect_symmetry([square,rectangle])['detected']=='c2v'
     anisotropic=sampled_port()
     anisotropic.eps_r_uu *= 2
     assert detect_symmetry([anisotropic])['detected']=='c2v'
     square.pec_u_mask[2,3]=True
-    assert detect_symmetry([square])['detected']=='none'
+    assert detect_symmetry([square])['detected']=='c1'
 
 
 @pytest.mark.parametrize('epsilon,permeability,expected', [
@@ -76,7 +78,7 @@ def test_uncertified_materials_fall_back(change):
     else:
         del port.mu_r_ww
     result=detect_symmetry([port])
-    assert result['detected']=='none'
+    assert result['detected']==('c1' if change == 'loss' else 'none')
     assert result['anchors'][0]['reasons']
 
 
@@ -170,7 +172,8 @@ def test_failed_automatic_trials_do_not_change_fallback_fields(monkeypatch):
         assert owner.symmetry_diagnostics==[]
         record=owner.symmetry_detection['groups'][0]
         assert record['applied']=='power_whitening'
-        assert [a['symmetry'] for a in record['attempts']]==['c4v','c2v']
+        assert [a['symmetry'] for a in record['attempts']]==owner.symmetry_detection['candidates']
+        assert len(record['attempts']) == 9
 
 
 def test_rejected_c4v_trial_can_use_certified_c2v(monkeypatch):

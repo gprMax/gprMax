@@ -9,37 +9,31 @@ from copy import copy, deepcopy
 
 import numpy as np
 
+from gprMax.eigenmode_symmetry_geometry import (
+    GROUPS, MATERIAL_FAMILIES, OPERATIONS, check_spacing, field_action,
+    group_name, native_field_actions, positioned_operations, symmetry_view,
+    transform_family,
+)
+
 
 def c4_rotation(solver, electric, magnetic):
-    if solver.Nu != solver.Nv or not np.isclose(solver.du, solver.dv, rtol=1e-12, atol=0):
-        raise ValueError("C4v symmetry requires a square transverse grid with equal spacing.")
-    def rotate(v):
-        return (-np.rot90(v[1], axes=(0, 1)), np.rot90(v[0], axes=(0, 1)),
-                np.rot90(v[2], axes=(0, 1)))
-    return rotate(electric), rotate(magnetic)
+    return field_action(solver, electric, magnetic, operation='rotation_90')
 
 
 def mirror_u(solver, electric, magnetic):
-    # E is a polar vector, H an axial vector. The mirror fixes propagation w.
-    e, h = electric, magnetic
-    return ((-e[0][::-1], e[1][::-1], e[2][::-1]),
-            (h[0][::-1], -h[1][::-1], -h[2][::-1]))
+    return field_action(solver, electric, magnetic, operation='mirror_u')
 
 
 def mirror_v(solver, electric, magnetic):
-    e, h = electric, magnetic
-    return ((e[0][:, ::-1], -e[1][:, ::-1], e[2][:, ::-1]),
-            (-h[0][:, ::-1], h[1][:, ::-1], -h[2][:, ::-1]))
+    return field_action(solver, electric, magnetic, operation='mirror_v')
 
 
 def field_actions(value):
-    if value == "c4v":
-        return {"rotation_90": c4_rotation, "mirror_u": mirror_u}
-    if value == "c2v":
-        return {"mirror_u": mirror_u, "mirror_v": mirror_v}
+    if isinstance(value, str) and value in GROUPS:
+        return native_field_actions(value)
     if hasattr(value, 'items') and value and all(callable(action) for action in value.values()):
         return value
-    raise ValueError('Expected a detected C4v/C2v symmetry or internal field actions.')
+    raise ValueError('Expected a native transverse symmetry or internal field actions.')
 
 
 def validate_c4v_materials(solver):
@@ -47,13 +41,16 @@ def validate_c4v_materials(solver):
     validate_material_symmetry(solver, "c4v")
 
 
-def validate_surface_symmetry(solver, symmetry):
+def validate_surface_symmetry(solver, symmetry, *, operations=None):
     """Certify retained Yee samples and signed, clipped Ampere rows.
 
     Compare the installed frequency-dependent rows, including their complex
     permittivity and circulation per dual area. E is polar and H axial, so
     their reflection signs must both enter the row transformation.
     """
+    if operations is None:
+        solver, _ = symmetry_view(solver)
+        operations = GROUPS[symmetry]
     shapes = ((solver.shape_eu, solver.shape_ev, solver.shape_ew),
               (solver.shape_hu, solver.shape_hv, solver.shape_hw))
     tags, keys = [], []
@@ -67,8 +64,9 @@ def validate_surface_symmetry(solver, symmetry):
         keys.append(addresses)
     retained = (solver.surface_electric_retained, solver.surface_magnetic_retained)
     rows = {(r.electric_axis, r.electric_index): r for r in solver.surface_boundary_rows}
-    for action in field_actions(symmetry).values():
-        transformed = action(solver, *tags)
+    for operation in operations:
+        transformed = (transform_family(tags[0], operation),
+                       transform_family(tags[1], operation, axial=True))
         maps = []
         for family, values in enumerate(transformed):
             mapping = {}
@@ -98,46 +96,111 @@ def validate_surface_symmetry(solver, symmetry):
                 raise ValueError('SIBC signed circulation rows do not preserve the requested symmetry.')
 
 
-def validate_material_symmetry(solver, symmetry):
-    """Check native Yee samples, including complex materials and wall masks.
+def _validate_samples(solver):
+    if not all(np.isfinite(d) and d > 0 for d in (solver.du, solver.dv)):
+        raise ValueError('Symmetry detection requires finite positive transverse spacing.')
+    origin = np.asarray(getattr(solver, 'symmetry_origin', (0., 0.)))
+    if origin.shape != (2,) or not np.all(np.isfinite(origin)):
+        raise ValueError('Symmetry detection requires a finite two-coordinate window origin.')
+    shapes = ((solver.Nu, solver.Nv+1), (solver.Nu+1, solver.Nv), (solver.Nu+1, solver.Nv+1))
+    magnetic_shapes = (shapes[1], shapes[0], (solver.Nu, solver.Nv))
+    for names, expected in zip(MATERIAL_FAMILIES, (shapes, magnetic_shapes, shapes, magnetic_shapes)):
+        for name, shape in zip(names, expected):
+            array = np.asarray(getattr(solver, name))
+            if array.shape != shape or not np.all(np.isfinite(array)):
+                raise ValueError('Symmetry detection requires finite native Yee material and mask arrays.')
 
-    C2v uses the two grid-axis mirrors. C4v additionally requires a quarter
-    turn. These are symmetries about the center of the finite port window.
-    """
-    if symmetry not in ("c4v", "c2v"):
-        raise ValueError("Material symmetry must be C4v or C2v.")
-    if symmetry == "c4v" and (solver.Nu != solver.Nv or not np.isclose(solver.du, solver.dv, rtol=1e-12, atol=0)):
-        raise ValueError('C4v symmetry requires a square transverse grid with equal spacing.')
-    for names in (('eps_r_uu', 'eps_r_vv', 'eps_r_ww'), ('mu_r_uu', 'mu_r_vv', 'mu_r_ww'),
-                  ('pec_u_mask', 'pec_v_mask', 'pec_w_mask'), ('pmc_u_mask', 'pmc_v_mask', 'pmc_w_mask')):
-        values = [np.asarray(getattr(solver, name)) for name in names]
-        if any(a.ndim != 2 or not np.all(np.isfinite(a)) for a in values):
-            raise ValueError('Symmetry detection requires finite two-dimensional material and mask arrays.')
-        same = lambda a, b: a.shape == b.shape and np.allclose(a, b, rtol=1e-10, atol=1e-12)
-        preserves = all(same(a, a[::-1]) and same(a, a[:, ::-1]) for a in values)
-        if symmetry == "c4v":
-            preserves &= all(same(a, b) for a, b in zip(values, (np.rot90(values[1]), np.rot90(values[0]), np.rot90(values[2]))))
-        if not preserves:
-            raise ValueError(f'The sampled materials or boundary masks do not preserve {symmetry.upper()} symmetry.')
-    if getattr(solver, 'surface_boundary', None) is not None:
-        validate_surface_symmetry(solver, symmetry)
+
+def _validate_operation(view, operation):
+    check_spacing(view, operation)
+    for names in MATERIAL_FAMILIES:
+        values = [np.asarray(getattr(view, name)) for name in names]
+        transformed = transform_family(values, operation, signed=False)
+        if not all(np.allclose(a, b, rtol=1e-10, atol=1e-12) for a, b in zip(values, transformed)):
+            raise ValueError(f'The sampled materials or boundary masks do not preserve {operation}.')
+    if getattr(view, 'surface_boundary', None) is not None:
+        validate_surface_symmetry(view, None, operations=(operation,))
+
+
+def validate_material_symmetry(solver, symmetry):
+    """Certify a native group about the active port centre, including SIBC."""
+    if symmetry not in GROUPS:
+        raise ValueError('Unknown native transverse symmetry.')
+    _validate_samples(solver)
+    view, _ = symmetry_view(solver)
+    for operation in GROUPS[symmetry]:
+        _validate_operation(view, operation)
 
 
 def detect_symmetry(solvers):
-    """Find the strongest supported native symmetry common to every anchor."""
+    """Intersect certified positioned operations, then enumerate their subgroups.
+
+    C1 is a valid identity-only result, but never an alignment candidate: it
+    provides no information beyond independent separation and continuation.
+    """
     anchors = []
     for solver in solvers:
-        supported, reasons = [], {}
-        for name in ("c4v", "c2v"):
+        try:
+            _validate_samples(solver)
+            view, bounds = symmetry_view(solver)
+        except (ValueError, AttributeError) as error:
+            anchors.append(dict(supported=[], reasons={name: str(error) for name in GROUPS}))
+            continue
+        failures = {}
+        for operation in OPERATIONS:
             try:
-                validate_material_symmetry(solver, name)
+                _validate_operation(view, operation)
             except (ValueError, AttributeError) as error:
-                reasons[name] = str(error)
-            else:
-                supported.append(name)
-        anchors.append(dict(supported=supported, reasons=reasons))
-    common = [name for name in ("c4v", "c2v") if anchors and all(name in a['supported'] for a in anchors)]
-    return dict(detected=common[0] if common else "none", candidates=common, anchors=anchors, groups=[])
+                failures[operation] = str(error)
+        supported = [name for name, ops in GROUPS.items() if not any(op in failures for op in ops)]
+        reasons = {name: '; '.join(failures[op] for op in ops if op in failures)
+                   for name, ops in GROUPS.items() if name not in supported}
+        positions = {name: positioned_operations(solver, name, bounds) for name in supported}
+        origin = np.asarray(getattr(solver, 'symmetry_origin', (0., 0.)))
+        centre = [sum(b) * d / 2 + o for b, d, o in zip(bounds, (solver.du, solver.dv), origin)]
+        anchors.append(dict(supported=supported, reasons=reasons, bounds=bounds,
+                            centre=centre, centre_cells=[sum(b)/2 for b in bounds],
+                            window_centre_cells=[solver.Nu/2, solver.Nv/2],
+                            positioned_operations=positions))
+    common, bank_reasons = [], {}
+    for name in GROUPS:
+        if not anchors or not all(name in a['supported'] for a in anchors):
+            continue
+        reference = anchors[0]['positioned_operations'][name]
+        if all(all(np.allclose(a['positioned_operations'][name][op], translation, rtol=1e-12, atol=1e-15)
+                   for op, translation in reference.items()) for a in anchors[1:]):
+            common.append(name)
+        else:
+            bank_reasons[name] = 'Rotation centres or mirror lines differ between anchors.'
+    detected = common[0] if common else 'none'
+    return dict(detected=group_name(detected), embedding=detected,
+                candidates=[name for name in common if name != 'c1'], anchors=anchors,
+                bank_reasons=bank_reasons, groups=[])
+
+
+def native_irrep_names(symmetry, representations, columns, tolerance=1e-8):
+    """Names refer to the stored generator order, including diagonal mirrors."""
+    if symmetry == 'c4v':
+        return c4v_irrep_names(representations, columns, tolerance)
+    if group_name(symmetry) == 'c2v':
+        return c2v_irrep_names(representations, columns, tolerance)
+    generator, = representations
+    roots, labels = (([1, -1, 1j, -1j], ['A', 'B', 'E+', 'E-']) if symmetry == 'c4' else
+                     ([1, -1], ["A'", "A''"]) if group_name(symmetry) == 'cs' else
+                     ([1, -1], ['A', 'B']))
+    order = 4 if symmetry == 'c4' else 1 if symmetry == 'c1' else 2
+    if np.linalg.norm(np.linalg.matrix_power(generator, order)-np.eye(len(generator))) > 10*tolerance:
+        raise ValueError('Modal actions do not satisfy the cyclic group relations.')
+    result = []
+    for indices in columns:
+        if len(indices) != 1:
+            raise ValueError('Abelian transverse irreducible blocks must be one-dimensional.')
+        value = generator[indices[0], indices[0]]
+        index = int(np.argmin(abs(value-np.asarray(roots))))
+        if abs(value-roots[index]) > 10*tolerance:
+            raise ValueError('Modal action is not a character of the detected group.')
+        result.append(labels[index])
+    return tuple(result)
 
 
 def c2v_irrep_names(representations, columns, tolerance=1e-8):
@@ -678,9 +741,11 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
     from gprMax.eigenmode_tracking import _frame, _mix, _power, _residuals, _orthonormal, _moments
 
     actions = {} if symmetry in (None, 'procrustes') else field_actions(symmetry)
+    native = isinstance(symmetry, str) and symmetry in GROUPS
+    axis_mirrors = symmetry in ('c4v', 'c2v')
     if owner.invariant_axis is not None:
         raise ValueError("Symmetry decomposition requires a two-dimensional transverse port mesh.")
-    if symmetry in ('c4v', 'c2v'):
+    if native:
         for solver in solvers:
             validate_material_symmetry(solver, symmetry)
     owner.symmetry_diagnostics = []
@@ -757,7 +822,7 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                         family_tolerance=_family_tolerance(solvers[k], labels, tolerance))
                     longitudinal = separation['longitudinal']
                     leakage = 0.
-                elif symmetry in ('c4v', 'c2v') and selected is not None:
+                elif native and selected is not None:
                     # The incoming fields are the published separation basis.
                     # Undo only this pass's whitening to locate each candidate.
                     blocks, candidate_groups, leakage = [], [], 0.
@@ -774,28 +839,28 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                         candidate_groups.extend([group_index]*len(subblocks))
                         leakage = max(leakage, float(error), suberror)
                     blocks = tuple(blocks)
-                elif symmetry in ('c4v', 'c2v'):
+                elif native:
                     blocks, leakage, longitudinal = longitudinal_blocks(
                         generators, local_e[2], impedance * local_h[2],
                         np.linalg.norm(frame, 'fro')**2, probe=probe, tolerance=tolerance)
                 else:
                     blocks, leakage = irreducible_blocks(generators, probe=probe, tolerance=tolerance)
                 axis_records, source_irreps, irreducible_basis = [], (), None
-                if symmetry in ('c4v', 'c2v'):
-                    rotation = generators[0] if symmetry == 'c4v' else None
-                    mirrors = (generators[1], rotation @ generators[1] @ rotation.conj().T) if rotation is not None else generators
+                if native:
                     ib = np.column_stack(blocks)
                     cuts = np.cumsum([0]+[b.shape[1] for b in blocks])
                     ic = [np.arange(a,b) for a,b in zip(cuts[:-1],cuts[1:])]
-                    naming = c4v_irrep_names if symmetry == 'c4v' else c2v_irrep_names
-                    names = naming([np.linalg.solve(ib,d @ ib) for d in generators], ic)
+                    names = native_irrep_names(symmetry, [np.linalg.solve(ib,d @ ib) for d in generators], ic)
                     irreducible_basis = dict(transform=ib, columns=ic, irreps=names)
+                    source_irreps = list(names)
+                if axis_mirrors:
+                    rotation = generators[0] if symmetry == 'c4v' else None
+                    mirrors = (generators[1], rotation @ generators[1] @ rotation.conj().T) if rotation is not None else generators
                     family_tolerance = _family_tolerance(solvers[k], labels, tolerance)
                     blocks, axis_records = axis_sensitive_blocks(
                         blocks, local_e[2], impedance*local_h[2], mirrors,
                         (solvers[k].du,solvers[k].dv), np.linalg.norm(frame,'fro')**2,
                         tolerance=tolerance, family_tolerance=family_tolerance, candidate_groups=candidate_groups)
-                    source_irreps = list(names)
                     for record in axis_records:
                         if record['applied']:
                             components = '+'.join(sorted(set(names[i] for i in record['block_indices'])))
@@ -808,6 +873,8 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                         for j, b in enumerate(blocks):
                             if symmetry == 'procrustes' and i != j:
                                 continue  # Final transport cannot reassign established blocks.
+                            if source_irreps and old['source_irreps'][i] != source_irreps[j]:
+                                continue  # Different symmetry characters cannot exchange identity.
                             if len(columns) == b.shape[1]:
                                 a = _orthonormal(old['frame'][:,columns])
                                 c = _orthonormal(frame @ b)
@@ -830,12 +897,22 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                         inverse = np.argsort(order[np.argsort(rows)])
                         for record in axis_records:
                             record['source_block_indices'] = [int(inverse[j]) for j in record['block_indices']]
-                    if symmetry not in ('c4v', 'c2v'):
+                    if not axis_mirrors:
                         continued = []
                         for b, columns in zip(blocks, old['columns']):
                             left, _, right = np.linalg.svd((frame @ b).conj().T @ old['frame'][:,columns])
                             continued.append(b @ (left @ right))
                         blocks = tuple(continued)
+                if native and not axis_mirrors and previous is None:
+                    # Abelian groups give singlets, including the complex C4
+                    # characters. Fix only their phase, without inventing a
+                    # second mirror or recombining conjugate characters.
+                    oriented = []
+                    for b in blocks:
+                        field = frame @ b
+                        pivot = int(np.argmax(abs(field[:, 0])))
+                        oriented.append(b * np.exp(-1j*np.angle(field[pivot, 0])))
+                    blocks = tuple(oriented)
                 if symmetry is None and previous is None:
                     # Choose a deterministic reference inside each block. This
                     # is a phase for singlets; unresolved blocks still travel
@@ -849,7 +926,7 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
                         normalized.append(b @ ((u/np.sqrt(v)) @ u.conj().T))
                     blocks = tuple(normalized)
                 orientation = []
-                if symmetry in ('c4v', 'c2v'):
+                if axis_mirrors:
                     rotation = generators[0] if symmetry == 'c4v' else None
                     mirrors = (generators[1], rotation @ generators[1] @ rotation.conj().T) if rotation is not None else generators
                     moments = _moments(owner, grid, e)
@@ -915,7 +992,7 @@ def _align_symmetry_subspaces(owner, grid, frequencies, solvers, modes, electric
         # Publish only after the complete parent bank passes symmetry checks.
         blocks = tuple(tuple(labels[j] for j in c) for c in results[reference]['columns'])
         irreps = ()
-        if symmetry in ('c4v', 'c2v'):
+        if native:
             irreps = results[reference]['source_irreps']
             for row in results.values():
                 if row['source_irreps'] != irreps:
