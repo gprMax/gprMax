@@ -429,6 +429,7 @@ def export_segy(
 ) -> SegyExportSummary:
     """Convert a series of original gprMax A-scan files into SEG-Y."""
 
+    outputfiles = [Path(f) for f in outputfiles]
     destination = validate_output_path(segy_outputfile, outputfiles)
     records, dt, time_offset, resolved_source, title = collect_traces(
         outputfiles,

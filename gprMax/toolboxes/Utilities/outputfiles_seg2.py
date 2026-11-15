@@ -238,6 +238,7 @@ def export_seg2(
 ) -> Seg2ExportSummary:
     """Convert a series of original gprMax A-scan files into SEG-2."""
 
+    outputfiles = [Path(f) for f in outputfiles]
     destination = validate_output_path(seg2_outputfile, outputfiles)
     records, dt, time_offset, resolved_source, title = collect_traces(
         outputfiles,

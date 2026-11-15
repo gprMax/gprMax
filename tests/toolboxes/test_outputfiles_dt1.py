@@ -1,7 +1,9 @@
 # Copyright (C) 2015-2026: The University of Edinburgh, United Kingdom
 
+import os
 import re
 import struct
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -202,3 +204,123 @@ def test_export_dt1_preserves_destination_on_write_failure(tmp_path, monkeypatch
 
     assert dt1_file.read_bytes() == previous_dt1
     assert hd_file.read_text() == previous_hd
+
+
+def test_export_dt1_accepts_generator_outputfiles(tmp_path):
+    files = [tmp_path / f"scan{number}.h5" for number in range(1, 3)]
+    for number, filename in enumerate(files, start=1):
+        _write_output(filename, number)
+
+    destination_base = tmp_path / "survey"
+    generator = (f for f in files)
+    summary = export_dt1(generator, destination_base, 1, "Ez")
+
+    assert summary.trace_count == 2
+    assert summary.dt1_outputfile.exists()
+    assert summary.hd_outputfile.exists()
+
+
+def test_export_dt1_rejects_same_target_destinations(tmp_path):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    destination_base = tmp_path / "survey"
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+    dt1_file.write_text("existing content")
+
+    try:
+        os.link(dt1_file, hd_file)
+    except OSError:
+        try:
+            hd_file.symlink_to(dt1_file)
+        except OSError:
+            pytest.skip("Filesystem does not support hard links or symbolic links")
+
+    with pytest.raises(ValueError, match="resolve to the same file"):
+        export_dt1([filename], destination_base, 1, "Ez", overwrite=True)
+
+
+def test_export_dt1_preserves_destination_on_dt1_publication_failure(tmp_path, monkeypatch):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    destination_base = tmp_path / "survey"
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+
+    previous_dt1 = b"existing dt1 content"
+    previous_hd = "existing hd content"
+    dt1_file.write_bytes(previous_dt1)
+    hd_file.write_text(previous_hd)
+
+    original_replace = os.replace
+    failed_once = False
+
+    def fail_replace(src, dst):
+        nonlocal failed_once
+        if not failed_once and Path(dst).resolve() == dt1_file.resolve():
+            failed_once = True
+            raise OSError("injected dt1 publication failure")
+        return original_replace(src, dst)
+
+    monkeypatch.setattr("os.replace", fail_replace)
+
+    with pytest.raises(OSError, match="injected dt1 publication failure"):
+        export_dt1([filename], destination_base, 1, "Ez", overwrite=True)
+
+    assert dt1_file.read_bytes() == previous_dt1
+    assert hd_file.read_text() == previous_hd
+
+
+def test_export_dt1_preserves_destination_on_hd_publication_failure(tmp_path, monkeypatch):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    destination_base = tmp_path / "survey"
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+
+    previous_dt1 = b"existing dt1 content"
+    previous_hd = "existing hd content"
+    dt1_file.write_bytes(previous_dt1)
+    hd_file.write_text(previous_hd)
+
+    original_replace = os.replace
+
+    def fail_replace(src, dst):
+        if Path(dst).resolve() == hd_file.resolve():
+            raise OSError("injected hd publication failure")
+        return original_replace(src, dst)
+
+    monkeypatch.setattr("os.replace", fail_replace)
+
+    with pytest.raises(OSError, match="injected hd publication failure"):
+        export_dt1([filename], destination_base, 1, "Ez", overwrite=True)
+
+    assert dt1_file.read_bytes() == previous_dt1
+    assert hd_file.read_text() == previous_hd
+
+
+def test_export_dt1_cleans_up_staged_destination_when_hd_publication_fails(tmp_path, monkeypatch):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    destination_base = tmp_path / "survey"
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+
+    original_replace = os.replace
+
+    def fail_replace(src, dst):
+        if Path(dst).resolve() == hd_file.resolve():
+            raise OSError("injected hd publication failure")
+        return original_replace(src, dst)
+
+    monkeypatch.setattr("os.replace", fail_replace)
+
+    with pytest.raises(OSError, match="injected hd publication failure"):
+        export_dt1([filename], destination_base, 1, "Ez")
+
+    assert not dt1_file.exists()
+    assert not hd_file.exists()

@@ -18,7 +18,10 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
+import stat
 import struct
+import tempfile
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -26,7 +29,7 @@ from typing import Iterable
 
 import numpy as np
 
-from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
+from gprMax.toolboxes.Utilities.output_paths import validate_output_path
 from gprMax.toolboxes.Utilities.outputfiles_trace import (
     TraceRecord,
     collect_traces,
@@ -60,6 +63,21 @@ def _output_pair(outputfile: str | Path) -> tuple[Path, Path]:
     if base.suffix.lower() in {".dt1", ".hd"}:
         base = base.with_suffix("")
     return base.with_name(base.name + ".DT1"), base.with_name(base.name + ".HD")
+
+
+def _validate_dt1_hd_distinct(dt1_path: Path, hd_path: Path) -> None:
+    dt1_resolved = dt1_path.resolve()
+    hd_resolved = hd_path.resolve()
+    same = dt1_resolved == hd_resolved
+    if not same:
+        try:
+            same = dt1_path.samefile(hd_path)
+        except OSError:
+            same = False
+    if same:
+        raise ValueError(
+            f"DT1 destination ({dt1_path}) and HD destination ({hd_path}) resolve to the same file"
+        )
 
 
 def _survey_positions(records: list[TraceRecord]) -> np.ndarray:
@@ -238,6 +256,7 @@ def write_dt1(
         raise ValueError("Number of stacks must be between 1 and 2^24")
 
     dt1_destination, hd_destination = _output_pair(outputfile)
+    _validate_dt1_hd_distinct(dt1_destination, hd_destination)
     existing = [path for path in (dt1_destination, hd_destination) if path.exists()]
     if existing and not overwrite:
         raise FileExistsError(
@@ -261,10 +280,15 @@ def write_dt1(
         stacks=stacks,
     )
 
-    with (
-        atomic_output_path(dt1_destination) as dt1_temporary,
-        atomic_output_path(hd_destination) as hd_temporary,
-    ):
+    dt1_target = dt1_destination.resolve()
+    hd_target = hd_destination.resolve()
+
+    with tempfile.TemporaryDirectory(
+        prefix=f".{dt1_target.name}.", dir=dt1_target.parent
+    ) as directory:
+        dt1_temporary = Path(directory) / dt1_target.name
+        hd_temporary = Path(directory) / hd_target.name
+
         with dt1_temporary.open("wb") as stream:
             for trace_number, (record, samples, position) in enumerate(
                 zip(records, quantised, positions, strict=True),
@@ -283,6 +307,29 @@ def write_dt1(
                 )
                 stream.write(samples.tobytes(order="C"))
         hd_temporary.write_text(hd, encoding="ascii", errors="replace", newline="")
+
+        if dt1_target.exists():
+            dt1_temporary.chmod(stat.S_IMODE(dt1_target.stat().st_mode))
+        if hd_target.exists():
+            hd_temporary.chmod(stat.S_IMODE(hd_target.stat().st_mode))
+
+        dt1_existed = dt1_target.exists()
+        dt1_backup = Path(directory) / f"{dt1_target.name}.backup"
+        dt1_published = False
+
+        try:
+            if dt1_existed:
+                os.replace(dt1_target, dt1_backup)
+            os.replace(dt1_temporary, dt1_target)
+            dt1_published = True
+            os.replace(hd_temporary, hd_target)
+        except Exception:
+            if dt1_existed and dt1_backup.exists():
+                os.replace(dt1_backup, dt1_target)
+            elif dt1_published and dt1_target.exists():
+                dt1_target.unlink()
+            raise
+
     return dt1_destination, hd_destination, count_scale
 
 
@@ -301,7 +348,9 @@ def export_dt1(
 ) -> Dt1ExportSummary:
     """Convert a series of original gprMax A-scan files into DT1/HD."""
 
+    outputfiles = [Path(f) for f in outputfiles]
     dt1_destination, hd_destination = _output_pair(dt1_outputfile)
+    _validate_dt1_hd_distinct(dt1_destination, hd_destination)
     validate_output_path(dt1_destination, outputfiles)
     validate_output_path(hd_destination, outputfiles)
 
