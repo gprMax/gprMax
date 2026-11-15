@@ -34,6 +34,13 @@ class _AdvancedMaterialConfig:
         self.materials = {"maxpoles": 10}
 
 
+class _SimulationConfig:
+    """Minimal simulation config exposing the physical constants used by
+    calculate_update_coeffsE."""
+
+    em_consts = config.SimulationConfig.em_consts
+
+
 class _CoefficientGrid:
     """Minimal grid stand-in supplying what calculate_update_coeffsE reads."""
 
@@ -44,6 +51,12 @@ class _CoefficientGrid:
         self.dz = 1e-3
         self.maxpoles = 10
         self.dispersivedtype = np.complex128
+
+
+@pytest.fixture(autouse=True)
+def _free_space_config(monkeypatch):
+    """Provide sim_config for coefficient calculations that read em_consts."""
+    monkeypatch.setattr(config, "sim_config", _SimulationConfig())
 
 
 def _advanced_debye(numid, material_id, er, se, deltaer, tau):
