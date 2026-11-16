@@ -249,23 +249,27 @@ class TestValidation:
             make_sim_config(subgrid=True, **backend)
 
     @pytest.mark.parametrize(
-        "kwargs",
+        "kwargs,reason",
         [
-            {"taskfarm": True, "geometry_fixed": True},
-            {"show_progress_bars": True, "hide_progress_bars": True},
+            (
+                {"taskfarm": True, "geometry_fixed": True},
+                "geometry fixed option cannot be used with MPI taskfarm",
+            ),
+            (
+                {"show_progress_bars": True, "hide_progress_bars": True},
+                "cannot both show and hide progress bars",
+            ),
         ],
     )
-    def test_rejections_raise_a_bare_value_error(self, make_sim_config, kwargs):
-        """No message on the exception — only in the log.
+    def test_rejections_carry_the_reason_on_the_exception(self, make_sim_config, kwargs, reason):
+        """The API caller gets the same reason that is written to the log.
 
-        A user running through the API sees ``ValueError`` with an empty
-        string. The same pattern as ``check_kappamin`` in the PML, recorded
-        during PR 10.
+        These guards previously raised a bare ``ValueError``, so a caller
+        using the Python API saw an empty exception message and had to find
+        the reason in the log output.
         """
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ValueError, match=reason):
             make_sim_config(**kwargs)
-
-        assert str(excinfo.value) == ""
 
     def test_the_reason_is_logged(self, make_sim_config, caplog):
         with caplog.at_level("ERROR", logger="gprMax.config"):
@@ -276,7 +280,7 @@ class TestValidation:
 
     def test_combined_accelerators_now_rejected(self, make_sim_config):
         """Upstream fixed the guard: combined accelerators now raise ValueError."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="combinations of CUDA, OpenCl and Apple Metal"):
             make_sim_config(gpu=[0], opencl=[0])
 
     def test_the_guard_does_fire_for_literal_booleans(self, make_sim_config):
@@ -287,6 +291,23 @@ class TestValidation:
         """
         with pytest.raises(ValueError):
             make_sim_config(gpu=True, opencl=True)
+
+    def test_metal_double_precision_carries_the_reason(self, make_sim_config):
+        """Metal has no double type, so the guard names the alternative."""
+        with pytest.raises(ValueError, match="Metal solver does not support double precision"):
+            make_sim_config(metal=[0], gpu_precision="double")
+
+    def test_unknown_device_id_carries_the_reason(self, make_sim_config):
+        sim_config = make_sim_config(gpu=[0])
+
+        with pytest.raises(ValueError, match="device ID 99 does not exist"):
+            sim_config.set_model_device(99)
+
+    def test_unset_model_config_carries_the_reason(self, install_sim_config):
+        sim_config = install_sim_config(n=1)
+
+        with pytest.raises(ValueError, match="has not been set"):
+            sim_config.get_model_config(0)
 
 
 class TestProgressBars:
@@ -346,12 +367,8 @@ class TestSolverSelection:
         assert make_sim_config(subgrid=True).general["precision"] == "double"
 
     def test_equal_resolution_regions_inherit_cpu_precision(self, make_sim_config):
-        scene = SimpleNamespace(
-            subgrid_objects=[SimpleNamespace(kwargs={"ratio": 1})]
-        )
-        sim_config = make_sim_config(
-            subgrid=True, scenes=[scene], cpu_precision="single"
-        )
+        scene = SimpleNamespace(subgrid_objects=[SimpleNamespace(kwargs={"ratio": 1})])
+        sim_config = make_sim_config(subgrid=True, scenes=[scene], cpu_precision="single")
         assert sim_config.general["precision"] == "single"
         assert sim_config.dtypes["float_or_double"] is np.float32
 
@@ -362,10 +379,7 @@ class TestSolverSelection:
                 SimpleNamespace(kwargs={"ratio": 3}),
             ]
         )
-        assert (
-            make_sim_config(subgrid=True, scenes=[scene]).general["precision"]
-            == "double"
-        )
+        assert make_sim_config(subgrid=True, scenes=[scene]).general["precision"] == "double"
 
     def test_an_empty_device_list_still_selects_the_accelerator(self, make_sim_config):
         """The branch tests ``is not None``, not truthiness.
