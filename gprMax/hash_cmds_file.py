@@ -30,6 +30,31 @@ from .hash_includes import expand_include_lines
 logger = logging.getLogger(__name__)
 
 
+def _read_input_file(filename):
+    """Read an input file as UTF-8, tolerating a byte-order mark.
+
+    gprMax input files are UTF-8, which is also the encoding used by
+    ``#include_file`` expansion. Reading with the process default encoding
+    made the result depend on the platform locale and left a UTF-8
+    byte-order mark attached to the first command, which was then silently
+    discarded.
+
+    Args:
+        filename: path to the input file.
+
+    Returns:
+        text: complete file contents without the byte-order mark.
+    """
+
+    try:
+        return Path(filename).read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError as err:
+        raise ValueError(
+            f"Input file '{filename}' is not valid UTF-8. Re-save it as UTF-8; "
+            "a byte-order mark is allowed."
+        ) from err
+
+
 def process_python_include_code(inputfile, usernamespace):
     """Looks for and processes any Python code found in the input file.
     It will ignore any lines that are comments, i.e. begin with a
@@ -75,7 +100,9 @@ def process_python_include_code(inputfile, usernamespace):
                 pythoncode += inputlines[x] + "\n"
                 x += 1
             if x == len(inputlines):
-                raise SyntaxError("Cannot find the end of the Python code block: missing #end_python: command.")
+                raise SyntaxError(
+                    "Cannot find the end of the Python code block: missing #end_python: command."
+                )
             # Compile code for faster execution
             pythoncompiledcode = compile(pythoncode, "<string>", "exec")
             # Restore the caller's exact stream even if execution raises.
@@ -148,7 +175,7 @@ def write_processed_file(processedlines):
     parts = config.get_model_config().output_file_path.parts
     processedfile = Path(*parts[:-1], parts[-1] + "_processed.in")
 
-    with open(processedfile, "w") as f:
+    with open(processedfile, "w", encoding="utf-8") as f:
         for item in processedlines:
             f.write(f"{item}")
 
@@ -423,7 +450,7 @@ def parse_hash_commands(scene):
         scene: Scene object.
     """
 
-    with open(config.sim_config.input_file_path) as inputfile:
+    with StringIO(_read_input_file(config.sim_config.input_file_path)) as inputfile:
         usernamespace = config.get_model_config().get_usernamespace()
 
         # Read input file and process any Python and include file commands
@@ -445,7 +472,9 @@ def parse_hash_commands(scene):
 
         expected_controls = getattr(config.sim_config.args, "_hash_preflight_controls", None)
         actual_controls = tuple(
-            line.strip() for line in processedlines if line.startswith(("#study:", "#array_codebook:"))
+            line.strip()
+            for line in processedlines
+            if line.startswith(("#study:", "#array_codebook:"))
         )
         if expected_controls is not None and actual_controls != expected_controls:
             raise ValueError(
@@ -454,7 +483,8 @@ def parse_hash_commands(scene):
             )
 
         user_objs = get_user_objects(
-            processedlines, checkessential=True,
+            processedlines,
+            checkessential=True,
             input_dir=config.sim_config.input_file_path.resolve().parent,
         )
         for user_obj in user_objs:
