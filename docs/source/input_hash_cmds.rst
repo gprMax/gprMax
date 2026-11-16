@@ -2087,6 +2087,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 .. note::
 
+    * The TFSF box boundary and adjacent staggered nodes must use the declared background material's electromagnetic properties. A differently named material with the same properties is accepted; a different material or a rigid PEC/PMC component is rejected, because the incident field would be injected inconsistently. Use ``#plane_wave_axial`` for layered or half-space models.
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * MPI domain decomposition is supported. Every rank advances an identical, small auxiliary one-dimensional DPW, while TFSF corrections are restricted to the Yee components owned by that rank. This adds no per-timestep plane-wave communication beyond the normal field-halo exchange.
@@ -2115,6 +2116,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 .. note::
 
+    * The TFSF box boundary and adjacent staggered nodes must use the declared background material's electromagnetic properties. A differently named material with the same properties is accepted; a different material or a rigid PEC/PMC component is rejected, because the incident field would be injected inconsistently. Use ``#plane_wave_axial`` for layered or half-space models.
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * MPI domain decomposition is supported. Every rank advances an identical, small auxiliary one-dimensional DPW, while TFSF corrections are restricted to the Yee components owned by that rank. This adds no per-timestep plane-wave communication beyond the normal field-halo exchange.

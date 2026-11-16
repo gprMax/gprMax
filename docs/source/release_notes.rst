@@ -57,6 +57,12 @@ Discrete plane waves
   -295 dB in double precision. Fixed on CPU/MPI, CUDA, OpenCL and Metal. The
   correction applies whatever the termination, including ``"legacy"``, so
   earlier results of affected models change. Re-run affected models.
+* A vector/angle discrete plane wave whose TFSF boundary or adjacent staggered
+  node uses different electromagnetic properties is now rejected, including
+  rigid PEC/PMC components. A differently named material with the same
+  properties is accepted. Such models previously ran and produced silently
+  incorrect incident fields. Use ``#plane_wave_axial`` for layered or
+  half-space models.
 
 Subgrids
 --------
