@@ -4179,14 +4179,15 @@ class RxArray(GridUserObject):
         # Rounding can shrink or erase a sub-cell step, so validate the
         # requested value. Singleton axes resolve to one point whatever
         # the non-negative step, and zero keeps its documented role. The
-        # one-cell minimum carries a relative tolerance so a step that
-        # means exactly one cell still builds when float arithmetic lands
-        # it a hair under (0.011 - 0.010 on a 1 mm grid, nextafter(dl, 0),
-        # float32-origin spacing); float round-off stays orders below the
-        # tolerance while any meaningful sub-cell request sits far above.
+        # one-cell minimum carries a dimensionless tolerance sized to the
+        # precision of the smallest supported real input: a float32
+        # spacing can land a full relative ULP (up to ~1.2e-7) below its
+        # decimal value, so 1e-6 accepts any supported-precision one-cell
+        # step, while a deliberate sub-cell request deviates by 1e-2 or
+        # more and still raises at every grid scale.
         if any(
             (raw_dl > 0)
-            & (raw_dl < grid.dl * (1 - 1e-9))
+            & (raw_dl < grid.dl * (1 - 1e-6))
             & (discretised_lower_point != discretised_upper_point)
         ):
             raise ValueError(

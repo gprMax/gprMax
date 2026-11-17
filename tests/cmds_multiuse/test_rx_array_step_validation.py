@@ -193,19 +193,6 @@ def test_one_cell_step_with_float_round_off_is_accepted(monkeypatch, tmp_path, a
     )
 
 
-def test_nextafter_below_one_cell_is_accepted(monkeypatch, tmp_path):
-    """np.nextafter(dl, 0) is the closest float under one cell and is a
-    one-cell request, not a sub-cell one."""
-    scene = _scene()
-    scene.add(
-        gprMax.RxArray(
-            p1=(0.002, 0.006, 0.006), p2=(0.010, 0.006, 0.006), dl=(np.nextafter(DL, 0.0), 0, 0)
-        )
-    )
-    grid = _build(scene, monkeypatch, tmp_path, "nextafter_step")
-    assert [rx.coord[0] for rx in grid.rxs] == [2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-
 def test_float32_origin_step_is_accepted(monkeypatch, tmp_path):
     """Spacing imported from float32 data sits just above one cell and
     must keep stepping at one cell."""
@@ -217,6 +204,92 @@ def test_float32_origin_step_is_accepted(monkeypatch, tmp_path):
     )
     grid = _build(scene, monkeypatch, tmp_path, "float32_step")
     assert [rx.coord[0] for rx in grid.rxs] == [2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+
+SCALES = (
+    (1.0, "metre"),
+    (1e-2, "centimetre"),
+    (1e-3, "millimetre"),
+    (1e-6, "micrometre"),
+    (1e-9, "nanometre"),
+)
+
+# A step meant to be exactly one cell, with the round-off of the
+# supported input precisions: float64 one ULP below, and the largest
+# float32 strictly below the decimal spacing (its relative shortfall is
+# up to ~1.2e-7, the case that sits far outside a float64-only view).
+ROUND_OFF_PROBES = (
+    ("nextafter", lambda dl: np.nextafter(dl, 0.0)),
+    ("float32_down", lambda dl: float(np.nextafter(np.float32(dl), np.float32(0)))),
+    ("float32_cast", lambda dl: float(np.float32(dl))),
+)
+
+
+def _scaled_scene(dl, monkeypatch):
+    """Model with fixed 22x12x12 cell counts at an arbitrary spacing, so
+    the same receiver indices are expected at every scale."""
+    captured = _capture_grid(monkeypatch)
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(22 * dl, 12 * dl, 12 * dl)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(iterations=1))
+    return scene, captured
+
+
+@pytest.mark.parametrize("axis", range(3))
+@pytest.mark.parametrize("scale", SCALES, ids=lambda scale: scale[1])
+@pytest.mark.parametrize("probe_name,probe", ROUND_OFF_PROBES, ids=[p[0] for p in ROUND_OFF_PROBES])
+def test_round_off_one_cell_steps_are_accepted_at_every_scale(
+    monkeypatch, tmp_path, scale, axis, probe_name, probe
+):
+    """One-cell spacing expressed at each supported precision must build
+    at every grid scale: cell counts and receiver indices stay fixed
+    while the coordinates scale with the spacing."""
+    dl = scale[0]
+    step = probe(dl)
+    dl_tuple = [0.0, 0.0, 0.0]
+    dl_tuple[axis] = step
+    lower = [5 * dl] * 3
+    upper = list(lower)
+    upper[axis] = 7 * dl
+    scene, captured = _scaled_scene(dl, monkeypatch)
+    scene.add(gprMax.RxArray(p1=tuple(lower), p2=tuple(upper), dl=tuple(dl_tuple)))
+    grid = _build(scene, monkeypatch, tmp_path, f"roundoff_{probe_name}_{scale[0]}_axis_{axis}")
+    assert len(grid.rxs) == 3
+    assert [tuple(rx.coord)[axis] for rx in grid.rxs] == [5, 6, 7]
+    assert all(
+        tuple(rx.coord)[(axis + 1) % 3] == 5 and tuple(rx.coord)[(axis + 2) % 3] == 5
+        for rx in grid.rxs
+    )
+
+
+@pytest.mark.parametrize("shortfall", ("genuine", "near"))
+@pytest.mark.parametrize("scale", SCALES, ids=lambda scale: scale[1])
+def test_genuinely_sub_cell_steps_still_rejected_at_every_scale(tmp_path, scale, shortfall):
+    """The tolerance covers supported input precision only: a request a
+    thousand times coarser than that round-off, and a plainly sub-cell
+    one, stay errors at every scale."""
+    dl = scale[0]
+    step = 0.9 * dl if shortfall == "genuine" else dl * (1 - 1e-4)
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(22 * dl, 12 * dl, 12 * dl)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(iterations=1))
+    scene.add(
+        gprMax.RxArray(p1=(5 * dl, 5 * dl, 5 * dl), p2=(7 * dl, 5 * dl, 5 * dl), dl=(step, 0, 0))
+    )
+    with pytest.raises(
+        ValueError, match="step size should not be less than the spatial discretisation"
+    ):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / f"reject_{shortfall}_{scale[0]}",
+            hide_progress_bars=True,
+        )
 
 
 def test_genuinely_sub_cell_step_still_rejected(tmp_path):
