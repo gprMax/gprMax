@@ -15,6 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import h5py
 import numpy as np
 import pytest
@@ -373,3 +378,37 @@ def test_get_output_data_receiver_name_selection(tmp_path):
     data, dt = get_output_data(filename, 1, "Ez", receiver_name="surface")
     np.testing.assert_array_equal(data, [0, 1, 2])
     assert dt == 1e-10
+
+
+@pytest.mark.parametrize("folder", ["survey", "survey[1]"])
+def test_cli_merges_only_the_named_series(tmp_path, folder):
+    directory = tmp_path / folder
+    directory.mkdir()
+    for number in range(1, 4):
+        _write_output(directory / f"cylinder_Bscan_2D{number}.h5", number)
+    for number in range(1, 3):
+        _write_output(directory / f"cylinder_Bscan_2D_study{number}.h5", number)
+
+    env = dict(os.environ, PYTHONPATH=str(Path(__file__).resolve().parents[2]))
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "gprMax.toolboxes.Utilities.outputfiles_merge",
+            str(directory / "cylinder_Bscan_2D"),
+            "--remove-files",
+        ],
+        check=True,
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    with h5py.File(directory / "cylinder_Bscan_2D_merged.h5", "r") as merged:
+        assert merged["rxs/rx1/Ez"].shape == (3, 3)
+    assert sorted(path.name for path in directory.glob("*.h5")) == [
+        "cylinder_Bscan_2D_merged.h5",
+        "cylinder_Bscan_2D_study1.h5",
+        "cylinder_Bscan_2D_study2.h5",
+    ]
