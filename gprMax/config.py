@@ -33,7 +33,7 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-from .utilities.host_info import detect_cuda_gpus, detect_opencl, detect_metal, get_host_info
+from .utilities.host_info import detect_cuda_gpus, detect_metal, detect_opencl, get_host_info
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -360,13 +360,18 @@ class SimulationConfig:
         )  # For depreciated Python blocks
 
         if self.taskfarm and self.geometry_fixed:
-            logger.error("The geometry fixed option cannot be used with MPI taskfarm.")
-            raise ValueError
+            msg = "The geometry fixed option cannot be used with MPI taskfarm."
+            logger.error(msg)
+            raise ValueError(msg)
 
         non_cpu_solvers = [self.args.gpu, self.args.opencl, self.args.metal]
         if _multiple_accelerators_requested(non_cpu_solvers):
-            logger.error("You cannot use combinations of CUDA, OpenCl and Apple Metal solvers simultaneously.")
-            raise ValueError
+            msg = (
+                "You cannot use combinations of CUDA, OpenCl and Apple Metal "
+                "solvers simultaneously."
+            )
+            logger.error(msg)
+            raise ValueError(msg)
 
         if getattr(args, "subgrid", False) and any(
             solver is not None for solver in (self.args.opencl, self.args.metal)
@@ -404,8 +409,9 @@ class SimulationConfig:
         #     or when specified by the user.
 
         if args.show_progress_bars and args.hide_progress_bars:
-            logger.error("You cannot both show and hide progress bars.")
-            raise ValueError
+            msg = "You cannot both show and hide progress bars."
+            logger.error(msg)
+            raise ValueError(msg)
 
         self.general = {
             "solver": "cpu",
@@ -469,7 +475,10 @@ class SimulationConfig:
         if self.args.metal is not None:
             self.general["solver"] = "metal"
             self.general["precision"] = args.gpu_precision
-            self.devices = {"devs": [], "compiler_opts": None}  # Apple Metal device object(s); compiler options
+            self.devices = {
+                "devs": [],
+                "compiler_opts": None,
+            }  # Apple Metal device object(s); compiler options
 
             # Apple GPU hardware has no native double-precision floating
             # point support, and the Metal Shading Language has no "double"
@@ -483,12 +492,13 @@ class SimulationConfig:
             # AttributeError on None.newFunctionWithName_ instead of this
             # clear diagnostic.
             if self.general["precision"] == "double":
-                logger.error(
+                msg = (
                     "The Metal solver does not support double precision - Apple GPU "
                     "hardware and the Metal Shading Language have no native double "
                     "type. Use the CPU, CUDA, or OpenCL solver for double precision."
                 )
-                raise ValueError
+                logger.error(msg)
+                raise ValueError(msg)
 
             # Add metal available device(s)
             self.devices["devs"] = detect_metal()
@@ -574,7 +584,8 @@ class SimulationConfig:
         from gprMax.user_objects.cmds_singleuse import RxSteps, SrcSteps
 
         stepping = any(
-            isinstance(command, (SrcSteps, RxSteps)) and any(value != 0 for value in command.step_size)
+            isinstance(command, (SrcSteps, RxSteps))
+            and any(value != 0 for value in command.step_size)
             for command in first.single_use_objects
         )
         if not stepping:
@@ -602,8 +613,9 @@ class SimulationConfig:
                 return dev
 
         if not found:
-            logger.exception(f"Compute device with device ID {deviceID} does not exist.")
-            raise ValueError
+            msg = f"Compute device with device ID {deviceID} does not exist."
+            logger.error(msg)
+            raise ValueError(msg)
 
     def _set_precision(self):
         """Data type (precision) for electromagnetic field output.
@@ -662,11 +674,12 @@ class SimulationConfig:
             # branch, an invalid value left self.dtypes completely unset,
             # failing later with a confusing, unrelated
             # AttributeError/KeyError far from the actual bad input.
-            logger.error(
+            msg = (
                 f"Precision '{self.general['precision']}' is not recognised - "
                 "it must be 'single' or 'double'."
             )
-            raise ValueError
+            logger.error(msg)
+            raise ValueError(msg)
 
     def _set_input_file_path(self):
         """Sets input file path for CLI or API."""
@@ -697,7 +710,9 @@ class SimulationConfig:
                 or isinstance(self.args.i, (bool, np.bool_))
                 or self.args.i <= 0
             ):
-                raise ValueError(f"Model start/restart number i={self.args.i!r} must be a positive integer.")
+                raise ValueError(
+                    f"Model start/restart number i={self.args.i!r} must be a positive integer."
+                )
             modelstart = self.args.i - 1
             modelend = modelstart + self.args.n
         else:
@@ -733,8 +748,9 @@ class SimulationConfig:
 
         model_config = self.model_configs[self._list_index(model_num)]
         if model_config is None:
-            logger.error(f"Cannot get ModelConfig for model {model_num}. It has not been set.")
-            raise ValueError
+            msg = f"Cannot get ModelConfig for model {model_num}. It has not been set."
+            logger.error(msg)
+            raise ValueError(msg)
 
         return model_config
 

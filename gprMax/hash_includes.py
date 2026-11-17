@@ -6,6 +6,8 @@ preflight runs before a SimulationConfig exists.
 
 from pathlib import Path
 
+from gprMax.utilities.input_io import read_input_text
+
 
 def expand_include_lines(lines, base_dir, stack=()):
     """Expand each occurrence in order, relative to its containing file.
@@ -31,8 +33,11 @@ def expand_include_lines(lines, base_dir, stack=()):
             raise ValueError(f"#include_file cycle detected: {chain}")
         if len(stack) >= 100:
             raise ValueError(f"#include_file nesting exceeds 100 files at {path}")
-        with path.open(encoding="utf-8") as handle:
-            included = [item.rstrip() + "\n" for item in handle if not item.startswith("##") and item.strip()]
+        included = [
+            item.rstrip() + "\n"
+            for item in read_input_text(path).splitlines()
+            if not item.startswith("##") and item.strip()
+        ]
         if any(item.startswith(("#python:", "#end_python:")) for item in included):
             raise SyntaxError(f"Python blocks in included files are unsupported: {path}")
         expanded.extend(expand_include_lines(included, path.parent, (*stack, path)))
@@ -51,7 +56,7 @@ def static_hash_commands(inputfile):
     path = Path(inputfile).expanduser().resolve()
     commands = []
     in_python = False
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in read_input_text(path).splitlines():
         if line.startswith("#python:"):
             in_python = True
         elif line.startswith("#end_python:"):

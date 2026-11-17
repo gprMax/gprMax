@@ -50,6 +50,42 @@ from gprMax.hash_cmds_file import (
     process_python_include_code,
 )
 from gprMax.user_objects.cmds_singleuse import Discretisation, Domain, TimeWindow
+from gprMax.utilities.input_io import read_input_text
+
+# ---------------------------------------------------------------------------
+# read_input_text
+# ---------------------------------------------------------------------------
+
+
+class TestReadInputFile:
+    def test_a_byte_order_mark_is_not_part_of_the_first_command(self, tmp_path):
+        path = tmp_path / "bom.in"
+        path.write_bytes(b"\xef\xbb\xbf#title: demo\n#domain: 0.1 0.1 0.1\n")
+
+        assert read_input_text(path).startswith("#title: demo")
+
+    def test_bom_file_parses_through_the_front_door(self, tmp_path):
+        path = tmp_path / "bom.in"
+        path.write_bytes(b"\xef\xbb\xbf#title: demo\n#domain: 0.1 0.1 0.1\n")
+
+        with io.StringIO(read_input_text(path)) as stream:
+            commands = process_python_include_code(stream, {})
+
+        assert commands == ["#title: demo\n", "#domain: 0.1 0.1 0.1\n"]
+
+    def test_non_ascii_utf8_is_preserved(self, tmp_path):
+        path = tmp_path / "utf8.in"
+        path.write_text("#title: 中文模型\n#domain: 0.1 0.1 0.1\n", encoding="utf-8")
+
+        assert "中文模型" in read_input_text(path)
+
+    def test_non_utf8_file_is_rejected_with_a_clear_message(self, tmp_path):
+        path = tmp_path / "gbk.in"
+        path.write_bytes("#title: 中文\n".encode("gbk"))
+
+        with pytest.raises(ValueError, match="not valid UTF-8"):
+            read_input_text(path)
+
 
 # ---------------------------------------------------------------------------
 # process_python_include_code
