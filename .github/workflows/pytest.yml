@@ -52,4 +52,14 @@ jobs:
           python -m pip install --editable ".[mpi,step]"
 
       - name: Run standard CPU test selection
-        run: python -m pytest -m "not unit and not gpu and not slow" --durations=20
+        run: |
+          python -m pytest -m "not unit and not gpu and not slow" --durations=20 \
+            --cov=gprMax --cov-report=term --cov-report=xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: warn
