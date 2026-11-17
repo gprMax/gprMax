@@ -16,7 +16,6 @@
 # along with gprMax. If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
-import glob
 import os
 from pathlib import Path
 
@@ -25,6 +24,7 @@ import numpy as np
 
 from gprMax.utilities.utilities import natural_keys
 from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
+from gprMax.toolboxes.Utilities.outputfiles_trace import discover_files
 from gprMax.toolboxes.Utilities.receiver_identity import (
     match_receiver,
     receiver_catalogue,
@@ -731,15 +731,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    files = glob.glob(args.basefilename + "*.h5")
     requested_output = Path(args.output_file).resolve() if args.output_file else None
     outputfiles = [
-        filename
-        for filename in files
-        if "_merged" not in Path(filename).stem
-        and (requested_output is None or Path(filename).resolve() != requested_output)
+        str(filename)
+        for filename in discover_files(args.basefilename)
+        if requested_output is None or filename.resolve() != requested_output
     ]
-    outputfiles.sort(key=natural_keys)
     if not outputfiles:
         parser.error(f"No output files match {args.basefilename}*.h5")
     merge_files(outputfiles, merged_outputfile=args.output_file, removefiles=args.remove_files)

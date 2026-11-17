@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import numpy as np
@@ -17,6 +18,7 @@ from gprMax.toolboxes.SFCW.processing import list_receivers, list_sources
 
 from .processing import (
     Chirp,
+    _validate_output_path,
     load_instrument_response,
     load_receiver_delay_response,
     process_channel,
@@ -204,9 +206,15 @@ def main(argv: list[str] | None = None) -> int:
             "window or use --tail-taper only after checking for physical late arrivals."
         )
     if args.plot is not None or args.show:
-        from .plotting import plot_fmcw_result
+        from .plotting import _resolve_plot_destination, plot_fmcw_result
 
-        plot_fmcw_result(channel, fast, deramped, output=args.plot, show=args.show)
+        plot_destination = None
         if args.plot is not None:
-            print(f"Written FMCW plot: {args.plot}")
+            plot_destination, _ = _resolve_plot_destination(Path(os.path.abspath(args.plot)))
+            _validate_output_path(plot_destination, [output])
+        plot_fmcw_result(
+            channel, fast, deramped, output=plot_destination or args.plot, show=args.show
+        )
+        if args.plot is not None:
+            print(f"Written FMCW plot: {plot_destination or args.plot}")
     return 0

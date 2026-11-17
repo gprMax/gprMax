@@ -12,6 +12,20 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path
+from gprMax.toolboxes.SFCW.processing import _validate_output_path
+
+
+def _resolve_plot_destination(destination, default_format=None):
+    """Return the final plot path and explicit Matplotlib format for a destination."""
+
+    destination = Path(destination)
+    plot_format = destination.suffix[1:].lower()
+    if not plot_format:
+        plot_format = (default_format or plt.rcParams["savefig.format"]).lower()
+        destination = destination.with_suffix(f".{plot_format}")
+    return destination, plot_format
+
 
 def plot_synthesis_results(results, *, receiver_index: int = 0, output=None, show=False):
     """Plot target source samples and one synthesised receiver component."""
@@ -43,7 +57,16 @@ def plot_synthesis_results(results, *, receiver_index: int = 0, output=None, sho
         axis.grid(True, alpha=0.3)
         axis.legend()
     if output is not None:
-        figure.savefig(Path(output), dpi=180)
+        try:
+            destination, plot_format = _resolve_plot_destination(output)
+            input_filenames = {r.receiver_file for r in values} | {r.source_file for r in values}
+            destination = _validate_output_path(destination, input_filenames)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with atomic_output_path(destination) as temporary:
+                figure.savefig(temporary, format=plot_format, dpi=180)
+        except Exception:
+            plt.close(figure)
+            raise
     if show:
         plt.show()
     else:

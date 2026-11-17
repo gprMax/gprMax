@@ -25,6 +25,7 @@ import h5py
 import numpy as np
 import numpy.typing as npt
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path
 from gprMax.toolboxes.Utilities.receiver_identity import matching_receiver_path
 from gprMax.toolboxes.SFCW.processing import (
     FrequencyResponse,
@@ -608,8 +609,9 @@ def write_fmcw_output(
             (channel.background.source.filename, channel.background.receiver.filename)
         )
     path = _validate_output_path(filename, input_filenames)
+    path.parent.mkdir(parents=True, exist_ok=True)
     chirp = channel.chirp
-    with h5py.File(path, "w") as output:
+    with atomic_output_path(path) as temporary, h5py.File(temporary, "w") as output:
         output.attrs["Format"] = "gprMax FMCW toolbox"
         output.attrs["EngineeringConvention"] = "Re{X exp(+j omega t)}"
         output.attrs["FStart"] = chirp.f_start

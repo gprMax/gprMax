@@ -8,11 +8,13 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 import numpy as np
 
 from .processing import (
+    _validate_output_path,
     list_receivers,
     list_sources,
     process_output,
@@ -134,9 +136,15 @@ def main(argv: list[str] | None = None) -> int:
             "or use --tail-taper after checking that late physical arrivals are not removed."
         )
     if args.plot is not None or args.show:
-        from .plotting import plot_sfcw_result
+        from .plotting import _resolve_plot_destination, plot_sfcw_result
 
-        plot_sfcw_result(result, time_response, output=args.plot, show=args.show)
+        plot_destination = None
         if args.plot is not None:
-            print(f"Written SFCW plot: {args.plot}")
+            plot_destination, _ = _resolve_plot_destination(Path(os.path.abspath(args.plot)))
+            _validate_output_path(plot_destination, [output])
+        plot_sfcw_result(
+            result, time_response, output=plot_destination or args.plot, show=args.show
+        )
+        if args.plot is not None:
+            print(f"Written SFCW plot: {plot_destination or args.plot}")
     return 0
