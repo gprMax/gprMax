@@ -71,3 +71,20 @@ def test_reversed_water_fraction_range_rejected():
 def test_fraction_above_one_rejected(field):
     with pytest.raises(ValueError):
         _build(**{field: 1.5})
+
+
+@pytest.mark.parametrize(
+    ("sand", "clay"),
+    [
+        (0.6, 0.5),
+        (0.8, 0.8),
+        (0.51, 0.50),
+    ],
+)
+def test_sum_of_fractions_above_one_rejected(sand, clay):
+    with pytest.raises(ValueError):
+        _build(sand_fraction=sand, clay_fraction=clay)
+
+
+def test_sum_of_fractions_equal_to_one_accepted():
+    _build(sand_fraction=0.6, clay_fraction=0.4)

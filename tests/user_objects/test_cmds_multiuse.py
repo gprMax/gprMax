@@ -110,9 +110,7 @@ class TestExcitationFile:
             ("pulse\n0\n", "at least two"),
         ],
     )
-    def test_build_rejects_invalid_waveform_tables(
-        self, stub_grid, tmp_path, content, error
-    ):
+    def test_build_rejects_invalid_waveform_tables(self, stub_grid, tmp_path, content, error):
         path = tmp_path / "invalid.txt"
         path.write_text(content, encoding="utf-8")
 
@@ -221,9 +219,7 @@ class TestVoltageSource:
     @pytest.mark.parametrize("resistance", [np.nan, np.inf])
     def test_validate_rejects_non_finite_resistance(self, stub_grid, resistance):
         stub_grid.waveforms.append(make_waveform("wf1"))
-        v = VoltageSource(
-            p1=(0, 0, 0), polarisation="x", resistance=resistance, waveform_id="wf1"
-        )
+        v = VoltageSource(p1=(0, 0, 0), polarisation="x", resistance=resistance, waveform_id="wf1")
         with pytest.raises(ValueError, match="finite source resistance"):
             v._validate_parameters(stub_grid)
 
@@ -425,7 +421,6 @@ class TestDPWVectorMOverwriteBug:
 
 
 class TestDPWPrecomputeValidation:
-
     @pytest.mark.parametrize(
         "cls",
         [DiscretePlaneWaveAngles, DiscretePlaneWaveVector, DiscretePlaneWaveAxial],
@@ -461,6 +456,7 @@ class TestRx:
         assert r.order == 7
         assert r.hash == "#rx"
 
+
 # ---------------------------------------------------------------------------
 # RxArray
 # ---------------------------------------------------------------------------
@@ -488,8 +484,13 @@ class TestRxArrayBoundsValidation:
 
         uip = MagicMock()
         uip.resolve_inf_point.side_effect = lambda point, role=None: point
-        uip.check_src_rx_point.side_effect = [(True, np.array([0, 0, 0])), (True, np.array([10, 20, 30]))]
-        uip.discretise_static_point.side_effect = lambda point: np.rint(np.asarray(point) / stub_grid.dl).astype(int)
+        uip.check_src_rx_point.side_effect = [
+            (True, np.array([0, 0, 0])),
+            (True, np.array([10, 20, 30])),
+        ]
+        uip.discretise_static_point.side_effect = lambda point: np.rint(
+            np.asarray(point) / stub_grid.dl
+        ).astype(int)
 
         # Mock Rx so its inner build chain does not run; we just want to
         # observe the two check_src_rx_point arguments.
@@ -544,8 +545,14 @@ class TestMaterial:
 
     @pytest.mark.parametrize(
         "field,value",
-        [("er", np.nan), ("er", np.inf), ("mr", np.nan), ("mr", np.inf),
-         ("se", np.nan), ("sm", np.nan)],
+        [
+            ("er", np.nan),
+            ("er", np.inf),
+            ("mr", np.nan),
+            ("mr", np.inf),
+            ("se", np.nan),
+            ("sm", np.nan),
+        ],
     )
     def test_build_rejects_non_finite_non_pec_parameters(self, stub_grid, field, value):
         values = {"er": 2.0, "se": 0.0, "mr": 1.0, "sm": 0.0, "id": "bad"}
@@ -762,6 +769,19 @@ class TestSoilPeplinski:
             id="soil1",
         )
         with pytest.raises(ValueError, match="must all be finite"):
+            soil.build(stub_grid)
+
+    def test_build_rejects_sand_plus_clay_exceeding_one(self, stub_grid):
+        soil = SoilPeplinski(
+            sand_fraction=0.7,
+            clay_fraction=0.4,
+            bulk_density=2.0,
+            sand_density=2.66,
+            water_fraction_lower=0.001,
+            water_fraction_upper=0.25,
+            id="soil1",
+        )
+        with pytest.raises(ValueError):
             soil.build(stub_grid)
 
 
