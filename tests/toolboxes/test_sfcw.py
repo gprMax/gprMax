@@ -18,10 +18,13 @@
 from types import SimpleNamespace
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from matplotlib.figure import Figure
 from numpy.testing import assert_allclose
 
+from gprMax.toolboxes.SFCW.plotting import plot_sfcw_result
 from gprMax.toolboxes.SFCW.processing import (
     SampledSignal,
     direct_frequency_response,
@@ -312,3 +315,154 @@ def test_sfcw_output_cannot_overwrite_an_input(tmp_path, input_role, alias_kind)
     write_sfcw_output(processed, response)
     with h5py.File(processed, "r") as output:
         assert_allclose(output["response"], response.response)
+
+
+def test_write_sfcw_output_creates_parent_directories(tmp_path):
+    source = SampledSignal("/srcs/src1", np.r_[1.0, np.zeros(15)], 1e-10, 0.0)
+    receiver = SampledSignal("/rxs/rx1/Ez", np.r_[0.0, 1.0, np.zeros(14)], 1e-10, 0.0)
+    response = direct_frequency_response(source, receiver, [1e8, 2e8])
+    destination = tmp_path / "nested" / "deep" / "sfcw.h5"
+
+    result = write_sfcw_output(destination, response)
+    assert result == destination
+    assert destination.is_file()
+    with h5py.File(destination, "r") as output:
+        assert output.attrs["Format"] == "gprMax SFCW toolbox"
+
+
+def test_write_sfcw_output_preserves_destination_on_failure(tmp_path, monkeypatch):
+    source = SampledSignal("/srcs/src1", np.r_[1.0, np.zeros(15)], 1e-10, 0.0)
+    receiver = SampledSignal("/rxs/rx1/Ez", np.r_[0.0, 1.0, np.zeros(14)], 1e-10, 0.0)
+    response = direct_frequency_response(source, receiver, [1e8, 2e8])
+    destination = tmp_path / "sfcw.h5"
+    sentinel = b"existing_sfcw_content"
+    destination.write_bytes(sentinel)
+
+    def failing_create_dataset(self, name, *args, **kwargs):
+        if name == "I":
+            raise OSError("disk full")
+        return original_create_dataset(self, name, *args, **kwargs)
+
+    original_create_dataset = h5py.Group.create_dataset
+    monkeypatch.setattr(h5py.Group, "create_dataset", failing_create_dataset)
+
+    with pytest.raises(OSError, match="disk full"):
+        write_sfcw_output(destination, response)
+
+    assert destination.read_bytes() == sentinel
+    assert [p.name for p in tmp_path.iterdir()] == ["sfcw.h5"]
+
+
+def test_plot_sfcw_result_validates_output_and_writes_atomically(tmp_path, monkeypatch):
+    source_file = tmp_path / "source.h5"
+    source_file.write_bytes(b"source_h5")
+    source = SampledSignal(
+        "/srcs/src1", np.r_[1.0, np.zeros(15)], 1e-10, 0.0, filename=str(source_file)
+    )
+    receiver = SampledSignal("/rxs/rx1/Ez", np.r_[0.0, 1.0, np.zeros(14)], 1e-10, 0.0)
+    response = direct_frequency_response(source, receiver, [1e8, 2e8])
+
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        plot_sfcw_result(response, output=source_file)
+    assert source_file.read_bytes() == b"source_h5"
+
+    plot_file = tmp_path / "plots" / "sfcw.png"
+    fig = plot_sfcw_result(response, output=plot_file)
+    assert plot_file.is_file()
+    assert plot_file.stat().st_size > 0
+
+    sentinel = b"existing_plot_bytes"
+    plot_file.write_bytes(sentinel)
+
+    def failing_savefig(self, fname, *args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Figure, "savefig", failing_savefig)
+    with pytest.raises(OSError, match="disk full"):
+        plot_sfcw_result(response, output=plot_file)
+    assert plot_file.read_bytes() == sentinel
+
+
+def test_plot_sfcw_result_handles_extensionless_and_symlink_targets(tmp_path):
+    source = SampledSignal("/srcs/src1", np.r_[1.0, np.zeros(15)], 1e-10, 0.0)
+    receiver = SampledSignal("/rxs/rx1/Ez", np.r_[0.0, 1.0, np.zeros(14)], 1e-10, 0.0)
+    response = direct_frequency_response(source, receiver, [1e8, 2e8])
+
+    extensionless = tmp_path / "plot_noext"
+    plot_sfcw_result(response, output=extensionless)
+    expected_png = tmp_path / "plot_noext.png"
+    assert expected_png.is_file()
+    assert expected_png.read_bytes().startswith(b"\x89PNG")
+    assert not extensionless.exists()
+
+    target = tmp_path / "plot_target"
+    target.write_bytes(b"stale")
+    link = tmp_path / "plot.png"
+    link.symlink_to(target)
+    plot_sfcw_result(response, output=link)
+    assert link.is_symlink()
+    assert target.read_bytes().startswith(b"\x89PNG")
+    assert not (tmp_path / "plot_target.png").exists()
+
+    target_pdf = tmp_path / "plot_target.pdf"
+    target_pdf.write_bytes(b"stale")
+    link_pdf = tmp_path / "plot_alias.png"
+    link_pdf.symlink_to(target_pdf)
+    plot_sfcw_result(response, output=link_pdf)
+    assert link_pdf.is_symlink()
+    assert target_pdf.read_bytes().startswith(b"\x89PNG")
+
+
+def test_plot_sfcw_result_closes_figure_on_validation_and_directory_error(tmp_path):
+    source_file = tmp_path / "source.h5"
+    source_file.write_bytes(b"source_h5")
+    source = SampledSignal(
+        "/srcs/src1", np.r_[1.0, np.zeros(15)], 1e-10, 0.0, filename=str(source_file)
+    )
+    receiver = SampledSignal("/rxs/rx1/Ez", np.r_[0.0, 1.0, np.zeros(14)], 1e-10, 0.0)
+    response = direct_frequency_response(source, receiver, [1e8, 2e8])
+
+    initial_figs = set(plt.get_fignums())
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        plot_sfcw_result(response, output=source_file)
+    assert set(plt.get_fignums()) == initial_figs
+
+    file_blocker = tmp_path / "blocker_file"
+    file_blocker.write_text("not_a_dir")
+    blocked_path = file_blocker / "plot.png"
+    with pytest.raises(OSError):
+        plot_sfcw_result(response, output=blocked_path)
+    assert set(plt.get_fignums()) == initial_figs
+
+
+def test_sfcw_cli_rejects_plot_overwriting_output_or_input(tmp_path):
+    from gprMax.toolboxes.SFCW.cli import main
+
+    source_path = tmp_path / "source.h5"
+    with h5py.File(source_path, "w") as output:
+        output.attrs.update(Iterations=32, dt=1e-10, nsrc=1, nrx=1)
+        src = output.create_group("srcs/src1/excitation")
+        src.attrs["SampleInterval"] = 1e-10
+        src.attrs["TimeSampleOffset"] = 0.5e-10
+        src.create_dataset("samples", data=np.r_[1.0, np.zeros(31)])
+        rx = output.create_group("rxs/rx1")
+        rx.create_dataset("Ez", data=np.r_[0.0, 1.0, np.zeros(30)])
+
+    out_file = tmp_path / "out.h5"
+    base_args = [
+        "process",
+        str(source_path),
+        "--f-start",
+        "100e6",
+        "--f-stop",
+        "500e6",
+        "--steps",
+        "5",
+        "--output",
+        str(out_file),
+    ]
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        main(base_args + ["--plot", str(source_path)])
+
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        main(base_args + ["--plot", str(out_file)])

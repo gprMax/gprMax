@@ -12,10 +12,12 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 from .processing import (
     BUILTIN_WAVEFORM_TYPES,
+    _validate_output_path,
     list_receivers,
     list_sources,
     load_csv_waveforms,
@@ -188,9 +190,18 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     if args.plot is not None or args.show:
-        from .plotting import plot_synthesis_results
+        from .plotting import _resolve_plot_destination, plot_synthesis_results
 
-        plot_synthesis_results(results, output=args.plot, show=args.show)
+        plot_destination = None
         if args.plot is not None:
-            print(f"Written summary plot: {args.plot}")
+            plot_destination, _ = _resolve_plot_destination(Path(os.path.abspath(args.plot)))
+            _validate_output_path(
+                plot_destination,
+                [output_dir / f"{args.input.stem}_{waveform.id}.h5" for waveform in waveforms],
+            )
+        plot_synthesis_results(
+            results, output=plot_destination or args.plot, show=args.show
+        )
+        if args.plot is not None:
+            print(f"Written summary plot: {plot_destination or args.plot}")
     return 0
