@@ -57,7 +57,7 @@ packaged_example_files = _packaging_config.packaged_example_files
 # Check Python version. Keep this consistent with ``python_requires`` below
 # and the compatibility matrix in ``.github/workflows/tests.yml``.
 MIN_PYTHON_VERSION = (3, 11)
-MAX_PYTHON_VERSION = (3, 14)
+MAX_PYTHON_VERSION = (3, 15)
 if not MIN_PYTHON_VERSION <= sys.version_info[:2] < MAX_PYTHON_VERSION:
     sys.exit(
         f"\nExited: Requires Python {MIN_PYTHON_VERSION[0]}.{MIN_PYTHON_VERSION[1]} through "
@@ -302,6 +302,7 @@ def main():
                 "Programming Language :: Python :: 3.11",
                 "Programming Language :: Python :: 3.12",
                 "Programming Language :: Python :: 3.13",
+                "Programming Language :: Python :: 3.14",
                 "Topic :: Scientific/Engineering",
             ],
         )

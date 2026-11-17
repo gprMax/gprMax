@@ -10,7 +10,7 @@ their own machines.
 The ``Release distributions`` workflow is defined in
 ``.github/workflows/release.yml``. It reuses the ``Binary distributions``
 builders rather than maintaining a second platform matrix. A successful run
-produces 12 wheels (Python 3.11--3.13 on four platforms) and one source archive.
+produces 16 wheels (Python 3.11--3.14 on four platforms) and one source archive.
 See :doc:`testing` for the installed-package checks.
 
 Nothing is published just by pushing a branch, opening a pull request,

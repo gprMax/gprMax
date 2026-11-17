@@ -170,7 +170,7 @@ This maintenance release collects corrections since 4.0.0 and refinements to
 the existing eigenmode-port functionality. Automatic mode tracking remains
 experimental and opt-in; ``tracking="legacy"`` remains the default.
 
-For installation and upgrades, follow :ref:`installation`. Python 3.11--3.13
+For installation and upgrades, follow :ref:`installation`. Python 3.11--3.14
 remains supported, with CPU wheels for Linux x86-64, Windows x86-64, and Intel
 and Apple Silicon macOS. GPU and MPI execution still require their optional
 bindings and system runtimes; see :doc:`accelerators` and :doc:`hpc`.
