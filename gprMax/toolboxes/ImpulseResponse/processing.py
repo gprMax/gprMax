@@ -28,6 +28,7 @@ import numpy.typing as npt
 from numpy.lib.npyio import DataSource
 from scipy.signal import fftconvolve
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path
 from gprMax.toolboxes.SFCW.processing import (
     SampledSignal,
     _validate_output_path,
@@ -601,7 +602,9 @@ def write_synthesised_output(filename: str | Path, result: SynthesisResult) -> P
 
     path = _validate_output_path(filename, (result.receiver_file, result.source_file))
     path.parent.mkdir(parents=True, exist_ok=True)
-    with h5py.File(result.receiver_file, "r") as original, h5py.File(path, "w") as output:
+    with atomic_output_path(path) as temporary, h5py.File(
+        result.receiver_file, "r"
+    ) as original, h5py.File(temporary, "w") as output:
         _copy_attrs(original, output)
         output.attrs["Format"] = "gprMax impulse-response waveform synthesis"
         output.attrs["InputImpulseFile"] = result.receiver_file

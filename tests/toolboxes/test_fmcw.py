@@ -19,10 +19,13 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from matplotlib.figure import Figure
 from numpy.testing import assert_allclose
 
+from gprMax.toolboxes.FMCW.plotting import plot_fmcw_result
 from gprMax.toolboxes.FMCW.processing import (
     ChannelResponse,
     Chirp,
@@ -40,7 +43,9 @@ def _channel(chirp, response):
     target = SimpleNamespace(
         response=values,
         source=SimpleNamespace(filename="target.h5", path="/srcs/src1"),
-        receiver=SimpleNamespace(filename="target.h5", path="/rxs/rx1/Ez"),
+        receiver=SimpleNamespace(
+            filename="target.h5", path="/rxs/rx1/Ez", dt=1e-10, samples=np.zeros(16)
+        ),
         source_spectrum=np.ones(chirp.samples, dtype=np.complex128),
         receiver_spectrum=values,
     )
@@ -308,3 +313,147 @@ def test_fmcw_output_cannot_overwrite_any_input(tmp_path, input_role, alias_kind
 
     for role, path in files.items():
         assert path.read_bytes() == before[role]
+
+
+def test_write_fmcw_output_creates_parent_directories(tmp_path):
+    chirp = Chirp(100e6, 500e6, 1e-3, 8)
+    channel = _channel(chirp, np.ones(chirp.samples))
+    fast = reconstruct_fast_time(channel)
+    destination = tmp_path / "sub" / "dir" / "fmcw.h5"
+
+    result = write_fmcw_output(destination, channel, fast)
+    assert result == destination
+    assert destination.is_file()
+    with h5py.File(destination, "r") as output:
+        assert output.attrs["Format"] == "gprMax FMCW toolbox"
+
+
+def test_write_fmcw_output_preserves_destination_on_failure(tmp_path, monkeypatch):
+    chirp = Chirp(100e6, 500e6, 1e-3, 8)
+    channel = _channel(chirp, np.ones(chirp.samples))
+    fast = reconstruct_fast_time(channel)
+    destination = tmp_path / "fmcw.h5"
+    sentinel = b"existing_fmcw_content"
+    destination.write_bytes(sentinel)
+
+    def failing_create_dataset(self, name, *args, **kwargs):
+        if name == "channel_response":
+            raise OSError("disk full")
+        return original_create_dataset(self, name, *args, **kwargs)
+
+    original_create_dataset = h5py.Group.create_dataset
+    monkeypatch.setattr(h5py.Group, "create_dataset", failing_create_dataset)
+
+    with pytest.raises(OSError, match="disk full"):
+        write_fmcw_output(destination, channel, fast)
+
+    assert destination.read_bytes() == sentinel
+    assert [p.name for p in tmp_path.iterdir()] == ["fmcw.h5"]
+
+
+def test_plot_fmcw_result_validates_output_and_writes_atomically(tmp_path, monkeypatch):
+    chirp = Chirp(100e6, 500e6, 1e-3, 8)
+    channel = _channel(chirp, np.ones(chirp.samples))
+    fast = reconstruct_fast_time(channel)
+    source_file = tmp_path / "source.h5"
+    source_file.write_bytes(b"source_h5")
+    channel.target.source.filename = str(source_file)
+
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        plot_fmcw_result(channel, fast, output=source_file)
+    assert source_file.read_bytes() == b"source_h5"
+
+    plot_file = tmp_path / "plots" / "fmcw.png"
+    fig = plot_fmcw_result(channel, fast, output=plot_file)
+    assert plot_file.is_file()
+    assert plot_file.stat().st_size > 0
+
+    sentinel = b"existing_plot_bytes"
+    plot_file.write_bytes(sentinel)
+
+    def failing_savefig(self, fname, *args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Figure, "savefig", failing_savefig)
+    with pytest.raises(OSError, match="disk full"):
+        plot_fmcw_result(channel, fast, output=plot_file)
+    assert plot_file.read_bytes() == sentinel
+
+
+def test_plot_fmcw_result_handles_extensionless_and_symlink_targets(tmp_path):
+    chirp = Chirp(100e6, 500e6, 1e-3, 8)
+    channel = _channel(chirp, np.ones(chirp.samples))
+    fast = reconstruct_fast_time(channel)
+
+    extensionless = tmp_path / "plot_noext"
+    plot_fmcw_result(channel, fast, output=extensionless)
+    expected_png = tmp_path / "plot_noext.png"
+    assert expected_png.is_file()
+    assert expected_png.read_bytes().startswith(b"\x89PNG")
+    assert not extensionless.exists()
+
+    target = tmp_path / "plot_target"
+    target.write_bytes(b"stale")
+    link = tmp_path / "plot.png"
+    link.symlink_to(target)
+    plot_fmcw_result(channel, fast, output=link)
+    assert link.is_symlink()
+    assert target.read_bytes().startswith(b"\x89PNG")
+    assert not (tmp_path / "plot_target.png").exists()
+
+    target_pdf = tmp_path / "plot_target.pdf"
+    target_pdf.write_bytes(b"stale")
+    link_pdf = tmp_path / "plot_alias.png"
+    link_pdf.symlink_to(target_pdf)
+    plot_fmcw_result(channel, fast, output=link_pdf)
+    assert link_pdf.is_symlink()
+    assert target_pdf.read_bytes().startswith(b"\x89PNG")
+
+
+def test_plot_fmcw_result_closes_figure_on_validation_and_directory_error(tmp_path):
+    chirp = Chirp(100e6, 500e6, 1e-3, 8)
+    channel = _channel(chirp, np.ones(chirp.samples))
+    fast = reconstruct_fast_time(channel)
+    source_file = tmp_path / "source.h5"
+    source_file.write_bytes(b"source_h5")
+    channel.target.source.filename = str(source_file)
+
+    initial_figs = set(plt.get_fignums())
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        plot_fmcw_result(channel, fast, output=source_file)
+    assert set(plt.get_fignums()) == initial_figs
+
+    file_blocker = tmp_path / "blocker_file"
+    file_blocker.write_text("not_a_dir")
+    blocked_path = file_blocker / "plot.png"
+    with pytest.raises(OSError):
+        plot_fmcw_result(channel, fast, output=blocked_path)
+    assert set(plt.get_fignums()) == initial_figs
+
+
+def test_fmcw_cli_rejects_plot_overwriting_output_or_input(tmp_path):
+    from gprMax.toolboxes.FMCW.cli import main
+
+    source_path = tmp_path / "source.h5"
+    _write_signal_file(source_path, 1.0, np.r_[0.0, 1.0, np.zeros(14)])
+
+    out_file = tmp_path / "out.h5"
+    base_args = [
+        "process",
+        str(source_path),
+        "--f-start",
+        "100e6",
+        "--f-stop",
+        "500e6",
+        "--samples",
+        "8",
+        "--sweep-time",
+        "1e-3",
+        "--output",
+        str(out_file),
+    ]
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        main(base_args + ["--plot", str(source_path)])
+
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        main(base_args + ["--plot", str(out_file)])

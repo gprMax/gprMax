@@ -21,8 +21,10 @@ import lzma
 from pathlib import Path
 
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from matplotlib.figure import Figure
 from numpy.testing import assert_allclose, assert_array_equal
 
 from gprMax.toolboxes.ImpulseResponse import (
@@ -38,6 +40,7 @@ from gprMax.toolboxes.ImpulseResponse import (
     waveform_energy_above,
     write_synthesised_output,
 )
+from gprMax.toolboxes.ImpulseResponse.plotting import plot_synthesis_results
 from gprMax.toolboxes.SFCW.processing import SampledSignal, load_receiver, load_source
 from gprMax.waveforms import Waveform as GprMaxWaveform
 
@@ -712,3 +715,143 @@ def test_batch_synthesis_rejects_another_active_source(tmp_path):
     waveform = sample_builtin_waveform(source, "ricker", 1.0, 300e6, "ricker300")
     with pytest.raises(ValueError, match="additional active sources"):
         synthesise_output(impulse_file, waveform, source_path="/srcs/src1")
+
+
+def test_write_synthesised_output_preserves_destination_on_failure(
+    tmp_path, separate_impulse_inputs, monkeypatch
+):
+    files, result = separate_impulse_inputs
+    destination = tmp_path / "ricker.h5"
+    sentinel = b"existing_impulse_content"
+    destination.write_bytes(sentinel)
+
+    def failing_create_dataset(self, name, *args, **kwargs):
+        if name == "samples":
+            raise OSError("disk full")
+        return original_create_dataset(self, name, *args, **kwargs)
+
+    original_create_dataset = h5py.Group.create_dataset
+    monkeypatch.setattr(h5py.Group, "create_dataset", failing_create_dataset)
+
+    with pytest.raises(OSError, match="disk full"):
+        write_synthesised_output(destination, result)
+
+    assert destination.read_bytes() == sentinel
+    assert [p.name for p in tmp_path.iterdir() if p.name == "ricker.h5"]
+
+
+def test_plot_synthesis_results_validates_output_and_writes_atomically(
+    tmp_path, separate_impulse_inputs, monkeypatch
+):
+    files, result = separate_impulse_inputs
+
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        plot_synthesis_results([result], output=files["source"])
+    assert files["source"].is_file()
+
+    plot_file = tmp_path / "plots" / "synthesis.png"
+    fig = plot_synthesis_results([result], output=plot_file)
+    assert plot_file.is_file()
+    assert plot_file.stat().st_size > 0
+
+    sentinel = b"existing_plot_bytes"
+    plot_file.write_bytes(sentinel)
+
+    def failing_savefig(self, fname, *args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Figure, "savefig", failing_savefig)
+    with pytest.raises(OSError, match="disk full"):
+        plot_synthesis_results([result], output=plot_file)
+    assert plot_file.read_bytes() == sentinel
+
+
+def test_plot_synthesis_results_handles_extensionless_and_symlink_targets(
+    tmp_path, separate_impulse_inputs
+):
+    _, result = separate_impulse_inputs
+
+    extensionless = tmp_path / "plot_noext"
+    plot_synthesis_results([result], output=extensionless)
+    expected_png = tmp_path / "plot_noext.png"
+    assert expected_png.is_file()
+    assert expected_png.read_bytes().startswith(b"\x89PNG")
+    assert not extensionless.exists()
+
+    target = tmp_path / "plot_target"
+    target.write_bytes(b"stale")
+    link = tmp_path / "plot.png"
+    link.symlink_to(target)
+    plot_synthesis_results([result], output=link)
+    assert link.is_symlink()
+    assert target.read_bytes().startswith(b"\x89PNG")
+    assert not (tmp_path / "plot_target.png").exists()
+
+    target_pdf = tmp_path / "plot_target.pdf"
+    target_pdf.write_bytes(b"stale")
+    link_pdf = tmp_path / "plot_alias.png"
+    link_pdf.symlink_to(target_pdf)
+    plot_synthesis_results([result], output=link_pdf)
+    assert link_pdf.is_symlink()
+    assert target_pdf.read_bytes().startswith(b"\x89PNG")
+
+
+def test_plot_synthesis_results_closes_figure_on_validation_and_directory_error(
+    tmp_path, separate_impulse_inputs
+):
+    files, result = separate_impulse_inputs
+
+    initial_figs = set(plt.get_fignums())
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        plot_synthesis_results([result], output=files["source"])
+    assert set(plt.get_fignums()) == initial_figs
+
+    file_blocker = tmp_path / "blocker_file"
+    file_blocker.write_text("not_a_dir")
+    blocked_path = file_blocker / "plot.png"
+    with pytest.raises(OSError):
+        plot_synthesis_results([result], output=blocked_path)
+    assert set(plt.get_fignums()) == initial_figs
+
+
+def test_impulse_response_cli_rejects_plot_overwriting_output(tmp_path):
+    from gprMax.toolboxes.ImpulseResponse.cli import main
+
+    impulse_file = tmp_path / "impulse.h5"
+    _write_impulse_h5(impulse_file)
+    out_dir = tmp_path / "waveforms"
+    out_file = out_dir / "impulse_ricker300.h5"
+
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        main(
+            [
+                "process",
+                str(impulse_file),
+                "--waveform",
+                "ricker",
+                "1.0",
+                "300e6",
+                "ricker300",
+                "--output-dir",
+                str(out_dir),
+                "--plot",
+                str(impulse_file),
+            ]
+        )
+
+    with pytest.raises(ValueError, match="must not overwrite an input"):
+        main(
+            [
+                "process",
+                str(impulse_file),
+                "--waveform",
+                "ricker",
+                "1.0",
+                "300e6",
+                "ricker300",
+                "--output-dir",
+                str(out_dir),
+                "--plot",
+                str(out_file),
+            ]
+        )

@@ -12,7 +12,19 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .processing import ChannelResponse, DerampedSweep, FastTimeResponse
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path
+from .processing import ChannelResponse, DerampedSweep, FastTimeResponse, _validate_output_path
+
+
+def _resolve_plot_destination(destination, default_format=None):
+    """Return the final plot path and explicit Matplotlib format for a destination."""
+
+    destination = Path(destination)
+    plot_format = destination.suffix[1:].lower()
+    if not plot_format:
+        plot_format = (default_format or plt.rcParams["savefig.format"]).lower()
+        destination = destination.with_suffix(f".{plot_format}")
+    return destination, plot_format
 
 
 def _first_trace(values):
@@ -63,7 +75,20 @@ def plot_fmcw_result(
         axes[2].grid(True, alpha=0.3)
 
     if output is not None:
-        figure.savefig(output, dpi=180)
+        try:
+            destination, plot_format = _resolve_plot_destination(output)
+            input_filenames = [channel.target.source.filename, channel.target.receiver.filename]
+            if channel.background is not None:
+                input_filenames.extend(
+                    (channel.background.source.filename, channel.background.receiver.filename)
+                )
+            destination = _validate_output_path(destination, input_filenames)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with atomic_output_path(destination) as temporary:
+                figure.savefig(temporary, format=plot_format, dpi=180)
+        except Exception:
+            plt.close(figure)
+            raise
     if show:
         plt.show()
     else:

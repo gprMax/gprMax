@@ -25,6 +25,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.signal import czt, fftconvolve
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
 from gprMax.toolboxes.Utilities.receiver_identity import natural_key
 
 
@@ -689,8 +690,6 @@ def _validate_output_path(filename: str | Path, input_filenames) -> Path:
     catches distinct hard links. Empty provenance names carry no input path.
     """
 
-    from gprMax.toolboxes.Utilities.output_paths import validate_output_path
-
     return validate_output_path(filename, input_filenames)
 
 
@@ -705,7 +704,8 @@ def write_sfcw_output(
         filename,
         (frequency_response.source.filename, frequency_response.receiver.filename),
     )
-    with h5py.File(path, "w") as output:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with atomic_output_path(path) as temporary, h5py.File(temporary, "w") as output:
         output.attrs["Format"] = "gprMax SFCW toolbox"
         output.attrs["Method"] = frequency_response.method
         output.attrs["SourcePath"] = frequency_response.source.path

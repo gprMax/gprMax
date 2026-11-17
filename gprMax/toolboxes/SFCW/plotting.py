@@ -12,7 +12,19 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .processing import FrequencyResponse, TimeResponse
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path
+from .processing import FrequencyResponse, TimeResponse, _validate_output_path
+
+
+def _resolve_plot_destination(destination, default_format=None):
+    """Return the final plot path and explicit Matplotlib format for a destination."""
+
+    destination = Path(destination)
+    plot_format = destination.suffix[1:].lower()
+    if not plot_format:
+        plot_format = (default_format or plt.rcParams["savefig.format"]).lower()
+        destination = destination.with_suffix(f".{plot_format}")
+    return destination, plot_format
 
 
 def plot_sfcw_result(
@@ -119,7 +131,20 @@ def plot_sfcw_result(
 
     fig.tight_layout()
     if output is not None:
-        fig.savefig(Path(output), dpi=200, bbox_inches="tight")
+        try:
+            destination, plot_format = _resolve_plot_destination(output)
+            destination = _validate_output_path(
+                destination,
+                (frequency_response.source.filename, frequency_response.receiver.filename),
+            )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            with atomic_output_path(destination) as temporary:
+                fig.savefig(temporary, format=plot_format, dpi=200, bbox_inches="tight")
+        except Exception:
+            plt.close(fig)
+            raise
     if show:
         plt.show()
+    else:
+        plt.close(fig)
     return fig
