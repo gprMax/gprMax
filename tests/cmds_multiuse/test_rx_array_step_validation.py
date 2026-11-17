@@ -217,11 +217,13 @@ SCALES = (
 # A step meant to be exactly one cell, with the round-off of the
 # supported input precisions: float64 one ULP below, and the largest
 # float32 strictly below the decimal spacing (its relative shortfall is
-# up to ~1.2e-7, the case that sits far outside a float64-only view).
+# up to ~1.2e-7, the case that sits far outside a float64-only view),
+# plus the exact tolerance edge, which must be accepted.
 ROUND_OFF_PROBES = (
     ("nextafter", lambda dl: np.nextafter(dl, 0.0)),
     ("float32_down", lambda dl: float(np.nextafter(np.float32(dl), np.float32(0)))),
     ("float32_cast", lambda dl: float(np.float32(dl))),
+    ("tol_edge", lambda dl: dl * (1 - 1e-6)),
 )
 
 
@@ -307,5 +309,57 @@ def test_genuinely_sub_cell_step_still_rejected(tmp_path):
             n=1,
             geometry_only=True,
             outputfile=tmp_path / "still_reject",
+            hide_progress_bars=True,
+        )
+
+
+@pytest.mark.parametrize("sign", (1, -1))
+@pytest.mark.parametrize("scale", SCALES, ids=lambda scale: scale[1])
+def test_step_noise_around_zero_behaves_as_zero(monkeypatch, tmp_path, scale, sign):
+    """Coordinate arithmetic leaves the same precision wobble around zero
+    (a difference of two same-cell coordinates can come out either sign),
+    so a step within the tolerance of zero is the documented zero marker:
+    per-cell stepping on a range and a single row on a singleton, exactly
+    as before validation ran on the raw step."""
+    dl = scale[0]
+    noise = sign * dl * 1e-9
+
+    scene, captured = _scaled_scene(dl, monkeypatch)
+    scene.add(
+        gprMax.RxArray(p1=(5 * dl, 5 * dl, 5 * dl), p2=(7 * dl, 5 * dl, 5 * dl), dl=(noise, 0, 0))
+    )
+    grid = _build(scene, monkeypatch, tmp_path, f"zero_noise_range_{scale[1]}_{sign}")
+    assert [rx.coord[0] for rx in grid.rxs] == [5, 6, 7]
+    assert all(rx.coord[1] == 5 and rx.coord[2] == 5 for rx in grid.rxs)
+
+    scene, captured = _scaled_scene(dl, monkeypatch)
+    scene.add(
+        gprMax.RxArray(p1=(5 * dl, 5 * dl, 5 * dl), p2=(5 * dl, 5 * dl, 5 * dl), dl=(noise, 0, 0))
+    )
+    grid = _build(scene, monkeypatch, tmp_path, f"zero_noise_singleton_{scale[1]}_{sign}")
+    assert [tuple(rx.coord) for rx in grid.rxs] == [(5, 5, 5)]
+
+
+@pytest.mark.parametrize("scale", ((1e-3, "millimetre"), (1e-6, "micrometre")))
+def test_negative_step_beyond_the_tolerance_still_rejected(tmp_path, scale):
+    """A step that is meaningfully negative (thousands of times the
+    round-off band) is a mistake, not noise, and raises."""
+    dl = scale[0]
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(22 * dl, 12 * dl, 12 * dl)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(iterations=1))
+    scene.add(
+        gprMax.RxArray(
+            p1=(5 * dl, 5 * dl, 5 * dl), p2=(7 * dl, 5 * dl, 5 * dl), dl=(-dl * 1e-3, 0, 0)
+        )
+    )
+    with pytest.raises(ValueError, match="step size should not be less than zero"):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / f"neg_reject_{scale[1]}",
             hide_progress_bars=True,
         )

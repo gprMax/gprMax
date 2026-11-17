@@ -4174,19 +4174,20 @@ class RxArray(GridUserObject):
                 f"{self.params_str()} the lower coordinates should be less than the upper coordinates."
             )
         raw_dl = np.asarray(self.dl)
-        if any(raw_dl < 0):
+        # Zero and the one-cell minimum carry a dimensionless tolerance
+        # sized to the precision of the smallest supported real input: a
+        # float32 spacing can land a full relative ULP (up to ~1.2e-7)
+        # away from its decimal value, and coordinate arithmetic leaves
+        # the same wobble around zero, so any step within 1e-6 of zero is
+        # the documented zero marker and any step within 1e-6 of the
+        # spacing is a one-cell step. Deliberate sub-cell or negative
+        # requests deviate by orders more and still raise at every grid
+        # scale.
+        tolerance = grid.dl * 1e-6
+        if any(raw_dl < -tolerance):
             raise ValueError(f"{self.params_str()} the step size should not be less than zero.")
-        # Rounding can shrink or erase a sub-cell step, so validate the
-        # requested value. Singleton axes resolve to one point whatever
-        # the non-negative step, and zero keeps its documented role. The
-        # one-cell minimum carries a dimensionless tolerance sized to the
-        # precision of the smallest supported real input: a float32
-        # spacing can land a full relative ULP (up to ~1.2e-7) below its
-        # decimal value, so 1e-6 accepts any supported-precision one-cell
-        # step, while a deliberate sub-cell request deviates by 1e-2 or
-        # more and still raises at every grid scale.
         if any(
-            (raw_dl > 0)
+            (raw_dl > tolerance)
             & (raw_dl < grid.dl * (1 - 1e-6))
             & (discretised_lower_point != discretised_upper_point)
         ):
