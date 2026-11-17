@@ -44,16 +44,16 @@ from types import SimpleNamespace
 import pytest
 
 from gprMax.hash_cmds_file import (
-    _read_input_file,
     check_cmd_names,
     get_user_objects,
     process_include_files,
     process_python_include_code,
 )
 from gprMax.user_objects.cmds_singleuse import Discretisation, Domain, TimeWindow
+from gprMax.utilities.input_io import read_input_text
 
 # ---------------------------------------------------------------------------
-# _read_input_file
+# read_input_text
 # ---------------------------------------------------------------------------
 
 
@@ -62,13 +62,13 @@ class TestReadInputFile:
         path = tmp_path / "bom.in"
         path.write_bytes(b"\xef\xbb\xbf#title: demo\n#domain: 0.1 0.1 0.1\n")
 
-        assert _read_input_file(path).startswith("#title: demo")
+        assert read_input_text(path).startswith("#title: demo")
 
     def test_bom_file_parses_through_the_front_door(self, tmp_path):
         path = tmp_path / "bom.in"
         path.write_bytes(b"\xef\xbb\xbf#title: demo\n#domain: 0.1 0.1 0.1\n")
 
-        with io.StringIO(_read_input_file(path)) as stream:
+        with io.StringIO(read_input_text(path)) as stream:
             commands = process_python_include_code(stream, {})
 
         assert commands == ["#title: demo\n", "#domain: 0.1 0.1 0.1\n"]
@@ -77,14 +77,14 @@ class TestReadInputFile:
         path = tmp_path / "utf8.in"
         path.write_text("#title: 中文模型\n#domain: 0.1 0.1 0.1\n", encoding="utf-8")
 
-        assert "中文模型" in _read_input_file(path)
+        assert "中文模型" in read_input_text(path)
 
     def test_non_utf8_file_is_rejected_with_a_clear_message(self, tmp_path):
         path = tmp_path / "gbk.in"
         path.write_bytes("#title: 中文\n".encode("gbk"))
 
         with pytest.raises(ValueError, match="not valid UTF-8"):
-            _read_input_file(path)
+            read_input_text(path)
 
 
 # ---------------------------------------------------------------------------

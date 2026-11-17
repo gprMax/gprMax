@@ -26,33 +26,9 @@ from .hash_cmds_geometry import process_geometrycmds
 from .hash_cmds_multiuse import process_multicmds
 from .hash_cmds_singleuse import process_singlecmds
 from .hash_includes import expand_include_lines
+from .utilities.input_io import read_input_text
 
 logger = logging.getLogger(__name__)
-
-
-def _read_input_file(filename):
-    """Read an input file as UTF-8, tolerating a byte-order mark.
-
-    gprMax input files are UTF-8, which is also the encoding used by
-    ``#include_file`` expansion. Reading with the process default encoding
-    made the result depend on the platform locale and left a UTF-8
-    byte-order mark attached to the first command, which was then silently
-    discarded.
-
-    Args:
-        filename: path to the input file.
-
-    Returns:
-        text: complete file contents without the byte-order mark.
-    """
-
-    try:
-        return Path(filename).read_text(encoding="utf-8-sig")
-    except UnicodeDecodeError as err:
-        raise ValueError(
-            f"Input file '{filename}' is not valid UTF-8. Re-save it as UTF-8; "
-            "a byte-order mark is allowed."
-        ) from err
 
 
 def process_python_include_code(inputfile, usernamespace):
@@ -450,7 +426,7 @@ def parse_hash_commands(scene):
         scene: Scene object.
     """
 
-    with StringIO(_read_input_file(config.sim_config.input_file_path)) as inputfile:
+    with StringIO(read_input_text(config.sim_config.input_file_path)) as inputfile:
         usernamespace = config.get_model_config().get_usernamespace()
 
         # Read input file and process any Python and include file commands

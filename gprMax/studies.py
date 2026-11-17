@@ -45,6 +45,8 @@ import h5py
 import numpy as np
 import numpy.typing as npt
 
+from gprMax.utilities.input_io import read_input_text
+
 logger = logging.getLogger(__name__)
 
 
@@ -161,7 +163,7 @@ class Study:
         """Read a sparse, wide study table from CSV."""
 
         path = Path(path).expanduser().resolve()
-        text = path.read_text(encoding="utf-8-sig")
+        text = read_input_text(path)
         reader = csv.DictReader(text.splitlines())
         if reader.fieldnames is None:
             raise ValueError(f"Study CSV '{path}' has no header row.")
@@ -1860,7 +1862,7 @@ class ArrayCodebook:
         """Load and strictly validate a versioned JSON array codebook."""
 
         path = Path(filename).expanduser().resolve()
-        text = path.read_text(encoding="utf-8")
+        text = read_input_text(path)
         try:
             definition = json.loads(text)
         except json.JSONDecodeError as exc:
