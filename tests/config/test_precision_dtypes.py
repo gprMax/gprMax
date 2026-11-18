@@ -299,7 +299,7 @@ class TestUnknownPrecision:
         sim_config = make_sim_config()
 
         sim_config.general["precision"] = "quadruple"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="not recognised"):
             sim_config._set_precision()
 
 

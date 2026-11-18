@@ -26,6 +26,7 @@ from .hash_cmds_geometry import process_geometrycmds
 from .hash_cmds_multiuse import process_multicmds
 from .hash_cmds_singleuse import process_singlecmds
 from .hash_includes import expand_include_lines
+from .utilities.input_io import read_input_text
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,9 @@ def process_python_include_code(inputfile, usernamespace):
                 pythoncode += inputlines[x] + "\n"
                 x += 1
             if x == len(inputlines):
-                raise SyntaxError("Cannot find the end of the Python code block: missing #end_python: command.")
+                raise SyntaxError(
+                    "Cannot find the end of the Python code block: missing #end_python: command."
+                )
             # Compile code for faster execution
             pythoncompiledcode = compile(pythoncode, "<string>", "exec")
             # Restore the caller's exact stream even if execution raises.
@@ -148,7 +151,7 @@ def write_processed_file(processedlines):
     parts = config.get_model_config().output_file_path.parts
     processedfile = Path(*parts[:-1], parts[-1] + "_processed.in")
 
-    with open(processedfile, "w") as f:
+    with open(processedfile, "w", encoding="utf-8") as f:
         for item in processedlines:
             f.write(f"{item}")
 
@@ -423,7 +426,7 @@ def parse_hash_commands(scene):
         scene: Scene object.
     """
 
-    with open(config.sim_config.input_file_path) as inputfile:
+    with StringIO(read_input_text(config.sim_config.input_file_path)) as inputfile:
         usernamespace = config.get_model_config().get_usernamespace()
 
         # Read input file and process any Python and include file commands
@@ -445,7 +448,9 @@ def parse_hash_commands(scene):
 
         expected_controls = getattr(config.sim_config.args, "_hash_preflight_controls", None)
         actual_controls = tuple(
-            line.strip() for line in processedlines if line.startswith(("#study:", "#array_codebook:"))
+            line.strip()
+            for line in processedlines
+            if line.startswith(("#study:", "#array_codebook:"))
         )
         if expected_controls is not None and actual_controls != expected_controls:
             raise ValueError(
@@ -454,7 +459,8 @@ def parse_hash_commands(scene):
             )
 
         user_objs = get_user_objects(
-            processedlines, checkessential=True,
+            processedlines,
+            checkessential=True,
             input_dir=config.sim_config.input_file_path.resolve().parent,
         )
         for user_obj in user_objs:
