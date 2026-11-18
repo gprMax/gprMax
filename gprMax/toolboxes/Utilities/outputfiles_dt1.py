@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import shutil
 import stat
 import struct
 import tempfile
@@ -283,11 +284,16 @@ def write_dt1(
     dt1_target = dt1_destination.resolve()
     hd_target = hd_destination.resolve()
 
-    with tempfile.TemporaryDirectory(
-        prefix=f".{dt1_target.name}.", dir=dt1_target.parent
-    ) as directory:
-        dt1_temporary = Path(directory) / dt1_target.name
-        hd_temporary = Path(directory) / hd_target.name
+    with (
+        tempfile.TemporaryDirectory(
+            prefix=f".{dt1_target.name}.", dir=dt1_target.parent
+        ) as dt1_directory,
+        tempfile.TemporaryDirectory(
+            prefix=f".{hd_target.name}.", dir=hd_target.parent
+        ) as hd_directory,
+    ):
+        dt1_temporary = Path(dt1_directory) / dt1_target.name
+        hd_temporary = Path(hd_directory) / hd_target.name
 
         with dt1_temporary.open("wb") as stream:
             for trace_number, (record, samples, position) in enumerate(
@@ -313,22 +319,37 @@ def write_dt1(
         if hd_target.exists():
             hd_temporary.chmod(stat.S_IMODE(hd_target.stat().st_mode))
 
-        dt1_existed = dt1_target.exists()
-        dt1_backup = Path(directory) / f"{dt1_target.name}.backup"
-        dt1_published = False
+        dt1_backup = None
+        if dt1_target.exists():
+            descriptor, backup_name = tempfile.mkstemp(
+                prefix=f".{dt1_target.name}.", suffix=".backup", dir=dt1_target.parent
+            )
+            os.close(descriptor)
+            dt1_backup = Path(backup_name)
+            try:
+                shutil.copy2(dt1_target, dt1_backup)
+            except BaseException:
+                dt1_backup.unlink(missing_ok=True)
+                raise
 
         try:
-            if dt1_existed:
-                os.replace(dt1_target, dt1_backup)
             os.replace(dt1_temporary, dt1_target)
-            dt1_published = True
             os.replace(hd_temporary, hd_target)
-        except Exception:
-            if dt1_existed and dt1_backup.exists():
-                os.replace(dt1_backup, dt1_target)
-            elif dt1_published and dt1_target.exists():
-                dt1_target.unlink()
+        except BaseException as error:
+            try:
+                if dt1_backup is not None:
+                    os.replace(dt1_backup, dt1_target)
+                else:
+                    dt1_target.unlink(missing_ok=True)
+            except OSError as rollback_error:
+                if dt1_backup is not None:
+                    error.add_note(
+                        f"Restoring the previous DT1 failed ({rollback_error}); "
+                        f"the original is preserved at {dt1_backup}"
+                    )
             raise
+        if dt1_backup is not None:
+            dt1_backup.unlink(missing_ok=True)
 
     return dt1_destination, hd_destination, count_scale
 

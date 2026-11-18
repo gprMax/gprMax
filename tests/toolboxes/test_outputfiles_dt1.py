@@ -324,3 +324,167 @@ def test_export_dt1_cleans_up_staged_destination_when_hd_publication_fails(tmp_p
 
     assert not dt1_file.exists()
     assert not hd_file.exists()
+
+
+def test_export_dt1_restores_original_on_keyboard_interrupt_during_publication(
+    tmp_path, monkeypatch
+):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+    previous_dt1 = b"existing dt1 content"
+    previous_hd = "existing hd content"
+    dt1_file.write_bytes(previous_dt1)
+    hd_file.write_text(previous_hd)
+
+    original_replace = os.replace
+
+    def interrupt_replace(src, dst):
+        if Path(dst).resolve() == hd_file.resolve():
+            raise KeyboardInterrupt
+        return original_replace(src, dst)
+
+    monkeypatch.setattr("os.replace", interrupt_replace)
+
+    with pytest.raises(KeyboardInterrupt):
+        export_dt1([filename], tmp_path / "survey", 1, "Ez", overwrite=True)
+
+    assert dt1_file.read_bytes() == previous_dt1
+    assert hd_file.read_text() == previous_hd
+    assert not list(tmp_path.glob(".survey.*"))
+
+
+def test_export_dt1_keeps_backup_when_publication_and_rollback_both_fail(tmp_path, monkeypatch):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+    previous_dt1 = b"existing dt1 content"
+    dt1_file.write_bytes(previous_dt1)
+    hd_file.write_text("existing hd content")
+
+    original_replace = os.replace
+
+    def fail_replace(src, dst):
+        if Path(dst).resolve() == hd_file.resolve():
+            raise OSError("injected hd publication failure")
+        if Path(src).name.endswith(".backup"):
+            raise OSError("injected rollback failure")
+        return original_replace(src, dst)
+
+    monkeypatch.setattr("os.replace", fail_replace)
+
+    with pytest.raises(OSError, match="injected hd publication failure") as error:
+        export_dt1([filename], tmp_path / "survey", 1, "Ez", overwrite=True)
+
+    backups = list(tmp_path.glob(".survey.DT1.*.backup"))
+    assert len(backups) == 1
+    assert backups[0].read_bytes() == previous_dt1
+    assert str(backups[0]) in "\n".join(error.value.__notes__)
+
+
+def test_export_dt1_stages_symlinked_targets_with_the_same_basename(tmp_path):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    dt1_directory = tmp_path / "a"
+    hd_directory = tmp_path / "b"
+    dt1_directory.mkdir()
+    hd_directory.mkdir()
+    (dt1_directory / "data").write_bytes(b"existing dt1 content")
+    (hd_directory / "data").write_text("existing hd content")
+    try:
+        (tmp_path / "survey.DT1").symlink_to(dt1_directory / "data")
+        (tmp_path / "survey.HD").symlink_to(hd_directory / "data")
+    except OSError:
+        pytest.skip("Filesystem does not support symbolic links")
+
+    export_dt1([filename], tmp_path / "survey", 1, "Ez", overwrite=True)
+
+    assert struct.unpack_from("<f", (dt1_directory / "data").read_bytes(), 0)[0] == 1
+    assert _hd_values(hd_directory / "data")["GPRMAX COMPONENT"] == "Ez"
+    assert (tmp_path / "survey.DT1").is_symlink()
+    assert (tmp_path / "survey.HD").is_symlink()
+    assert not list(dt1_directory.glob(".*"))
+    assert not list(hd_directory.glob(".*"))
+
+
+def test_export_dt1_restores_original_on_keyboard_interrupt_during_dt1_publication(
+    tmp_path, monkeypatch
+):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+    previous_dt1 = b"existing dt1 content"
+    previous_hd = "existing hd content"
+    dt1_file.write_bytes(previous_dt1)
+    hd_file.write_text(previous_hd)
+
+    original_replace = os.replace
+
+    def interrupt_replace(src, dst):
+        if Path(dst).resolve() == dt1_file.resolve() and not Path(src).name.endswith(".backup"):
+            raise KeyboardInterrupt
+        return original_replace(src, dst)
+
+    monkeypatch.setattr("os.replace", interrupt_replace)
+
+    with pytest.raises(KeyboardInterrupt):
+        export_dt1([filename], tmp_path / "survey", 1, "Ez", overwrite=True)
+
+    assert dt1_file.read_bytes() == previous_dt1
+    assert hd_file.read_text() == previous_hd
+    assert not list(tmp_path.glob(".survey.*"))
+
+
+def test_export_dt1_preserves_destination_on_keyboard_interrupt_during_write(tmp_path, monkeypatch):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+    previous_dt1 = b"existing dt1 content"
+    previous_hd = "existing hd content"
+    dt1_file.write_bytes(previous_dt1)
+    hd_file.write_text(previous_hd)
+
+    def interrupt_trace(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("gprMax.toolboxes.Utilities.outputfiles_dt1._trace_header", interrupt_trace)
+
+    with pytest.raises(KeyboardInterrupt):
+        export_dt1([filename], tmp_path / "survey", 1, "Ez", overwrite=True)
+
+    assert dt1_file.read_bytes() == previous_dt1
+    assert hd_file.read_text() == previous_hd
+    assert not list(tmp_path.glob(".survey.*"))
+
+
+def test_export_dt1_preserves_destination_when_backup_copy_fails(tmp_path, monkeypatch):
+    filename = tmp_path / "scan1.h5"
+    _write_output(filename)
+
+    dt1_file = tmp_path / "survey.DT1"
+    hd_file = tmp_path / "survey.HD"
+    previous_dt1 = b"existing dt1 content"
+    previous_hd = "existing hd content"
+    dt1_file.write_bytes(previous_dt1)
+    hd_file.write_text(previous_hd)
+
+    def fail_copy(*args, **kwargs):
+        raise OSError("injected backup failure")
+
+    monkeypatch.setattr("gprMax.toolboxes.Utilities.outputfiles_dt1.shutil.copy2", fail_copy)
+
+    with pytest.raises(OSError, match="injected backup failure"):
+        export_dt1([filename], tmp_path / "survey", 1, "Ez", overwrite=True)
+
+    assert dt1_file.read_bytes() == previous_dt1
+    assert hd_file.read_text() == previous_hd
+    assert not list(tmp_path.glob(".survey.*"))
