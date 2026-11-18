@@ -60,14 +60,14 @@ def _grid_3d():
     )
 
 
-def _validate(grid, background=FREE_SPACE, skip_axis=2):
+def _validate(grid, background=FREE_SPACE, skip_axis=2, projections=PROJECTIONS):
     validate_plane_wave_tfsf_background(
         grid,
         CORNERS,
         OWNED_LOWER,
         OWNED_UPPER,
         grid.materials[background],
-        PROJECTIONS,
+        projections,
         skip_axis,
     )
 
@@ -98,20 +98,33 @@ def test_a_material_fully_inside_the_box_is_accepted():
     _validate(grid)
 
 
-def test_a_rigid_component_on_the_boundary_is_rejected():
+def test_non_averaging_magnetic_components_on_a_homogeneous_boundary_are_accepted():
     grid = _grid()
+    grid.materials[FREE_SPACE].averagable = False
     grid.rigidH[2, 7, 3, 0] = 1  # Hy at the upper x face
 
-    with pytest.raises(ValueError, match="rigid"):
-        _validate(grid)
+    _validate(grid)
 
 
-def test_a_rigid_electric_component_on_the_boundary_is_rejected():
+def test_non_averaging_electric_components_on_a_homogeneous_boundary_are_accepted():
     grid = _grid()
+    grid.materials[FREE_SPACE].averagable = False
     grid.rigidE[8, 7, 3, 0] = 1  # Ez at the upper x face
 
-    with pytest.raises(ValueError, match="rigid"):
-        _validate(grid)
+    _validate(grid)
+
+
+def test_y_face_hz_correction_uses_the_ex_projection():
+    grid = _grid()
+    grid.ID[5, 3, 0, 0] = BLOCK  # Hz one cell outside the lower y face
+    projections = np.zeros(6)
+    projections[5] = 1.0  # Hz is live, but its y-face correction uses Ex.
+
+    _validate(grid, projections=projections)
+
+    projections[0] = 1.0
+    with pytest.raises(ValueError, match="block"):
+        _validate(grid, projections=projections)
 
 
 def test_a_different_material_at_the_adjacent_lower_face_node_is_rejected():

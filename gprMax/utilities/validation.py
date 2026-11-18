@@ -45,34 +45,6 @@ def _material_signature(material):
     return entry
 
 
-# Rigid component layers and neighbour offsets from get_rigid_* in
-# gprMax/cython/yee_cell_setget_rigid.pyx.
-_RIGID_OFFSETS = {
-    0: (("E", 0, 0, 0, 0), ("E", 1, 0, -1, 0), ("E", 3, 0, 0, -1), ("E", 2, 0, -1, -1)),
-    1: (("E", 4, 0, 0, 0), ("E", 7, -1, 0, 0), ("E", 5, 0, 0, -1), ("E", 6, -1, 0, -1)),
-    2: (("E", 8, 0, 0, 0), ("E", 9, -1, 0, 0), ("E", 11, 0, -1, 0), ("E", 10, -1, -1, 0)),
-    3: (("H", 0, 0, 0, 0), ("H", 1, -1, 0, 0)),
-    4: (("H", 2, 0, 0, 0), ("H", 3, 0, -1, 0)),
-    5: (("H", 4, 0, 0, 0), ("H", 5, 0, 0, -1)),
-}
-
-
-def _rigid_at(rigidE, rigidH, component, i, j, k):
-    """Whether the given Yee component is rigid at this node."""
-
-    for selector, layer, di, dj, dk in _RIGID_OFFSETS[component]:
-        array = rigidE if selector == "E" else rigidH
-        x, y, z = i + di, j + dj, k + dk
-        if (
-            0 <= x < array.shape[1]
-            and 0 <= y < array.shape[2]
-            and 0 <= z < array.shape[3]
-            and array[layer, x, y, z]
-        ):
-            return True
-    return False
-
-
 def _component_name(component):
     return ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz")[component]
 
@@ -96,19 +68,20 @@ def validate_plane_wave_tfsf_background(
     different material makes the incident-field injection inconsistent with
     the grid update and the model fails silently.
 
-    Component nodes and rigid flags follow the TFSF kernels in
-    ``gprMax/cython/plane_wave.pyx`` and ``yee_cell_setget_rigid.pyx``.
-    Materials are compared by electromagnetic properties, not by identifier:
-    a differently named material with the same properties is accepted.
+    Component nodes and incident projections follow the TFSF kernels in
+    ``gprMax/cython/plane_wave.pyx``. Materials are compared by electromagnetic
+    properties, not by identifier: a differently named material with the same
+    properties is accepted. Rigid flags alone do not imply PEC/PMC because
+    non-averaged dispersive materials also set them.
 
     Args:
-        grid: FDTD grid with ``ID``, ``materials``, ``rigidE`` and ``rigidH``.
+        grid: FDTD grid with ``ID`` and ``materials``.
         corners: local TFSF box corners ``[x0, y0, z0, x1, y1, z1]``.
         owned_lower: first local index owned by this rank.
         owned_upper: one past the last local index owned by this rank.
         background: declared background material of the plane wave.
-        projections: six field projections; zero marks a structurally dead
-            component in a 2D model.
+        projections: six incident field projections; zero disables every
+            correction that uses that incident component.
         skip_axis: invariant axis of a 2D model, or -1 in 3D.
         comm: MPI communicator, or None for a serial run.
 
@@ -137,46 +110,45 @@ def validate_plane_wave_tfsf_background(
         location = f"{_component_name(component)} at ({i}, {j}, {k})"
         if signature_of(material) != signature:
             return f"{location} uses material '{material.ID}'"
-        if _rigid_at(grid.rigidE, grid.rigidH, component, i, j, k):
-            return f"{location} is a rigid (PEC/PMC) component"
         return None
 
     # Active correction nodes and their adjacent staggered nodes, following
     # applyTFSFMagnetic/applyTFSFElectric in gprMax/cython/plane_wave.pyx.
-    # Each entry is (face axis, field node, adjacent node, component).
+    # Each entry is (face axis, field node, adjacent node, corrected component,
+    # incident component). The incident component multiplies the correction.
     face_specs = []
     if skip_axis != 0:
         face_specs += [
-            (0, x0 - 1, x0, 4),  # Hy
-            (0, x0 - 1, x0, 5),  # Hz
-            (0, x0, x0 - 1, 2),  # Ez
-            (0, x0, x0 - 1, 1),  # Ey
-            (0, x1, x1 + 1, 4),
-            (0, x1, x1 + 1, 5),
-            (0, x1, x1 + 1, 2),
-            (0, x1, x1 + 1, 1),
+            (0, x0 - 1, x0, 4, 2),  # Hy uses Ez
+            (0, x0 - 1, x0, 5, 1),  # Hz uses Ey
+            (0, x0, x0 - 1, 2, 4),  # Ez uses Hy
+            (0, x0, x0 - 1, 1, 5),  # Ey uses Hz
+            (0, x1, x1 + 1, 4, 2),
+            (0, x1, x1 + 1, 5, 1),
+            (0, x1, x1 + 1, 2, 4),
+            (0, x1, x1 + 1, 1, 5),
         ]
     if skip_axis != 1:
         face_specs += [
-            (1, y0 - 1, y0, 3),  # Hx
-            (1, y0 - 1, y0, 5),  # Hz
-            (1, y0, y0 - 1, 2),  # Ez
-            (1, y0, y0 - 1, 0),  # Ex
-            (1, y1, y1 + 1, 3),
-            (1, y1, y1 + 1, 5),
-            (1, y1, y1 + 1, 2),
-            (1, y1, y1 + 1, 0),
+            (1, y0 - 1, y0, 3, 2),  # Hx uses Ez
+            (1, y0 - 1, y0, 5, 0),  # Hz uses Ex
+            (1, y0, y0 - 1, 2, 3),  # Ez uses Hx
+            (1, y0, y0 - 1, 0, 5),  # Ex uses Hz
+            (1, y1, y1 + 1, 3, 2),
+            (1, y1, y1 + 1, 5, 0),
+            (1, y1, y1 + 1, 2, 3),
+            (1, y1, y1 + 1, 0, 5),
         ]
     if skip_axis != 2:
         face_specs += [
-            (2, z0 - 1, z0, 4),  # Hy
-            (2, z0 - 1, z0, 3),  # Hx
-            (2, z0, z0 - 1, 1),  # Ey
-            (2, z0, z0 - 1, 0),  # Ex
-            (2, z1, z1 + 1, 4),
-            (2, z1, z1 + 1, 3),
-            (2, z1, z1 + 1, 1),
-            (2, z1, z1 + 1, 0),
+            (2, z0 - 1, z0, 4, 0),  # Hy uses Ex
+            (2, z0 - 1, z0, 3, 1),  # Hx uses Ey
+            (2, z0, z0 - 1, 1, 3),  # Ey uses Hx
+            (2, z0, z0 - 1, 0, 4),  # Ex uses Hy
+            (2, z1, z1 + 1, 4, 0),
+            (2, z1, z1 + 1, 3, 1),
+            (2, z1, z1 + 1, 1, 3),
+            (2, z1, z1 + 1, 0, 4),
         ]
 
     def transverse_ranges(axis, component):
@@ -193,8 +165,8 @@ def validate_plane_wave_tfsf_background(
         return x0, x1 + 1, y0, y1  # Hx, Ex
 
     reason = None
-    for axis, node, adjacent, component in face_specs:
-        if projections[component] == 0:
+    for axis, node, adjacent, component, source in face_specs:
+        if projections[source] == 0:
             continue
         if not (lower[axis] <= node < upper[axis]):
             continue
