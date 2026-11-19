@@ -295,9 +295,10 @@ increase that allowance automatically on each retry. Increase
 
 Once the bank is aligned, automatic tracking evaluates the interpolated fields
 and propagation index against the staggered Maxwell equations at each active
-midpoint. The default warning threshold is 0.001. The diagnostic adds no
-eigensolves. Set ``midpoint_tolerance=0.001`` to refine intervals exceeding
-that threshold before time stepping. The ``mode_tracking/midpoint_residuals``
+midpoint. The diagnostic adds no eigensolves. ``midpoint_tolerance`` defaults
+to ``1e-3`` and controls when the diagnostic warns. Enable
+``midpoint_refinement`` to solve at midpoints that exceed this threshold
+before time stepping. The ``mode_tracking/midpoint_residuals``
 dataset gives the maximum tested residual in each interval between successive
 final anchors. NaN marks an interval with no eligible field or unavailable
 operator data. The group attributes ``MidpointResidualTolerance`` and

@@ -156,9 +156,12 @@ Thresholds must be finite and in ``(0, 1]``; ``extra_candidates`` and
    * - ``extra_candidates``
      - ``4``
      - Additional internal eigenpairs requested per solve, subject to solver size, to find competing branches or missing partners.
+   * - ``midpoint_refinement``
+     - ``False``
+     - When true, solve at midpoints that exceed ``midpoint_tolerance`` and repeat tracking within the shared budget. When false, report exceedances and retain the accepted anchors. Failed overlap matches can still request additional solves.
    * - ``midpoint_tolerance``
-     - Warn at ``0.001``
-     - Automatic tracking checks the midpoint Maxwell residual of each channel eligible at both ends of an interval. By default, a warning reports the largest exceedance and its frequency, and the accepted anchors are retained. Set ``midpoint_tolerance=0.001`` to solve at flagged midpoints and repeat tracking within the shared budget. An explicit numeric tolerance sets the refinement threshold. Failed overlap matches also request solves independently.
+     - ``1e-3``
+     - Midpoint Maxwell residual threshold for warnings and refinement. Automatic tracking checks channels eligible for excitation at both ends of the interval.
    * - ``max_depth``
      - ``8``
      - Maximum adaptive refinement steps for resolving identity or interpolation; ``0`` disables these extra frequency solves.
@@ -169,12 +172,16 @@ Thresholds must be finite and in ``(0, 1]``; ``extra_candidates`` and
      - ``200``
      - Budget for additional adaptive and verification solves per port. Required primary anchors are retained independently of this budget.
 
-For example, allow more internal candidates while retaining all other defaults:
+Enable midpoint refinement with the default tolerance through the port's
+``tracking_config`` argument:
 
 .. code-block:: python
 
-   tracking_config = gprMax.EigenmodeTrackingConfig(extra_candidates=6)
+   tracking_config = gprMax.EigenmodeTrackingConfig(midpoint_refinement=True)
    # Pass tracking="auto", tracking_config=tracking_config to EigenmodePort.
+
+Set ``midpoint_tolerance`` to override the threshold for both warnings and
+refinement.
 
 Compared with released 4.0.1, the general residual default increases from
 ``1e-8`` to ``1e-7``. Mixed-mode acceptance now uses this setting instead of
@@ -188,7 +195,7 @@ The equivalent hash options use the field names directly, without a
 
 .. code-block:: none
 
-   #eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto y tracking=auto verification=full extra_candidates=6
+   #eigenmode_port: 1 0.02 0.005 0 0.02 0.075 inf + 1,2 auto y tracking=auto verification=full midpoint_refinement=true midpoint_tolerance=1e-3
 
 How automatic tracking works
 ============================

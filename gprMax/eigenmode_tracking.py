@@ -1099,11 +1099,16 @@ def parse_port_options(tokens):
             "midpoint_tolerance": float,
             "max_solves": int,
         }
-        if key not in ("degenerate", "mode_polarizations", *scalar_options) or key in options:
+        if key not in ("degenerate", "mode_polarizations", "midpoint_refinement", *scalar_options) or key in options:
             raise ValueError(f"Unknown or repeated eigenmode port option {key!r}.")
         try:
             if key in scalar_options:
                 options[key] = scalar_options[key](value)
+            elif key == "midpoint_refinement":
+                value_lower = value.lower()
+                if value_lower not in ("true", "false"):
+                    raise ValueError("Expected true or false.")
+                options[key] = value_lower == "true"
             elif key == "degenerate":
                 options[key] = tuple(
                     tuple(int(v) for v in group.split(",")) for group in value.split(";")
@@ -1804,8 +1809,8 @@ def write_diagnostics(group, owner):
         )
         if "midpoint_residuals" in diagnostics:
             root["midpoint_residuals"] = diagnostics["midpoint_residuals"]
-            root.attrs["MidpointResidualTolerance"] = owner.tracking_config.midpoint_residual_limit
-            root.attrs["MidpointRefinementEnabled"] = owner.tracking_config.midpoint_tolerance is not None
+            root.attrs["MidpointResidualTolerance"] = owner.tracking_config.midpoint_tolerance
+            root.attrs["MidpointRefinementEnabled"] = owner.tracking_config.midpoint_refinement
         unresolved = diagnostics.get("unresolved_intervals", ())
         root["unresolved_interval_lower_frequency"] = np.asarray(
             [np.nan if item[0] is None else item[0] for item in unresolved], dtype=float

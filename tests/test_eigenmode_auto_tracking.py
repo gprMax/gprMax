@@ -115,8 +115,15 @@ def test_tracking_configuration_defaults_are_opt_in_safe():
     assert config.verification_overlap == 0.999
     assert config.max_depth == 8
     assert config.max_solves == 200
-    assert config.midpoint_tolerance is None
-    assert config.midpoint_residual_limit == 0.001
+    assert config.midpoint_refinement is False
+    assert config.midpoint_tolerance == 1e-3
+
+
+def test_midpoint_refinement_requires_a_boolean():
+    with pytest.raises(ValueError, match="midpoint_refinement must be a boolean"):
+        EigenmodeTrackingConfig(midpoint_refinement="false")
+    with pytest.raises(ValueError, match="Expected true or false"):
+        tracking_module.parse_port_options(("midpoint_refinement=maybe",))
 
 
 @pytest.mark.parametrize("interface", ("python", "hash"))
@@ -132,6 +139,8 @@ def test_tracking_selection_does_not_warn_at_port_setup(monkeypatch, caplog, int
     monkeypatch.setattr(config_module, "get_model_config", lambda: SimpleNamespace(mode="3D"))
     if interface == "python":
         options = {} if tracking is None else {"tracking": tracking}
+        if tracking == "auto":
+            options["tracking_config"] = {"midpoint_refinement": True, "midpoint_tolerance": 0.002}
         port = EigenmodePort(
             port=1, p1=(0, 0, 0.02), p2=(0.05, 0.05, 0.02),
             direction="+", modes=(1, 2), anchors="auto", **options,
@@ -141,6 +150,8 @@ def test_tracking_selection_does_not_warn_at_port_setup(monkeypatch, caplog, int
         commands["#eigenmode_band"] = ["band 6e9 14e9 3"]
         commands["#eigenmode_excitation"] = ["1 1 auto n"]
         tail = "" if tracking is None else f" tracking={tracking}"
+        if tracking == "auto":
+            tail += " midpoint_refinement=true midpoint_tolerance=0.002"
         commands["#eigenmode_port"] = [
             "1 0 0 0.02 0.05 0.05 0.02 + 1,2 auto" + tail
         ]
@@ -156,6 +167,9 @@ def test_tracking_selection_does_not_warn_at_port_setup(monkeypatch, caplog, int
     ]
     assert grid.eigenmodeportdefs[1].tracking == (tracking or "legacy")
     assert grid.eigenmodeportdefs[1].anchors == "auto"
+    tracking_config = grid.eigenmodeportdefs[1].tracking_config
+    assert tracking_config.midpoint_refinement is (tracking == "auto")
+    assert tracking_config.midpoint_tolerance == (0.002 if tracking == "auto" else 1e-3)
 
 
 @pytest.mark.parametrize("phase", (1.0, 1j))
@@ -233,10 +247,10 @@ def test_unbound_suspect_warns_without_discarding_anchor(monkeypatch):
     assert "remain in use" in warnings[0]
 
 
-@pytest.mark.parametrize("midpoint_limit", [None, 0.002])
-def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path, midpoint_limit):
+@pytest.mark.parametrize("refine", [False, True])
+def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path, refine):
     owner = _owner()
-    owner.tracking_config = EigenmodeTrackingConfig(midpoint_tolerance=midpoint_limit)
+    owner.tracking_config = EigenmodeTrackingConfig(midpoint_refinement=refine, midpoint_tolerance=0.002)
     owner.tracking = "auto"
     owner.verification = "fast"
     owner.degenerate_diagnostics = []
@@ -272,8 +286,8 @@ def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path, midpoint_lim
         assert tracking.attrs["GroupAssignmentPolicy"] == "projected_subgroups_v2"
         np.testing.assert_allclose(tracking["adaptive_frequencies"], (1.5,))
         np.testing.assert_allclose(tracking["midpoint_residuals"], (0.003, np.nan))
-        assert tracking.attrs["MidpointResidualTolerance"] == (0.001 if midpoint_limit is None else midpoint_limit)
-        assert tracking.attrs["MidpointRefinementEnabled"] == (midpoint_limit is not None)
+        assert tracking.attrs["MidpointResidualTolerance"] == 0.002
+        assert tracking.attrs["MidpointRefinementEnabled"] == refine
         assert "combined_residuals" in tracking
         assert "field_residuals" in tracking
         np.testing.assert_allclose(tracking["unresolved_interval_lower_frequency"], (1.25,))
@@ -292,8 +306,11 @@ def test_midpoint_residual_marks_untested_intervals():
     np.testing.assert_array_equal(source._midpoint_discrepancies(None, frequencies), [np.nan, np.nan])
 
 
-@pytest.mark.parametrize("midpoint_limit,initial_residual", [(None, 0.003), (None, 0.001), (0.001, 0.003)])
-def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch, caplog, midpoint_limit, initial_residual):
+@pytest.mark.parametrize(
+    "refine,midpoint_limit,initial_residual",
+    [(False, 0.002, 0.003), (False, 0.002, 0.002), (True, 0.001, 0.003)],
+)
+def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch, caplog, refine, midpoint_limit, initial_residual):
     """A receive-only second port must track before extracting its public bank."""
     receiver = object.__new__(EigenmodeReceiver)
     receiver.frequencies = (1.0, 2.0)
@@ -301,7 +318,9 @@ def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch, caplog, mi
     receiver.fallback_frequency = 1.5
     receiver.degenerate = ()
     receiver.tracking = "auto"
-    receiver.tracking_config = EigenmodeTrackingConfig(extra_candidates=0, midpoint_tolerance=midpoint_limit)
+    receiver.tracking_config = EigenmodeTrackingConfig(
+        extra_candidates=0, midpoint_refinement=refine, midpoint_tolerance=midpoint_limit
+    )
     receiver.mode_indices = (1, 2)
     receiver.mode_count = 2
     receiver.mode_polarizations = {}
@@ -375,10 +394,10 @@ def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch, caplog, mi
         "monitor_prepared": True,
     }
     assert receiver.tracking_diagnostics["requested_frequencies"].tolist() == [1.0, 2.0]
-    if midpoint_limit is None:
+    if not refine:
         assert checked == [(1.0, 2.0)]
         np.testing.assert_array_equal(receiver.tracking_diagnostics["midpoint_residuals"], [initial_residual])
-        assert ("at 1.5 Hz" in caplog.text) == (initial_residual > 0.001)
+        assert ("at 1.5 Hz" in caplog.text) == (initial_residual > midpoint_limit)
         assert not receiver.tracking_diagnostics["adaptive_frequencies"].size
     else:
         assert checked == [(1.0, 2.0), (1.0, 1.5, 2.0)]

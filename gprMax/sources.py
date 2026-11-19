@@ -1709,18 +1709,18 @@ class EigenmodeSource(Source):
                 self._prepare_port_anchor_bank(tuple(frequencies), tracked, mode_indices)
                 errors = self._midpoint_discrepancies(G, frequencies)
                 self.tracking_diagnostics["midpoint_residuals"] = errors
-                limit = config.midpoint_residual_limit
+                limit = config.midpoint_tolerance
                 failed = np.flatnonzero(errors > limit)
-                if failed.size and config.midpoint_tolerance is None and self.mpi_coordinator:
+                if failed.size and not config.midpoint_refinement and self.mpi_coordinator:
                     worst = failed[np.argmax(errors[failed])]
                     midpoint = (frequencies[worst] + frequencies[worst + 1]) / 2
                     logger.warning(
                         f"Eigenmode port {self.port_index}: midpoint Maxwell residual exceeds {limit:g} "
                         f"in {failed.size} interval(s), with a maximum of {errors[worst]:.4g} "
                         f"at {midpoint:g} Hz. Keeping the tracked anchors. Set "
-                        f"midpoint_tolerance={limit:g} to refine flagged intervals."
+                        "midpoint_refinement=true to refine flagged intervals."
                     )
-                if not failed.size or config.midpoint_tolerance is None:
+                if not failed.size or not config.midpoint_refinement:
                     self.tracking_diagnostics["adaptive_frequencies"] = np.asarray(adaptive, dtype=float)
                     self.tracking_diagnostics["requested_frequencies"] = np.asarray(requested, dtype=float)
                     self._tracking_extra_solves = len(adaptive)
@@ -1730,7 +1730,7 @@ class EigenmodeSource(Source):
                 failure = EigenmodeAnchorMismatchError(
                     f"Eigenmode interpolation for port {self.port_index} is unresolved between "
                     f"{low:g} and {high:g} Hz. The midpoint Maxwell residual "
-                    f"{errors[failed[0]]:.3g} exceeds {config.midpoint_tolerance:.3g}.",
+                    f"{errors[failed[0]]:.3g} exceeds {limit:.3g}.",
                     first_frequency=low, second_frequency=high, mode_index=mode_indices,
                     context=f"Eigenmode port {self.port_index} interpolation",
                 )
