@@ -81,7 +81,7 @@ table lists every ``EigenmodeTrackingConfig`` control.
      - Public channel indices, or a positive integer count. With automatic tracking these labels refer to the anchor nearest the band center, then follow the matched fields. Internal partners do not add public channels.
    * - ``anchors``
      - ``"auto"``
-     - Frequencies in Hz at which to solve the port. Accepts a positive frequency, an increasing sequence, or automatic selection. Tracking may add midpoint solves to resolve ambiguous associations.
+     - Frequencies in Hz at which to solve the port. Accepts a positive frequency, an increasing sequence, or automatic selection. Ambiguous assignments trigger midpoint solves. Interpolation warnings can also trigger solves when midpoint refinement is enabled.
    * - ``tracking``
      - ``"legacy"``
      - ``"auto"`` enables field assignment, group detection, automatic symmetry selection, and adaptive refinement. ``"legacy"`` retains ordering and manual grouping and skips symmetry selection. Automatic tracking is experimental.
@@ -156,12 +156,15 @@ Thresholds must be finite and in ``(0, 1]``; ``extra_candidates`` and
    * - ``extra_candidates``
      - ``4``
      - Additional internal eigenpairs requested per solve, subject to solver size, to find competing branches or missing partners.
+   * - ``midpoint_tolerance``
+     - Warn at ``0.001``
+     - Automatic tracking checks the midpoint Maxwell residual of each channel eligible at both ends of an interval. By default, a warning reports the largest exceedance and its frequency, and the accepted anchors are retained. Set ``midpoint_tolerance=0.001`` to solve at flagged midpoints and repeat tracking within the shared budget. An explicit numeric tolerance sets the refinement threshold. Failed overlap matches also request solves independently.
    * - ``max_depth``
      - ``8``
-     - Maximum adaptive midpoint-refinement steps for resolving identity ambiguity; ``0`` disables these extra frequency solves.
+     - Maximum adaptive refinement steps for resolving identity or interpolation; ``0`` disables these extra frequency solves.
    * - ``min_relative_step``
      - ``1e-5``
-     - Stop refining an ambiguous interval when its width divided by its midpoint frequency reaches this threshold.
+     - Stop refining an interval when its width divided by its midpoint frequency reaches this threshold.
    * - ``max_solves``
      - ``200``
      - Budget for additional adaptive and verification solves per port. Required primary anchors are retained independently of this budget.
@@ -226,8 +229,12 @@ rotate while their combined span stays unchanged.
    validity checks. The :ref:`step-by-step explanation
    <tracking-separation-explained>` below describes these decisions without
    requiring group theory or matrix algebra.
-5. **Check and use the bank.** Record identity, residual, propagation, power,
-   and boundary diagnostics separately. Eligible propagating fields supply
+5. **Check and use the bank.** Evaluate the staggered Maxwell residual of the
+   interpolated propagating fields at each interval midpoint. By default, a
+   residual above 0.001 raises a warning. With midpoint refinement enabled,
+   solve at the flagged midpoints and rebuild the bank within the same
+   refinement budget. Record identity, residual, propagation, power, and boundary
+   diagnostics separately. Eligible propagating fields supply
    excitation. Receiving references can also describe evanescent fields, with
    finite normalization and valid coefficient decomposition.
 

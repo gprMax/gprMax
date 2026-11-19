@@ -46,6 +46,13 @@ class EigenmodeTrackingConfig:
     min_relative_step: float = 1e-5
     max_solves: int = 200
     subspace_margin: float = 0.02
+    # An explicit tolerance enables eigensolves for flagged interpolation intervals.
+    midpoint_tolerance: float | None = None
+
+    @property
+    def midpoint_residual_limit(self) -> float:
+        """Threshold for the standard warning or the requested refinement."""
+        return 0.001 if self.midpoint_tolerance is None else self.midpoint_tolerance
 
     def __post_init__(self):
         unit_interval = (
@@ -60,6 +67,8 @@ class EigenmodeTrackingConfig:
             "cluster_gap",
             "min_relative_step",
         )
+        if self.midpoint_tolerance is not None:
+            unit_interval += ("midpoint_tolerance",)
         for name in unit_interval:
             value = float(getattr(self, name))
             if not np.isfinite(value) or value <= 0 or value > 1:

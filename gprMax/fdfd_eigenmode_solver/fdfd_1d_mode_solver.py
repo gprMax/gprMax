@@ -31,6 +31,7 @@ from gprMax.fdfd_eigenmode_solver.numerical_dispersion import (
     positive_finite,
     spatially_resolved,
 )
+from gprMax.fdfd_eigenmode_solver.residuals import eigenpair_residuals
 from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import FDFDSurfaceBoundary
 
 
@@ -349,7 +350,7 @@ class FDFD_1D_mode_solver:
         expanded[free_mask, :] = vectors
         return values, expanded
 
-    def solve(self):
+    def _assemble_mode_operators(self):
         if self.polarization == "TM":
             longitudinal_inverse = self._inverse_diag_on_free(self.mu_r_w, self.pmc_w_mask)
             operator = -self._diag(self.mu_r_t) @ (
@@ -364,17 +365,40 @@ class FDFD_1D_mode_solver:
             )
             free_scalar = ~self.pmc_a_mask
 
+        return operator, free_scalar, longitudinal_inverse
+
+    def trial_field_residuals(self, fields, operator_neff):
+        """Check a trial scalar field and its reconstruction without solving."""
+        operator, free, longitudinal_inverse = self._assemble_mode_operators()
+        primary, transverse, longitudinal = fields
+        if self.polarization == "TM":
+            transverse = self.eta0 * transverse
+            longitudinal = self.eta0 * longitudinal
+            expected_t = -operator_neff * primary / self.mu_r_t[:, None]
+            expected_z = 1j * (longitudinal_inverse @ (self.D_NODE_TO_CELL @ primary))
+        else:
+            primary = self.eta0 * primary
+            expected_t = operator_neff * primary / self.eps_r_t[:, None]
+            expected_z = -1j * (longitudinal_inverse @ (self.D_AMPERE @ primary))
+        residual = eigenpair_residuals(operator[free, :][:, free], primary[free], -operator_neff**2)
+        scale = np.linalg.norm(primary, axis=0) + np.linalg.norm(transverse, axis=0)
+        defects = [
+            np.linalg.norm(a - b, axis=0)
+            / np.maximum(np.linalg.norm(a, axis=0) + np.linalg.norm(b, axis=0), np.maximum(scale, 1e-300))
+            for a, b in ((transverse, expected_t), (longitudinal, expected_z))
+        ]
+        return np.maximum(residual, np.max(defects, axis=0))
+
+    def solve(self):
+        operator, free_scalar, longitudinal_inverse = self._assemble_mode_operators()
         self.operator = operator
         self.free_scalar_mask = free_scalar.copy()
         self.eigenvalues, self.eigenvectors = self._solve_reduced(operator, free_scalar)
         self.operator_neff = self._passive_positive_neff(-self.eigenvalues)
         if getattr(self, "calculate_diagnostics", False):
             reduced_vectors = self.eigenvectors[free_scalar, :]
-            applied = operator[free_scalar, :][:, free_scalar] @ reduced_vectors
-            target = reduced_vectors * self.eigenvalues[None, :]
-            denominator = np.linalg.norm(applied, axis=0) + np.linalg.norm(target, axis=0)
-            self.eigenpair_residuals = np.linalg.norm(applied - target, axis=0) / np.maximum(
-                denominator, 1e-300
+            self.eigenpair_residuals = eigenpair_residuals(
+                operator[free_scalar, :][:, free_scalar], reduced_vectors, self.eigenvalues
             )
             # The scalar formulation reconstructs the complementary fields by
             # direct application of the same discrete first-order operators.

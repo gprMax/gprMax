@@ -18,7 +18,7 @@ from gprMax.eigenmode_tracking import (
     track_solver_bank,
     write_diagnostics,
 )
-from gprMax.sources import EigenmodeReceiver
+from gprMax.sources import EigenmodeReceiver, EigenmodeSource
 
 
 def _solver(order=(0, 1), phase=(1.0, 1.0)):
@@ -115,6 +115,8 @@ def test_tracking_configuration_defaults_are_opt_in_safe():
     assert config.verification_overlap == 0.999
     assert config.max_depth == 8
     assert config.max_solves == 200
+    assert config.midpoint_tolerance is None
+    assert config.midpoint_residual_limit == 0.001
 
 
 @pytest.mark.parametrize("interface", ("python", "hash"))
@@ -231,8 +233,10 @@ def test_unbound_suspect_warns_without_discarding_anchor(monkeypatch):
     assert "remain in use" in warnings[0]
 
 
-def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path):
+@pytest.mark.parametrize("midpoint_limit", [None, 0.002])
+def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path, midpoint_limit):
     owner = _owner()
+    owner.tracking_config = EigenmodeTrackingConfig(midpoint_tolerance=midpoint_limit)
     owner.tracking = "auto"
     owner.verification = "fast"
     owner.degenerate_diagnostics = []
@@ -240,6 +244,7 @@ def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path):
     owner.tracking_diagnostics.update(
         requested_frequencies=np.asarray((1.0, 2.0)),
         adaptive_frequencies=np.asarray((1.5,)),
+        midpoint_residuals=np.asarray((0.003, np.nan)),
         verification_solve_count=0,
         unresolved_intervals=((1.25, 1.5, (2,)),),
         quality=(
@@ -266,6 +271,9 @@ def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path):
         assert tracking.attrs["Tracking"] == "auto"
         assert tracking.attrs["GroupAssignmentPolicy"] == "projected_subgroups_v2"
         np.testing.assert_allclose(tracking["adaptive_frequencies"], (1.5,))
+        np.testing.assert_allclose(tracking["midpoint_residuals"], (0.003, np.nan))
+        assert tracking.attrs["MidpointResidualTolerance"] == (0.001 if midpoint_limit is None else midpoint_limit)
+        assert tracking.attrs["MidpointRefinementEnabled"] == (midpoint_limit is not None)
         assert "combined_residuals" in tracking
         assert "field_residuals" in tracking
         np.testing.assert_allclose(tracking["unresolved_interval_lower_frequency"], (1.25,))
@@ -273,7 +281,19 @@ def test_tracking_diagnostics_are_versioned_and_persisted(tmp_path):
         assert tracking["anchor_quality/confinement"][0] == b"unbound_suspect"
 
 
-def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch):
+def test_midpoint_residual_marks_untested_intervals():
+    source = EigenmodeSource(None)
+    source.normal_axis, source.transverse_axes = 2, (0, 1)
+    frequencies = (1., 2., 3.)
+    source.port_anchor_operator_neff = np.ones((3, 1))
+    source.port_anchor_mode_valid = np.array([[True], [False], [True]])
+    assert np.isnan(source._midpoint_discrepancies(None, frequencies)).all()
+    source.port_anchor_operator_neff = None
+    np.testing.assert_array_equal(source._midpoint_discrepancies(None, frequencies), [np.nan, np.nan])
+
+
+@pytest.mark.parametrize("midpoint_limit,initial_residual", [(None, 0.003), (None, 0.001), (0.001, 0.003)])
+def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch, caplog, midpoint_limit, initial_residual):
     """A receive-only second port must track before extracting its public bank."""
     receiver = object.__new__(EigenmodeReceiver)
     receiver.frequencies = (1.0, 2.0)
@@ -281,13 +301,14 @@ def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch):
     receiver.fallback_frequency = 1.5
     receiver.degenerate = ()
     receiver.tracking = "auto"
-    receiver.tracking_config = EigenmodeTrackingConfig(extra_candidates=0)
+    receiver.tracking_config = EigenmodeTrackingConfig(extra_candidates=0, midpoint_tolerance=midpoint_limit)
     receiver.mode_indices = (1, 2)
     receiver.mode_count = 2
     receiver.mode_polarizations = {}
     receiver.normal_axis = 2
     receiver.invariant_axis = None
     receiver.port_index = 2
+    receiver.mpi_coordinator = True
     receiver.port_id = "port2"
     receiver.dft_start = 1.0
     receiver.dft_stop = 2.0
@@ -314,6 +335,15 @@ def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch):
         receiver.port_mode_solvers = tuple(solvers)
 
     receiver._prepare_port_anchor_bank = prepare
+    checked = []
+
+    def midpoint_discrepancies(grid, frequencies):
+        checked.append(tuple(frequencies))
+        if len(frequencies) == 2:
+            return np.array([initial_residual])
+        return np.array([0.0002, 0.0004])
+
+    receiver._midpoint_discrepancies = midpoint_discrepancies
     monkeypatch.setattr(
         config_module,
         "sim_config",
@@ -345,4 +375,13 @@ def test_passive_receiver_builds_automatic_tracking_bank(monkeypatch):
         "monitor_prepared": True,
     }
     assert receiver.tracking_diagnostics["requested_frequencies"].tolist() == [1.0, 2.0]
+    if midpoint_limit is None:
+        assert checked == [(1.0, 2.0)]
+        np.testing.assert_array_equal(receiver.tracking_diagnostics["midpoint_residuals"], [initial_residual])
+        assert ("at 1.5 Hz" in caplog.text) == (initial_residual > 0.001)
+        assert not receiver.tracking_diagnostics["adaptive_frequencies"].size
+    else:
+        assert checked == [(1.0, 2.0), (1.0, 1.5, 2.0)]
+        np.testing.assert_array_equal(receiver.tracking_diagnostics["adaptive_frequencies"], [1.5])
+        np.testing.assert_allclose(receiver.tracking_diagnostics["midpoint_residuals"], [0.0002, 0.0004])
     assert grid.eigenmodeports == [receiver.port_monitor]

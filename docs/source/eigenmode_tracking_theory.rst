@@ -293,6 +293,16 @@ assignment is reevaluated across the bank. The current algorithm does not
 increase that allowance automatically on each retry. Increase
 ``extra_candidates`` explicitly if inspection indicates missing candidates.
 
+Once the bank is aligned, automatic tracking evaluates the interpolated fields
+and propagation index against the staggered Maxwell equations at each active
+midpoint. The default warning threshold is 0.001. The diagnostic adds no
+eigensolves. Set ``midpoint_tolerance=0.001`` to refine intervals exceeding
+that threshold before time stepping. The ``mode_tracking/midpoint_residuals``
+dataset gives the maximum tested residual in each interval between successive
+final anchors. NaN marks an interval with no eligible field or unavailable
+operator data. The group attributes ``MidpointResidualTolerance`` and
+``MidpointRefinementEnabled`` record the threshold and refinement policy.
+
 For independently tracked modes, the assigned fields are phase-aligned before
 interpolation using their complex E/H overlap. Degenerate groups instead use
 the physical-direction or unitary transport rules below. Neither procedure
@@ -310,13 +320,29 @@ reduced eigenproblem :math:`Av=\lambda v`, the eigenpair residual is
 .. math::
 
    r_{\mathrm{eig}} =
-   \frac{\|Av-\lambda v\|_2}{\|Av\|_2+\|\lambda v\|_2}.
+   \frac{\|Av-\lambda v\|_2}
+        {\max(\|Av\|_2+\|\lambda v\|_2,\;10^{-2}\|v\|_2)}.
 
-The denominator is protected against zero. The reconstructed-field residual
-checks the discrete Maxwell equations with the solver's numerical-dispersion
-operators; the larger of the eigenpair and field residuals controls numerical
-validity. A small eigenpair residual alone does not establish a correct
-reconstructed E/H profile.
+The reduced eigenvalue is dimensionless. The denominator floor provides an
+absolute-defect scale per unit vector norm at cutoff, while the first term
+preserves the relative test away from cutoff. An exact zero eigenpair with a
+nonzero vector has zero residual. Zero vectors and nonfinite defects are
+assigned an infinite residual. Each mixed vector uses the same formula with
+its assigned eigenvalue.
+
+The full-vector solver reconstructs numerical-zero modes directly from the
+first-order transverse equations. It tests the eigenvalue and the
+unit-vector defect at zero against a roundoff scale based on the spectral
+shift and transverse Yee stencil. If the reduced nullspace has basis
+:math:`X`, the range of :math:`QX` gives the magnetic cutoff fields and
+the right nullspace of :math:`QX` gives the coefficients of the electric
+cutoff fields in :math:`X`. The magnetic fields retain the corresponding
+reduced preimages for eigenpair checks. The reconstructed-field residual
+checks the discrete Maxwell equations independently. The transverse field
+test uses the same floor on the combined electric and impedance-scaled
+magnetic norm. The larger of the two residuals controls numerical validity.
+A valid zero-root mode can be tracked through cutoff. Source eligibility
+still requires positive forward power.
 
 Full verification compares propagation constants and E/H fields against a refined
 transverse mesh and, for open cross-sections, windows padded by approximately

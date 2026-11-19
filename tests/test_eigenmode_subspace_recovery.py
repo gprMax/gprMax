@@ -3,9 +3,11 @@ from copy import deepcopy
 import h5py
 import numpy as np
 import pytest
+from scipy.constants import c
+from scipy.sparse import diags
 
 from gprMax.eigenmode_tracking import (
-    _recover_crossing_subspaces, solver_mode_residual, track_solver_bank, write_diagnostics,
+    _recover_crossing_subspaces, _residuals, solver_mode_residual, track_solver_bank, write_diagnostics,
 )
 from gprMax.sources import EigenmodeAnchorMismatchError
 from testing.eigenmode_support.subspaces.persistent_mode_groups import make_owner, make_solver, pair_crossing_bank, unitary
@@ -14,6 +16,46 @@ from testing.eigenmode_support.subspaces.persistent_mode_groups import make_owne
 def projector(a):
     q = np.linalg.qr(a)[0]
     return q @ q.conj().T
+
+
+@pytest.mark.parametrize("eigenvalue", (0., 1e-12, 0.1))
+@pytest.mark.parametrize("defect", (0., 1e-15, 1e-5))
+def test_scaled_absolute_defect_is_active_near_cutoff(eigenvalue, defect):
+    solver = make_solver([eigenvalue, eigenvalue, 1.])
+    applied = eigenvalue + defect
+    solver.operator = diags([applied, applied, 1.], format="csr")
+    rotation = np.array([[1., -1.], [1., 1.]]) / np.sqrt(2)
+
+    expected = (applied - eigenvalue) / max(applied + eigenvalue, 1e-2)
+    assert solver_mode_residual(solver, 0) == pytest.approx(expected, abs=1e-16)
+    np.testing.assert_allclose(_residuals(solver, (1, 2), rotation), expected, atol=1e-16)
+    assert np.isinf(_residuals(solver, (1, 2), np.zeros((2, 2)))).all()
+
+
+def test_square_guide_doublet_tracks_through_discrete_cutoff():
+    from testing.eigenmode_support.subspaces.expanded_mode_tracking import fd_solver
+    from testing.eigenmode_support.validate_fdfd_eigenmodes import _configured_solver_constants
+
+    spacing = 1e-3
+    cutoff = c * np.sin(np.pi / 20) / (np.pi * spacing)
+    frequencies = cutoff + np.array([-1e8, 0., 1e8])
+    with _configured_solver_constants():
+        bank = [fd_solver(f, (20, 20), spacing, (2., 2., 2.), count=16) for f in frequencies]
+        owner = make_owner(frequencies[-1])
+        owner._tracking_impedance = bank[0].eta0
+        track_solver_bank(owner, frequencies, bank, 12)
+
+    pair = slice(10, 12)
+    np.testing.assert_array_equal(bank[1].eigenvalues[pair], [0., 0.])
+    np.testing.assert_array_equal(bank[1].beta[pair], [0., 0.])
+    np.testing.assert_array_equal(
+        [solver.power_valid[pair] for solver in bank],
+        [[False, False], [False, False], [True, True]],
+    )
+    assert np.min(owner.tracking_diagnostics["overlaps"][:, pair]) > 0.99
+    assert np.max(owner.tracking_diagnostics["residuals"][1, pair]) < 1e-9
+    rotation = np.array([[1., -1.], [1., 1.]]) / np.sqrt(2)
+    assert np.max(_residuals(bank[1], (11, 12), rotation)) < 1e-9
 
 
 @pytest.mark.parametrize('reverse', [False, True])
