@@ -142,6 +142,73 @@ class TestBuildVoxelsFromArray:
         assert g.solid[6, 0, 0] == 1
         assert g.solid[7, 0, 0] == 2
 
+    @pytest.mark.parametrize("axis", range(3))
+    def test_block_placed_below_the_domain_is_clipped_not_shifted(self, grid_arrays, axis):
+        # The near-boundary mirror of the far-boundary truncation above: a
+        # 4-cell block placed two cells below the domain keeps the value
+        # identity of its in-domain part - file slices 2 and 3 land at
+        # cells 0 and 1 of the placed axis - so the block is clipped, not
+        # shifted onto the origin face.
+        g = grid_arrays()
+        shape = [1, 1, 1]
+        shape[axis] = 4
+        data = make_data(*shape)
+        for i in range(4):
+            index = [0, 0, 0]
+            index[axis] = i
+            data[tuple(index)] = i + 1
+        start = [0, 0, 0]
+        start[axis] = -2
+
+        build_voxels_from_array(
+            start[0],
+            start[1],
+            start[2],
+            0,
+            True,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
+
+        expected = {}
+        for cell_index, value in ((0, 3), (1, 4)):
+            cell = [0, 0, 0]
+            cell[axis] = cell_index
+            expected[tuple(cell)] = value
+        assert nonzero_set(g.solid) == set(expected)
+        for cell, value in expected.items():
+            assert g.solid[cell] == value
+
+    def test_block_entirely_below_the_domain_writes_nothing(self, grid_arrays):
+        # A 4-cell block spanning cells -6..-2 on an 8-cell domain has no
+        # in-domain part: nothing is written anywhere. Placing it must not
+        # wrap the block onto the origin face.
+        g = grid_arrays()
+        data = make_data(4, 1, 1, fill=5)
+
+        build_voxels_from_array(
+            -6,
+            0,
+            0,
+            0,
+            True,
+            _NON_PEC_LOOKUP,
+            _AVERAGABLE_LOOKUP,
+            data,
+            g.solid,
+            g.rigidE,
+            g.rigidH,
+            g.ID,
+        )
+
+        assert nonzero_set(g.solid) == set()
+        assert nonzero_set(g.ID) == set()
+
     def test_hard_write_stamps_id_with_the_offset_material(self, grid_arrays):
         g = grid_arrays()
         data = make_data(1, 1, 1, fill=5)
