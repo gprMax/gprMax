@@ -2089,7 +2089,7 @@ class MagneticFrillSource(GridUserObject):
         )
 
 
-def _dpw_tfsf_corners(uip, p1, p2, params_str):
+def _dpw_tfsf_corners(uip, p1, p2, params_str, is_axial=False):
     """Discretises and validates the TFSF box corners for a discrete plane
     wave, shared by all three #plane_wave_* builders.
 
@@ -2106,7 +2106,10 @@ def _dpw_tfsf_corners(uip, p1, p2, params_str):
     their meaning.
 
     Also enforces start < stop on the free (in-plane) axes - all three
-    axes in 3D.
+    axes in 3D - and, for the non-axial commands, that no free-axis face
+    lies on a domain boundary. The axial command is exempt: its auxiliary
+    1D grid is two-sided and its documented half-space models span the
+    domain.
 
     Returns:
         start, stop: discretised corner index arrays.
@@ -2163,6 +2166,35 @@ def _dpw_tfsf_corners(uip, p1, p2, params_str):
                 f"(got indices {start[ax]} and {stop[ax]})."
             )
             raise ValueError
+
+    # A box face on the domain boundary has no scattered-field region beyond
+    # it, and the correction at that face would write onto the wall plane
+    # while its 1D sample index looks one cell outside the domain projection,
+    # where the non-axial auxiliary grid has no cells. Axial waves keep a
+    # two-sided 1D grid with room beyond both faces, so they may span the
+    # domain.
+    if not is_axial:
+        global_size = np.asarray(
+            getattr(uip.grid, "global_size", (uip.grid.nx, uip.grid.ny, uip.grid.nz)),
+            dtype=np.int32,
+        )
+        for ax in range(3):
+            if is_2d and ax == inv:
+                continue
+            if start[ax] < 1 or stop[ax] > global_size[ax] - 1:
+                lower = start[ax] < 1
+                letter = "xyz"[ax]
+                face = f"{letter}0" if lower else f"{letter}max"
+                index = start[ax] if lower else stop[ax]
+                logger.exception(
+                    f"{params_str} the TFSF box must lie strictly inside the "
+                    f"domain: its {letter}-face at index {index} coincides "
+                    f"with the {face} domain boundary. Move the box at "
+                    f"least one cell inside on every axis, or use "
+                    f"#plane_wave_axial for normally incident waves that "
+                    f"fill or half-fill the domain."
+                )
+                raise ValueError
 
     return start, stop
 
@@ -2664,7 +2696,7 @@ class DiscretePlaneWaveAxial(GridUserObject):
             raise ValueError
 
         uip = self._create_uip(grid)
-        start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str())
+        start, stop = _dpw_tfsf_corners(uip, p1, p2, self.params_str(), is_axial=True)
 
         DPW = DiscretePlaneWaveUser(grid)
         DPW.corners = np.array([*start, *stop], dtype=np.int32)

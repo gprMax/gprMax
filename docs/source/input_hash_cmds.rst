@@ -2088,6 +2088,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 .. note::
 
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
+    * The TFSF box must lie strictly inside the model domain: no face may coincide with a domain boundary. Beyond such a face there is no scattered-field region and the auxiliary one-dimensional grid has no cells outside the domain projection, so the corrections there would be ill-defined. Use ``#plane_wave_axial`` for normally incident waves that fill or half-fill the domain; its box may span the domain.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * MPI domain decomposition is supported. Every rank advances an identical, small auxiliary one-dimensional DPW, while TFSF corrections are restricted to the Yee components owned by that rank. This adds no per-timestep plane-wave communication beyond the normal field-halo exchange.
     * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
@@ -2116,6 +2117,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 .. note::
 
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
+    * The TFSF box must lie strictly inside the model domain: no face may coincide with a domain boundary. Beyond such a face there is no scattered-field region and the auxiliary one-dimensional grid has no cells outside the domain projection, so the corrections there would be ill-defined. Use ``#plane_wave_axial`` for normally incident waves that fill or half-fill the domain; its box may span the domain.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * MPI domain decomposition is supported. Every rank advances an identical, small auxiliary one-dimensional DPW, while TFSF corrections are restricted to the Yee components owned by that rank. This adds no per-timestep plane-wave communication beyond the normal field-halo exchange.
     * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
@@ -2145,6 +2147,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
     * For simulations that do not involve half-space setups it is recommended to use either the ``#plane_wave_angles`` or ``#plane_wave_vector`` commands instead as the formulations are more efficient and faster if the background medium of propagation for the plane wave is homogeneous.
     * Plane waves support non-dispersive dielectric layers and multi-pole Debye, Lorentz, and Drude layers. They do not currently support ``user``-defined waveforms.
+    * The TFSF box may span the model domain: faces that coincide with domain boundaries are allowed (unlike ``#plane_wave_angles`` and ``#plane_wave_vector``, which require the box strictly inside the domain).
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
     * MPI domain decomposition is supported. The layered one-dimensional material profile is assembled collectively once during model construction using the actual electric, magnetic, and dispersive update-coefficient rows. The compact auxiliary profile is then replicated, and the timestep loop requires no plane-wave-specific MPI communication.
     * This plane wave implementation was based on an initial implementation made possible by a `Google Summer of Code <https://summerofcode.withgoogle.com/>`_ (GSoC) project and `more details can be found in the original pull request <https://github.com/gprMax/gprMax/pull/373>`_.
