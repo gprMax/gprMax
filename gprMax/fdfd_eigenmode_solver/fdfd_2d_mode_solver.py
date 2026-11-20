@@ -31,6 +31,7 @@ from gprMax.fdfd_eigenmode_solver.numerical_dispersion import (
     positive_finite,
     spatially_resolved,
 )
+from gprMax.fdfd_eigenmode_solver.residuals import eigenpair_residuals, normalized_defect
 from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     BoundaryAmpereRow,
     BoundaryMagneticTerm,
@@ -701,7 +702,7 @@ class FDFD_2D_mode_solver:
         )
         return P_reduced, Q_reduced, omega
 
-    def solve(self):
+    def _assemble_mode_operators(self):
         eps_uu_diag = self._diag(self.eps_r_uu)
         eps_vv_diag = self._diag(self.eps_r_vv)
         mu_uu_diag = self._diag(self.mu_r_uu)
@@ -722,46 +723,52 @@ class FDFD_2D_mode_solver:
         Q = bmat([[Q11, Q12], [Q21, Q22]], format="csr")
 
         P_reduced, Q_reduced, omega_matrix = self._reduce_transverse_operators(P, Q)
+        return (P_reduced, Q_reduced, eps_ww_inv, mu_ww_inv), omega_matrix
+
+    def solve(self):
+        field_operators, omega_matrix = self._assemble_mode_operators()
+        P_reduced, Q_reduced, eps_ww_inv, mu_ww_inv = field_operators
         if getattr(self, "retain_tracking_operator", False):
             self.mode_tracking_operator = omega_matrix
-            self.mode_tracking_field_operators = (P_reduced, Q_reduced, eps_ww_inv, mu_ww_inv)
+            self.mode_tracking_field_operators = field_operators
         eigenvalues, reduced_eigenvectors = self._solve_reduced(omega_matrix)
         eigenvectors = np.zeros((self.n_e_transverse, self.num_modes), dtype=np.complex128)
         eigenvectors[self.free_euv_mask, :] = reduced_eigenvectors
 
         self.eigenvalues = eigenvalues
         self.eigenvectors = eigenvectors
+        cutoff_h = self._prepare_cutoff_fields(omega_matrix, Q_reduced)
         self.operator_neff = self._passive_positive_neff(-self.eigenvalues)
 
+        self._calculate_fields(Q_reduced, eps_ww_inv, mu_ww_inv, cutoff_h)
         if getattr(self, "calculate_diagnostics", False):
-            applied = omega_matrix @ reduced_eigenvectors
-            target = reduced_eigenvectors * self.eigenvalues[None, :]
-            denominator = np.linalg.norm(applied, axis=0) + np.linalg.norm(target, axis=0)
-            self.eigenpair_residuals = np.linalg.norm(applied - target, axis=0) / np.maximum(
-                denominator, 1e-300
+            self.eigenpair_residuals = eigenpair_residuals(
+                omega_matrix, self.eigenvectors[self.free_euv_mask], self.eigenvalues
             )
+            electric, magnetic = self._transverse_field_columns()
             roots = 1j * self.operator_neff
-            reconstructed_h = Q_reduced @ self.eigenvectors / roots[None, :]
             # Include the static Faraday equations at PEC E samples, not just
             # the eigenproblem's free electric rows. PMC-paired rows are absent.
             faraday_rows = np.concatenate((
                 (self.surface_electric_retained[0] & ~self.pmc_v_mask).ravel(order="F"),
                 (self.surface_electric_retained[1] & ~self.pmc_u_mask).ravel(order="F"),
             ))
-            reconstructed_e = (P_reduced @ reconstructed_h)[faraday_rows, :]
-            field_target = self.eigenvectors[faraday_rows, :] * roots[None, :]
-            field_denominator = np.linalg.norm(reconstructed_e, axis=0) + np.linalg.norm(
-                field_target, axis=0
-            )
-            self.field_residuals = np.linalg.norm(
-                reconstructed_e - field_target, axis=0
-            ) / np.maximum(field_denominator, 1e-300)
+            reconstructed_e = (P_reduced @ magnetic)[faraday_rows, :]
+            field_target = (electric * roots)[faraday_rows, :]
+            field_norm = np.linalg.norm(electric, axis=0) + np.linalg.norm(magnetic, axis=0)
+            self.field_residuals = normalized_defect(reconstructed_e, field_target, field_norm)
+            if cutoff_h is not None:
+                cutoff = self.eigenvalues == 0
+                ampere_defect = normalized_defect(
+                    Q_reduced @ electric[:, cutoff], np.zeros_like(cutoff_h), field_norm[cutoff]
+                )
+                self.field_residuals[cutoff] = np.maximum(self.field_residuals[cutoff], ampere_defect)
 
-        self._calculate_fields(Q_reduced, eps_ww_inv, mu_ww_inv)
         self._orient_backward_modes_to_forward_power(
             Q_reduced,
             eps_ww_inv,
             mu_ww_inv,
+            cutoff_h,
         )
         wavenumber = self.operator_k0 * self.operator_neff
         self.beta = phase_propagation_constant(wavenumber, self.propagation_spacing)
@@ -772,20 +779,59 @@ class FDFD_2D_mode_solver:
         self._align_modes_for_real_profile_power()
         self._set_modal_fields()
 
-    def _calculate_fields(self, Q_reduced, eps_ww_inv, mu_ww_inv):
+    def _prepare_cutoff_fields(self, operator, q):
+        """Resolve the zero-root span into electric and magnetic cutoff fields."""
+        self._cutoff_magnetic_basis = None
+        stencil_scale = (self.operator_k0 * min(self.du, self.dv)) ** -2
+        roundoff = 32 * np.finfo(float).eps * max(1., abs(self.guess), stencil_scale)
+        candidates = np.flatnonzero(abs(self.eigenvalues) <= roundoff)
+        if not candidates.size:
+            return None
+        vectors = self.eigenvectors[:, candidates]
+        defect = np.linalg.norm(operator @ vectors[self.free_euv_mask], axis=0)
+        norms = np.linalg.norm(vectors, axis=0)
+        valid = (norms > 0) & (defect <= 8 * roundoff * norms)
+        if np.any(self.eigenvalues[candidates[~valid]] == 0):
+            raise ValueError("A zero-eigenvalue candidate fails the reduced cutoff defect check.")
+        cutoff = candidates[valid]
+        if not cutoff.size:
+            return None
+
+        # At zero root, Q E = 0 and P H = 0. Q maps the reduced nullspace
+        # of P Q to the magnetic solutions. Its nullspace within that span
+        # supplies the electric solutions, even for a mixed TE/TM return.
+        vectors, triangular = np.linalg.qr(self.eigenvectors[:, cutoff])
+        if np.linalg.matrix_rank(triangular) != cutoff.size:
+            raise ValueError("The reduced cutoff eigenvectors do not span the requested modes.")
+        image = q @ vectors
+        left, singular, right_h = np.linalg.svd(image, full_matrices=image.shape[0] < image.shape[1])
+        rank = np.count_nonzero(singular > 8 * roundoff)
+        vectors = vectors @ right_h.conj().T
+        vectors[:, :rank] /= singular[:rank]
+        self.eigenvectors[:, cutoff] = vectors
+        self.eigenvalues[cutoff] = 0
+        magnetic = np.zeros_like(image)
+        magnetic[:, :rank] = left[:, :rank]
+        self._cutoff_magnetic_basis = left[:, :rank], vectors[:, :rank]
+        return magnetic
+
+    def _calculate_fields(self, Q_reduced, eps_ww_inv, mu_ww_inv, cutoff_h):
         # eigenvalue = -operator_neff^2, so the branch consistent with
         # exp(+j*omega*t - j*beta*w) is sqrt(eigenvalue) = +j*operator_neff.
         # Reuse the selected propagation branch when reconstructing H.
         sqrt_eigenvalues = 1j * self.operator_neff
-        if np.any(np.abs(sqrt_eigenvalues) < 1e-300):
-            raise ValueError(
-                "Encountered a near-zero eigenvalue while reconstructing magnetic fields."
-            )
-        eigenvalues_inv = diags(1.0 / sqrt_eigenvalues, format="csr")
-
-        eu_flat = np.asarray(self.eigenvectors[: self.n_eu, :], dtype=np.complex128)
-        ev_flat = np.asarray(self.eigenvectors[self.n_eu :, :], dtype=np.complex128)
-        huv_reduced = Q_reduced @ self.eigenvectors @ eigenvalues_inv
+        cutoff = self.eigenvalues == 0
+        if np.any((sqrt_eigenvalues == 0) & ~cutoff):
+            raise ValueError("Propagation root vanished for a nonzero eigenvalue.")
+        inverse = np.divide(1., sqrt_eigenvalues, out=np.zeros_like(sqrt_eigenvalues), where=~cutoff)
+        electric = self.eigenvectors.copy()
+        huv_reduced = (Q_reduced @ electric) * inverse
+        if cutoff_h is not None:
+            magnetic_rank = self._cutoff_magnetic_basis[0].shape[1]
+            electric[:, np.flatnonzero(cutoff)[:magnetic_rank]] = 0.
+            huv_reduced[:, cutoff] = cutoff_h
+        eu_flat = electric[:self.n_eu]
+        ev_flat = electric[self.n_eu:]
         huv_flat = np.zeros((self.n_h_transverse, self.num_modes), dtype=np.complex128)
         huv_flat[self.free_huv_mask, :] = huv_reduced
         hu_norm = np.asarray(huv_flat[: self.n_hu, :], dtype=np.complex128)
@@ -823,15 +869,21 @@ class FDFD_2D_mode_solver:
 
     def tracking_field_residuals(self, indices):
         """Check all reconstructed E/H components after a tracking rotation."""
-        p, q, eps_inv, mu_inv = self.mode_tracking_field_operators
         indices = np.asarray(indices, dtype=int)
-        def columns(names):
-            return np.column_stack([np.concatenate([
-                getattr(self, name)[..., i].ravel(order="F") for name in names
-            ]) for i in indices])
-        electric = columns(("Eu", "Ev"))
-        magnetic = -1j * self.eta0 * columns(("Hu", "Hv"))
-        roots = 1j * self.operator_neff[indices]
+        fields = tuple(getattr(self, name)[..., indices] for name in ("Eu", "Ev", "Ew", "Hu", "Hv", "Hw"))
+        return self._field_residuals(fields, self.operator_neff[indices], self.mode_tracking_field_operators)
+
+    def trial_field_residuals(self, fields, operator_neff):
+        """Check trial native E/H fields at this frequency without an eigensolve."""
+        operators, _ = self._assemble_mode_operators()
+        return self._field_residuals(fields, operator_neff, operators)
+
+    def _field_residuals(self, fields, operator_neff, operators):
+        p, q, eps_inv, mu_inv = operators
+        roots = 1j * np.asarray(operator_neff)
+        eu, ev, ew, hu, hv, hw = (field.reshape(-1, roots.size, order="F") for field in fields)
+        electric = np.vstack((eu, ev))
+        magnetic = -1j * self.eta0 * np.vstack((hu, hv))
         e_rows = np.concatenate((
             (self.surface_electric_retained[0] & ~self.pmc_v_mask).ravel(order="F"),
             (self.surface_electric_retained[1] & ~self.pmc_u_mask).ravel(order="F"),
@@ -845,8 +897,8 @@ class FDFD_2D_mode_solver:
         pairs = (
             ((p @ magnetic[self.free_huv_mask])[e_rows], (electric * roots)[e_rows]),
             (q @ electric, (magnetic * roots)[self.free_huv_mask]),
-            (ez[ez_rows], columns(("Ew",))[ez_rows]),
-            (hz[hz_rows], (-1j * self.eta0 * columns(("Hw",)))[hz_rows]),
+            (ez[ez_rows], ew[ez_rows]),
+            (hz[hz_rows], (-1j * self.eta0 * hw)[hz_rows]),
         )
         # Use the full E/H scale for longitudinal equations: pure TE/TM
         # fields have a zero longitudinal component, not a singular residual.
@@ -854,6 +906,25 @@ class FDFD_2D_mode_solver:
         return np.max([np.linalg.norm(a-b, axis=0) / np.maximum(
             np.maximum(np.linalg.norm(a, axis=0) + np.linalg.norm(b, axis=0), scale), 1e-300
         ) for a, b in pairs], axis=0)
+
+    def _transverse_field_columns(self):
+        electric = np.vstack((self.Eu.reshape(self.n_eu, -1, order="F"),
+                              self.Ev.reshape(self.n_ev, -1, order="F")))
+        magnetic = -1j * self.eta0 * np.vstack((self.Hu.reshape(self.n_hu, -1, order="F"),
+                                                self.Hv.reshape(self.n_hv, -1, order="F")))
+        return electric, magnetic[self.free_huv_mask]
+
+    def tracking_reduced_vectors(self, indices):
+        """Map physical fields to reduced vectors, including magnetic cutoff states."""
+        electric = np.vstack((self.Eu.reshape(self.n_eu, -1, order="F")[:, indices],
+                              self.Ev.reshape(self.n_ev, -1, order="F")[:, indices]))
+        if self._cutoff_magnetic_basis is not None:
+            cutoff = self.eigenvalues[indices] == 0
+            if np.any(cutoff):
+                _, magnetic = self._transverse_field_columns()
+                basis, preimage = self._cutoff_magnetic_basis
+                electric[:, cutoff] += preimage @ (basis.conj().T @ magnetic[:, indices[cutoff]])
+        return electric
 
     def _set_modal_fields(self):
         self.modal_Eu = self.Eu[:, :, self.mode_index]
@@ -923,6 +994,7 @@ class FDFD_2D_mode_solver:
         Q_reduced,
         eps_ww_inv,
         mu_ww_inv,
+        cutoff_h,
     ):
         """Select the passive beta branch whose real power points forward.
 
@@ -949,7 +1021,7 @@ class FDFD_2D_mode_solver:
             return
 
         self.operator_neff[reverse] *= -1
-        self._calculate_fields(Q_reduced, eps_ww_inv, mu_ww_inv)
+        self._calculate_fields(Q_reduced, eps_ww_inv, mu_ww_inv, cutoff_h)
 
     def _real_profile_power_from_fields(self, eu_field, ev_field, hu_field, hv_field):
         eu = self._field_to_cells(np.real(eu_field), "u")

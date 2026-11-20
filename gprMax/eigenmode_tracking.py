@@ -14,6 +14,8 @@ from copy import copy, deepcopy
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from gprMax.fdfd_eigenmode_solver.residuals import eigenpair_residuals
+
 _CONDITION_LIMIT = 1e8
 _POLARIZATION_CONDITION_LIMIT = 10.0
 _DEGENERACY_TOLERANCE = 1e-8
@@ -61,13 +63,12 @@ def solver_mode_residual(solver, mode):
         vector = field[free, mode]
     else:
         return np.inf
-    target = np.asarray(solver.eigenvalues)[mode] * vector
-    applied = operator @ vector
-    denominator = np.linalg.norm(applied) + np.linalg.norm(target)
-    eigenpair = float(np.linalg.norm(applied - target) / max(float(denominator), 1e-300))
+    eigenpair = float(eigenpair_residuals(operator, vector, solver.eigenvalues[mode]))
     field_values = getattr(solver, "field_residuals", None)
-    field = eigenpair if field_values is None else np.asarray(field_values)[mode]
-    return max(eigenpair, float(field))
+    if field_values is None:
+        return eigenpair
+    field = float(field_values[mode])
+    return max(eigenpair, field) if np.isfinite(field) else np.inf
 
 
 def _clusters(values, gap):
@@ -384,7 +385,9 @@ def _recover_crossing_subspaces(solvers, frequencies, centre, impedance, config)
                         after = np.linalg.norm(_frame(*zip(*[
                             _solver_mode_fields(proposal, i) for i in group]), impedance), axis=0)
                         transform *= (after / before)[None, :]
-                    if hasattr(proposal, "Eu"):
+                    if hasattr(proposal, "tracking_reduced_vectors"):
+                        proposal.eigenvectors = proposal.tracking_reduced_vectors(np.arange(proposal.num_modes))
+                    elif hasattr(proposal, "Eu"):
                         proposal.eigenvectors = np.column_stack([
                             np.concatenate((proposal.Eu[..., i].ravel(order="F"),
                                             proposal.Ev[..., i].ravel(order="F")))
@@ -1093,13 +1096,19 @@ def parse_port_options(tokens):
             "extra_candidates": int,
             "max_depth": int,
             "min_relative_step": float,
+            "midpoint_tolerance": float,
             "max_solves": int,
         }
-        if key not in ("degenerate", "mode_polarizations", *scalar_options) or key in options:
+        if key not in ("degenerate", "mode_polarizations", "midpoint_refinement", *scalar_options) or key in options:
             raise ValueError(f"Unknown or repeated eigenmode port option {key!r}.")
         try:
             if key in scalar_options:
                 options[key] = scalar_options[key](value)
+            elif key == "midpoint_refinement":
+                value_lower = value.lower()
+                if value_lower not in ("true", "false"):
+                    raise ValueError("Expected true or false.")
+                options[key] = value_lower == "true"
             elif key == "degenerate":
                 options[key] = tuple(
                     tuple(int(v) for v in group.split(",")) for group in value.split(";")
@@ -1243,14 +1252,13 @@ def _residuals(solver, group, transform):
     indices = np.asarray(group) - 1
     operator = getattr(solver, "mode_tracking_operator", None)
     if operator is not None:
-        columns = np.column_stack(
-            [
-                np.concatenate(
-                    (solver.Eu[..., i].ravel(order="F"), solver.Ev[..., i].ravel(order="F"))
-                )
+        if hasattr(solver, "tracking_reduced_vectors"):
+            columns = solver.tracking_reduced_vectors(indices)[solver.free_euv_mask]
+        else:
+            columns = np.column_stack([
+                np.concatenate((solver.Eu[..., i].ravel(order="F"), solver.Ev[..., i].ravel(order="F")))
                 for i in indices
-            ]
-        )[solver.free_euv_mask]
+            ])[solver.free_euv_mask]
     else:
         operator = solver.operator
         free = solver.free_scalar_mask
@@ -1258,10 +1266,7 @@ def _residuals(solver, group, transform):
         field = solver.Ea if solver.polarization == "TM" else solver.Ha
         columns = field[free][:, indices]
     mixed = columns @ transform
-    applied = operator @ mixed
-    target = mixed * np.asarray(solver.eigenvalues)[indices]
-    denominator = np.linalg.norm(applied, axis=0) + np.linalg.norm(target, axis=0)
-    return np.linalg.norm(applied - target, axis=0) / np.maximum(denominator, 1e-300)
+    return eigenpair_residuals(operator, mixed, np.asarray(solver.eigenvalues)[indices])
 
 
 def align_groups(owner, grid, frequencies, solvers, mode_indices, anchor_e, anchor_h, propagating):
@@ -1802,6 +1807,10 @@ def write_diagnostics(group, owner):
         root["adaptive_frequencies"] = diagnostics.get(
             "adaptive_frequencies", np.empty(0, dtype=float)
         )
+        if "midpoint_residuals" in diagnostics:
+            root["midpoint_residuals"] = diagnostics["midpoint_residuals"]
+            root.attrs["MidpointResidualTolerance"] = owner.tracking_config.midpoint_tolerance
+            root.attrs["MidpointRefinementEnabled"] = owner.tracking_config.midpoint_refinement
         unresolved = diagnostics.get("unresolved_intervals", ())
         root["unresolved_interval_lower_frequency"] = np.asarray(
             [np.nan if item[0] is None else item[0] for item in unresolved], dtype=float
