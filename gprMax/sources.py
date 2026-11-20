@@ -61,6 +61,7 @@ from .cython.plane_wave import (
     updatePlaneWave_magnetic_axial,
 )
 from .utilities.utilities import round_value
+from .utilities.validation import validate_plane_wave_tfsf_background
 
 logger = logging.getLogger(__name__)
 
@@ -1882,8 +1883,9 @@ class EigenmodeSource(Source):
             fdtd_dt=G.dt,
             propagation_spacing=G.dl[self.normal_axis],
         )
-        solver.symmetry_origin = tuple(start * G.dl[axis]
-                                       for start, axis in zip(self.transverse_start, self.transverse_axes))
+        solver.symmetry_origin = tuple(
+            start * G.dl[axis] for start, axis in zip(self.transverse_start, self.transverse_axes)
+        )
         solver.retain_tracking_operator = bool(self.degenerate or self.tracking == "auto")
         solver.calculate_diagnostics = self.tracking == "auto"
         if self.tracking == "auto":
@@ -4817,7 +4819,6 @@ class MagneticFrillSource(Source):
         self._previous_half_current = current_new
 
 
-
 # ---------------------------------------------------------------------------
 # Termination of the 1D auxiliary DPW grid
 # ---------------------------------------------------------------------------
@@ -5442,6 +5443,24 @@ class DiscretePlaneWave(Source):
             raise ValueError
 
     def grid_init(self, G):
+        # A vector/angle DPW assumes a homogeneous background. Objects fully
+        # inside the box are allowed, but a boundary or adjacent staggered
+        # node that uses different electromagnetic properties injects the
+        # incident field inconsistently and fails silently. Each MPI rank
+        # checks its owned TFSF nodes and the results are combined, so
+        # internal rank seams are never treated as physical boundaries.
+        if self.axial == 0:
+            validate_plane_wave_tfsf_background(
+                G,
+                self.tfsf_corners,
+                self.tfsf_owned_lower,
+                self.tfsf_owned_upper,
+                self.material,
+                self.projections,
+                self.skip_axis,
+                comm=getattr(G, "comm", None),
+            )
+
         # Initialize the ID array for axial propagation problems only extending accordingly for the two PML regions
         if self.axial != 0:
             self.ID = np.zeros((6, self.length), dtype=np.uint32)  # 6 for the 6 field components
@@ -6784,8 +6803,10 @@ class DiscretePlaneWave(Source):
             return 0.0
         if self.termination == "legacy":
             Order = 4
-            return 0.8 * (Order + 1) / (
-                Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds
+            return (
+                0.8
+                * (Order + 1)
+                / (Z * np.sqrt(self.m[0] ** 2 + self.m[1] ** 2 + self.m[2] ** 2) * self.ds)
             )
         n = config.c / speed
         thickness = self.pml_length * abs(self.ds)
@@ -6851,8 +6872,10 @@ class DiscretePlaneWave(Source):
             start = self._dpw_sigma_max(self.materialPML0Z, self.PML0speed)
             self.pml_sigma_max = float(far)
             self.pml_sigma_max0 = float(start)
-            ends = [("", self._ripml_coefficients(G, far)),
-                    ("0", self._ripml_coefficients(G, start))]
+            ends = [
+                ("", self._ripml_coefficients(G, far)),
+                ("0", self._ripml_coefficients(G, start)),
+            ]
         for suffix, c in ends:
             setattr(self, "pml_rex" + suffix, c["ex"])
             setattr(self, "pml_rey" + suffix, c["ey"])
