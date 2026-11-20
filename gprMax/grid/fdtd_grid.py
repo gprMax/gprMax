@@ -1484,6 +1484,16 @@ class FDTDGrid:
                 coord = item.coordorigin + step_number * step_size
                 self.validate_point_source_position(item, coord)
                 item.coord = coord
+                # The ID auto-generated at build time (e.g. "Rx(40,85,0)")
+                # embeds the pre-step grid coordinate and is never touched
+                # again. A simple source has no user-naming option, so it
+                # is always regenerated here; a receiver's ID is only
+                # regenerated when it was itself auto-generated from
+                # position (name_kind == "generated" - absent entirely on
+                # sources, which default to the same "always auto-named"
+                # behaviour via getattr's fallback).
+                if getattr(item, "name_kind", "generated") == "generated":
+                    item.ID = f"{item.__class__.__name__}({coord[0]},{coord[1]},{coord[2]})"
 
     def update_simple_source_positions(self, step: int = 0) -> None:
         """Update the positions of sources in the grid.
