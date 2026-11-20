@@ -147,7 +147,7 @@ Binary distribution tests
 =========================
 
 The ``Binary distributions`` GitHub Actions workflow builds CPython
-3.11--3.13 wheels for Linux x86-64, Windows AMD64, macOS x86-64, and macOS
+3.11--3.14 wheels for Linux x86-64, Windows AMD64, macOS x86-64, and macOS
 ARM64. It also builds the source distribution. This is deliberately different
 from testing an editable source checkout: each repaired wheel is installed in
 an isolated environment before any test runs.

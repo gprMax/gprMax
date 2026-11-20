@@ -33,7 +33,7 @@ OPTIONAL_REQUIREMENTS = {
     "step": ("cadquery-ocp-novtk",),
 }
 
-SUPPORTED_PYTHON = ">=3.11,<3.14"
+SUPPORTED_PYTHON = ">=3.11,<3.15"
 
 
 def _normalised_requirements():
