@@ -59,6 +59,8 @@ from gprMax.user_objects.cmds_multiuse import (
 
 from .conftest import make_waveform
 
+INF = float("inf")
+
 # ---------------------------------------------------------------------------
 # ExcitationFile
 # ---------------------------------------------------------------------------
@@ -505,6 +507,20 @@ class TestRxArrayBoundsValidation:
         assert calls[0].args == (lower, a.params_str(), "lower")
         assert calls[1].args == (upper, a.params_str(), "upper")
         assert a.lower_point == lower and a.upper_point == upper
+
+    @pytest.mark.parametrize("step", [INF, float("nan")])
+    def test_non_finite_step_is_rejected(self, stub_grid, step):
+        """inf/nan used to crash in round_int before the step checks ran."""
+        a = RxArray(p1=(0.0, 0.0, 0.0), p2=(0.01, 0.0, 0.0), dl=(0.01, 0.0, step))
+        uip = MagicMock()
+        uip.resolve_inf_point.side_effect = lambda point, role=None: point
+        uip.check_src_rx_point.side_effect = [
+            (True, np.array([0, 0, 0])),
+            (True, np.array([10, 0, 0])),
+        ]
+        with patch.object(RxArray, "_create_uip", return_value=uip):
+            with pytest.raises(ValueError, match="the step size must be a finite value"):
+                a.build(stub_grid)
 
 
 # ---------------------------------------------------------------------------

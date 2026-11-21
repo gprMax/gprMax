@@ -117,3 +117,29 @@ def test_3d_geometry_view_with_inf_is_rejected(tmp_path):
             outputfile=tmp_path / "run_3d",
             hide_progress_bars=True,
         )
+
+
+@pytest.mark.parametrize("dl", [(1e-3, 1e-3, INF), (1e-3, float("nan"), 1e-3)])
+def test_non_finite_step_is_rejected(tmp_path, dl):
+    scene = _scene()
+    scene.add(gprMax.DomainMode(mode="TM"))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, INF)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(
+        gprMax.GeometryView(
+            p1=(0, 0, INF),
+            p2=(0.02, 0.02, INF),
+            dl=dl,
+            output_type="n",
+            filename=str(tmp_path / "gv_dl"),
+        )
+    )
+
+    with pytest.raises(ValueError, match="the step size must be a finite value"):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "run",
+            hide_progress_bars=True,
+        )

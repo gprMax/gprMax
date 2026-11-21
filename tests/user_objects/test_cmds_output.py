@@ -31,6 +31,8 @@ import pytest
 
 from gprMax.user_objects.cmds_output import GeometryObjectsWrite, GeometryView, Snapshot
 
+INF = float("inf")
+
 # ---------------------------------------------------------------------------
 # Snapshot
 # ---------------------------------------------------------------------------
@@ -150,6 +152,21 @@ class TestSnapshotBuildValidation:
         with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
                 s.build(stub_model, stub_grid)
+
+    @pytest.mark.parametrize("dl", [(1e-3, 1e-3, INF), (1e-3, float("nan"), 1e-3)])
+    def test_build_rejects_non_finite_dl(self, stub_model, stub_grid, dl):
+        # inf/nan used to crash in round_int before the step checks ran.
+        s = Snapshot(
+            p1=(0.0, 0.0, 0.0),
+            p2=(0.05, 0.05, 0.05),
+            dl=dl,
+            filename="x",
+            iterations=10,
+        )
+        with patch.object(Snapshot, "_create_uip", return_value=self._patch_uip()):
+            with pytest.raises(ValueError, match="the step size must be a finite value"):
+                s.build(stub_model, stub_grid)
+        stub_model.add_snapshot.assert_not_called()
 
     def test_build_accepts_zero_as_the_initial_electric_time_level(self, stub_model, stub_grid):
         s = Snapshot(
@@ -439,6 +456,14 @@ class TestGeometryView:
         with patch.object(GeometryView, "_create_uip", return_value=self._patch_uip()):
             with pytest.raises(ValueError):
                 g.build(stub_model, stub_grid)
+
+    @pytest.mark.parametrize("dl", [(1e-3, 1e-3, INF), (1e-3, float("nan"), 1e-3)])
+    def test_build_rejects_non_finite_dl(self, stub_model, stub_grid, dl):
+        g = self._make(dl=dl)
+        with patch.object(GeometryView, "_create_uip", return_value=self._patch_uip()):
+            with pytest.raises(ValueError, match="the step size must be a finite value"):
+                g.build(stub_model, stub_grid)
+        stub_model.add_geometry_view_voxels.assert_not_called()
 
     def test_build_fine_requires_dl_equals_one(self, stub_model, stub_grid):
         # output_type='f' requires every dl component == 1

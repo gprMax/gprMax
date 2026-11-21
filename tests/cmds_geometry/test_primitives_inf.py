@@ -20,9 +20,12 @@ primitives wired up alongside Box: Cylinder, Cone, Edge, Plate,
 Triangle, and GeometryObjectsRead's placement offset.
 
 Deliberately not covered here:
-  - Sphere, Ellipsoid: centre+radius shapes with no axis of constant
-    cross-section, so a centre snapped to a domain wall has no clean
-    "fill to the wall" meaning the way a Box/Cylinder's boundary does.
+  - Sphere and Ellipsoid: now wired for `inf` centres with the single-point
+    convention (interior layer on a 2D invariant axis, face snap on a 2D
+    transverse axis, clean rejection in 3D) - see
+    test_sphere_ellipsoid_inf.py. Their centres have no range/"fill to the
+    wall" semantics, which is why they are not in the Box/Cylinder-style
+    tests below.
   - CylindricalSector and fractal objects, which have dedicated test
     modules for their specialised 2D handling.
 

@@ -107,8 +107,18 @@ class Ellipsoid(GeometryUserObject):
                 logger.exception(f"{self.__str__()} no materials have been specified")
                 raise
 
-        # Centre of ellipsoid
+        # Centre of ellipsoid. Resolve any `inf` entry first, using the same
+        # single-point convention as #rx/#hertzian_dipole: on a 2D invariant
+        # axis it selects the interior reference layer, on a 2D transverse
+        # axis it snaps to the axis faces, and in 3D resolve_inf_point()
+        # raises the standard clean error. Anything still non-finite
+        # afterwards can only be NaN.
         uip = self._create_uip(grid)
+        p1 = uip.resolve_inf_point(p1)
+        if not all(np.isfinite(p1)):
+            message = f"{self.__str__()} the centre coordinates must be finite values."
+            logger.error(message)
+            raise ValueError(message)
         p2 = uip.round_to_grid_static_point(p1)
         xc, yc, zc = uip.discretise_point(p1)
 

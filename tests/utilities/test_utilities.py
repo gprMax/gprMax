@@ -242,9 +242,28 @@ class TestRoundInt:
         """
         assert round_int(np.float64(2.5)) == 2
 
+    @pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+    def test_non_finite_values_raise_a_clean_valueerror(self, value):
+        """``inf`` used to escape as a raw ``decimal.InvalidOperation`` and
+        ``nan`` as the bare "cannot convert NaN to integer" ``ValueError``.
+        Both now raise a ``ValueError`` naming the function and the offending
+        value. The decimal message text differs across Python versions, so
+        only the exception type and our own message are asserted."""
+        with pytest.raises(ValueError, match="round_int requires a finite value"):
+            round_int(value)
+
+    def test_the_rejection_message_names_the_value(self):
+        with pytest.raises(ValueError, match="got nan"):
+            round_int(float("nan"))
+
 
 class TestRoundFloat:
     """``round_float`` — truncation toward negative infinity."""
+
+    @pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan")])
+    def test_non_finite_values_raise_a_clean_valueerror(self, value):
+        with pytest.raises(ValueError, match="round_float requires a finite value"):
+            round_float(value, 2)
 
     @pytest.mark.parametrize(
         "value, places, expected",

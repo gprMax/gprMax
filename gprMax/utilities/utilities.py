@@ -155,8 +155,14 @@ def round_int(value: float) -> int:
 
     Returns:
         rounded: Rounded value.
+
+    Raises:
+        ValueError: If value is not finite (inf or NaN).
     """
-    return int(d.Decimal(float(value)).quantize(d.Decimal("1"), rounding=d.ROUND_HALF_DOWN))
+    number = float(value)
+    if not np.isfinite(number):
+        raise ValueError(f"round_int requires a finite value, got {value!r}")
+    return int(d.Decimal(number).quantize(d.Decimal("1"), rounding=d.ROUND_HALF_DOWN))
 
 
 def round_float(value: float, decimalplaces: int) -> float:
@@ -169,6 +175,9 @@ def round_float(value: float, decimalplaces: int) -> float:
 
     Returns:
         rounded: Rounded value.
+
+    Raises:
+        ValueError: If value is not finite (inf or NaN).
     """
     if (
         isinstance(decimalplaces, bool)
@@ -176,6 +185,8 @@ def round_float(value: float, decimalplaces: int) -> float:
         or decimalplaces < 0
     ):
         raise ValueError(f"decimalplaces must be a non-negative integer, got {decimalplaces!r}")
+    if not np.isfinite(value):
+        raise ValueError(f"round_float requires a finite value, got {value!r}")
     precision = f"1.{'0' * decimalplaces}"
     # str() first: Decimal(0.99) is 0.98999... and would floor to 0.98.
     return float(d.Decimal(str(value)).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
