@@ -50,9 +50,16 @@ class Sphere(GeometryUserObject):
     def hash(self):
         return "#sphere"
 
-    _allowed_kwargs = frozenset({
-        "averaging", "material_id", "material_ids", "p1", "r", "tag",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "material_id",
+            "material_ids",
+            "p1",
+            "r",
+            "tag",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

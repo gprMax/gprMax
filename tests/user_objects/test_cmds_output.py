@@ -165,9 +165,7 @@ class TestSnapshotBuildValidation:
 
         assert stub_model.add_snapshot.call_args.args[4] == 0
 
-    def test_build_rejects_the_unreachable_iteration_at_the_loop_bound(
-        self, stub_model, stub_grid
-    ):
+    def test_build_rejects_the_unreachable_iteration_at_the_loop_bound(self, stub_model, stub_grid):
         s = Snapshot(
             p1=(0, 0, 0),
             p2=(0.05, 0.05, 0.05),
@@ -207,9 +205,7 @@ class TestSnapshotBuildValidation:
         assert s.iterations == 10
         assert stub_model.add_snapshot.call_args.args[4] == 10
 
-    def test_half_timestep_maps_to_the_earlier_electric_timestep(
-        self, stub_model, stub_grid
-    ):
+    def test_half_timestep_maps_to_the_earlier_electric_timestep(self, stub_model, stub_grid):
         stub_grid.dt = 1e-12
         s = Snapshot(
             p1=(0, 0, 0),

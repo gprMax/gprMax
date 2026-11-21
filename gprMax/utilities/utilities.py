@@ -170,7 +170,11 @@ def round_float(value: float, decimalplaces: int) -> float:
     Returns:
         rounded: Rounded value.
     """
-    if isinstance(decimalplaces, bool) or not isinstance(decimalplaces, Integral) or decimalplaces < 0:
+    if (
+        isinstance(decimalplaces, bool)
+        or not isinstance(decimalplaces, Integral)
+        or decimalplaces < 0
+    ):
         raise ValueError(f"decimalplaces must be a non-negative integer, got {decimalplaces!r}")
     precision = f"1.{'0' * decimalplaces}"
     # str() first: Decimal(0.99) is 0.98999... and would floor to 0.98.

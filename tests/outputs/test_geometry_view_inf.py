@@ -50,10 +50,20 @@ def test_te_geometry_view_spans_full_invariant_thickness(tmp_path):
     outfile = tmp_path / "te_view"
     scene.add(
         gprMax.GeometryView(
-            p1=(0, 0, INF), p2=(0.02, 0.02, INF), dl=(1e-3, 1e-3, 1e-3), output_type="n", filename=str(outfile)
+            p1=(0, 0, INF),
+            p2=(0.02, 0.02, INF),
+            dl=(1e-3, 1e-3, 1e-3),
+            output_type="n",
+            filename=str(outfile),
         )
     )
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run_te", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run_te",
+        hide_progress_bars=True,
+    )
 
     with h5py.File(str(outfile) + ".vtkhdf") as h:
         assert h["VTKHDF/CellData/Material"].shape == (2, 20, 20)
@@ -67,10 +77,20 @@ def test_tm_geometry_view_spans_full_invariant_thickness(tmp_path):
     outfile = tmp_path / "tm_view"
     scene.add(
         gprMax.GeometryView(
-            p1=(0, 0, INF), p2=(0.02, 0.02, INF), dl=(1e-3, 1e-3, 1e-3), output_type="n", filename=str(outfile)
+            p1=(0, 0, INF),
+            p2=(0.02, 0.02, INF),
+            dl=(1e-3, 1e-3, 1e-3),
+            output_type="n",
+            filename=str(outfile),
         )
     )
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run_tm", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run_tm",
+        hide_progress_bars=True,
+    )
 
     with h5py.File(str(outfile) + ".vtkhdf") as h:
         assert h["VTKHDF/CellData/Material"].shape == (1, 20, 20)
@@ -90,4 +110,10 @@ def test_3d_geometry_view_with_inf_is_rejected(tmp_path):
     )
 
     with pytest.raises(ValueError, match="2D"):
-        gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run_3d", hide_progress_bars=True)
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "run_3d",
+            hide_progress_bars=True,
+        )
