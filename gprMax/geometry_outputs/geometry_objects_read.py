@@ -112,6 +112,28 @@ class ReadGeometryObject(AbstractContextManager):
         file_shape = np.array(data.shape, dtype=np.int32)
         stop = start + file_shape
 
+        # A file that misses the model domain entirely would otherwise be a
+        # silent no-op on the MPI ranks it does not overlap (and a shifted or
+        # wrapped write on the serial path). Global coordinates keep the
+        # verdict identical on every rank.
+        to_global = getattr(grid, "local_to_global_coordinate", None)
+        global_start = to_global(start) if to_global is not None else start
+        global_size = getattr(grid, "global_size", grid.size)
+        missed_axes = [
+            "xyz"[axis]
+            for axis in range(3)
+            if global_start[axis] >= global_size[axis] or global_start[axis] + file_shape[axis] <= 0
+        ]
+        if missed_axes:
+            filename = self.file_handler.filename
+            self.file_handler.close()
+            raise ValueError(
+                f"'{filename}' lies entirely outside the "
+                f"model domain along {' and '.join(missed_axes)}: the file "
+                "would not contribute any cells. Place the file so that at "
+                "least one of its cells intersects the domain on every axis."
+            )
+
         self.invariant_axis = invariant_axis
         self.file_invariant_size = (
             int(file_shape[invariant_axis]) if invariant_axis is not None else None
@@ -142,7 +164,49 @@ class ReadGeometryObject(AbstractContextManager):
                 self.grid_view = None
 
         else:
-            self.grid_view = GridView(grid, start[0], start[1], start[2], stop[0], stop[1], stop[2])
+            # Clip the placement to the model domain: the part of the file
+            # that lies outside is dropped, matching the far-boundary
+            # truncation build_voxels_from_array already applies, so the
+            # view's slices never hand numpy a negative or overhanging
+            # range. The read methods window the file arrays with the
+            # complementary slice (see _clip_serial_read()) so both sides
+            # of each assignment stay the same shape.
+            grid_size = np.asarray(grid.size, dtype=np.int32)
+            placed_start = np.maximum(start, 0)
+            placed_stop = np.minimum(stop, grid_size)
+            low_drop = placed_start - start
+            empty_axes = [
+                (axis, "xyz"[axis]) for axis in range(3) if placed_stop[axis] <= placed_start[axis]
+            ]
+            if empty_axes:
+                filename = self.file_handler.filename
+                self.file_handler.close()
+                axis, letter = empty_axes[0]
+                raise ValueError(
+                    f"'{filename}' placed at cell "
+                    f"{int(start[axis])} on its {letter} axis does not "
+                    f"intersect the model domain ({int(grid_size[axis])} "
+                    "cells on that axis); the file would not contribute any "
+                    "cells. Move the placement inside the domain."
+                )
+            placed_len = placed_stop - placed_start
+            self._serial_cell_file_window = tuple(
+                slice(int(low_drop[axis]), int(low_drop[axis] + placed_len[axis]))
+                for axis in range(3)
+            )
+            self._serial_edge_file_window = tuple(
+                slice(int(low_drop[axis]), int(low_drop[axis] + placed_len[axis] + 1))
+                for axis in range(3)
+            )
+            self.grid_view = GridView(
+                grid,
+                placed_start[0],
+                placed_start[1],
+                placed_start[2],
+                placed_stop[0],
+                placed_stop[1],
+                placed_stop[2],
+            )
 
     def _resize_cell_axis(self, array: npt.NDArray, spatial_axis_offset: int) -> npt.NDArray:
         """Broadcasts (1 -> N) or reduces (N -> target, taking the first layer)
@@ -273,12 +337,25 @@ class ReadGeometryObject(AbstractContextManager):
             if isinstance(self.grid_view, MPIGridView):
                 spatial = self.grid_view.get_3d_read_slice(upper_bound_exclusive=not edge_based)
                 return np.ascontiguousarray(array[(..., *spatial)])
-            return array
+            return self._clip_serial_read(array, edge_based)
 
         if isinstance(self.grid_view, MPIGridView):
             spatial = self.grid_view.get_3d_read_slice(upper_bound_exclusive=not edge_based)
             return np.ascontiguousarray(dataset[(..., *spatial)])
-        return dataset[:]
+        return self._clip_serial_read(dataset[:], edge_based)
+
+    def _clip_serial_read(self, array: npt.NDArray, edge_based: bool) -> npt.NDArray:
+        """Restrict a full serial file read to the placed (in-domain) extent.
+
+        The serial view is constructed already clipped to the domain, so the
+        file array must drop the rows that fall outside it - below the domain
+        on the low side, beyond it on the far side - to stay paired with the
+        assignment region the setters write. The invariant axis, when the
+        read was resized for 2D TM/TE conversion, carries the object's own
+        rows, so the same window applies after the resize.
+        """
+        window = self._serial_edge_file_window if edge_based else self._serial_cell_file_window
+        return np.ascontiguousarray(array[(..., *window)])
 
     def _get_assignment_region(
         self, array: npt.NDArray, *, edge_based: bool = False

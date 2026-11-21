@@ -58,7 +58,12 @@ def _capture_built_grid(monkeypatch):
     return captured
 
 
-def _write_geometry(tmp_path: Path, boxes: list[tuple[tuple, tuple, str]], custom_materials=()):
+def _write_geometry(
+    tmp_path: Path,
+    boxes: list[tuple[tuple, tuple, str]],
+    custom_materials=(),
+    write_p2=(0.02, 0.02, 0.02),
+):
     """Builds a small domain with the given (p1, p2, material_id) boxes and
     exports it via #geometry_objects_write. Returns (geofile, database file).
     """
@@ -76,9 +81,7 @@ def _write_geometry(tmp_path: Path, boxes: list[tuple[tuple, tuple, str]], custo
         scene.add(gprMax.Box(p1=p1, p2=p2, material_id=material_id))
 
     outdir = tmp_path / "write"
-    scene.add(
-        gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, 0.0), p2=(0.02, 0.02, 0.02), filename=str(outdir))
-    )
+    scene.add(gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, 0.0), p2=write_p2, filename=str(outdir)))
     gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=outdir, hide_progress_bars=True)
 
     return outdir.with_suffix(".h5"), Path(f"{outdir}_materials.json")
@@ -93,6 +96,7 @@ def _read_geometry_and_get_grid(
     averaging="n",
     custom_materials=(),
     imports=1,
+    p1=(0.0, 0.0, 0.0),
 ):
     dl = 1e-3
     scene = gprMax.Scene()
@@ -106,7 +110,7 @@ def _read_geometry_and_get_grid(
     for _ in range(imports):
         scene.add(
             gprMax.GeometryObjectsRead(
-                p1=(0.0, 0.0, 0.0),
+                p1=p1,
                 geofile=str(geofile),
                 material_database=database_file.stem,
                 averaging=averaging,
@@ -605,7 +609,11 @@ def test_converts_and_reads_genuinely_external_materials_file(tmp_path, monkeypa
     be real for this test.
     """
     matfile = (
-        Path(__file__).parents[2] / "gprMax" / "toolboxes" / "AustinManWoman" / "AustinManWoman_materials.txt"
+        Path(__file__).parents[2]
+        / "gprMax"
+        / "toolboxes"
+        / "AustinManWoman"
+        / "AustinManWoman_materials.txt"
     )
     assert matfile.exists()
 
@@ -674,3 +682,82 @@ def test_incomplete_materials_file_raises_clear_error(tmp_path, monkeypatch):
         del geometry["material_keys"]
     with pytest.raises(ValueError, match="only declares 1 material"):
         convert_geometry(geofile, incomplete_matfile, output_database=tmp_path / "incomplete.json")
+
+
+def test_a_negative_p1_imports_only_the_in_domain_part(tmp_path, monkeypatch):
+    """The toolboxes instruct negative placements: STLtoVoxel suggests p1 =
+    the file's origin, which is negative for any STL with negative
+    coordinates. The part of the file outside the domain must be dropped -
+    the same truncation the far boundary always had - instead of shifting
+    the whole object onto the origin face."""
+    dl = 1e-3
+    data = np.zeros((4, 4, 4), dtype=np.int16)  # index 0 = the declared dielectric
+    geofile = tmp_path / "negative_p1_voxels.h5"
+    with h5py.File(geofile, "w") as geometry:
+        geometry.attrs["dx_dy_dz"] = (dl, dl, dl)
+        geometry["/data"] = data
+    matfile = tmp_path / "negative_p1_materials.txt"
+    matfile.write_text("#material: 4 0 1 0 dielectric\n")
+    geofile, database = convert_geometry(geofile, matfile)
+
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
+    scene.add(gprMax.Domain(p1=(0.01, 0.01, 0.01)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(
+        gprMax.GeometryObjectsRead(
+            p1=(-0.002, -0.002, -0.002),
+            geofile=str(geofile),
+            material_database=database.stem,
+            averaging="n",
+        )
+    )
+    captured = _capture_built_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "negative_p1_voxel",
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+
+    die = next(m for m in grid.materials if m.ID.startswith("dielectric"))
+    occ = np.argwhere(grid.solid == die.numID)
+    assert occ.shape[0] == 2 * 2 * 2
+    assert all(occ[:, a].min() == 0 and occ[:, a].max() == 1 for a in range(3))
+
+
+def test_a_negative_p1_full_component_import_places_the_in_domain_part(tmp_path, monkeypatch):
+    """A #geometry_objects_write-style file (with /ID, /rigidE and /rigidH)
+    placed below the domain used to crash with an IndexError from numpy's
+    negative-start wrap-around."""
+    geofile, database = _write_geometry(
+        tmp_path,
+        boxes=[((0.0, 0.0, 0.0), (0.004, 0.004, 0.004), "dielectric")],
+        custom_materials=[gprMax.Material(er=4, se=0, mr=4, sm=0, id="dielectric")],
+        write_p2=(0.004, 0.004, 0.004),
+    )
+    grid = _read_geometry_and_get_grid(
+        tmp_path, geofile, database, monkeypatch, p1=(-0.002, -0.002, -0.002)
+    )
+
+    die = next(m for m in grid.materials if "dielectric" in m.ID)
+    occ = np.argwhere(grid.solid == die.numID)
+    assert occ.shape[0] == 2 * 2 * 2
+    assert all(occ[:, a].min() == 0 and occ[:, a].max() == 1 for a in range(3))
+
+
+def test_a_p1_that_misses_the_domain_fails_the_build(tmp_path, monkeypatch):
+    """A file entirely below the domain used to write its cells into the
+    middle of the grid through numpy's negative-start wrap-around, with no
+    error. It must fail the build with a clear message instead."""
+    geofile, database = _write_geometry(
+        tmp_path,
+        boxes=[((0.0, 0.0, 0.0), (0.004, 0.004, 0.004), "dielectric")],
+        custom_materials=[gprMax.Material(er=4, se=0, mr=4, sm=0, id="dielectric")],
+        write_p2=(0.004, 0.004, 0.004),
+    )
+    with pytest.raises(ValueError, match="lies entirely outside"):
+        _read_geometry_and_get_grid(tmp_path, geofile, database, monkeypatch, p1=(-0.005, 0.0, 0.0))

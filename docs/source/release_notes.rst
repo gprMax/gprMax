@@ -116,6 +116,18 @@ STLtoVoxel and geometry import
   (a 20 mm cube at 2 mm gave 1101 cells instead of 1000). Converted files
   therefore differ in cell count and grid shape; re-convert STL geometry used
   in existing models and place it with the printed ``p1``.
+* **``#geometry_objects_read`` clips placements outside the domain:** a file
+  placed with ``p1`` outside the model domain, which the toolboxes suggest
+  whenever the source model has negative coordinates, used to shift the whole
+  object onto the domain face (voxel-only files), crash with an
+  ``IndexError``, or silently write its cells into the middle of the grid
+  (files with ``/ID``, ``/rigidE`` and ``/rigidH``; a cube spanning
+  [-2, 2] mm at 1 mm placed at the printed origin wrote all 64 cells at the
+  origin face instead of the 8 inside the domain). The in-domain part is now
+  imported with its own values and the rest is dropped; a file that misses
+  the domain entirely on any axis is rejected with a clear error. Under MPI
+  such placements still abort during the build; that needs a separate fix in
+  the geometry view construction.
 * STLtoVoxel writes the grid origin as ``origin_xyz`` and prints the
   ``GeometryObjectsRead`` ``p1`` that keeps the STL coordinates. New options
   ``--rotate``, ``--rotate-about``, ``--scale``, ``--translate``,

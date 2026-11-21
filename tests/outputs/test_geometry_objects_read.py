@@ -373,6 +373,114 @@ class TestReadRigidAndId:
         assert g.rigidH[0, 0, 0, 0] == 2
 
 
+class TestClippedPlacement:
+    """A placement whose bounding box leaves the model domain.
+
+    The toolboxes instruct exactly this: STLtoVoxel/STEPtoVoxel print the
+    file's origin as the suggested ``p1``, and that origin is negative for
+    any model with negative coordinates. The part of the file outside the
+    domain is dropped - matching the far-boundary truncation the voxel
+    builder has always applied - and a file that misses the domain entirely
+    is an error rather than a wrapped or shifted write.
+    """
+
+    def test_the_view_is_clipped_to_the_domain(self, geometry_file, target_grid):
+        """Expects the view itself to carry the clipped extent, so every
+        slice it produces stays inside the grid's arrays."""
+        start = np.array([-2, -2, -2], dtype=np.int32)
+        with ReadGeometryObject(geometry_file(shape=(4, 4, 4)), target_grid(), start, ID_MAP) as r:
+            assert r.grid_view.start.tolist() == [0, 0, 0]
+            assert r.grid_view.stop.tolist() == [2, 2, 2]
+
+    def test_a_negative_start_clips_the_in_domain_part(self, geometry_file, target_grid):
+        """A 4-wide file placed two cells below the domain keeps the value
+        identity of its in-domain part: file slice 2 lands at grid cell 0,
+        and nothing is written beyond the object's true extent."""
+        g = target_grid()
+        start = np.array([-2, -2, -2], dtype=np.int32)
+        with ReadGeometryObject(geometry_file(shape=(4, 4, 4)), g, start, ID_MAP) as r:
+            r.read_data()
+        # /data holds arange, so file cell (2, 2, 2) carries 26.
+        assert g.solid[0, 0, 0] == 42  # file cell (2, 2, 2)
+        assert g.solid[1, 1, 1] == 63  # file cell (3, 3, 3)
+        assert int(np.count_nonzero(g.solid)) == 2 * 2 * 2
+        assert g.solid[2, 0, 0] == 0
+        assert g.solid[7, 7, 7] == 0
+
+    def test_a_negative_start_clips_the_id_array(self, geometry_file, target_grid):
+        """The node-centred ``ID`` planes follow the same clip: the file's
+        planes 2, 3 and 4 land on grid planes 0, 1 and 2 (the trailing edge
+        of the last placed cell), and plane 3 keeps its existing value."""
+        g = target_grid()
+        start = np.array([-2, -2, -2], dtype=np.int32)
+        with ReadGeometryObject(geometry_file(shape=(4, 4, 4)), g, start, ID_MAP) as r:
+            r.read_ID()
+        assert np.all(g.ID[:, :3, :3, :3] == 3)
+        assert np.all(g.ID[:, 3, :, :] == 0)
+
+    def test_rigid_arrays_follow_the_same_clip(self, geometry_file, target_grid):
+        g = target_grid()
+        start = np.array([-2, -2, -2], dtype=np.int32)
+        with ReadGeometryObject(geometry_file(shape=(4, 4, 4)), g, start, ID_MAP) as r:
+            r.read_rigidE()
+        assert np.all(g.rigidE[:, :2, :2, :2] == 1)
+        assert not np.any(g.rigidE[:, 2, :, :])
+
+    def test_get_data_and_local_start_are_clipped_together(self, geometry_file, target_grid):
+        """The voxel-builder contract: the first returned cell must pair with
+        the reported start, so ``build_voxels_from_array`` places the file's
+        in-domain slices at the domain edge rather than the origin face."""
+        g = target_grid()
+        start = np.array([-2, -2, -2], dtype=np.int32)
+        with ReadGeometryObject(geometry_file(shape=(4, 4, 4)), g, start, ID_MAP) as r:
+            data = r.get_data()
+            np.testing.assert_array_equal(r.get_local_data_start(), [0, 0, 0])
+        assert data.shape == (2, 2, 2)
+        assert data[0, 0, 0] == 42  # file cell (2, 2, 2), identity map
+
+    def test_an_overhanging_file_clips_at_the_far_boundary(self, geometry_file, target_grid):
+        """A file whose stop runs past the domain used to crash on the shape
+        mismatch between the full file read and the wrapped write region."""
+        g = target_grid()
+        start = np.array([6, 0, 0], dtype=np.int32)
+        with ReadGeometryObject(geometry_file(shape=(4, 4, 4)), g, start, ID_MAP) as r:
+            r.read_data()
+        assert g.solid[7, 0, 0] == 16  # file cell (1, 0, 0)
+        assert g.solid[6, 3, 3] == 15  # file cell (0, 3, 3)
+        # Only the two in-domain x-slices of the file are written, with
+        # their own values (/data is arange over the 4x4x4 block).
+        np.testing.assert_array_equal(g.solid[6:8, 0:4, 0:4], np.arange(2 * 4 * 4).reshape(2, 4, 4))
+        assert g.solid[5, 0, 0] == 0
+
+    def test_a_file_that_misses_the_domain_raises(self, geometry_file, target_grid):
+        """A file entirely below the domain used to write its cells into the
+        middle of the grid through numpy's negative-start wrap-around."""
+        g = target_grid()
+        start = np.array([-6, 0, 0], dtype=np.int32)
+        with pytest.raises(ValueError, match="lies entirely outside"):
+            with ReadGeometryObject(geometry_file(shape=(4, 4, 4)), g, start, ID_MAP) as r:
+                r.read_data()
+        assert not np.any(g.solid)
+
+    def test_a_2d_invariant_placement_outside_the_axis_raises(self, geometry_file, target_grid):
+        """In 2D the invariant axis carries the object's broadcast rows; a
+        placement below it has no in-domain row and must raise instead of
+        writing nothing."""
+        g = target_grid()
+        start = np.array([0, 0, -1], dtype=np.int32)
+        with pytest.raises(ValueError, match="does not"):
+            with ReadGeometryObject(
+                geometry_file(shape=(3, 3, 4)),
+                g,
+                start,
+                ID_MAP,
+                invariant_axis=2,
+                target_invariant_size=1,
+            ) as r:
+                r.read_data()
+        assert not np.any(g.solid)
+
+
 class TestRoundTrip:
     def test_an_exported_object_reads_back_unchanged(
         self, make_view_grid, null_pbar, target_grid, outputs_config
@@ -432,7 +540,9 @@ class TestMpiPaths:
             "rigidE": np.zeros((12, 8, 8, 8), dtype=np.int8),
             "rigidH": np.zeros((6, 8, 8, 8), dtype=np.int8),
         }
-        return make_mpi_grid(size=(8, 8, 8), negative_halo_offset=(0, 0, 0), arrays=arrays)
+        return make_mpi_grid(
+            size=(8, 8, 8), negative_halo_offset=(0, 0, 0), origin=(0, 0, 0), arrays=arrays
+        )
 
     @pytest.fixture
     def as_mpi_grid(self, overlapping_grid):

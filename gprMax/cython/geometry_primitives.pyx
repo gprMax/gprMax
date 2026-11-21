@@ -1654,6 +1654,7 @@ cpdef void build_voxels_from_array(
     # not a guarantee about numeric IDs on other MPI ranks. Public geometry
     # import validates/remaps its file indices first and passes offset zero.
     cdef Py_ssize_t i, j, k
+    cdef int x_src, y_src, z_src
     cdef int xf, yf, zf, numID
     cdef bint pec, voxel_averaging
     cdef int tag_itemsize = 0
@@ -1669,32 +1670,38 @@ cpdef void build_voxels_from_array(
         tag_itemsize = tag_array.itemsize
         tag_bytes = tag_array.view(np.uint8).reshape(-1)
 
-    # Set bounds to domain if they outside
+    # Clip the block to the domain: the part of the file that starts below
+    # the domain (negative placement) is dropped, not shifted, so the
+    # file-side index keeps the original placement while the write range
+    # begins at the domain edge. Matches the far-boundary truncation below.
+    x_src = xs
+    y_src = ys
+    z_src = zs
     if xs < 0:
         xs = 0
-    if xs + data.shape[0] > solid.shape[0]:
+    if x_src + data.shape[0] > solid.shape[0]:
         xf = solid.shape[0]
     else:
-        xf = xs + data.shape[0]
+        xf = x_src + data.shape[0]
 
     if ys < 0:
         ys = 0
-    if ys + data.shape[1] > solid.shape[1]:
+    if y_src + data.shape[1] > solid.shape[1]:
         yf = solid.shape[1]
     else:
-        yf = ys + data.shape[1]
+        yf = y_src + data.shape[1]
 
     if zs < 0:
         zs = 0
-    if zs + data.shape[2] > solid.shape[2]:
+    if z_src + data.shape[2] > solid.shape[2]:
         zf = solid.shape[2]
     else:
-        zf = zs + data.shape[2]
+        zf = z_src + data.shape[2]
 
     for i in range(xs, xf):
         for j in range(ys, yf):
             for k in range(zs, zf):
-                numID = data[i - xs, j - ys, k - zs]
+                numID = data[i - x_src, j - y_src, k - z_src]
                 if numID >= 0:
                     numID = numID + numexistmaterials
                     pec = is_pec_lookup[numID]
