@@ -57,6 +57,20 @@ Discrete plane waves
   -295 dB in double precision. Fixed on CPU/MPI, CUDA, OpenCL and Metal. The
   correction applies whatever the termination, including ``"legacy"``, so
   earlier results of affected models change. Re-run affected models.
+* ``#plane_wave_angles`` and ``#plane_wave_vector`` now reject TFSF boxes
+  whose face lies on a domain boundary, with a message naming the face. A
+  face on the boundary has no scattered-field region beyond it, and the
+  non-axial auxiliary 1D grid has no cells outside the domain projection:
+  the correction at such a face wrote onto the wall plane (its magnetic-side
+  partner is structurally skipped there) while sampling the 1D grid one cell
+  outside the buffer, since the kernels compile with bounds checking off.
+  Affected models previously built and produced silently wrong fields - in
+  test models, total-field amplitudes off by factors of 2.2 to 33 with the
+  incident wave leaking into the scattered-field region. Move the box at
+  least one cell inside on every axis, or use ``#plane_wave_axial`` for
+  normally incident waves that fill or half-fill the domain, whose box may
+  span the domain (its two-sided 1D grid keeps valid samples beyond both
+  faces).
 
 Subgrids
 --------
