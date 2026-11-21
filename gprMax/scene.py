@@ -168,6 +168,21 @@ class Scene:
                 )
                 raise ValueError
 
+        # Record declared symmetry faces on the grid before the single-use
+        # commands are built. SymmetryBoundary disables the PML on its face,
+        # but it is a grid object built in the later multi-use phase, so
+        # PMLThickness (single-use) must learn about the declaration here to
+        # validate the thickness the faces will actually have.
+        from gprMax.user_objects.cmds_multiuse import SymmetryBoundary
+
+        requested_symmetry_boundaries = {}
+        for obj in self.grid_objects:
+            if isinstance(obj, SymmetryBoundary):
+                face = obj.kwargs.get("face")
+                if face in SymmetryBoundary.VALID_FACES:
+                    requested_symmetry_boundaries[face] = obj.kwargs.get("type")
+        model.G.requested_symmetry_boundaries = requested_symmetry_boundaries
+
         self.build_model_objects(self._model_objects_with_sibc_timestep(), model)
 
     def _model_objects_with_sibc_timestep(self):

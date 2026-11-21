@@ -105,6 +105,14 @@ PMC symmetry boundaries and PML
   and late-time instability. Electric and magnetic corrections now include
   the required staggered boundary samples on CPU/MPI, CUDA, OpenCL and Metal;
   ordinary PMLs and internal MPI rank boundaries retain their existing extents.
+* ``#pml_cells`` now validates and stores the thickness of the faces that
+  carry PML. The invariant axis of a 2D model and faces with a declared
+  ``#symmetry_boundary`` carry none, so the documented single-value form
+  works in 2D models, requested invariant-axis cells are dropped with a
+  message, and a thickness that only overflows through a symmetry face is
+  accepted. Previously every 2D model raised "too many cells" for any
+  positive single value, and the only escape was the six-value form with
+  explicit zeros.
 
 STLtoVoxel and geometry import
 ------------------------------

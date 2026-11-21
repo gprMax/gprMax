@@ -157,6 +157,11 @@ class FDTDGrid:
         # PEC/PMC symmetry boundaries, keyed by domain face. Edge dispatch
         # is resolved once after geometry and material IDs are finalised.
         self.symmetry_boundaries: dict = {}
+        # Faces with a declared #symmetry_boundary, recorded by Scene before
+        # the single-use commands are built: SymmetryBoundary disables the
+        # PML on its face, but it is a grid object built after the single-use
+        # phase, so #pml_cells validation must see the declaration here.
+        self.requested_symmetry_boundaries: dict = {}
         self.symmetry_boundary_edges: list = []
         self.symmetry_boundary_edges_dispersive: list = []
         self.symmetry_boundary_edges_dispersive_b: list = []
@@ -1370,8 +1375,9 @@ class FDTDGrid:
         if self.eigenmodeportdefs and self.eigenmodeband is None:
             raise ValueError("Eigenmode ports require exactly one EigenmodeBand.")
         if self.eigenmodeportdefs and not self.eigenmodeexcitations:
-            if (not getattr(config.sim_config, 'geometry_only', False)
-                    and set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs)):
+            if not getattr(config.sim_config, "geometry_only", False) and set(
+                self.eigenmodeportdefs
+            ) != set(self.virtual_waveguide_specs):
                 raise ValueError(
                     "Eigenmode ports require at least one EigenmodeExcitation, unless "
                     "every port has a passive VirtualWaveguide or the run is geometry-only."
@@ -2040,9 +2046,7 @@ class FDTDGrid:
         # Preserve legacy CFL rounding so the updated helper doesn't change time steps.
         places = decimal.getcontext().prec - 1
         quantum = decimal.Decimal("1." + "0" * places)
-        self.dt = float(
-            decimal.Decimal(self.dt).quantize(quantum, rounding=decimal.ROUND_FLOOR)
-        )
+        self.dt = float(decimal.Decimal(self.dt).quantize(quantum, rounding=decimal.ROUND_FLOOR))
 
     def calculate_Ix(self, x: int, y: int, z: int) -> float:
         """Calculates the x-component of current at a grid position.
