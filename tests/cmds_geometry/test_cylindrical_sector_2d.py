@@ -202,13 +202,46 @@ def test_sector_negative_angle_rejected(tmp_path):
     scene = _base_scene()
     scene.add(_sector(start=-15))
     with pytest.raises(
-        ValueError, match="starting angle and sector angle should be positive values"
+        ValueError,
+        match="the starting angle must be non-negative and the sector angle must be positive",
     ):
         gprMax.run(
             scenes=[scene],
             n=1,
             geometry_only=True,
             outputfile=tmp_path / "neg_angle",
+            hide_progress_bars=True,
+        )
+
+
+def test_sector_zero_start_angle_accepted(monkeypatch, tmp_path):
+    scene = _base_scene()
+    scene.add(_sector(start=0))
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "zero_start",
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+    diel = next(m for m in grid.materials if m.ID == "diel")
+    assert np.sum(grid.solid == diel.numID) > 0
+
+
+def test_sector_zero_sector_angle_rejected(tmp_path):
+    scene = _base_scene()
+    scene.add(_sector(end=0))
+    with pytest.raises(
+        ValueError,
+        match="the starting angle must be non-negative and the sector angle must be positive",
+    ):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "zero_sector",
             hide_progress_bars=True,
         )
 

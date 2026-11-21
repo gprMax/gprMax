@@ -200,9 +200,7 @@ class CylindricalSector(GeometryUserObject):
             logger.error(message)
             raise ValueError(message)
         if sectorstartangle < 0 or sectorangle <= 0:
-            message = (
-                f"{self.__str__()} the starting angle and sector angle should be positive values."
-            )
+            message = f"{self.__str__()} the starting angle must be non-negative and the sector angle must be positive."
             logger.error(message)
             raise ValueError(message)
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
