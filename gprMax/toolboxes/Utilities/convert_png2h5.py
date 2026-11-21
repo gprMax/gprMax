@@ -39,10 +39,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from gprMax.material_database import make_database_id
-from gprMax.toolboxes.GeometryImport.common import (
-    write_geometry_hdf5,
-    write_null_material_database,
-)
+from gprMax.toolboxes.GeometryImport.common import write_geometry_hdf5, write_null_material_database
 from gprMax.toolboxes.Utilities.output_paths import validate_output_path
 
 logger = logging.getLogger(__name__)
@@ -132,7 +129,9 @@ def _validate_colours(
     for material in materials:
         colour = _to_uint8(np.asarray(material))
         if colour.shape != (channels,):
-            raise ValueError(f"selected colours must contain {channels} channels to match the PNG image")
+            raise ValueError(
+                f"selected colours must contain {channels} channels to match the PNG image"
+            )
         value = tuple(int(item) for item in colour)
         if value in colours:
             raise ValueError(f"material colour {value} was selected more than once")
@@ -178,9 +177,13 @@ def convert_png(
         mask = np.all(image_xy == np.asarray(colour, dtype=np.uint8), axis=-1)
         data[mask, :] = material_index
 
-    geometry_file = Path(output_file) if output_file is not None else source.with_suffix(".h5")
-    if geometry_file.suffix.lower() != ".h5":
-        geometry_file = geometry_file.with_suffix(".h5")
+    if output_file is not None:
+        base = Path(output_file)
+        if base.suffix.lower() in {".png", ".json", ".h5"}:
+            base = base.with_suffix("")
+        geometry_file = base.with_name(base.name + ".h5")
+    else:
+        geometry_file = source.with_suffix(".h5")
     geometry_file.parent.mkdir(parents=True, exist_ok=True)
     database_id = make_database_id(f"{geometry_file.stem}_materials", prefix="geometry")
     database_file = geometry_file.with_name(f"{database_id}.json")
