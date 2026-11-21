@@ -98,7 +98,9 @@ def test_convert_png_writes_current_geometry_and_json_material_schema(tmp_path):
         assert geometry.attrs["MaterialDatabaseSchemaVersion"] == 1
         assert geometry.attrs["dx_dy_dz"] == pytest.approx((0.001, 0.002, 0.003))
         assert tuple(geometry.attrs["shape_nxyz"]) == (3, 2, 2)
-        assert [value.decode() for value in geometry["material_keys"][:]] == list(result.material_keys)
+        assert [value.decode() for value in geometry["material_keys"][:]] == list(
+            result.material_keys
+        )
         expected_xy = np.asarray([[-1, 0], [0, 1], [1, -1]], dtype=np.int16)
         np.testing.assert_array_equal(geometry["data"][:, :, 0], expected_xy)
         np.testing.assert_array_equal(geometry["data"][:, :, 1], expected_xy)
@@ -157,7 +159,9 @@ def _capture_built_grid(monkeypatch):
 
 @pytest.mark.integration
 @pytest.mark.parametrize("averaging", ("n", "y"))
-def test_png_geometry_pair_round_trips_through_geometry_objects_read(tmp_path, monkeypatch, averaging):
+def test_png_geometry_pair_round_trips_through_geometry_objects_read(
+    tmp_path, monkeypatch, averaging
+):
     image = tmp_path / "layers.png"
     _png(image)
     result = convert_png(
@@ -292,3 +296,32 @@ def test_convert_png2h5_cli_rejects_non_finite_spacing(tmp_path, bad_val):
 
     with pytest.raises(SystemExit):
         main([str(image), bad_val, "0.001", "0.001"])
+
+
+@pytest.mark.parametrize(
+    ("output_name", "expected_file"),
+    [
+        ("survey.v2", "survey.v2.h5"),
+        ("survey.v2.h5", "survey.v2.h5"),
+        ("survey.v2.H5", "survey.v2.h5"),
+        ("antenna_1.5GHz", "antenna_1.5GHz.h5"),
+        ("model", "model.h5"),
+    ],
+)
+def test_convert_png_preserves_dotted_output_filename(tmp_path, output_name, expected_file):
+    image = tmp_path / "layers.png"
+    _png(image)
+    out = tmp_path / output_name
+
+    result = convert_png(
+        image,
+        (0.001, 0.001, 0.001),
+        ([255, 0, 0],),
+        zcells=1,
+        output_file=out,
+    )
+
+    assert result.geometry_file == tmp_path / expected_file
+    assert result.geometry_file.is_file()
+    assert result.material_database_file.is_file()
+    assert result.material_database_file.name == f"{result.material_database_id}.json"
