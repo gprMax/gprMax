@@ -546,17 +546,17 @@ class TestMaterial:
 
     def test_build_rejects_low_er(self, stub_grid):
         m = Material(er=0.5, se=0.0, mr=1.0, sm=0.0, id="x")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="one or greater for static"):
             m.build(stub_grid)
 
     def test_build_rejects_low_mr(self, stub_grid):
         m = Material(er=1.0, se=0.0, mr=0.5, sm=0.0, id="x")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="one or greater for magnetic"):
             m.build(stub_grid)
 
     def test_build_rejects_negative_sm(self, stub_grid):
         m = Material(er=1.0, se=0.0, mr=1.0, sm=-1.0, id="x")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="non-negative value for magnetic loss"):
             m.build(stub_grid)
 
     @pytest.mark.parametrize(
@@ -588,7 +588,7 @@ class TestMaterial:
         m1 = Material(er=2.0, se=0.0, mr=1.0, sm=0.0, id="dup")
         m1.build(stub_grid)
         m2 = Material(er=3.0, se=0.0, mr=1.0, sm=0.0, id="dup")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="already exists"):
             m2.build(stub_grid)
 
     def test_build_missing_kwarg_raises(self, stub_grid):
@@ -797,7 +797,7 @@ class TestSoilPeplinski:
             water_fraction_upper=0.25,
             id="soil1",
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="sum of the sand and clay fractions to not exceed 1"):
             soil.build(stub_grid)
 
     def test_build_rejects_bulk_density_exceeding_sand_density(self, stub_grid):
@@ -810,7 +810,7 @@ class TestSoilPeplinski:
             water_fraction_upper=0.25,
             id="soil1",
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="bulk density to be less than the sand"):
             soil.build(stub_grid)
 
     def test_build_rejects_zero_bulk_density(self, stub_grid):
@@ -823,7 +823,7 @@ class TestSoilPeplinski:
             water_fraction_upper=0.25,
             id="soil1",
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="positive value for the bulk density"):
             soil.build(stub_grid)
 
 
@@ -868,8 +868,14 @@ class TestMaterialRange:
         return MaterialRange(**values)
 
     def test_build_rejects_negative_upper_magnetic_loss(self, stub_grid):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="upper range of magnetic loss"):
             self._make(ro_upper=-0.1).build(stub_grid)
+
+    def test_build_rejects_duplicate_id(self, stub_grid):
+        m = self._make()
+        m.build(stub_grid)
+        with pytest.raises(ValueError, match="already exists"):
+            self._make().build(stub_grid)
 
     @pytest.mark.parametrize(
         "overrides",
@@ -893,6 +899,12 @@ class TestMaterialList:
     def test_constructor_stores_kwargs(self):
         m = MaterialList(list_of_materials=["m1", "m2"], id="list1")
         assert m.kwargs["list_of_materials"] == ["m1", "m2"]
+
+    def test_build_rejects_duplicate_id(self, stub_grid):
+        m = MaterialList(list_of_materials=["m1", "m2"], id="list1")
+        m.build(stub_grid)
+        with pytest.raises(ValueError, match="already exists"):
+            m.build(stub_grid)
 
 
 class TestMaterialListHash:
@@ -928,19 +940,25 @@ class TestMaterialCrim:
         assert material.hash == "#material_crim"
 
     @pytest.mark.parametrize(
-        "overrides",
+        "overrides,match",
         [
-            {"matrix_fraction": -0.1},
-            {"fraction_lower": -0.1},
-            {"fraction_lower": 0.4, "fraction_upper": 0.3},
-            {"matrix_fraction": 0.8, "fraction_upper": 0.3},
-            {"f_min": 0},
-            {"f_min": 2e9, "f_max": 1e9},
-            {"a": 0},
-            {"a": np.nan},
+            ({"matrix_fraction": -0.1}, "matrix fraction to be between 0 and 1"),
+            ({"fraction_lower": -0.1}, "lower limit of the dispersive volumetric fraction"),
+            (
+                {"fraction_lower": 0.4, "fraction_upper": 0.3},
+                "lower limit of the dispersive volumetric fraction to be less than or equal to the upper limit",
+            ),
+            (
+                {"matrix_fraction": 0.8, "fraction_upper": 0.3},
+                "matrix fraction plus the upper limit",
+            ),
+            ({"f_min": 0}, "positive values for f_min and f_max"),
+            ({"f_min": 2e9, "f_max": 1e9}, "f_min to be less than f_max"),
+            ({"a": 0}, "positive value for the shape factor"),
+            ({"a": np.nan}, "finite"),
         ],
     )
-    def test_build_rejects_invalid_parameters(self, stub_grid, overrides):
+    def test_build_rejects_invalid_parameters(self, stub_grid, overrides, match):
         kwargs = {
             "matrix_id": "sand",
             "matrix_fraction": 0.6,
@@ -954,7 +972,23 @@ class TestMaterialCrim:
         }
         kwargs.update(overrides)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=match):
+            MaterialCrim(**kwargs).build(stub_grid)
+
+    def test_build_rejects_duplicate_id(self, stub_grid):
+        kwargs = {
+            "matrix_id": "sand",
+            "matrix_fraction": 0.6,
+            "dispersive_id": "water",
+            "fraction_lower": 0.02,
+            "fraction_upper": 0.35,
+            "f_min": 1e6,
+            "f_max": 3e9,
+            "a": 0.5,
+            "id": "wetsand",
+        }
+        MaterialCrim(**kwargs).build(stub_grid)
+        with pytest.raises(ValueError, match="already exists"):
             MaterialCrim(**kwargs).build(stub_grid)
 
     def test_build_registers_mixing_model(self, stub_grid):

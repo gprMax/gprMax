@@ -63,10 +63,22 @@ class CylindricalSector(GeometryUserObject):
     def hash(self):
         return "#cylindrical_sector"
 
-    _allowed_kwargs = frozenset({
-        "averaging", "ctr1", "ctr2", "end", "extent1", "extent2", "material_id",
-        "material_ids", "normal", "r", "start", "tag",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "ctr1",
+            "ctr2",
+            "end",
+            "extent1",
+            "extent2",
+            "material_id",
+            "material_ids",
+            "normal",
+            "r",
+            "start",
+            "tag",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -86,8 +98,9 @@ class CylindricalSector(GeometryUserObject):
             raise
 
         if normal not in ["x", "y", "z"]:
-            logger.exception(f"{self.__str__()} the normal direction must be either x, y or z.")
-            raise ValueError
+            message = f"{self.__str__()} the normal direction must be either x, y or z."
+            logger.error(message)
+            raise ValueError(message)
 
         uip = self._create_uip(grid)
 
@@ -187,15 +200,15 @@ class CylindricalSector(GeometryUserObject):
             logger.error(message)
             raise ValueError(message)
         if sectorstartangle < 0 or sectorangle <= 0:
-            logger.exception(
-                f"{self.__str__()} the starting angle and sector angle should be a positive values."
+            message = (
+                f"{self.__str__()} the starting angle and sector angle should be positive values."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
-            logger.exception(
-                f"{self.__str__()} the starting angle and sector angle must be less than 360 degrees."
-            )
-            raise ValueError
+            message = f"{self.__str__()} the starting angle and sector angle must be less than 360 degrees."
+            logger.error(message)
+            raise ValueError(message)
 
         materials = resolve_geometry_materials(
             grid,

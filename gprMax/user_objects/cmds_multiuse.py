@@ -4323,35 +4323,34 @@ class Material(GridUserObject):
             ) from exc
 
         if not np.isfinite(er) or er < 1:
-            logger.exception(
-                f"{self.params_str()} requires a finite value of one or greater for static (DC) permittivity."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires a finite value of one or greater for static (DC) permittivity."
+            logger.error(message)
+            raise ValueError(message)
         # Positive infinity is the documented representation of a PEC.
         if np.isnan(se) or se < 0:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a non-negative value for electric conductivity."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if not np.isfinite(mr) or mr < 1:
-            logger.exception(
-                f"{self.params_str()} requires a finite value of one or greater for magnetic permeability."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires a finite value of one or greater for magnetic permeability."
+            logger.error(message)
+            raise ValueError(message)
         # Positive infinity is the documented representation of a PMC.
         if np.isnan(sm) or sm < 0:
-            logger.exception(
-                f"{self.params_str()} requires a non-negative value for magnetic loss."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires a non-negative value for magnetic loss."
+            logger.error(message)
+            raise ValueError(message)
 
         if (
             is_reserved_impedance_id(material_id)
             or any(x.ID == material_id for x in grid.materials)
             or material_id in getattr(grid, "surface_impedance_models", {})
         ):
-            logger.exception(f"{self.params_str()} with ID {material_id} already exists")
-            raise ValueError
+            message = f"{self.params_str()} with ID {material_id} already exists"
+            logger.error(message)
+            raise ValueError(message)
 
         # Create a new instance of the Material class material
         # (start index after pec & free_space)
@@ -4931,63 +4930,67 @@ class SoilPeplinski(GridUserObject):
         # sand_fraction/clay_fraction are physical fractions - values
         # above 1 were previously unvalidated.
         if not (0 <= sand_fraction <= 1):
-            logger.exception(
-                f"{self.params_str()} requires the sand fraction to be between 0 and 1."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires the sand fraction to be between 0 and 1."
+            logger.error(message)
+            raise ValueError(message)
         if not (0 <= clay_fraction <= 1):
-            logger.exception(
-                f"{self.params_str()} requires the clay fraction to be between 0 and 1."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires the clay fraction to be between 0 and 1."
+            logger.error(message)
+            raise ValueError(message)
         if sand_fraction + clay_fraction > 1:
-            logger.exception(
-                f"{self.params_str()} requires the sum of the sand and clay fractions to not exceed 1."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires the sum of the sand and clay fractions to not exceed 1."
+            logger.error(message)
+            raise ValueError(message)
         if bulk_density <= 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the bulk density.")
-            raise ValueError
+            message = f"{self.params_str()} requires a positive value for the bulk density."
+            logger.error(message)
+            raise ValueError(message)
         # sand_density is a divisor in PeplinskiSoil.calculate_properties()
         # (materials.py) - zero would raise a ZeroDivisionError there,
         # not here, at build time.
         if sand_density <= 0:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a value greater than zero for the sand particle "
                 "density."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if bulk_density >= sand_density:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires the bulk density to be less than the sand "
                 "particle density."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if water_fraction_lower < 0:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a positive value for the lower limit of the water volumetric "
                 "fraction."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         # water_fraction_upper is also a divisor (via the bin midpoints
         # calculate_properties() generates between the lower/upper
         # limits) - a reversed or all-zero range would produce a zero (or
         # negative-width) bin range and risk division by zero.
         if water_fraction_upper <= 0:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a value greater than zero for the upper limit of "
                 "the water volumetric fraction."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if water_fraction_lower > water_fraction_upper:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires the lower limit of the water volumetric fraction "
                 "to be less than or equal to the upper limit."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if any(x.ID == ID for x in grid.mixingmodels):
-            logger.exception(f"{self.params_str()} with ID {ID} already exists")
-            raise ValueError
+            message = f"{self.params_str()} with ID {ID} already exists"
+            logger.error(message)
+            raise ValueError(message)
 
         # Create a new instance of the Material class material
         # (start index after pec & free_space)
@@ -5080,49 +5083,51 @@ class MaterialRange(GridUserObject):
             raise ValueError(f"{self.params_str()} material-range limits must all be finite")
 
         if er_lower < 1:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a value greater or equal to 1 "
                 "for the lower range of relative permittivity."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if mr_lower < 1:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a value greater or equal to 1 "
                 "for the lower range of relative magnetic permeability."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if sigma_lower < 0:
-            logger.exception(
-                f"{self.params_str()} requires a positive value for the lower limit of conductivity."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires a positive value for the lower limit of conductivity."
+            logger.error(message)
+            raise ValueError(message)
         if ro_lower < 0:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a positive value for the lower range magnetic loss."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if er_upper < 1:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a value greater or equal to 1"
                 "for the upper range of relative permittivity."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if mr_upper < 1:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a value greater or equal to 1"
                 "for the upper range of relative magnetic permeability"
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if sigma_upper < 0:
-            logger.exception(
-                f"{self.params_str()} requires a positive value for the upper range of conductivity."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires a positive value for the upper range of conductivity."
+            logger.error(message)
+            raise ValueError(message)
         if ro_upper < 0:
-            logger.exception(
-                f"{self.params_str()} requires a positive value for the upper range of magnetic loss."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires a positive value for the upper range of magnetic loss."
+            logger.error(message)
+            raise ValueError(message)
         ranges = (
             ("relative permittivity", er_lower, er_upper),
             ("electric conductivity", sigma_lower, sigma_upper),
@@ -5135,8 +5140,9 @@ class MaterialRange(GridUserObject):
                     f"{self.params_str()} lower {label} limit must not exceed its upper limit"
                 )
         if any(x.ID == ID for x in grid.mixingmodels):
-            logger.exception(f"{self.params_str()} with ID {ID} already exists")
-            raise ValueError
+            message = f"{self.params_str()} with ID {ID} already exists"
+            logger.error(message)
+            raise ValueError(message)
 
         s = RangeMaterialUser(
             ID,
@@ -5190,8 +5196,9 @@ class MaterialList(GridUserObject):
             logger.exception(f"{self.params_str()} requires at at least 2 parameters.")
             raise
         if any(x.ID == ID for x in grid.mixingmodels):
-            logger.exception(f"{self.params_str()} with ID {ID} already exists")
-            raise ValueError
+            message = f"{self.params_str()} with ID {ID} already exists"
+            logger.error(message)
+            raise ValueError(message)
 
         s = ListMaterialUser(ID, list_of_materials)
 
@@ -5275,46 +5282,53 @@ class MaterialCrim(GridUserObject):
             raise ValueError(f"{self.params_str()} requires all numeric parameters to be finite")
 
         if not (0 <= matrix_fraction <= 1):
-            logger.exception(
-                f"{self.params_str()} requires the matrix fraction to be between 0 and 1."
-            )
-            raise ValueError
+            message = f"{self.params_str()} requires the matrix fraction to be between 0 and 1."
+            logger.error(message)
+            raise ValueError(message)
         if fraction_lower < 0:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a positive value for the lower limit of the "
                 "dispersive volumetric fraction."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if fraction_upper <= 0:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires a value greater than zero for the upper limit of "
                 "the dispersive volumetric fraction."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if fraction_lower > fraction_upper:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires the lower limit of the dispersive volumetric "
                 "fraction to be less than or equal to the upper limit."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if matrix_fraction + fraction_upper > 1:
-            logger.exception(
+            message = (
                 f"{self.params_str()} requires the matrix fraction plus the upper limit of the "
                 "dispersive volumetric fraction to not exceed 1."
             )
-            raise ValueError
+            logger.error(message)
+            raise ValueError(message)
         if f_min <= 0 or f_max <= 0:
-            logger.exception(f"{self.params_str()} requires positive values for f_min and f_max.")
-            raise ValueError
+            message = f"{self.params_str()} requires positive values for f_min and f_max."
+            logger.error(message)
+            raise ValueError(message)
         if f_min >= f_max:
-            logger.exception(f"{self.params_str()} requires f_min to be less than f_max.")
-            raise ValueError
+            message = f"{self.params_str()} requires f_min to be less than f_max."
+            logger.error(message)
+            raise ValueError(message)
         if a <= 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the shape factor.")
-            raise ValueError
+            message = f"{self.params_str()} requires a positive value for the shape factor."
+            logger.error(message)
+            raise ValueError(message)
         if any(x.ID == ID for x in grid.mixingmodels):
-            logger.exception(f"{self.params_str()} with ID {ID} already exists")
-            raise ValueError
+            message = f"{self.params_str()} with ID {ID} already exists"
+            logger.error(message)
+            raise ValueError(message)
 
         s = CrimMixtureUser(
             ID,

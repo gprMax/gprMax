@@ -150,6 +150,46 @@ def _scene():
             "finite",
         ),
         (
+            "cone_both_zero",
+            gprMax.Cone(
+                p1=(0.008, 0.008, 0.008),
+                p2=(0.012, 0.008, 0.008),
+                r1=0.0,
+                r2=0.0,
+                material_id="pec",
+            ),
+            "both radii cannot be zero",
+        ),
+        (
+            "triangle_non_planar",
+            gprMax.Triangle(
+                p1=(0.005, 0.005, 0.005),
+                p2=(0.008, 0.010, 0.007),
+                p3=(0.011, 0.006, 0.012),
+                thickness=0.002,
+                material_id="pec",
+            ),
+            "the triangle is not specified correctly",
+        ),
+        (
+            "edge_diagonal",
+            gprMax.Edge(
+                p1=(0.005, 0.005, 0.005),
+                p2=(0.010, 0.010, 0.005),
+                material_id="pec",
+            ),
+            "the edge is not specified correctly",
+        ),
+        (
+            "magnetic_edge_diagonal",
+            gprMax.MagneticEdge(
+                p1=(0.005, 0.005, 0.005),
+                p2=(0.010, 0.010, 0.005),
+                material_id="pec",
+            ),
+            "the edge is not specified correctly",
+        ),
+        (
             "flat_box",
             gprMax.Box(
                 p1=(0.005, 0.005, 0.005),
