@@ -1,6 +1,8 @@
 # Copyright (C) 2015-2026: The University of Edinburgh, United Kingdom
 
+import os
 import struct
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -155,3 +157,73 @@ def test_export_seg2_accepts_largest_finite_float32_amplitudes(tmp_path):
 
     stored = np.frombuffer(destination.read_bytes()[-8:], dtype="<f4")
     np.testing.assert_array_equal(stored, samples)
+
+
+def test_export_seg2_rejects_input_alias_without_writes(tmp_path):
+    files = [tmp_path / f"scan{number}.h5" for number in range(1, 3)]
+    for number, filename in enumerate(files, start=1):
+        _write_output(filename, number)
+    original_bytes = [f.read_bytes() for f in files]
+
+    with pytest.raises(ValueError, match="must not overwrite an input HDF5 file"):
+        export_seg2(files, files[0], 1, "Ez", overwrite=True)
+
+    assert [f.read_bytes() for f in files] == original_bytes
+
+
+def test_export_seg2_preserves_destination_on_write_failure(tmp_path, monkeypatch):
+    files = [tmp_path / "scan1.h5"]
+    _write_output(files[0])
+
+    destination = tmp_path / "scan_Ez.sg2"
+    previous = b"existing seg2 content"
+    destination.write_bytes(previous)
+
+    def fail_write(*args, **kwargs):
+        raise OSError("injected disk failure")
+
+    monkeypatch.setattr(
+        "gprMax.toolboxes.Utilities.outputfiles_seg2._trace_block",
+        fail_write,
+    )
+
+    with pytest.raises(OSError, match="injected disk failure"):
+        export_seg2(files, destination, 1, "Ez", overwrite=True)
+
+    assert destination.read_bytes() == previous
+
+
+def test_export_seg2_accepts_generator_outputfiles(tmp_path):
+    files = [tmp_path / f"scan{number}.h5" for number in range(1, 3)]
+    for number, filename in enumerate(files, start=1):
+        _write_output(filename, number)
+
+    destination = tmp_path / "scan_Ez.sg2"
+    generator = (f for f in files)
+    summary = export_seg2(generator, destination, 1, "Ez")
+
+    assert summary.trace_count == 2
+    assert destination.exists()
+
+
+def test_export_seg2_preserves_destination_on_publication_failure(tmp_path, monkeypatch):
+    files = [tmp_path / "scan1.h5"]
+    _write_output(files[0])
+
+    destination = tmp_path / "scan_Ez.sg2"
+    previous = b"existing seg2 content"
+    destination.write_bytes(previous)
+
+    original_replace = os.replace
+
+    def fail_replace(src, dst):
+        if Path(dst).resolve() == destination.resolve():
+            raise OSError("injected publication failure")
+        return original_replace(src, dst)
+
+    monkeypatch.setattr("os.replace", fail_replace)
+
+    with pytest.raises(OSError, match="injected publication failure"):
+        export_seg2(files, destination, 1, "Ez", overwrite=True)
+
+    assert destination.read_bytes() == previous

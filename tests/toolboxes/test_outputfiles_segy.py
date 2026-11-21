@@ -7,7 +7,9 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
+import os
 import struct
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -284,3 +286,73 @@ def test_cli_exports_only_the_named_series(tmp_path, folder, capsys):
     assert _read("Q", raw[3200:3600], 312) == 3
     assert len(raw) == 3200 + 400 + 3 * (240 + 5 * 4)
     assert "Written 3 traces" in capsys.readouterr().out
+
+
+def test_export_segy_rejects_input_alias_without_writes(tmp_path):
+    files = [tmp_path / f"scan{number}.h5" for number in range(1, 3)]
+    for number, filename in enumerate(files, start=1):
+        _write_output(filename, number)
+    original_bytes = [f.read_bytes() for f in files]
+
+    with pytest.raises(ValueError, match="must not overwrite an input HDF5 file"):
+        export_segy(files, files[0], 1, "Ez", overwrite=True)
+
+    assert [f.read_bytes() for f in files] == original_bytes
+
+
+def test_export_segy_preserves_destination_on_write_failure(tmp_path, monkeypatch):
+    files = [tmp_path / "scan1.h5"]
+    _write_output(files[0])
+
+    destination = tmp_path / "scan_Ez.sgy"
+    previous = b"existing segy content"
+    destination.write_bytes(previous)
+
+    def fail_header(*args, **kwargs):
+        raise OSError("injected disk failure")
+
+    monkeypatch.setattr(
+        "gprMax.toolboxes.Utilities.outputfiles_segy._build_binary_header",
+        fail_header,
+    )
+
+    with pytest.raises(OSError, match="injected disk failure"):
+        export_segy(files, destination, 1, "Ez", overwrite=True)
+
+    assert destination.read_bytes() == previous
+
+
+def test_export_segy_accepts_generator_outputfiles(tmp_path):
+    files = [tmp_path / f"scan{number}.h5" for number in range(1, 3)]
+    for number, filename in enumerate(files, start=1):
+        _write_output(filename, number)
+
+    destination = tmp_path / "scan_Ez.sgy"
+    generator = (f for f in files)
+    summary = export_segy(generator, destination, 1, "Ez")
+
+    assert summary.trace_count == 2
+    assert destination.exists()
+
+
+def test_export_segy_preserves_destination_on_publication_failure(tmp_path, monkeypatch):
+    files = [tmp_path / "scan1.h5"]
+    _write_output(files[0])
+
+    destination = tmp_path / "scan_Ez.sgy"
+    previous = b"existing segy content"
+    destination.write_bytes(previous)
+
+    original_replace = os.replace
+
+    def fail_replace(src, dst):
+        if Path(dst).resolve() == destination.resolve():
+            raise OSError("injected publication failure")
+        return original_replace(src, dst)
+
+    monkeypatch.setattr("os.replace", fail_replace)
+
+    with pytest.raises(OSError, match="injected publication failure"):
+        export_segy(files, destination, 1, "Ez", overwrite=True)
+
+    assert destination.read_bytes() == previous

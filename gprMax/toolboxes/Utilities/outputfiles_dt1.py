@@ -19,7 +19,10 @@ from __future__ import annotations
 import argparse
 import math
 import os
+import shutil
+import stat
 import struct
+import tempfile
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -27,6 +30,7 @@ from typing import Iterable
 
 import numpy as np
 
+from gprMax.toolboxes.Utilities.output_paths import validate_output_path
 from gprMax.toolboxes.Utilities.outputfiles_trace import (
     TraceRecord,
     collect_traces,
@@ -60,6 +64,21 @@ def _output_pair(outputfile: str | Path) -> tuple[Path, Path]:
     if base.suffix.lower() in {".dt1", ".hd"}:
         base = base.with_suffix("")
     return base.with_name(base.name + ".DT1"), base.with_name(base.name + ".HD")
+
+
+def _validate_dt1_hd_distinct(dt1_path: Path, hd_path: Path) -> None:
+    dt1_resolved = dt1_path.resolve()
+    hd_resolved = hd_path.resolve()
+    same = dt1_resolved == hd_resolved
+    if not same:
+        try:
+            same = dt1_path.samefile(hd_path)
+        except OSError:
+            same = False
+    if same:
+        raise ValueError(
+            f"DT1 destination ({dt1_path}) and HD destination ({hd_path}) resolve to the same file"
+        )
 
 
 def _survey_positions(records: list[TraceRecord]) -> np.ndarray:
@@ -238,6 +257,7 @@ def write_dt1(
         raise ValueError("Number of stacks must be between 1 and 2^24")
 
     dt1_destination, hd_destination = _output_pair(outputfile)
+    _validate_dt1_hd_distinct(dt1_destination, hd_destination)
     existing = [path for path in (dt1_destination, hd_destination) if path.exists()]
     if existing and not overwrite:
         raise FileExistsError(
@@ -261,9 +281,20 @@ def write_dt1(
         stacks=stacks,
     )
 
-    dt1_temporary = dt1_destination.with_name(dt1_destination.name + ".tmp")
-    hd_temporary = hd_destination.with_name(hd_destination.name + ".tmp")
-    try:
+    dt1_target = dt1_destination.resolve()
+    hd_target = hd_destination.resolve()
+
+    with (
+        tempfile.TemporaryDirectory(
+            prefix=f".{dt1_target.name}.", dir=dt1_target.parent
+        ) as dt1_directory,
+        tempfile.TemporaryDirectory(
+            prefix=f".{hd_target.name}.", dir=hd_target.parent
+        ) as hd_directory,
+    ):
+        dt1_temporary = Path(dt1_directory) / dt1_target.name
+        hd_temporary = Path(hd_directory) / hd_target.name
+
         with dt1_temporary.open("wb") as stream:
             for trace_number, (record, samples, position) in enumerate(
                 zip(records, quantised, positions, strict=True),
@@ -282,12 +313,44 @@ def write_dt1(
                 )
                 stream.write(samples.tobytes(order="C"))
         hd_temporary.write_text(hd, encoding="ascii", errors="replace", newline="")
-        os.replace(dt1_temporary, dt1_destination)
-        os.replace(hd_temporary, hd_destination)
-    finally:
-        for temporary in (dt1_temporary, hd_temporary):
-            if temporary.exists():
-                temporary.unlink()
+
+        if dt1_target.exists():
+            dt1_temporary.chmod(stat.S_IMODE(dt1_target.stat().st_mode))
+        if hd_target.exists():
+            hd_temporary.chmod(stat.S_IMODE(hd_target.stat().st_mode))
+
+        dt1_backup = None
+        if dt1_target.exists():
+            descriptor, backup_name = tempfile.mkstemp(
+                prefix=f".{dt1_target.name}.", suffix=".backup", dir=dt1_target.parent
+            )
+            os.close(descriptor)
+            dt1_backup = Path(backup_name)
+            try:
+                shutil.copy2(dt1_target, dt1_backup)
+            except BaseException:
+                dt1_backup.unlink(missing_ok=True)
+                raise
+
+        try:
+            os.replace(dt1_temporary, dt1_target)
+            os.replace(hd_temporary, hd_target)
+        except BaseException as error:
+            try:
+                if dt1_backup is not None:
+                    os.replace(dt1_backup, dt1_target)
+                else:
+                    dt1_target.unlink(missing_ok=True)
+            except OSError as rollback_error:
+                if dt1_backup is not None:
+                    error.add_note(
+                        f"Restoring the previous DT1 failed ({rollback_error}); "
+                        f"the original is preserved at {dt1_backup}"
+                    )
+            raise
+        if dt1_backup is not None:
+            dt1_backup.unlink(missing_ok=True)
+
     return dt1_destination, hd_destination, count_scale
 
 
@@ -305,6 +368,12 @@ def export_dt1(
     overwrite: bool = False,
 ) -> Dt1ExportSummary:
     """Convert a series of original gprMax A-scan files into DT1/HD."""
+
+    outputfiles = [Path(f) for f in outputfiles]
+    dt1_destination, hd_destination = _output_pair(dt1_outputfile)
+    _validate_dt1_hd_distinct(dt1_destination, hd_destination)
+    validate_output_path(dt1_destination, outputfiles)
+    validate_output_path(hd_destination, outputfiles)
 
     records, dt, time_offset, resolved_source, title = collect_traces(
         outputfiles,
@@ -364,7 +433,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--grid", default="/", help="HDF5 grid path (default: /)")
     parser.add_argument("--source", default=None, help="source position path, e.g. srcs/src1")
     parser.add_argument(
-        "--trace-group", default=None, help="trace group (e.g. tls/tl1) or receiver selector (e.g. name:surface)"
+        "--trace-group",
+        default=None,
+        help="trace group (e.g. tls/tl1) or receiver selector (e.g. name:surface)",
     )
     parser.add_argument(
         "--nominal-frequency",
