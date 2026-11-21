@@ -44,7 +44,8 @@ GSSI 2 GHz receiver-port update
 ``antenna_like_GSSI_2000`` now uses a zero-amplitude voltage source with the
 original 200008.0107 Ohm receiver resistance. Its rigid gap retains er=1.056;
 only the resistance has moved from material conductivity to the source, so
-the original loading and ``gssi2000_rxbowtie`` Ey output are preserved.
+the original loading and ``gssi2000_rxbowtie`` Ey output are preserved at
+the default orientation (see rotation below).
 The automatic voltage-source ports now have explicit IDs ``gssi2000_tx``
 and ``gssi2000_rx`` (update references to the former automatic Tx ``portN``).
 Receiver voltage is saved in ``/ports/gssi2000_rx/Vtotal`` with its own
@@ -74,6 +75,13 @@ normalisation, not a mesh-convergence certificate; respect validity metadata
 and validate numerical convergence before interpreting impedance or efficiency.
 No NTFF surface or frequency band is added automatically.
 
+The legacy conducting materials can also trigger the solver's
+underresolution preflight. Reproducing that original model may require the
+explicit ``gprMax.run(..., allow_underresolved=True)`` research override.
+This does not certify mesh convergence or change the port validity flags;
+placement and rotation do not relax either check or replace these materials
+with PEC.
+
 How to use the package
 ======================
 
@@ -81,7 +89,72 @@ The antenna models can be accessed from within a block of Python code in an inpu
 
 .. note::
 
-    If you are moving an antenna model within a simulation, e.g. to generate a B-scan, you should ensure that the step size you choose is a multiple of the spatial resolution of the simulation. Otherwise when the position of antenna is converted to cell coordinates the geometry maybe altered.
+    Use survey steps that are multiples of the spatial resolution. The GSSI
+    2 GHz model rounds its placement once and preserves its geometry, but
+    sub-cell steps can still map successive positions to the same grid point.
+    Other antenna models still round individual coordinates and can change
+    shape at off-grid placements. Moving a complete antenna requires rebuilding
+    its geometry; ``src_steps``/``rx_steps`` move sources/receivers only.
+
+GSSI 2 GHz placement and in-plane rotation
+------------------------------------------
+
+This model requires a **1 mm cubic grid**, including when placed in a subgrid.
+The supplied ``(x, y, z)`` is the horizontal centre of the case at the bottom
+of the skid, not a corner or the three-dimensional centre. It is rounded once
+to the nearest grid point using gprMax's usual rounding rule; a warning gives
+the actual position when it moves. All geometry and feeds are then placed
+using integer-cell offsets. This preserves the one-cell gaps even at half-cell
+positions that previously could collapse an edge. Grid-aligned placements at
+the default orientation retain their original geometry and loading. Normal
+domain and subgrid bounds still apply: this does not allow an antenna to
+extend outside the permitted region.
+
+The optional keyword ``rotation`` accepts **0, 90, 180 or 270 degrees** only.
+Positive rotation is counterclockwise when looking from +z towards the x-y
+plane, about the snapped placement point. The complete antenna rotates,
+including its geometry, transmitter, passive receiver load and field monitor.
+Its z coordinates and the surrounding model are unchanged. This is an exact
+grid-aligned rotation, not arbitrary-angle voxelisation. Other toolbox antenna
+models do not yet offer this option.
+
+.. code-block:: python
+
+    from gprMax.toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_2000
+
+    # Add to a scene that already declares a 1 mm cubic grid and large enough domain.
+    for obj in antenna_like_GSSI_2000(0.125, 0.125, 0.040, rotation=90):
+        scene.add(obj)
+
+For an x-y survey, create a scene per antenna position/orientation and call
+the factory with that position and rotation. The antenna's fixed material,
+waveform and port IDs are retained, so do not add multiple copies to the same
+grid. Keep the ground/targets unchanged; do not rotate the complete scene or
+change the source polarisation independently.
+
+Output components and polarity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The field receiver remains ``gssi2000_rxbowtie`` and the ports remain
+``gssi2000_tx`` and ``gssi2000_rx``. Outputs follow the **global positive-axis**
+convention, not an antenna-local axis. The transmitter waveform changes sign
+where needed to preserve the physical excitation of the rotated antenna.
+
+========= ====================== ==========================
+Rotation  Field dataset          Antenna-local voltage
+========= ====================== ==========================
+0         ``Ey``                 ``Vtotal``
+90        ``Ex``                 ``-Vtotal``
+180       ``Ey``                 ``-Vtotal``
+270       ``Ex``                 ``Vtotal``
+========= ====================== ==========================
+
+The same sign conversion applies to the selected electric-field component
+and directed port-current traces when comparing antenna-local polarities.
+Read port voltages directly using their own saved time axis; do not assume
+they share the raw field receiver's sample times. Consistent voltage/current
+sign reversals leave impedance and power unchanged. Rotation relative to a
+fixed target can, of course, change the physical response.
 
 Example
 -------
