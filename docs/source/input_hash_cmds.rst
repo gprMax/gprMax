@@ -1471,7 +1471,7 @@ database. The syntax of the command is:
       objects without overwriting the surrounding cells.
     * The spatial resolution of the geometry objects must match the spatial resolution defined in the model.
     * The spatial resolution must be specified as a root attribute of the HDF5 file with the name ``dx_dy_dz`` equal to a tuple of floats, e.g. (0.002, 0.002, 0.002)
-    * The file may extend beyond the model domain: the part that lies outside is dropped (on every axis), the same way a file overhanging the domain's upper boundary always has been. A file that misses the domain entirely on any axis is rejected with an error. This is what makes the placement the toolboxes suggest usable: STLtoVoxel and STEPtoVoxel print the file's own origin as the suggested ``f1 f2 f3``, and that origin is negative whenever the source model has negative coordinates.
+    * The file may extend beyond the model domain: the part that lies outside is dropped (on every axis), the same way a file overhanging the domain's upper boundary always has been. A file that misses the domain entirely on any axis is rejected with an error. This is what makes the placement the toolboxes suggest usable: STLtoVoxel and STEPtoVoxel print the file's own origin as the suggested ``f1 f2 f3``, and that origin is negative whenever the source model has negative coordinates. Clipping a placement below the domain currently applies to serial runs only: under MPI such a placement still fails during the geometry view construction, which is separate follow-up work.
     * Legacy ``.txt`` material files are not accepted by the simulator.
       First convert the original HDF5/text pair using the
       :ref:`legacy_geometry_conversion` utility, then supply the converted
