@@ -4939,7 +4939,7 @@ class SoilPeplinski(GridUserObject):
                 f"{self.params_str()} requires the sum of the sand and clay fractions to not exceed 1."
             )
             raise ValueError
-        if bulk_density < 0:
+        if bulk_density <= 0:
             logger.exception(f"{self.params_str()} requires a positive value for the bulk density.")
             raise ValueError
         # sand_density is a divisor in PeplinskiSoil.calculate_properties()
@@ -4949,6 +4949,12 @@ class SoilPeplinski(GridUserObject):
             logger.exception(
                 f"{self.params_str()} requires a value greater than zero for the sand particle "
                 "density."
+            )
+            raise ValueError
+        if bulk_density >= sand_density:
+            logger.exception(
+                f"{self.params_str()} requires the bulk density to be less than the sand "
+                "particle density."
             )
             raise ValueError
         if water_fraction_lower < 0:
