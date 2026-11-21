@@ -1370,8 +1370,9 @@ class FDTDGrid:
         if self.eigenmodeportdefs and self.eigenmodeband is None:
             raise ValueError("Eigenmode ports require exactly one EigenmodeBand.")
         if self.eigenmodeportdefs and not self.eigenmodeexcitations:
-            if (not getattr(config.sim_config, 'geometry_only', False)
-                    and set(self.eigenmodeportdefs) != set(self.virtual_waveguide_specs)):
+            if not getattr(config.sim_config, "geometry_only", False) and set(
+                self.eigenmodeportdefs
+            ) != set(self.virtual_waveguide_specs):
                 raise ValueError(
                     "Eigenmode ports require at least one EigenmodeExcitation, unless "
                     "every port has a passive VirtualWaveguide or the run is geometry-only."
@@ -2040,9 +2041,7 @@ class FDTDGrid:
         # Preserve legacy CFL rounding so the updated helper doesn't change time steps.
         places = decimal.getcontext().prec - 1
         quantum = decimal.Decimal("1." + "0" * places)
-        self.dt = float(
-            decimal.Decimal(self.dt).quantize(quantum, rounding=decimal.ROUND_FLOOR)
-        )
+        self.dt = float(decimal.Decimal(self.dt).quantize(quantum, rounding=decimal.ROUND_FLOOR))
 
     def calculate_Ix(self, x: int, y: int, z: int) -> float:
         """Calculates the x-component of current at a grid position.

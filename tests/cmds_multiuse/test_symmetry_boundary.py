@@ -70,7 +70,13 @@ def test_pec_face_registers_and_disables_pml(monkeypatch, tmp_path):
     scene.add(gprMax.SymmetryBoundary(face="x0", type="pec"))
 
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
     grid = captured["grid"]
 
     assert grid.symmetry_boundaries == {"x0": "pec"}
@@ -89,7 +95,13 @@ def test_pmc_face_registers_and_disables_pml_but_no_id_changes(monkeypatch, tmp_
     scene.add(gprMax.SymmetryBoundary(face="ymax", type="pmc"))
 
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
     grid = captured["grid"]
 
     assert grid.symmetry_boundaries == {"ymax": "pmc"}
@@ -115,7 +127,13 @@ def test_pec_face_forces_tangential_e_ids_to_pec(monkeypatch, tmp_path):
     scene.add(gprMax.SymmetryBoundary(face="x0", type="pec"))
 
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
     grid = captured["grid"]
 
     pec_numid = next(m.numID for m in grid.materials if m.ID == "pec")
@@ -147,7 +165,13 @@ def test_pec_and_pmc_sharing_an_edge_forces_shared_e_component_pec(monkeypatch, 
     scene.add(gprMax.SymmetryBoundary(face="ymax", type="pmc"))
 
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
     grid = captured["grid"]
 
     pec_numid = next(m.numID for m in grid.materials if m.ID == "pec")
@@ -166,7 +190,13 @@ def test_duplicate_face_declaration_rejected(monkeypatch, tmp_path):
     scene.add(gprMax.SymmetryBoundary(face="x0", type="pmc"))
 
     with pytest.raises(ValueError):
-        gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "run",
+            hide_progress_bars=True,
+        )
 
 
 def test_invalid_face_rejected(monkeypatch, tmp_path):
@@ -174,7 +204,13 @@ def test_invalid_face_rejected(monkeypatch, tmp_path):
     scene.add(gprMax.SymmetryBoundary(face="w0", type="pec"))
 
     with pytest.raises(ValueError):
-        gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "run",
+            hide_progress_bars=True,
+        )
 
 
 def test_invalid_type_rejected(monkeypatch, tmp_path):
@@ -182,7 +218,13 @@ def test_invalid_type_rejected(monkeypatch, tmp_path):
     scene.add(gprMax.SymmetryBoundary(face="x0", type="foo"))
 
     with pytest.raises(ValueError):
-        gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "run",
+            hide_progress_bars=True,
+        )
 
 
 def test_rejected_in_2d_mode(monkeypatch, tmp_path):
@@ -194,7 +236,13 @@ def test_rejected_in_2d_mode(monkeypatch, tmp_path):
     scene.add(gprMax.SymmetryBoundary(face="x0", type="pec"))
 
     with pytest.raises(ValueError):
-        gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "run",
+            hide_progress_bars=True,
+        )
 
 
 def test_lorentz_material_at_pmc_face_is_allowed(monkeypatch, tmp_path):
@@ -214,7 +262,13 @@ def test_lorentz_material_at_pmc_face_is_allowed(monkeypatch, tmp_path):
     )
 
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
     assert captured["grid"].symmetry_boundaries == {"x0": "pmc"}
 
 
@@ -224,10 +278,18 @@ def test_debye_material_at_pmc_face_is_allowed(monkeypatch, tmp_path):
     scene = _scene()
     scene.add(gprMax.SymmetryBoundary(face="x0", type="pmc"))
     scene.add(gprMax.Material(er=3, se=0, mr=1, sm=0, id="soil"))
-    scene.add(gprMax.AddDebyeDispersion(poles=1, er_delta=[2.0], tau=[1e-10], material_ids=["soil"]))
+    scene.add(
+        gprMax.AddDebyeDispersion(poles=1, er_delta=[2.0], tau=[1e-10], material_ids=["soil"])
+    )
 
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
     assert captured["grid"].symmetry_boundaries == {"x0": "pmc"}
 
 
@@ -245,7 +307,13 @@ def test_lorentz_material_with_pec_symmetry_boundary_is_allowed(monkeypatch, tmp
     )
 
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
     assert captured["grid"].symmetry_boundaries == {"x0": "pec"}
 
 
@@ -262,7 +330,13 @@ def test_text_command_parses_correctly(monkeypatch, tmp_path: Path):
     )
 
     captured = _capture_grid(monkeypatch)
-    gprMax.run(inputfile=str(infile), n=1, geometry_only=True, outputfile=tmp_path / "run", hide_progress_bars=True)
+    gprMax.run(
+        inputfile=str(infile),
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
     grid = captured["grid"]
 
     assert grid.symmetry_boundaries == {"x0": "pec", "ymax": "pmc"}
