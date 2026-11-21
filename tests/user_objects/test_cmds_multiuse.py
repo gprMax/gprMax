@@ -784,6 +784,32 @@ class TestSoilPeplinski:
         with pytest.raises(ValueError):
             soil.build(stub_grid)
 
+    def test_build_rejects_bulk_density_exceeding_sand_density(self, stub_grid):
+        soil = SoilPeplinski(
+            sand_fraction=0.5,
+            clay_fraction=0.5,
+            bulk_density=3.0,
+            sand_density=2.66,
+            water_fraction_lower=0.001,
+            water_fraction_upper=0.25,
+            id="soil1",
+        )
+        with pytest.raises(ValueError):
+            soil.build(stub_grid)
+
+    def test_build_rejects_zero_bulk_density(self, stub_grid):
+        soil = SoilPeplinski(
+            sand_fraction=0.5,
+            clay_fraction=0.5,
+            bulk_density=0.0,
+            sand_density=2.66,
+            water_fraction_lower=0.001,
+            water_fraction_upper=0.25,
+            id="soil1",
+        )
+        with pytest.raises(ValueError):
+            soil.build(stub_grid)
+
 
 # ---------------------------------------------------------------------------
 # MaterialRange / MaterialList
