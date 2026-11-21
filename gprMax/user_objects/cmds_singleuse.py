@@ -761,10 +761,59 @@ class PMLThickness(ModelUserObject):
         else:
             tx0, ty0, tz0, txmax, tymax, tzmax = thickness_values
 
+        # Faces that will carry no PML in the built model: the invariant axis
+        # of a 2D model (Domain.build zeroes it for the default thickness, and
+        # a single-cell or 2-cell axis cannot host opposing slabs anyway) and
+        # faces with a declared #symmetry_boundary (SymmetryBoundary disables
+        # them later, in the multi-use phase, after this command is built).
+        # Validate and store the thickness those faces will actually have, so
+        # the single-value form stays usable in 2D models and alongside
+        # #symmetry_boundary.
+        face_thickness = {
+            "x0": tx0,
+            "y0": ty0,
+            "z0": tz0,
+            "xmax": txmax,
+            "ymax": tymax,
+            "zmax": tzmax,
+        }
+        disabled_faces = set()
+        mode = config.get_model_config().mode
+        invariant_letter = mode[-1] if mode.startswith("2D") else None
+        if invariant_letter is not None:
+            disabled_faces.update((f"{invariant_letter}0", f"{invariant_letter}max"))
+        disabled_faces.update(model.G.requested_symmetry_boundaries)
+
+        if disabled_faces:
+            for face in PML.boundaryIDs:
+                if face not in disabled_faces:
+                    continue
+                if face_thickness[face]:
+                    if invariant_letter is not None and face[0] == invariant_letter:
+                        reason = (
+                            f"the {invariant_letter} axis is the invariant axis of the 2D model"
+                        )
+                    else:
+                        reason = "a symmetry boundary is declared on it"
+                    logger.info(
+                        f"{self} {face_thickness[face]} cells of PML requested on face "
+                        f"'{face}' will not be used: {reason}."
+                    )
+                face_thickness[face] = 0
+            tx0 = face_thickness["x0"]
+            ty0 = face_thickness["y0"]
+            tz0 = face_thickness["z0"]
+            txmax = face_thickness["xmax"]
+            tymax = face_thickness["ymax"]
+            tzmax = face_thickness["zmax"]
+            thickness_for_grid = (tx0, ty0, tz0, txmax, tymax, tzmax)
+        else:
+            thickness_for_grid = canonical_thickness
+
         if tx0 + txmax >= model.nx or ty0 + tymax >= model.ny or tz0 + tzmax >= model.nz:
             raise ValueError(f"{self} has too many cells for the domain size")
 
-        model.G.set_pml_thickness(canonical_thickness)
+        model.G.set_pml_thickness(thickness_for_grid)
 
         thickness = model.G.pmls["thickness"]
 

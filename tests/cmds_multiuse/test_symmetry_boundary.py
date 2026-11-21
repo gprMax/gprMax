@@ -86,6 +86,35 @@ def test_pec_face_registers_and_disables_pml(monkeypatch, tmp_path):
         assert grid.pmls["thickness"][face] == 10
 
 
+def test_explicit_pml_cells_fitting_only_through_a_symmetry_face(monkeypatch, tmp_path):
+    # #pml_cells is built in the single-use phase, before SymmetryBoundary
+    # disables its face's PML. A thickness that only overflows through the
+    # symmetry face (10+10 >= 20 on x, but 0+10 fits once x0 is disabled)
+    # must not be rejected by the command-side check: 20 cells in x, 30 in
+    # y/z so the other faces genuinely fit.
+    scene = gprMax.Scene()
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.03, 0.03)))
+    scene.add(gprMax.PMLThickness(thickness=10))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(gprMax.SymmetryBoundary(face="x0", type="pec"))
+
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "run",
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+
+    assert grid.symmetry_boundaries == {"x0": "pec"}
+    assert grid.pmls["thickness"]["x0"] == 0
+    for face in ("y0", "z0", "xmax", "ymax", "zmax"):
+        assert grid.pmls["thickness"][face] == 10
+
+
 def test_pmc_face_registers_and_disables_pml_but_no_id_changes(monkeypatch, tmp_path):
     """PML disabled on every other face so this test isolates the pmc face's
     own (lack of) ID forcing from the separate PML-termination-with-pec

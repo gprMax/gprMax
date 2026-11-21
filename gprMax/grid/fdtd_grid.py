@@ -157,6 +157,11 @@ class FDTDGrid:
         # PEC/PMC symmetry boundaries, keyed by domain face. Edge dispatch
         # is resolved once after geometry and material IDs are finalised.
         self.symmetry_boundaries: dict = {}
+        # Faces with a declared #symmetry_boundary, recorded by Scene before
+        # the single-use commands are built: SymmetryBoundary disables the
+        # PML on its face, but it is a grid object built after the single-use
+        # phase, so #pml_cells validation must see the declaration here.
+        self.requested_symmetry_boundaries: dict = {}
         self.symmetry_boundary_edges: list = []
         self.symmetry_boundary_edges_dispersive: list = []
         self.symmetry_boundary_edges_dispersive_b: list = []

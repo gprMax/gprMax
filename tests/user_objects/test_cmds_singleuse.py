@@ -29,6 +29,7 @@ common contract:
 A handful of bug tripwires pin current behaviour for fixes to flip.
 """
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -430,6 +431,86 @@ class TestPMLThickness:
         stub_model.G.set_pml_thickness.side_effect = mpi_zero_pml_thickness
         PMLThickness((10, 10, 10, 10, 10, 10)).build(stub_model)
         stub_model.G.set_pml_thickness.assert_called_once_with((10, 10, 10, 10, 10, 10))
+
+    # Faces that carry no PML in the built model: the 2D invariant axis
+    # (zeroed by Domain.build before this command runs) and faces with a
+    # declared #symmetry_boundary (disabled later, in the multi-use phase).
+    # The validation and the stored thickness must use the faces' effective
+    # thickness, so the single-value form stays usable in 2D models and
+    # alongside #symmetry_boundary.
+
+    def test_build_single_value_in_2d_zeros_invariant_faces(self, stub_model, user_object_config):
+        # TMz: one cell on the z axis - 10+10 >= 1 would trip a raw check,
+        # but that axis carries no PML either way.
+        user_object_config.model_config.mode = "2D TMz"
+        stub_model.nz = stub_model.G.nz = 1
+        PMLThickness(10).build(stub_model)
+        stub_model.G.set_pml_thickness.assert_called_once_with((10, 10, 0, 10, 10, 0))
+
+    def test_build_single_value_in_2d_te_zeros_invariant_faces(
+        self, stub_model, user_object_config
+    ):
+        # TEz: two cells on the invariant axis - 1+1 >= 2 would still trip
+        # a raw check.
+        user_object_config.model_config.mode = "2D TEz"
+        stub_model.nz = stub_model.G.nz = 2
+        PMLThickness(1).build(stub_model)
+        stub_model.G.set_pml_thickness.assert_called_once_with((1, 1, 0, 1, 1, 0))
+
+    def test_build_in_2d_drops_requested_invariant_cells(
+        self, stub_model, user_object_config, caplog
+    ):
+        # Explicit invariant-axis cells are dropped with a message, the way
+        # Domain.build silently zeroes the default thickness on that axis.
+        user_object_config.model_config.mode = "2D TMz"
+        stub_model.nz = stub_model.G.nz = 1
+        with caplog.at_level(logging.INFO, logger="gprMax"):
+            PMLThickness((3, 3, 7, 3, 3, 5)).build(stub_model)
+        stub_model.G.set_pml_thickness.assert_called_once_with((3, 3, 0, 3, 3, 0))
+        assert "will not be used" in caplog.text
+        assert "invariant axis" in caplog.text
+
+    def test_build_in_2d_still_rejects_transverse_overflow(self, stub_model, user_object_config):
+        # Dropping the invariant pair must not weaken the check on the
+        # transverse axes: 12+12 >= 20 is still too many cells.
+        user_object_config.model_config.mode = "2D TMz"
+        stub_model.nz = stub_model.G.nz = 1
+        stub_model.nx = stub_model.G.nx = 20
+        with pytest.raises(ValueError, match="too many cells"):
+            PMLThickness(12).build(stub_model)
+
+    def test_build_single_zero_in_2d_stays_all_zero(self, stub_model, user_object_config):
+        user_object_config.model_config.mode = "2D TMz"
+        stub_model.nz = stub_model.G.nz = 1
+        PMLThickness(0).build(stub_model)
+        stub_model.G.set_pml_thickness.assert_called_once_with((0, 0, 0, 0, 0, 0))
+
+    def test_build_honours_declared_symmetry_faces(self, stub_model, user_object_config):
+        # The symmetry face's PML is disabled later, in the multi-use phase.
+        # A thickness that only overflows through that face must not be
+        # rejected here: 0+10 fits on a 20-cell axis.
+        stub_model.G.requested_symmetry_boundaries = {"x0": "pec"}
+        stub_model.nx = stub_model.G.nx = 20
+        PMLThickness(10).build(stub_model)
+        stub_model.G.set_pml_thickness.assert_called_once_with((0, 10, 10, 10, 10, 10))
+
+    def test_build_symmetry_face_does_not_mask_transverse_overflow(
+        self, stub_model, user_object_config
+    ):
+        # A disabled x0 face does not rescue an overflowing y pair.
+        stub_model.G.requested_symmetry_boundaries = {"x0": "pec"}
+        stub_model.ny = stub_model.G.ny = 15
+        with pytest.raises(ValueError, match="too many cells"):
+            PMLThickness(10).build(stub_model)
+
+    def test_build_symmetry_face_drop_is_logged(self, stub_model, user_object_config, caplog):
+        stub_model.G.requested_symmetry_boundaries = {"x0": "pec"}
+        stub_model.nx = stub_model.G.nx = 20
+        with caplog.at_level(logging.INFO, logger="gprMax"):
+            PMLThickness(10).build(stub_model)
+        stub_model.G.set_pml_thickness.assert_called_once_with((0, 10, 10, 10, 10, 10))
+        assert "will not be used" in caplog.text
+        assert "symmetry boundary" in caplog.text
 
 
 # ---------------------------------------------------------------------------
