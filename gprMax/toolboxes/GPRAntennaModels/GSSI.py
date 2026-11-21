@@ -8,9 +8,12 @@
 #  For the antenna_like_GSSI_400 https://doi.org/10.1109/TAP.2022.3142335
 #  For the antenna_like_GSSI_2000 https://doi.org/10.1002/nsg.12280
 
+import math
+import warnings
 from pathlib import Path
 
 import gprMax
+from gprMax.utilities.utilities import round_int
 from gprMax.utilities.validation import validate_keywords
 
 
@@ -481,7 +484,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     return scene_objects
 
 
-def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10):
+def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10, rotation=0):
     """Insert a model similar to the GSSI 2 GHz palm antenna.
 
     The model is based on the optimised unit No. 1 parameters reported by
@@ -491,18 +494,29 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10):
     beyond each side of the case in the y direction. A Gaussian voltage source
     excites the transmitter. A zero-amplitude, finite-resistance voltage
     source terminates the receiver with the original load and owns its port
-    output. The original ``Ey`` receiver is retained for compatibility.
+    output. The original field receiver is retained (``Ey`` at 0/180 degrees,
+    ``Ex`` at 90/270 degrees).
     The voltage-source ports are named ``gssi2000_tx`` and ``gssi2000_rx``.
 
     Args:
         x, y, z (float): Coordinates of the geometric centre of the antenna
             in the x-y plane and the bottom of the antenna skid in z.
+            The placement point is rounded once to the nearest 1 mm grid
+            point using gprMax's normal rounding rule. Off-grid placements
+            emit a warning; all antenna dimensions and feed gaps are preserved.
         resolution (float): Spatial resolution of the antenna model. Only
             1 mm is supported.
         spectrum_limit: Port-spectrum cells-per-wavelength limit (default
             10), or explicit ``"nyquist"`` for research output. The legacy
             highly conducting materials can leave no resolved positive
             frequency bins under the default criterion.
+        rotation (int): Counterclockwise rotation in degrees viewed from +z
+            towards the x-y plane: 0 (default), 90, 180 or 270. Rotates the
+            whole antenna about its placement point, including both feeds
+            and the receiver. Height and surrounding geometry are unchanged.
+            Field and port-voltage outputs use the global positive-axis
+            convention; multiply by -1 at 90/180 degrees to compare voltages
+            with the original antenna-local polarity.
 
     Returns:
         scene_objects (list): All objects required to add the antenna to a
@@ -511,20 +525,42 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10):
 
     if resolution != 0.001:
         raise ValueError("This antenna module can only be used with a spatial discretisation of 1 mm")
+    if isinstance(rotation, bool) or rotation not in (0, 90, 180, 270):
+        raise ValueError("GSSI 2 GHz rotation must be 0, 90, 180 or 270 degrees")
+    placement = (float(x), float(y), float(z))
+    if not all(math.isfinite(value) for value in placement):
+        raise ValueError("GSSI 2 GHz placement coordinates must be finite")
+    anchor = tuple(round_int(value / resolution) for value in placement)
+    snapped = tuple(value * resolution for value in anchor)
+    if any(
+        abs(value - actual) > 8 * math.ulp(max(abs(value), abs(actual), resolution))
+        for value, actual in zip(placement, snapped)
+    ):
+        warnings.warn(
+            f"GSSI 2 GHz placement {placement} rounded to {snapped} m on the 1 mm grid; "
+            "antenna dimensions and feed gaps are preserved.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     dx = dy = dz = resolution
     scene_objects = []
 
     # The original model used the lower x-y corner and had the skid at the
-    # high-z face. Translate to the toolbox convention (x-y centre and bottom
-    # of skid) by reflecting only the local z coordinate. This is a rigid
-    # transformation and does not alter the antenna geometry.
-    x0 = x - 0.043
-    y0 = y - 0.043
-    legacy_zmax = 0.067
+    # high-z face. Keep its geometry in integer cells relative to the toolbox
+    # centre-bottom reference. Rounding each translated vertex separately can
+    # collapse one-cell gaps at half-cell placements. Quarter turns are exact
+    # integer permutations, not floating-point trigonometry.
+    quarter_turns = int(rotation) // 90
+    polarisation = "y" if quarter_turns % 2 == 0 else "x"
+    feed_sign = (1, -1, -1, 1)[quarter_turns]
 
     def point(p):
-        return (x0 + p[0], y0 + p[1], z + legacy_zmax - p[2])
+        i, j, k = (round_int(value / resolution) for value in p)
+        i, j, k = i - 43, j - 43, 67 - k
+        for _ in range(quarter_turns):
+            i, j = -j, i
+        return tuple((origin + offset) * resolution for origin, offset in zip(anchor, (i, j, k)))
 
     def ordered_points(p1, p2):
         q1 = point(p1)
@@ -698,11 +734,13 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10):
     add_box((0.041, 0.020, 0.043), (0.045, 0.045, 0.063), "free_space")
     add_box((0.041, 0.047, 0.043), (0.045, 0.070, 0.063), "free_space")
 
-    source_point = point((0.023, 0.042, 0.064))
-    receiver_point = point((0.063, 0.042, 0.064))
-    waveform = gprMax.Waveform(wave_type="gaussian", amp=-1, freq=2.12e9, id="gssi2000_gaussian")
+    # A source is anchored at the lower endpoint of a positive-axis Yee edge.
+    # After an axis reversal this is the rotated *upper* original endpoint.
+    source_point, _ = ordered_points((0.023, 0.042, 0.064), (0.023, 0.043, 0.064))
+    receiver_point, _ = ordered_points((0.063, 0.042, 0.064), (0.063, 0.043, 0.064))
+    waveform = gprMax.Waveform(wave_type="gaussian", amp=-feed_sign, freq=2.12e9, id="gssi2000_gaussian")
     source = gprMax.VoltageSource(
-        polarisation="y",
+        polarisation=polarisation,
         p1=source_point,
         resistance=source_resistance,
         waveform_id="gssi2000_gaussian",
@@ -715,14 +753,14 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10):
         wave_type="gaussian", amp=0, freq=2.12e9, id="gssi2000_rx_zero"
     )
     receiver_source = gprMax.VoltageSource(
-        polarisation="y",
+        polarisation=polarisation,
         p1=receiver_point,
         resistance=receiver_resistance,
         waveform_id="gssi2000_rx_zero",
         id="gssi2000_rx",
         spectrum_limit=spectrum_limit,
     )
-    receiver = gprMax.Rx(p1=receiver_point, id="gssi2000_rxbowtie", outputs=["Ey"])
+    receiver = gprMax.Rx(p1=receiver_point, id="gssi2000_rxbowtie", outputs=["E" + polarisation])
     scene_objects.extend((waveform, receiver_waveform, source, receiver_source, receiver))
 
     return scene_objects

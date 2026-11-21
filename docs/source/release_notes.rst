@@ -5,6 +5,21 @@ Release notes
 Unreleased / next release
 =========================
 
+GSSI 2 GHz antenna placement
+----------------------------
+
+* The GSSI 2 GHz toolbox model now rounds its centre-bottom placement once,
+  preserving its integer-cell geometry and one-cell feed gaps. Previously
+  off-grid positions could distort the antenna or collapse its receiver edge.
+  Off-grid placements warn with the actual position; existing grid-aligned
+  placements at the default orientation retain their geometry and loading.
+* An optional ``rotation`` keyword accepts 0, 90, 180 or 270 degrees and
+  rotates this antenna in the x-y plane, including both feeds and its receiver.
+  At 90/270 degrees the field output
+  is ``Ex`` rather than ``Ey``. Port voltages retain the global positive-axis
+  convention; see :doc:`inc_GPRAntennaModels` for polarity and survey guidance.
+  Other antenna models and the solver's coordinate rounding are unchanged.
+
 Fractal volumes and rough surfaces
 ----------------------------------
 
