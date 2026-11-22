@@ -3777,6 +3777,8 @@ Allows you to control the number of cells (thickness) of PML that are used on th
 * ``i6`` is the number of cells of PML to use on the side of the model domain furthest from the origin of the z-axis (zmax).
 * ``i1 i2 i3 i4 i5 i6`` may be set to zero to turn off the PML on a specific side of the model domain.
 
+In a 2D model the invariant axis carries no PML: it is switched off automatically, and a 1-cell (TM) or 2-cell (TE) axis cannot host opposing PML slabs anyway. The single-value form can still be used in a 2D model; it then applies to the transverse faces only, and any cells requested for the invariant axis are dropped with a message. A face with a declared ``#symmetry_boundary`` also carries no PML, and is excluded when the command checks that the requested cells fit the domain.
+
 For example to use a PML with 20 cells (thicker than the default 10 cells) on only the z-axis sides of the domain use:
 
 .. code-block:: none

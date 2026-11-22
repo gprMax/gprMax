@@ -138,6 +138,7 @@ def stub_grid():
         "cfs": [],
         "profiles": {},
     }
+    grid.requested_symmetry_boundaries = {}
     grid.add_source = MagicMock()
     grid.add_receiver = MagicMock()
     grid.set_pml_thickness = MagicMock()
