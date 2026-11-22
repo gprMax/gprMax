@@ -172,6 +172,7 @@ Optional command-line arguments are:
 
 * ``-fft`` to include the waveform's power spectrum, calculated using the FFT.
 * ``-save`` to save a PNG without opening a plot window.
+* ``-o``, ``--output-file`` to specify a destination filename or directory for the saved plot (saving without displaying interactively).
 
 .. note::
    ``impulse`` previews also require a positive placeholder ``freq`` (for

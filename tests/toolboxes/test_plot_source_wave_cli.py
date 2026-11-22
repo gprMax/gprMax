@@ -20,7 +20,8 @@
 import matplotlib.pyplot as plt
 import pytest
 
-from gprMax.toolboxes.Plotting.plot_source_wave import check_timewindow, main
+from gprMax.toolboxes.Plotting.plot_source_wave import check_timewindow, main, mpl_plot
+from gprMax.waveforms import Waveform
 
 pytestmark = pytest.mark.unit
 
@@ -54,7 +55,9 @@ class TestMainValidation:
             main(["gaussian", "1", "1e9", "0", "1.926e-12", "-save"])
 
     def test_rejects_an_infinite_time_window(self):
-        with pytest.raises(ValueError, match="Time window must have a finite value greater than zero"):
+        with pytest.raises(
+            ValueError, match="Time window must have a finite value greater than zero"
+        ):
             main(["gaussian", "1", "1e9", "inf", "1.926e-12", "-save"])
 
     def test_unknown_waveform_exits_with_usage_error(self, capsys):
@@ -62,6 +65,22 @@ class TestMainValidation:
             main(["nosuchwaveform", "1", "1e9", "6e-9", "1.926e-12", "-save"])
         assert excinfo.value.code == 2
         assert "invalid choice" in capsys.readouterr().err
+
+    def test_rejects_an_empty_output_file(self):
+        with pytest.raises(ValueError, match="Output file path cannot be empty"):
+            main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "-o", ""])
+
+    def test_rejects_a_whitespace_output_file(self):
+        with pytest.raises(ValueError, match="Output file path cannot be empty"):
+            main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "--output-file", "   "])
+
+    def test_mpl_plot_rejects_empty_output_file(self):
+        w = Waveform()
+        w.type = "gaussian"
+        w.amp = 1
+        w.freq = 1e9
+        with pytest.raises(ValueError, match="Output file path cannot be empty"):
+            mpl_plot(w, 6e-9, 1.926e-12, 100, output_file="")
 
 
 class TestMainSuccess:
@@ -85,6 +104,57 @@ class TestMainSuccess:
         assert saved.exists()
         assert saved.stat().st_size > 0
 
+    def test_custom_output_filename_is_saved(self, tmp_path):
+        target = tmp_path / "custom_wave.png"
+        try:
+            main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "-o", str(target)])
+        finally:
+            plt.close("all")
+        assert target.exists()
+        assert target.stat().st_size > 0
+
+    def test_custom_output_file_long_flags_are_accepted(self, tmp_path):
+        target_file = tmp_path / "from_output_file.png"
+        target_alias = tmp_path / "from_output.png"
+        try:
+            main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "--output-file", str(target_file)])
+            plt.close("all")
+            main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "--output", str(target_alias)])
+        finally:
+            plt.close("all")
+        assert target_file.exists()
+        assert target_file.stat().st_size > 0
+        assert target_alias.exists()
+        assert target_alias.stat().st_size > 0
+
+    def test_custom_output_directory_is_saved(self, tmp_path):
+        try:
+            main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "-o", str(tmp_path)])
+        finally:
+            plt.close("all")
+        saved = tmp_path / "gaussian.png"
+        assert saved.exists()
+        assert saved.stat().st_size > 0
+
+    def test_custom_output_nested_directory_created(self, tmp_path):
+        target = tmp_path / "nested" / "sub" / "wave.png"
+        try:
+            main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "-o", str(target)])
+        finally:
+            plt.close("all")
+        assert target.exists()
+        assert target.stat().st_size > 0
+
+    def test_custom_output_trailing_slash_directory_created(self, tmp_path):
+        target_dir = tmp_path / "new_folder"
+        try:
+            main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "-o", f"{target_dir}/"])
+        finally:
+            plt.close("all")
+        saved = target_dir / "gaussian.png"
+        assert saved.exists()
+        assert saved.stat().st_size > 0
+
 
 class TestCheckTimewindow:
     @pytest.mark.parametrize("dt", [0, -1e-12])
@@ -99,5 +169,7 @@ class TestCheckTimewindow:
 
     @pytest.mark.parametrize("tw", ["inf", "nan", "-inf", float("inf"), float("nan")])
     def test_rejects_a_non_finite_time_window(self, tw):
-        with pytest.raises(ValueError, match="Time window must have a finite value greater than zero"):
+        with pytest.raises(
+            ValueError, match="Time window must have a finite value greater than zero"
+        ):
             check_timewindow(tw, 1.926e-12)

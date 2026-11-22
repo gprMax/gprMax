@@ -69,7 +69,7 @@ def check_timewindow(timewindow, dt):
     return timewindow, iterations
 
 
-def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
+def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True, output_file=None):
     """Plots waveform and prints useful information about its properties.
 
         This previews the waveform formula evaluated at whole timesteps,
@@ -88,10 +88,27 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
         show: boolean flag to display the plot interactively; if False, or
             if the current matplotlib backend is not interactive, the plot
             is saved to file instead.
+        output_file: Path or str of the output file or directory. Defaults to
+            None (which saves to ``Path.cwd() / w.type``).
 
     Returns:
         plt: matplotlib plot object.
     """
+    if output_file is not None:
+        raw_str = str(output_file)
+        target_str = raw_str.strip()
+        if not target_str or output_file == Path(""):
+            raise ValueError("Output file path cannot be empty")
+        target = Path(output_file)
+        if target.is_dir() or raw_str.endswith(("/", "\\")):
+            target.mkdir(parents=True, exist_ok=True)
+            savefile = target / w.type
+        else:
+            if target.parent:
+                target.parent.mkdir(parents=True, exist_ok=True)
+            savefile = target
+    else:
+        savefile = Path.cwd() / w.type
 
     # Validate once before bulk sampling.
     w.validate()
@@ -177,7 +194,6 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, show=True):
     # Turn on grid
     [ax.grid(which="both", axis="both", linestyle="-.") for ax in fig.axes]
 
-    savefile = Path.cwd() / w.type
     handle_plot_output(plt, fig, str(savefile), show=show)
 
     return plt
@@ -230,7 +246,19 @@ def main(argv=None):
         default=False,
         help="save plot directly to file, i.e. do not display",
     )
+    parser.add_argument(
+        "-o",
+        "--output-file",
+        "--output",
+        default=None,
+        dest="output_file",
+        help="output filename or directory for saved plot",
+    )
     args = parser.parse_args(argv)
+
+    if args.output_file is not None:
+        if not str(args.output_file).strip() or args.output_file == Path(""):
+            raise ValueError("Output file path cannot be empty")
 
     if args.type.lower() not in plottable_waveforms:
         raise ValueError(f"The waveform must have one of: {', '.join(plottable_waveforms)}")
@@ -250,7 +278,15 @@ def main(argv=None):
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    return mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, show=not args.save)
+    return mpl_plot(
+        w,
+        timewindow,
+        args.dt,
+        iterations,
+        fft=args.fft,
+        show=not (args.save or args.output_file is not None),
+        output_file=args.output_file,
+    )
 
 
 if __name__ == "__main__":
