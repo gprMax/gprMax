@@ -222,6 +222,26 @@ class AddGrass(GeometryUserObject):
                 "grass (the same restriction as #add_surface_roughness in 2D mode)."
             )
 
+        # A grass surface needs at least two spectral samples: a footprint
+        # that discretises to a single cell in both in-plane directions has
+        # a one-sample spectrum, so the density map the blades are placed
+        # from would be identically zero after the DC component is removed
+        # (and the generator's min/max rescale would divide by zero). A
+        # 1-cell-wide strip still varies along its long axis and is
+        # accepted.
+        inplane_extents = [
+            discretised_p2[axis] - discretised_p1[axis]
+            for axis in range(3)
+            if discretised_p1[axis] != discretised_p2[axis]
+        ]
+        if inplane_extents[0] < 2 and inplane_extents[1] < 2:
+            raise ValueError(
+                f"{self.__str__()} requires a surface that is at least 2 cells in size in at"
+                " least one in-plane direction (a single cell in both directions cannot"
+                f" express any fractal variation); the requested surface is"
+                f" {inplane_extents[0]} x {inplane_extents[1]} cells"
+            )
+
         surface = grid.create_fractal_surface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.ID = "grass"
         surface.surfaceID = requestedsurface

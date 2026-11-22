@@ -142,6 +142,26 @@ class FractalSurface:
 
         return surfacedims
 
+    def _reject_single_sample_surface(self):
+        """Raise unless the surface spans at least two spectral samples.
+
+        A surface that is a single cell in both in-plane directions has a
+        one-sample spectrum: zeroing the DC component zeroes the entire
+        field, so the min/max rescale in generate_fractal_surface() would
+        divide by zero. A single cell in one direction only (a 1-cell-wide
+        strip) still has spectral variation along its other direction and
+        is fine.
+        """
+
+        surfacedims = self.get_surface_dims()
+        if surfacedims[0] < 2 and surfacedims[1] < 2:
+            raise ValueError(
+                "Fractal surface must be at least 2 cells in size in at least one in-plane"
+                " direction (a single cell in both directions cannot express any fractal"
+                f" variation); the requested surface is {surfacedims[0]} x {surfacedims[1]}"
+                " cells"
+            )
+
     def _te_invariant_inplane_index(self, invariant_axis: int) -> int:
         """Maps a global axis index (0/1/2 for x/y/z) to its position (0 or
         1) within this surface's 2D in-plane dims, as returned by
@@ -167,13 +187,17 @@ class FractalSurface:
         # invariant is rejected earlier, at #add_surface_roughness build
         # time), generate a single 1-cell-thick shadow surface and copy it
         # to both cells, for the same invariance/reproducibility reasons as
-        # FractalVolume.
+        # FractalVolume. The shadow's own generate_fractal_surface() call
+        # applies the same degenerate-size guard to the shadow's
+        # single-cell-thick dims, so a 1-cell shadow is rejected there.
         mode = config.get_model_config().mode
         if mode.startswith("2D TE"):
             invariant_axis = "xyz".index(mode[-1])
             if self.size[invariant_axis] == 2:
                 in_plane_index = self._te_invariant_inplane_index(invariant_axis)
                 return self._generate_fractal_surface_te(invariant_axis, in_plane_index)
+
+        self._reject_single_sample_surface()
 
         surfacedims = self.get_surface_dims()
 
@@ -301,6 +325,12 @@ class MPIFractalSurface(FractalSurface):
         # computes the identical surface from the same seed.
         if self.grass:
             return FractalSurface.generate_fractal_surface(self)
+
+        # Same degenerate-size guard as the serial generator, checked before
+        # the rank-local early-exit below can split the communicator, so
+        # every rank raises the identical user error instead of only the
+        # ranks that own the surface dividing by zero.
+        self._reject_single_sample_surface()
 
         from gprMax.fractals.mpi_utilities import calculate_starts_and_subshape, create_mpi_type
         from gprMax.mpi_support import require_mpi
