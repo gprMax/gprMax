@@ -2,11 +2,28 @@
 Release notes
 *************
 
-Unreleased / next release
-=========================
+4.0.2 (Caol Ila)
+================
 
-NTFF windows and ambiguous geometry tags
------------------------------------------
+This maintenance-led release collects corrections since 4.0.1, improvements
+to eigenmode tracking and geometry conversion, and smaller modelling and
+post-processing additions. Automatic eigenmode tracking remains experimental
+and opt-in; ``tracking="legacy"`` is still the default.
+
+For installation and upgrades, follow :ref:`installation`. Supported Python
+versions remain 3.11--3.13, with CPU wheels for Linux x86-64, Windows x86-64,
+and Intel and Apple Silicon macOS. CUDA, OpenCL, Metal and MPI still require
+their optional bindings and system runtimes; see :doc:`accelerators` and
+:doc:`hpc`. No new mandatory CAD dependency is added to the core installation.
+
+Before reusing reference results, read the changes below to DPW termination,
+PMC/PML intersections, eigenmode acceptance, seeded fractal/grass geometry,
+CAD voxelisation and antenna placement. Study receiver selection also adds
+output metadata that third-party readers may need to handle. This release
+does not change the historical main-grid CFL timestep calculation.
+
+NTFF temporal windows
+---------------------
 
 * KSIR, equivalent-current NTFF, and layered NTFF frequency transforms accept
   ``hann_end`` in the Python API and hash commands. It leaves the first 80%
@@ -16,13 +33,6 @@ NTFF windows and ambiguous geometry tags
   end-only tapering also needs care and does not repair insufficient decay.
   See :ref:`ntff-frequency-windows`. Port-normalised gain/efficiency still
   require ``rectangular``.
-* A volumetric hash command such as ``#box: ... a n c`` now raises a clear
-  ambiguity error when ``n`` is a material ID, instead of silently replacing
-  the directional assignment with isotropic material ``a`` and tag ``c``.
-  The guard also covers ``y``, ``Y``, and ``N`` and the other tagged volume
-  primitives. Use ``... a n tag=c`` for an explicitly tagged isotropic volume,
-  descriptive directional material names, or the unambiguous Python API.
-  Ordinary tagged geometry and existing material IDs remain supported.
 
 SAR and radiometry temporal windows
 -----------------------------------
@@ -39,8 +49,8 @@ SAR and radiometry temporal windows
   port-power normalisation before time stepping instead of failing during
   finalisation after the solve.
 
-Non-finite coordinates and step sizes
--------------------------------------
+Input validation and rounding
+-----------------------------
 
 * ``inf`` in the centre of ``#sphere`` and ``#ellipsoid`` now follows the documented 2D
   single-point convention (interior reference layer on the invariant axis, domain faces on
@@ -52,12 +62,41 @@ Non-finite coordinates and step sizes
   helper and now raise a clear "step size must be a finite value" error. In 2D models,
   write any finite value on the invariant axis for snapshots (one plane is exported
   regardless) and zero for ``#rx_array`` axes that should not step.
-* The internal rounding helper ``round_int`` now raises ``ValueError`` for any non-finite
-  input, so no code path can surface a raw ``decimal.InvalidOperation`` or the cryptic
-  "cannot convert NaN to integer" error. Finite rounding behaviour is unchanged.
+* The internal rounding helper ``round_int`` now raises ``ValueError`` for non-finite
+  input instead of exposing a raw ``decimal.InvalidOperation`` or the cryptic
+  "cannot convert NaN to integer" error. Its finite rounding behaviour is unchanged.
+* Decimal-boundary flooring in ``round_float`` no longer drops a value one
+  unit below an exact decimal boundary. The main-grid CFL calculation retains
+  its historical rounding explicitly, rather than inheriting this helper
+  change. Invalid decimal-place and allocation-rounding arguments now fail
+  with informative errors.
+* Domain dimensions, time windows, waveform parameters, material-bin counts,
+  grass-blade counts, subgrid refinement ratios and single-use hash-command
+  arguments receive earlier validation. Invalid or missing values produce
+  clearer errors instead of failing later in numerical routines. Input files
+  and included text are read as UTF-8, with clearer decoding errors.
+* Material and mixing-model builders, and selected geometry commands, attach
+  the validation reason to ``ValueError`` instead of logging it and raising
+  an empty exception. Logging outside exception handlers no longer emits a
+  spurious ``NoneType: None`` traceback. These diagnostic changes preserve
+  the validation conditions, including the Peplinski density checks below.
+* ``#rx_array`` rejects negative steps before rounding and rejects sub-cell
+  steps on axes with a nonzero extent. Zero remains valid on a fixed axis;
+  the coordinate tolerance scales with cell size rather than assuming a
+  millimetre-scale model.
+* Peplinski soils require positive bulk density below particle density and
+  sand/clay fractions whose sum does not exceed one. Invalid combinations
+  now fail before material generation. Permittivity evaluation rejects
+  non-finite or non-positive evaluation frequencies; this is not a blanket
+  ban on signed Fourier frequencies used internally by broadband sources.
+* Transmission lines reject time windows too short for their auxiliary
+  line, and a DPW angle request that cannot meet its specified tolerance
+  reports the failure explicitly. Material databases reject smoothing for
+  conductor entries. Nested directional material assignments resolve the
+  constituent for each axis correctly.
 
-GSSI 2 GHz antenna placement
-----------------------------
+Toolbox antenna models
+----------------------
 
 * The GSSI 2 GHz toolbox model now rounds its centre-bottom placement once,
   preserving its integer-cell geometry and one-cell feed gaps. Previously
@@ -70,6 +109,8 @@ GSSI 2 GHz antenna placement
   is ``Ex`` rather than ``Ey``. Port voltages retain the global positive-axis
   convention; see :doc:`inc_GPRAntennaModels` for polarity and survey guidance.
   Other antenna models and the solver's coordinate rounding are unchanged.
+* The GSSI 400 MHz subgrid example uses the contributed antenna's supported
+  2 mm resolution. The antenna design itself has not been rescaled to 1 mm.
 
 Fractal volumes and rough surfaces
 ----------------------------------
@@ -82,7 +123,7 @@ Fractal volumes and rough surfaces
   height field is identically zero and the generator previously crashed
   with a raw ``FloatingPointError: divide by zero``. Footprints of at
   least 2 cells in one in-plane direction - including 1-cell-wide strips
-  (1 x N or N x 1 cells) - are unaffected and keep their exact geometry.
+  (1 x N or N x 1 cells) - are unaffected by this guard.
   The same guard protects the serial, 2D TE-shadow and MPI-distributed
   fractal-surface generators.
 * **Same-seed fractal geometry can change:** fractal volumes and rough
@@ -92,7 +133,19 @@ Fractal volumes and rough surfaces
   are the dimensions of the fractal being generated, not necessarily those of
   the overall model domain. Fractals whose generation dimensions are all even
   are unaffected, and previously exported geometry is unchanged; reuse it
-  where earlier geometry must be reproduced exactly.
+  where earlier geometry must be reproduced exactly. The separate grass
+  random-stream correction below can change grass even on even-sized grids.
+* **Seeded grass geometry changes:** blade curvature and root-walk generators
+  now use six independently derived random streams instead of restarting
+  each stream with the same seed. This removes artificial correlations that
+  constrained the bending and root walks. A specified seed still reproduces
+  the geometry with unchanged inputs in this release, but does not reproduce
+  the older correlated geometry. Keep exported geometry if the earlier
+  realisation is required.
+* Grass construction supports MPI domain decomposition, with consistent
+  geometry across ranks, including runs without an explicit seed. Whole-number
+  fractal seeds are validated before generation; the two-cell TE construction
+  continues to preserve invariance.
 
 Discrete plane waves
 --------------------
@@ -149,8 +202,27 @@ Discrete plane waves
   span the domain (its two-sided 1D grid keeps valid samples beyond both
   faces).
 
-Subgrids
---------
+Scenes, studies and subgrids
+----------------------------
+
+* ``gprMax.run(scenes=[scene], n=N)`` can repeat a single scene definition
+  without a bare ``IndexError``. Source and receiver stepping work with or
+  without ``geometry_fixed=True``; omitting geometry reuse rebuilds the
+  definition each time. Run counts are validated before model construction,
+  and warnings identify likely redundant repeats or unused scene definitions.
+  Multiple distinct scenes are not automatically cycled to satisfy ``n``.
+* Completed models no longer remain alive through subgrid references held by
+  their scene definitions. This prevents memory accumulating across multi-scene
+  runs while retaining reusable scene definitions and geometry-fixed runs.
+* Snapshot times are resolved again when a scene is rebuilt, avoiding a
+  previously cached iteration being interpreted as a physical time.
+* Studies can select receiver recording per case using ``record=False``
+  (Python API or study CSV). A muted receiver retains its identity and output
+  group but has ``Recorded=0`` and no field datasets. Older files without this
+  attribute remain readable. Merged output uses ``MergedOutputSchemaVersion=2``
+  and stores unrecorded samples as **NaN columns, not zeros**, with per-input
+  flags in ``trace_metadata/rxs/rxN/Recorded``. See :doc:`studies` and
+  :doc:`output` before adapting external readers.
 
 * A subgrid whose Outer Surface (``is_os_sep`` main grid cells outside it) is
   not at least one main grid cell inside the domain is now rejected when the
@@ -158,6 +230,9 @@ Subgrids
   failed once time stepping started, with a segmentation fault, an
   ``OverflowError`` or an ``IndexError``. A subgrid whose Outer Surface lay
   exactly on the domain's upper edge used to run; it is now rejected too.
+* Unsupported MPI/subgrid combinations are rejected before a distributed
+  solve starts, with configuration-specific messages. This does not add
+  MPI domain-decomposed subgrid support.
 
 PMC symmetry boundaries and PML
 -------------------------------
@@ -175,6 +250,44 @@ PMC symmetry boundaries and PML
   accepted. Previously every 2D model raised "too many cells" for any
   positive single value, and the only escape was the six-value form with
   explicit zeros.
+* Explicit ``sigma.max=0`` is honoured in distributed PML construction rather
+  than being mistaken for an omitted value. Invalid thickness and kappa
+  inputs report the relevant constraint, including ``kappamin >= 1``.
+
+Geometry commands and saved models
+----------------------------------
+
+* A volumetric hash command such as ``#box: ... a n c`` now raises a clear
+  ambiguity error when ``n`` is a material ID, instead of silently replacing
+  the directional assignment with isotropic material ``a`` and tag ``c``.
+  The guard also covers ``y``, ``Y``, and ``N`` and the other tagged volume
+  primitives. Use ``... a n tag=c`` for an explicitly tagged isotropic volume,
+  descriptive directional material names, or the unambiguous Python API.
+  Ordinary tagged geometry and existing material IDs remain supported.
+* ``#magnetic_edge`` / ``MagneticEdge`` supports active magnetic components
+  in 2D: the invariant component in TE and in-plane components in TM. Inactive
+  orientations are rejected. The documented ``inf`` convention places or
+  spans the appropriate reduced-axis samples.
+* ``#helix`` / ``Helix`` adds a 3D helical volume with a circular wire section,
+  arbitrary axis, handedness and fractional turns. It is a rasterised volume,
+  not an unresolved thin-wire source. Fully PEC helices are checked for
+  connectivity of their rasterised Yee edges; other materials have resolution
+  checks and warnings. See :doc:`helix` for the geometric definition and
+  limitations.
+* Impedance geometry can round-trip through ``GeometryObjectsWrite`` and
+  ``GeometryObjectsRead`` with its companion JSON material database. The
+  continuous surface model and boundary markers are restored, the timestep
+  margin is applied, and conflicting destination model IDs are rejected.
+  Existing SIBC solver/backend restrictions remain; see
+  :doc:`impedance_surfaces`.
+* Geometry imported into a two-cell TE model preserves invariant voxel and
+  Yee-component layers, including files with component arrays. Thickness
+  clipping and volume-loop bounds are corrected for partially out-of-domain
+  primitives.
+* Geometry-view and geometry-object filenames preserve dots in the requested
+  basename, including numbered runs, rather than treating everything after
+  the final dot as a replaceable extension. VTKHDF tuple shapes are corrected
+  for scalar and vector field-data arrays.
 
 STLtoVoxel and geometry import
 ------------------------------
@@ -204,6 +317,11 @@ STLtoVoxel and geometry import
   ``--supersample`` and ``--pad-cells``; the settings are recorded in the
   ``conversion_settings`` attribute. The ``parallel`` argument of the
   ``convert`` functions is deprecated and ignored.
+* STLtoVoxel accepts ``-o`` / ``--output-dir`` / ``--output`` to choose the
+  directory for its HDF5 geometry and companion JSON material database,
+  creating missing parent directories. The default remains beside the input
+  STL. Voxelisation, placement and existing material-database contents are
+  unchanged by the directory choice.
 * Imported-geometry grids from STLtoVoxel, STEPtoVoxel and GeometryImport no
   longer gain an empty upper cell when a bound lies on a cell face.
 * **Faces on cell centres are voxelised consistently** (STEPtoVoxel and
@@ -226,10 +344,26 @@ STLtoVoxel and geometry import
 Eigenmode tracking
 ------------------
 
+* The opt-in automatic tracker supports symmetry-aware subspace continuation
+  for PEC, dielectric and SIBC ports. Symmetry is tested about the certified
+  active port region, not necessarily the centre of the full numerical
+  window. Unequal exterior PEC or unretained SIBC padding can be excluded only
+  when proved inactive; active air padding remains part of the problem.
+  Additional native Yee-grid symmetry groups and mirror orientations are
+  supported. This does not extend SIBC to unsupported execution backends.
 * Automatic tracking now resolves longitudinal families and symmetry subgroups
   before selecting polarization within each eligible doublet. Crossing recovery
   excludes spatially unresolved reference candidates, even when their
   eigenproblem residual is small.
+
+* Broadband automatic tracking checks the Maxwell residual of interpolated
+  propagating profiles at interval midpoints. ``midpoint_tolerance`` defaults
+  to ``1e-3``; exceedances warn without changing the accepted anchors unless
+  ``midpoint_refinement=True`` is requested. Refinement uses the shared solve
+  budget. Cutoff handling excludes ineligible channels from excitation and
+  physical modal references while retaining successfully tracked profiles
+  for diagnostics; inspect the stored validity masks near cutoff. See
+  :doc:`eigenmode_tracking` for controls and output diagnostics.
 
 * Shared two-direction ``mode_polarizations`` inputs remain supported in both
   legacy and automatic tracking during the deprecation period, including the
@@ -260,7 +394,7 @@ STEPtoVoxel
 -----------
 
 * STEP files can be read with OpenCascade installed by pip:
-  ``pip install "gprMax[step]"`` installs cadquery-ocp as an alternative to
+  ``pip install "gprMax[step]"`` installs cadquery-ocp-novtk as an alternative to
   conda's pythonocc-core. Both give the same components, names, colours and voxels.
   See :doc:`inc_STEPtoVoxel`.
 
@@ -273,6 +407,61 @@ STEPtoVoxel
   placement in the reported CAD bounding boxes, and in the voxels when the
   model is rotated. With pythonocc-core, CAD colours are now read; every part
   was previously reported grey.
+
+Output processing and plotting
+------------------------------
+
+* ``evaluate_saved_surface_dft`` reads KSIR surface DFTs saved by scene
+  objects as well as stand-alone monitors, so saved fields can be reevaluated
+  at other observation angles without rerunning FDTD. Missing saved DFTs,
+  ambiguous names and incompatible conventions receive explicit errors.
+  This correction does not add reevaluation of equivalent-current surface
+  DFTs.
+* Merge and trace-export tools select only the requested numbered file series,
+  avoiding similarly prefixed models and previous merged outputs. Receiver
+  paths, absent ``nrx``/``Name`` attributes and muted receivers are handled
+  consistently in plotting, exports and Marimo. Invalid grid selections and
+  missing or unrecorded receivers produce useful diagnostics rather than
+  unrelated lookup errors.
+* Gathered B-scan plots no longer overwrite the first individual receiver's
+  plot. Waveform previews use the solver's
+  time-window-to-sample-count convention and accept ``-o`` / ``--output`` to
+  save a PNG at a chosen path.
+* A-scan and waveform spectra retain all non-negative FFT bins for zero,
+  impulse and DC-peaked traces instead of showing an empty or truncated
+  frequency axis. Marimo applies the receiver half-step fallback when reading
+  magnetic fields from legacy files without explicit timing metadata.
+* ImpulseResponse supports the built-in ``gauspulse`` waveform and preserves
+  raw CSV waveform identifiers. AntennaPatterns dB rings are anchored at the
+  0 dB peak and critical-angle calculations handle their permitted limits.
+* Geometry conversion, head extraction, AntennaPatterns, SFCW, FMCW,
+  ImpulseResponse and SEG-2/SEG-Y/DT1 exports add input/output alias checks
+  and safer staged or recoverable writes. These protect source data and
+  existing destinations against the covered validation/write failures;
+  multi-file exports are not a single filesystem-wide atomic transaction.
+  DT1/HD and PNG-to-HDF5 outputs preserve dotted basenames.
+* Head-only geometry extraction crops component IDs, rigid masks and tag
+  arrays together with the voxel data, retaining a consistent geometry file.
+
+Execution and documentation
+---------------------------
+
+* Metal submits command buffers without waiting after every dispatch and
+  sizes PML launches to their slabs, while retaining synchronization before
+  host reads and required transfers. This reduces unnecessary host/device
+  waiting; the speedup depends on the model and device.
+* Snapshot device allocation validates the selected backend before allocating
+  arrays. Example-resource errors identify the operation and path more clearly.
+* Eigenmode source/receiver and PML logs format coordinates as ordinary numbers
+  rather than NumPy scalar representations; this changes logging only.
+* Python user-object argument documentation is expanded for model-building
+  tools, and source-install instructions follow the default ``master`` branch.
+
+Review numerical reference results and regenerate affected derived data where
+appropriate. For migration from v3, use :doc:`migration_v3_v4`. The
+`4.0.2 change history
+<https://github.com/gprMax/gprMax/compare/v.4.0.1...v.4.0.2>`_ will identify the
+released revisions once the 4.0.2 tag is published.
 
 4.0.1 (Caol Ila)
 ================

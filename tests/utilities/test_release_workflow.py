@@ -69,7 +69,7 @@ def distributions(tmp_path):
 
 
 @pytest.mark.parametrize("destination", ["dry-run", "testpypi", "pypi"])
-@pytest.mark.parametrize("version", ["4.0.0", "4.0.0rc1", "4.0.1"])
+@pytest.mark.parametrize("version", ["4.0.0", "4.0.0rc1", "4.0.1", "4.0.2"])
 def test_release_version_accepts_matching_tag(tmp_path, destination, version):
     path = tmp_path / "version.py"
     path.write_text(f'__version__ = "{version}"\nraise RuntimeError("must not execute")\n')
@@ -126,6 +126,7 @@ def test_rejects_non_public_or_noncanonical_version(tmp_path, version):
     "version,destination,ref",
     [
         ("4.0.0", "pypi", "refs/tags/v.4.0.0"),
+        ("4.0.2", "pypi", "refs/tags/v.4.0.2"),
         ("4.0.0rc1", "testpypi", "refs/tags/v.4.0.0rc1"),
         ("4.0.0", "dry-run", "refs/heads/master"),
     ],
@@ -265,7 +266,7 @@ def test_cli_writes_manifest(distributions, tmp_path):
     assert len(json.loads(manifest.read_text())["files"]) == 13
 
 
-@pytest.mark.parametrize("version", ["4.0.0", "4.0.1"])
+@pytest.mark.parametrize("version", ["4.0.0", "4.0.1", "4.0.2"])
 def test_pip_selects_only_an_exact_local_release_wheel(distributions, tmp_path, version):
     target = tmp_path / "downloaded"
     result = subprocess.run(
