@@ -88,3 +88,30 @@ def test_sum_of_fractions_above_one_rejected(sand, clay):
 
 def test_sum_of_fractions_equal_to_one_accepted():
     _build(sand_fraction=0.6, clay_fraction=0.4)
+
+
+def test_zero_bulk_density_rejected():
+    with pytest.raises(ValueError):
+        _build(bulk_density=0)
+
+
+def test_negative_bulk_density_rejected():
+    with pytest.raises(ValueError):
+        _build(bulk_density=-1.5)
+
+
+@pytest.mark.parametrize(
+    ("bulk", "sand"),
+    [
+        (2.66, 2.66),
+        (3.0, 2.66),
+        (2.7, 2.65),
+    ],
+)
+def test_bulk_density_greater_than_or_equal_to_sand_density_rejected(bulk, sand):
+    with pytest.raises(ValueError):
+        _build(bulk_density=bulk, sand_density=sand)
+
+
+def test_bulk_density_less_than_sand_density_accepted():
+    _build(bulk_density=2.0, sand_density=2.66)
