@@ -69,8 +69,15 @@ def _base_scene(mode=None, domain=(0.02, 0.02, INF), dl=1e-3):
 
 def _sector(**overrides):
     kwargs = dict(
-        normal="z", ctr1=0.01, ctr2=0.01, extent1=INF, extent2=INF, r=0.006,
-        start=15, end=200, material_id="diel",
+        normal="z",
+        ctr1=0.01,
+        ctr2=0.01,
+        extent1=INF,
+        extent2=INF,
+        r=0.006,
+        start=15,
+        end=200,
+        material_id="diel",
     )
     kwargs.update(overrides)
     return gprMax.CylindricalSector(**kwargs)
@@ -80,7 +87,9 @@ def test_tez_sector_spans_both_cells_and_is_invariant(monkeypatch, tmp_path):
     scene = _base_scene(mode="TE")
     scene.add(_sector())
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "te", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "te", hide_progress_bars=True
+    )
     grid = captured["grid"]
     diel = next(m for m in grid.materials if m.ID == "diel")
     assert grid.solid.shape == (20, 20, 2)
@@ -92,7 +101,9 @@ def test_tmz_sector_spans_single_cell(monkeypatch, tmp_path):
     scene = _base_scene(mode="TM")
     scene.add(_sector())
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "tm", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "tm", hide_progress_bars=True
+    )
     grid = captured["grid"]
     diel = next(m for m in grid.materials if m.ID == "diel")
     assert grid.solid.shape == (20, 20, 1)
@@ -103,13 +114,25 @@ def test_tm_and_te_produce_identical_cross_section(monkeypatch, tmp_path):
     scene_tm = _base_scene(mode="TM")
     scene_tm.add(_sector())
     captured_tm = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene_tm], n=1, geometry_only=True, outputfile=tmp_path / "cross_tm", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene_tm],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "cross_tm",
+        hide_progress_bars=True,
+    )
     grid_tm = captured_tm["grid"]
 
     scene_te = _base_scene(mode="TE")
     scene_te.add(_sector())
     captured_te = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene_te], n=1, geometry_only=True, outputfile=tmp_path / "cross_te", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene_te],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "cross_te",
+        hide_progress_bars=True,
+    )
     grid_te = captured_te["grid"]
 
     diel_tm = next(m for m in grid_tm.materials if m.ID == "diel")
@@ -125,7 +148,11 @@ def test_te_sector_normal_mismatch_rejected(tmp_path):
     scene.add(_sector(normal="x", extent1=0.008, extent2=0.012))
     with pytest.raises(ValueError, match="normal axis must match the invariant axis"):
         gprMax.run(
-            scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "mismatch", hide_progress_bars=True
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "mismatch",
+            hide_progress_bars=True,
         )
 
 
@@ -134,7 +161,11 @@ def test_3d_sector_with_inf_is_rejected(tmp_path):
     scene.add(_sector())
     with pytest.raises(ValueError, match="2D mode"):
         gprMax.run(
-            scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "3d_inf", hide_progress_bars=True
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "3d_inf",
+            hide_progress_bars=True,
         )
 
 
@@ -142,7 +173,87 @@ def test_3d_sector_without_inf_unaffected(monkeypatch, tmp_path):
     scene = _base_scene(mode=None, domain=(0.02, 0.02, 0.02))
     scene.add(_sector(normal="x", extent1=0.008, extent2=0.012))
     captured = _capture_grid(monkeypatch)
-    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=tmp_path / "3d_plain", hide_progress_bars=True)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "3d_plain",
+        hide_progress_bars=True,
+    )
     grid = captured["grid"]
     diel = next(m for m in grid.materials if m.ID == "diel")
     assert np.sum(grid.solid == diel.numID) > 0
+
+
+def test_sector_invalid_normal_rejected(tmp_path):
+    scene = _base_scene()
+    scene.add(_sector(normal="w"))
+    with pytest.raises(ValueError, match="normal direction must be either x, y or z"):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "normal",
+            hide_progress_bars=True,
+        )
+
+
+def test_sector_negative_angle_rejected(tmp_path):
+    scene = _base_scene()
+    scene.add(_sector(start=-15))
+    with pytest.raises(
+        ValueError,
+        match="the starting angle must be non-negative and the sector angle must be positive",
+    ):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "neg_angle",
+            hide_progress_bars=True,
+        )
+
+
+def test_sector_zero_start_angle_accepted(monkeypatch, tmp_path):
+    scene = _base_scene()
+    scene.add(_sector(start=0))
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "zero_start",
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+    diel = next(m for m in grid.materials if m.ID == "diel")
+    assert np.sum(grid.solid == diel.numID) > 0
+
+
+def test_sector_zero_sector_angle_rejected(tmp_path):
+    scene = _base_scene()
+    scene.add(_sector(end=0))
+    with pytest.raises(
+        ValueError,
+        match="the starting angle must be non-negative and the sector angle must be positive",
+    ):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "zero_sector",
+            hide_progress_bars=True,
+        )
+
+
+def test_sector_angle_exceeding_360_rejected(tmp_path):
+    scene = _base_scene()
+    scene.add(_sector(start=370))
+    with pytest.raises(ValueError, match="must be less than 360 degrees"):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "large_angle",
+            hide_progress_bars=True,
+        )

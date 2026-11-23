@@ -42,9 +42,13 @@ class Edge(GeometryUserObject):
     def hash(self):
         return "#edge"
 
-    _allowed_kwargs = frozenset({
-        "material_id", "p1", "p2",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "material_id",
+            "p1",
+            "p2",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -115,8 +119,9 @@ class Edge(GeometryUserObject):
             or (zs != zf and (xs != xf or ys != yf))
             or (xs == xf and ys == yf and zs == zf)
         ):
-            logger.exception(f"{self.__str__()} the edge is not specified correctly")
-            raise ValueError
+            message = f"{self.__str__()} the edge is not specified correctly"
+            logger.error(message)
+            raise ValueError(message)
 
         if invariant_axis is not None:
             run_axis = 0 if xs != xf else 1 if ys != yf else 2 if zs != zf else None

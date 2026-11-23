@@ -57,9 +57,18 @@ class Triangle(GeometryUserObject):
     def hash(self):
         return "#triangle"
 
-    _allowed_kwargs = frozenset({
-        "averaging", "material_id", "material_ids", "p1", "p2", "p3", "tag", "thickness",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "material_id",
+            "material_ids",
+            "p1",
+            "p2",
+            "p3",
+            "tag",
+            "thickness",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -115,7 +124,10 @@ class Triangle(GeometryUserObject):
         # modelling error.
         normal_vector = np.cross(dp2 - dp1, dp3 - dp1)
         if not np.any(normal_vector):
-            message = f"{self.__str__()} the vertices must define a non-degenerate " "triangle after discretisation."
+            message = (
+                f"{self.__str__()} the vertices must define a non-degenerate "
+                "triangle after discretisation."
+            )
             logger.error(message)
             raise ValueError(message)
         # Convert points to metres
@@ -137,8 +149,9 @@ class Triangle(GeometryUserObject):
             normal = "z"
             lower_extent = up1[2]
         else:
-            logger.exception(f"{self.__str__()} the triangle is not specified correctly")
-            raise ValueError
+            message = f"{self.__str__()} the triangle is not specified correctly"
+            logger.error(message)
+            raise ValueError(message)
 
         triangle_within_grid, lower_extent, thickness = uip.check_thickness(
             normal, lower_extent, thickness, self.__str__()

@@ -56,9 +56,18 @@ class Cone(GeometryUserObject):
     def hash(self):
         return "#cone"
 
-    _allowed_kwargs = frozenset({
-        "averaging", "material_id", "material_ids", "p1", "p2", "r1", "r2", "tag",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "material_id",
+            "material_ids",
+            "p1",
+            "p2",
+            "r1",
+            "r2",
+            "tag",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -132,8 +141,9 @@ class Cone(GeometryUserObject):
             raise ValueError(message)
 
         if r1 == 0 and r2 == 0:
-            logger.exception(f"{self.__str__()} both radii cannot be zero.")
-            raise ValueError
+            message = f"{self.__str__()} both radii cannot be zero."
+            logger.error(message)
+            raise ValueError(message)
 
         materials = resolve_geometry_materials(
             grid,
