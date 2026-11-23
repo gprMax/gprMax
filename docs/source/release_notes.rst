@@ -40,6 +40,17 @@ GSSI 2 GHz antenna placement
 Fractal volumes and rough surfaces
 ----------------------------------
 
+* ``#add_surface_roughness`` and ``#add_grass`` now reject, with a clear
+  error message, a surface footprint that discretises to a single cell in
+  both in-plane directions (including footprints that only round down to
+  it, e.g. 1.4 x 1.4 cells at the model discretisation). Such a footprint
+  has a one-sample spectrum, so after the DC component is removed the
+  height field is identically zero and the generator previously crashed
+  with a raw ``FloatingPointError: divide by zero``. Footprints of at
+  least 2 cells in one in-plane direction - including 1-cell-wide strips
+  (1 x N or N x 1 cells) - are unaffected and keep their exact geometry.
+  The same guard protects the serial, 2D TE-shadow and MPI-distributed
+  fractal-surface generators.
 * **Same-seed fractal geometry can change:** fractal volumes and rough
   surfaces now centre their spectral filters on the actual FFT DC position.
   Regenerating them with the same seed can therefore give different geometry

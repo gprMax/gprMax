@@ -1391,6 +1391,8 @@ Allows you to add rough surfaces to a ``#fractal_box`` in the model. A fractal d
 
 Up to six ``#add_rough_surface commands`` can be given for any ``#fractal_box`` corresponding to the six surfaces.
 
+The surface must discretise to at least 2 cells in size in at least one of its two in-plane directions. A footprint that is a single cell in both directions (including one that only rounds down to it, e.g. 1.4 x 1.4 cells) cannot express any roughness variation and is rejected with an error; a 1-cell-wide strip (e.g. 1 x N cells) still varies along its long direction and is accepted.
+
 For example, if a ``#fractal_box`` has been specified using: ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 50 my_soil my_fractal_box`` then to apply a rough surface that varies between 85 mm and 110 mm (i.e. valleys that are up to 15 mm deep and peaks that are up to 10 mm tall) to the surface that is in the positive z direction, use ``#add_surface_roughness: 0 0 0.1 0.1 0.1 0.1 1.5 1 1 0.085 0.110 my_fractal_box``.
 
 #add_surface_water:
@@ -1429,6 +1431,8 @@ Allows you to add grass with roots to a ``#fractal_box`` in the model. The blade
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used to create the fractals. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
 For example, to apply 100 blades of grass that vary in height between 100 and 150 mm to the entire surface in the positive z direction of a ``#fractal_box`` that had been specified using ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 50 my_soil my_fractal_box``, use ``#add_grass: 0 0 0.1 0.1 0.1 0.1 1.5 0.2 0.25 100 my_fractal_box``.
+
+As with ``#add_surface_roughness``, the surface must discretise to at least 2 cells in size in at least one of its two in-plane directions; a single cell in both directions is rejected with an error.
 
 .. note::
 

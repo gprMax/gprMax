@@ -242,6 +242,27 @@ class AddSurfaceRoughness(GeometryUserObject):
         # direction).
         uip.point_within_bounds(grid_bound, f"{self.__str__()}")
 
+        # A rough surface needs at least two spectral samples to carry any
+        # variation. A footprint that discretises to a single cell in both
+        # in-plane directions (e.g. a 1x1-cell patch, or one that rounds
+        # down to it, like 1.4 x 1.4 cells) has a one-sample spectrum:
+        # zeroing the DC component zeroes the whole field, so the
+        # generator's min/max rescale would divide by zero. Reject it here
+        # with a geometry-level message; a 1-cell-wide strip (1xN or Nx1)
+        # still varies along its long axis and is accepted.
+        inplane_extents = [
+            discretised_p2[axis] - discretised_p1[axis]
+            for axis in range(3)
+            if discretised_p1[axis] != discretised_p2[axis]
+        ]
+        if inplane_extents[0] < 2 and inplane_extents[1] < 2:
+            raise ValueError(
+                f"{self.__str__()} requires a surface that is at least 2 cells in size in at"
+                " least one in-plane direction (a single cell in both directions cannot"
+                f" express any surface roughness variation); the requested surface is"
+                f" {inplane_extents[0]} x {inplane_extents[1]} cells"
+            )
+
         surface = grid.create_fractal_surface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.surfaceID = requestedsurface
         surface.fractalrange = fractalrange
