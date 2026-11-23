@@ -150,10 +150,22 @@ class TestSetFilename:
         view.set_filename()
         assert view.filename.suffix == ".vtkhdf"
 
-    def test_replaces_an_existing_suffix(self, make_view_grid):
-        """Expects ``with_suffix`` semantics — a base name containing a dot is
-        truncated at it, as for snapshots."""
+    def test_keeps_dots_in_the_base_name(self, make_view_grid):
+        """Expects a dot in the base name to be kept, as for snapshots, so
+        names such as ``layer_0.1`` and ``layer_0.2`` stay distinct."""
         view = _ConcreteView(0, 0, 0, 4, 4, 4, 1, 1, 1, "geo.old", make_view_grid())
+        view.set_filename()
+        assert view.filename.name == "geo.old.vtkhdf"
+
+    def test_keeps_dots_in_the_base_name_with_the_model_number(self, make_view_grid, outputs_config):
+        outputs_config.model_config.appendmodelnumber = "2"
+        view = _ConcreteView(0, 0, 0, 4, 4, 4, 1, 1, 1, "survey_v1.2", make_view_grid())
+        view.set_filename()
+        assert view.filename.name == "survey_v1.22.vtkhdf"
+
+    @pytest.mark.parametrize("name", ["geo.vtkhdf", "geo.h5", "geo.vtk"])
+    def test_replaces_a_known_output_extension(self, make_view_grid, name):
+        view = _ConcreteView(0, 0, 0, 4, 4, 4, 1, 1, 1, name, make_view_grid())
         view.set_filename()
         assert view.filename.name == "geo.vtkhdf"
 

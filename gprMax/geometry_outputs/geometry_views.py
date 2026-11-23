@@ -119,9 +119,13 @@ class GeometryView(Generic[GridType]):
     def set_filename(self):
         """Construct filename from user-supplied name and model number."""
         parts = config.get_model_config().output_file_path.parts
-        self.filename = Path(
+        filename = Path(
             *parts[:-1], self.filenamebase + config.get_model_config().appendmodelnumber
-        ).with_suffix(self.FILE_EXTENSION)
+        )
+        if filename.suffix.lower() in {".h5", ".vtk", self.FILE_EXTENSION}:
+            self.filename = filename.with_suffix(self.FILE_EXTENSION)
+        else:
+            self.filename = filename.with_name(filename.name + self.FILE_EXTENSION)
 
     @abstractmethod
     def prep_vtk(self):

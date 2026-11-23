@@ -105,6 +105,13 @@ class TestConstruction:
         """Expects ``<name>.h5`` for the array file."""
         assert make_geometry_object(filename="antenna").filename_hdf5.name == "antenna.h5"
 
+    def test_the_hdf5_filename_keeps_dots_in_the_name(self, make_geometry_object):
+        assert make_geometry_object(filename="layer_0.1m").filename_hdf5.name == "layer_0.1m.h5"
+        assert make_geometry_object(filename="layer_0.2m").filename_hdf5.name == "layer_0.2m.h5"
+
+    def test_the_hdf5_filename_does_not_repeat_the_h5_suffix(self, make_geometry_object):
+        assert make_geometry_object(filename="antenna.h5").filename_hdf5.name == "antenna.h5"
+
     def test_the_materials_filename_is_suffixed_and_json(self, make_geometry_object):
         """Expects a schema-versioned JSON database beside the HDF5 file."""
         obj = make_geometry_object(filename="antenna")

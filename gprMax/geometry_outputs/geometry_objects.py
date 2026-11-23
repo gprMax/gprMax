@@ -65,7 +65,10 @@ class GeometryObject(Generic[GridType]):
         # Set filenames
         parts = config.sim_config.input_file_path.with_suffix("").parts
         self.filename = Path(*parts[:-1], filename)
-        self.filename_hdf5 = self.filename.with_suffix(".h5")
+        if self.filename.suffix.lower() == ".h5":
+            self.filename_hdf5 = self.filename.with_suffix(".h5")
+        else:
+            self.filename_hdf5 = self.filename.with_name(self.filename.name + ".h5")
         database_id = make_database_id(f"{self.filename.name}_materials", prefix="geometry")
         self.filename_materials = self.filename.parent / f"{database_id}.json"
 
