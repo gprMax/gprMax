@@ -129,11 +129,11 @@ For example, these declarations select TMz and TEz respectively:
 TM uses one internal cell and TE uses two internal cells on the invariant axis.
 The physical coordinates on that axis may be written as ``inf`` in commands
 that accept points or bounds; gprMax resolves lower and upper bounds to the
-appropriate faces of the reduced domain. For a single source or receiver,
-``inf`` on the invariant axis selects the active interior reference layer
-(rather than a TE boundary layer whose fields are constrained). On an
-in-plane axis, ``-inf`` selects the lower domain face and ``inf`` the upper
-face.
+appropriate faces of the reduced domain. For a single point - a source,
+receiver, or the centre of a ``#sphere`` or ``#ellipsoid`` - ``inf`` on the
+invariant axis selects the active interior reference layer (rather than a TE
+boundary layer whose fields are constrained). On an in-plane axis, ``-inf``
+selects the lower domain face and ``inf`` the upper face.
 
 .. note::
 
@@ -981,7 +981,7 @@ Allows you to output file(s) containing information about the geometry of a mode
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the geometry view in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the geometry view in metres.
-* ``f7 f8 f9`` are the spatial discretisation of the geometry view in metres. Typically these will be the same as the spatial discretisation of the model but they can be courser if desired.
+* ``f7 f8 f9`` are the spatial discretisation of the geometry view in metres. Typically these will be the same as the spatial discretisation of the model but they can be courser if desired. Each must be a finite value (``inf`` is not accepted).
 * ``file1`` is the filename of the file where the geometry view will be stored in the same directory as the input file.
 * ``c1`` can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f). The fine mode should be reserved for viewing detailed parts of the geometry that occupy small volumes, as using this mode can generate geometry files with large file sizes.
 
@@ -1196,6 +1196,7 @@ For example, to specify a sphere with centre at (0.5, 0.5, 0.5), radius 100 mm, 
 .. note::
 
     * Sphere objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
+    * In a 2D model the centre may use ``inf`` following the general 2D convention: on the invariant axis it selects the active interior reference layer, and on an in-plane axis ``-inf``/``inf`` place the centre on the lower/upper domain face (only the part of the sphere inside the domain is created). In a 3D model ``inf`` is not allowed in the centre. NaN is never a valid coordinate.
 
 #cylinder:
 ----------
@@ -1334,6 +1335,7 @@ For example, to specify an ellipsoid with centre at (0.045, 0.045, 0.045), and s
 .. note::
 
     * Ellipsoidal objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
+    * In a 2D model the centre may use ``inf`` following the general 2D convention: on the invariant axis it selects the active interior reference layer, and on an in-plane axis ``-inf``/``inf`` place the centre on the lower/upper domain face (only the part of the ellipsoid inside the domain is created). In a 3D model ``inf`` is not allowed in the centre. NaN is never a valid coordinate.
 
 .. _fractals:
 
@@ -2454,7 +2456,7 @@ Provides a simple method of defining multiple output points in the model. The sy
     #rx_array: f1 f2 f3 f4 f5 f6 f7 f8 f9
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the output line/rectangle/volume, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the output line/rectangle/volume.
-* ``f7 f8 f9`` are the increments (x,y,z) which define the number of output points in each direction. ``f7``, ``f8``, or  ``f9`` can be set to zero to prevent any output points in a particular direction. Otherwise, the minimum value of ``f7`` is :math:`\Delta x`, the minimum value of ``f8`` is :math:`\Delta y`, and the minimum value of ``f9`` is :math:`\Delta z`.
+* ``f7 f8 f9`` are the increments (x,y,z) which define the number of output points in each direction. ``f7``, ``f8``, or  ``f9`` can be set to zero to prevent any output points in a particular direction. Otherwise, the minimum value of ``f7`` is :math:`\Delta x`, the minimum value of ``f8`` is :math:`\Delta y`, and the minimum value of ``f9`` is :math:`\Delta z`. Each must be a finite value - use zero, not ``inf``, to suppress output points in a direction.
 
 Automatic voltage-source port output
 ------------------------------------
@@ -2867,7 +2869,7 @@ or
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
-* ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres.
+* ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres. Each must be a finite value; in a 2D model any finite value on the invariant axis exports the single live plane, so ``inf`` is not accepted there.
 * ``f10`` or ``i1`` are the time in seconds (float) or the zero-based iteration number (integer) which denote the electric-field time level at which the snapshot will be taken.
 * ``file1`` is the name of the file where the snapshot will be stored. Snapshot files are automatically stored in a directory with the name of the input file appended with '_snaps'. For multiple model runs each model run will have its own directory, i.e. '_snaps1', 'snaps2' etc...
 

@@ -4199,6 +4199,12 @@ class RxArray(GridUserObject):
 
         _, discretised_lower_point = uip.check_src_rx_point(lower_point, self.params_str(), "lower")
         _, discretised_upper_point = uip.check_src_rx_point(upper_point, self.params_str(), "upper")
+        # A step is a physical quantity: unlike a coordinate, `inf` is never
+        # a meaningful step on any axis (use 0 as the documented no-stepping
+        # marker). Checked on the raw request because the discretisation
+        # below cannot round a non-finite value.
+        if not all(math.isfinite(v) for v in self.dl):
+            raise ValueError(f"{self.params_str()} the step size must be a finite value.")
         discretised_dl = uip.discretise_static_point(self.dl)
 
         if any(discretised_lower_point > discretised_upper_point):

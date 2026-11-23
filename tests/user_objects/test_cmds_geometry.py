@@ -58,6 +58,8 @@ from gprMax.user_objects.cmds_geometry.plate import Plate
 from gprMax.user_objects.cmds_geometry.sphere import Sphere
 from gprMax.user_objects.cmds_geometry.triangle import Triangle
 
+INF = float("inf")
+
 # ---------------------------------------------------------------------------
 # Common contract: every geometry class has order == 1 and the right hash
 # ---------------------------------------------------------------------------
@@ -211,6 +213,88 @@ class TestEllipsoid:
         e = Ellipsoid(p1=(0.05, 0.05, 0.05), xr=0.02, yr=0.03)
         with pytest.raises(KeyError):
             e.build(stub_grid)
+
+
+# ---------------------------------------------------------------------------
+# Sphere / Ellipsoid centres: inf convention and NaN rejection
+# ---------------------------------------------------------------------------
+
+
+class TestSphereInfAndNanCentres:
+    """`inf` centres follow the single-point convention; NaN is rejected."""
+
+    def test_build_routes_the_centre_through_resolve_inf_point(self, stub_grid):
+        s = Sphere(p1=(INF, 0.05, 0.05), r=0.02, material_id="ghost")
+        uip = MagicMock()
+        uip.resolve_inf_point.side_effect = lambda point, role=None: (0.05, 0.05, 0.05)
+        uip.round_to_grid_static_point.return_value = (0.05, 0.05, 0.05)
+        uip.discretise_point.return_value = (25, 25, 25)
+        with patch.object(Sphere, "_create_uip", return_value=uip):
+            # Unknown material stops the build after the calls under test.
+            with pytest.raises(ValueError):
+                s.build(stub_grid)
+        uip.resolve_inf_point.assert_called_once_with((INF, 0.05, 0.05))
+        assert uip.round_to_grid_static_point.call_args.args[0] == (0.05, 0.05, 0.05)
+        assert uip.discretise_point.call_args.args[0] == (0.05, 0.05, 0.05)
+
+    def test_build_rejects_a_nan_centre_before_discretisation(self, stub_grid):
+        s = Sphere(p1=(float("nan"), 0.05, 0.05), r=0.02, material_id="free_space")
+        uip = MagicMock()
+        uip.resolve_inf_point.side_effect = lambda point, role=None: tuple(point)
+        with patch.object(Sphere, "_create_uip", return_value=uip):
+            with pytest.raises(ValueError, match="centre coordinates must be finite"):
+                s.build(stub_grid)
+        uip.round_to_grid_static_point.assert_not_called()
+        uip.discretise_point.assert_not_called()
+
+    def test_build_inf_centre_in_3d_raises_the_documented_error(self, stub_grid):
+        """The autouse config fixture defaults to mode='3D', so the real
+        resolve_inf_point must raise the standard 2D-only error."""
+        from gprMax.user_inputs import MainGridUserInput
+
+        s = Sphere(p1=(INF, 0.05, 0.05), r=0.02, material_id="free_space")
+        uip = MagicMock(wraps=MainGridUserInput(stub_grid))
+        with patch.object(Sphere, "_create_uip", return_value=uip):
+            with pytest.raises(ValueError, match="'inf' is only allowed in a coordinate"):
+                s.build(stub_grid)
+
+
+class TestEllipsoidInfAndNanCentres:
+    """Mirror of TestSphereInfAndNanCentres for the ellipsoid."""
+
+    def test_build_routes_the_centre_through_resolve_inf_point(self, stub_grid):
+        e = Ellipsoid(p1=(INF, 0.05, 0.05), xr=0.02, yr=0.02, zr=0.02, material_id="ghost")
+        uip = MagicMock()
+        uip.resolve_inf_point.side_effect = lambda point, role=None: (0.05, 0.05, 0.05)
+        uip.round_to_grid_static_point.return_value = (0.05, 0.05, 0.05)
+        uip.discretise_point.return_value = (25, 25, 25)
+        with patch.object(Ellipsoid, "_create_uip", return_value=uip):
+            with pytest.raises(ValueError):  # unknown material stops the build
+                e.build(stub_grid)
+        uip.resolve_inf_point.assert_called_once_with((INF, 0.05, 0.05))
+        assert uip.round_to_grid_static_point.call_args.args[0] == (0.05, 0.05, 0.05)
+        assert uip.discretise_point.call_args.args[0] == (0.05, 0.05, 0.05)
+
+    def test_build_rejects_a_nan_centre_before_discretisation(self, stub_grid):
+        e = Ellipsoid(
+            p1=(0.05, float("nan"), 0.05), xr=0.02, yr=0.02, zr=0.02, material_id="free_space"
+        )
+        uip = MagicMock()
+        uip.resolve_inf_point.side_effect = lambda point, role=None: tuple(point)
+        with patch.object(Ellipsoid, "_create_uip", return_value=uip):
+            with pytest.raises(ValueError, match="centre coordinates must be finite"):
+                e.build(stub_grid)
+        uip.round_to_grid_static_point.assert_not_called()
+        uip.discretise_point.assert_not_called()
+
+    def test_build_inf_centre_in_3d_raises_the_documented_error(self, stub_grid):
+        from gprMax.user_inputs import MainGridUserInput
+
+        e = Ellipsoid(p1=(0.05, 0.05, INF), xr=0.02, yr=0.02, zr=0.02, material_id="free_space")
+        uip = MagicMock(wraps=MainGridUserInput(stub_grid))
+        with patch.object(Ellipsoid, "_create_uip", return_value=uip):
+            with pytest.raises(ValueError, match="'inf' is only allowed in a coordinate"):
+                e.build(stub_grid)
 
 
 # ---------------------------------------------------------------------------

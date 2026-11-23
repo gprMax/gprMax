@@ -363,3 +363,49 @@ def test_negative_step_beyond_the_tolerance_still_rejected(tmp_path, scale):
             outputfile=tmp_path / f"neg_reject_{scale[1]}",
             hide_progress_bars=True,
         )
+
+
+INF = float("inf")
+
+
+@pytest.mark.parametrize("step", (INF, float("nan")))
+def test_non_finite_step_is_rejected(tmp_path, step):
+    """inf/nan used to crash in round_int() before these PR #962 checks
+    could run; both now raise the same contextual step-size error."""
+    scene = _scene()
+    scene.add(gprMax.RxArray(p1=(0.002, 0.006, 0.006), p2=(0.010, 0.006, 0.006), dl=(step, 0, 0)))
+    with pytest.raises(ValueError, match="the step size must be a finite value"):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "reject_inf",
+            hide_progress_bars=True,
+        )
+
+
+def test_2d_invariant_axis_inf_step_is_rejected_with_the_same_message(tmp_path):
+    """Even though the invariant-axis step is irrelevant when both endpoints
+    resolve to the interior layer, `inf` is not the way to express that -
+    zero is the documented no-stepping marker."""
+    scene = gprMax.Scene()
+    scene.add(gprMax.DomainMode(mode="TE"))
+    scene.add(gprMax.Discretisation(p1=(DL, DL, DL)))
+    scene.add(gprMax.Domain(p1=(0.01, 0.01, float("inf"))))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-11))
+    scene.add(
+        gprMax.RxArray(
+            p1=(0.002, 0.002, float("inf")),
+            p2=(0.006, 0.006, float("inf")),
+            dl=(0.002, 0.002, INF),
+        )
+    )
+    with pytest.raises(ValueError, match="the step size must be a finite value"):
+        gprMax.run(
+            scenes=[scene],
+            n=1,
+            geometry_only=True,
+            outputfile=tmp_path / "reject_2d",
+            hide_progress_bars=True,
+        )

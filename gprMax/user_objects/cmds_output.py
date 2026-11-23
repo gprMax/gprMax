@@ -633,6 +633,8 @@ class Snapshot(OutputUserObject):
             # exists only to preserve the three-dimensional Yee staggering.
             discretised_lower_bound[axis] = live
             discretised_upper_bound[axis] = live + 1
+        if not all(np.isfinite(v) for v in self.dl):
+            raise ValueError(f"{self.params_str()} the step size must be a finite value.")
         discretised_dl = uip.discretise_static_point(self.dl)
 
         # Reduced models export one physical plane regardless of the requested
@@ -2463,6 +2465,8 @@ class GeometryView(OutputUserObject):
         discretised_lower_bound, discretised_upper_bound = uip.check_output_object_bounds(
             lower_bound, upper_bound, self.params_str()
         )
+        if not all(np.isfinite(v) for v in self.dl):
+            raise ValueError(f"{self.params_str()} the step size must be a finite value.")
         discretised_dl = uip.discretise_static_point(self.dl)
 
         if any(discretised_dl < 0):

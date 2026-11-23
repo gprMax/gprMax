@@ -5,6 +5,23 @@ Release notes
 Unreleased / next release
 =========================
 
+Non-finite coordinates and step sizes
+-------------------------------------
+
+* ``inf`` in the centre of ``#sphere`` and ``#ellipsoid`` now follows the documented 2D
+  single-point convention (interior reference layer on the invariant axis, domain faces on
+  in-plane axes) instead of crashing with a raw ``decimal.InvalidOperation``; in 3D models
+  it is rejected with the standard "'inf' is only allowed in a coordinate when the model is
+  in 2D mode" error. NaN centres are rejected with a clear message.
+* The spatial discretisation of ``#snapshot`` and ``#geometry_view``, and the step size of
+  ``#rx_array``, must be finite; ``inf``/NaN previously crashed in the internal rounding
+  helper and now raise a clear "step size must be a finite value" error. In 2D models,
+  write any finite value on the invariant axis for snapshots (one plane is exported
+  regardless) and zero for ``#rx_array`` axes that should not step.
+* The internal rounding helper ``round_int`` now raises ``ValueError`` for any non-finite
+  input, so no code path can surface a raw ``decimal.InvalidOperation`` or the cryptic
+  "cannot convert NaN to integer" error. Finite rounding behaviour is unchanged.
+
 GSSI 2 GHz antenna placement
 ----------------------------
 

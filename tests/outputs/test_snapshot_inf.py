@@ -120,3 +120,30 @@ def test_te_snapshot_rejects_bounds_that_exclude_live_plane(tmp_path):
 
     with pytest.raises(ValueError, match="live z-index 1"):
         _run(scene, tmp_path, "te_dead_plane")
+
+
+@pytest.mark.parametrize("dl", [(1e-3, 1e-3, INF), (1e-3, float("nan"), 1e-3)])
+def test_non_finite_step_is_rejected_in_2d(tmp_path, dl):
+    scene = _scene()
+    scene.add(gprMax.DomainMode(mode="TM"))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, INF)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(
+        gprMax.Snapshot(p1=(0, 0, INF), p2=(0.02, 0.02, INF), dl=dl, filename="snap", time=5e-13)
+    )
+
+    with pytest.raises(ValueError, match="the step size must be a finite value"):
+        _run(scene, tmp_path, "snap_dl_2d")
+
+
+def test_non_finite_step_is_rejected_in_3d(tmp_path):
+    scene = _scene()
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(
+        gprMax.Snapshot(
+            p1=(0, 0, 0), p2=(0.02, 0.02, 0.02), dl=(1e-3, 1e-3, INF), filename="snap", time=5e-13
+        )
+    )
+
+    with pytest.raises(ValueError, match="the step size must be a finite value"):
+        _run(scene, tmp_path, "snap_dl_3d")
