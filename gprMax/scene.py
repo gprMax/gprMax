@@ -119,6 +119,8 @@ class Scene:
         """
         try:
             for grid_user_object in sorted(objects):
+                if isinstance(grid_user_object, GeometryUserObject):
+                    grid_user_object.validate_hash_material_tag(grid)
                 grid_user_object.build(grid)
         except ValueError:
             logger.exception(f"Error creating user object '{grid_user_object}'")

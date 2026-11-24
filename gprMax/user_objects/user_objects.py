@@ -178,6 +178,29 @@ class OutputUserObject(UserObject):
 class GeometryUserObject(GridUserObject):
     """User defined object that adds geometry to a grid."""
 
+    _hash_material_tag_ambiguity = None
+
+    def validate_hash_material_tag(self, grid: FDTDGrid) -> None:
+        """Do not silently replace a directional material with a smoothing flag.
+
+        Only the hash parser sets this marker. Check at build time, when bulk,
+        database, and previously imported materials have their final IDs. API
+        material_id/material_ids and explicit hash tag=name forms are unambiguous.
+        """
+        if self._hash_material_tag_ambiguity is None:
+            return
+        command, marker = self._hash_material_tag_ambiguity
+        if any(material.ID == marker for material in grid.materials) or marker in getattr(
+            grid, "surface_impedance_models", {}
+        ):
+            raise ValueError(
+                f"'{command}' is ambiguous: {marker!r} is both a material ID and "
+                "a y/n smoothing flag. For one material and a tag, write "
+                "'<material> <y/n> tag=<name>'. For three directional materials, "
+                "rename the y/n material, append '<y/n> tag=<name>' after all "
+                "three IDs, or use the Python API material_ids argument."
+            )
+
     @property
     def order(self):
         """Geometry Objects do not have an ordering.

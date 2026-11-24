@@ -50,6 +50,10 @@ ELECTRIC_COMPONENTS = ("Ex", "Ey", "Ez")
 MAGNETIC_COMPONENTS = ("Hx", "Hy", "Hz")
 ALL_COMPONENTS = ELECTRIC_COMPONENTS + MAGNETIC_COMPONENTS
 DFT_PHASE_REANCHOR_INTERVAL = 1024
+# Fraction of the sample interval occupied by hann_end's falling half cosine.
+# Its distinct name is also part of saved-surface compatibility signatures.
+HANN_END_FRACTION = 0.2
+WINDOWS = ("rectangular", "hann", "hann_end")
 
 
 def _readonly(array: npt.NDArray) -> npt.NDArray:
@@ -123,13 +127,28 @@ def _angles(name: str, values: npt.ArrayLike, dtype) -> npt.NDArray[np.floating]
 
 
 def _window(name: str, iterations: int, dtype) -> npt.NDArray[np.floating]:
+    """DFT weights; hann_end leaves the first 80% of the record untouched.
+
+    The ordinary symmetric Hann is retained exactly for compatibility. Neither
+    taper recovers radiation omitted by truncating a non-decayed response.
+    """
     normalized = name.lower().replace("-", "_")
     if normalized in ("rectangular", "boxcar", "none"):
         values = np.ones(iterations, dtype=dtype)
     elif normalized in ("hann", "hanning"):
         values = np.hanning(iterations).astype(dtype)
+    elif normalized == "hann_end":
+        values = np.ones(iterations, dtype=dtype)
+        if iterations > 1:
+            position = np.arange(iterations, dtype=np.float64) / (iterations - 1)
+            start = 1.0 - HANN_END_FRACTION
+            tail = position > start
+            values[tail] = 0.5 * (
+                1.0 + np.cos(np.pi * (position[tail] - start) / HANN_END_FRACTION)
+            )
+            values[-1] = 0
     else:
-        raise ValueError("window must be 'rectangular' or 'hann'")
+        raise ValueError(f"window must be one of {WINDOWS}")
     return _readonly(values)
 
 
@@ -160,6 +179,8 @@ def surface_compatibility_signature(
     ):
         digest.update(text.encode("utf-8"))
         digest.update(b"\0")
+    if window == "hann_end":
+        digest.update(np.asarray((HANN_END_FRACTION,), dtype="<f8").tobytes())
     arrays = (
         np.asarray(surface.lower, dtype="<i8"),
         np.asarray(surface.upper, dtype="<i8"),
@@ -523,7 +544,7 @@ class KSIRFrequencyDomainMonitor:
         if not isinstance(nthreads, (int, np.integer)) or nthreads < 1:
             raise ValueError("nthreads must be an integer greater than zero")
         if not isinstance(window, str):
-            raise ValueError("window must be 'rectangular' or 'hann'")
+            raise ValueError(f"window must be one of {WINDOWS}")
         if wave_speed is not None and (not np.isfinite(wave_speed) or wave_speed <= 0):
             raise ValueError("wave_speed must be finite and greater than zero")
         if impedance is not None and (not np.isfinite(impedance) or impedance <= 0):
@@ -1440,6 +1461,8 @@ class KSIRFrequencyDomainMonitor:
         group.attrs["real_dtype"] = self.real_dtype.name
         group.attrs["complex_dtype"] = self.complex_dtype.name
         group.attrs["window"] = self.window_name
+        if self.window_name == "hann_end":
+            group.attrs["window_taper_fraction"] = HANN_END_FRACTION
         group.attrs["solver"] = self.solver_backend
         group.attrs["collection_backend"] = self.collection_backend
         group.attrs["phase_reanchor_interval"] = DFT_PHASE_REANCHOR_INTERVAL

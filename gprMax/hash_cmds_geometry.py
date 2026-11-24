@@ -97,11 +97,13 @@ def process_geometrycmds(geometry):
     for object in geometry:
         tmp = object.split()
         tag = None
+        material_tag_ambiguity = None
 
         # Geometry hash commands use positional arguments only. A tag is
         # accepted only after an explicit y/n smoothing argument. Requiring
-        # that marker keeps all existing isotropic and anisotropic forms
-        # unambiguous and backward compatible.
+        # that marker preserves existing forms, except where a directional
+        # material itself is named y/n. Defer that ambiguity check until the
+        # material table exists. An explicit tag=name suffix avoids it.
         base_lengths = {
             "#triangle:": 12,
             "#box:": 8,
@@ -116,6 +118,8 @@ def process_geometrycmds(geometry):
         if base_length is not None:
             if len(tmp) == base_length + 2 and tmp[-2].lower() in {"y", "n"}:
                 tag, tmp = tmp[-1], tmp[:-1]
+                if not tag.startswith("tag="):
+                    material_tag_ambiguity = (object, tmp[-1])
             elif len(tmp) == base_length + 4 and tmp[-2].lower() in {"y", "n"}:
                 # Three directional materials followed by the same explicit
                 # smoothing marker and tag. Directional primitives already
@@ -126,6 +130,9 @@ def process_geometrycmds(geometry):
         elif tmp[0] == "#fractal_box:":
             if len(tmp) == 17 and tmp[-2].lower() in {"y", "n"}:
                 tag, tmp = tmp[-1], tmp[:-1]
+
+        if tag is not None and tag.startswith("tag="):
+            tag = tag[4:]
 
         if tmp[0] == "#geometry_objects_read:":
             from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
@@ -710,5 +717,8 @@ def process_geometrycmds(geometry):
                         raise ValueError
 
                     scene_objects.append(grass)
+
+        if material_tag_ambiguity is not None:
+            scene_objects[-1]._hash_material_tag_ambiguity = material_tag_ambiguity
 
     return scene_objects

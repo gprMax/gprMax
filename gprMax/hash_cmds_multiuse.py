@@ -20,6 +20,7 @@ import logging
 import numpy as np
 
 import gprMax.config as config
+from gprMax.ntff.frequency_domain import WINDOWS as NTFF_WINDOWS
 from gprMax.surface_impedance_presets import DEFAULT_METAL_FIT_ORDER, DEFAULT_METAL_FIT_TOLERANCE
 
 from .user_objects.cmds_multiuse import (
@@ -1062,7 +1063,7 @@ def process_multicmds(multicmds):
                     f"'{cmdname}: {cmdinstance}' requires a surface ID, transform ID, and one or more frequencies"
                 )
             window = "rectangular"
-            if tokens[-1].lower() in ("rectangular", "hann"):
+            if tokens[-1].lower() in NTFF_WINDOWS:
                 window = tokens.pop().lower()
             if len(tokens) < 3:
                 raise ValueError(f"{cmdname} requires at least one frequency")
@@ -1084,7 +1085,7 @@ def process_multicmds(multicmds):
                     f"'{cmdname}: {cmdinstance}' requires a surface ID, transform ID, and one or more frequencies"
                 )
             window = "rectangular"
-            if tokens[-1].lower() in ("rectangular", "hann"):
+            if tokens[-1].lower() in NTFF_WINDOWS:
                 window = tokens.pop().lower()
             if len(tokens) < 3:
                 raise ValueError(f"{cmdname} requires at least one frequency")
@@ -1127,7 +1128,7 @@ def process_multicmds(multicmds):
                     "background ID, and one or more frequencies"
                 )
             window = "rectangular"
-            if tokens[-1].lower() in ("rectangular", "hann"):
+            if tokens[-1].lower() in NTFF_WINDOWS:
                 window = tokens.pop().lower()
             if len(tokens) < 4:
                 raise ValueError(f"{cmdname} requires at least one frequency")

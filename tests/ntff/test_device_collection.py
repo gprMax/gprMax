@@ -100,7 +100,7 @@ def _material():
     )
 
 
-def _monitor(name, surfaces, real_dtype, complex_dtype, iterations, dt):
+def _monitor(name, surfaces, real_dtype, complex_dtype, iterations, dt, window="rectangular"):
     return KSIRFrequencyDomainMonitor(
         name,
         surfaces,
@@ -111,6 +111,7 @@ def _monitor(name, surfaces, real_dtype, complex_dtype, iterations, dt):
         iterations,
         real_dtype=real_dtype,
         complex_dtype=complex_dtype,
+        window=window,
     )
 
 
@@ -118,7 +119,8 @@ def _monitor(name, surfaces, real_dtype, complex_dtype, iterations, dt):
     "real_dtype,complex_dtype,rtol",
     [(np.dtype("f4"), np.dtype("c8"), 2e-6), (np.dtype("f8"), np.dtype("c16"), 2e-13)],
 )
-def test_device_contract_matches_cpu_flat_index_collection(real_dtype, complex_dtype, rtol):
+@pytest.mark.parametrize("window", ("rectangular", "hann", "hann_end"))
+def test_device_contract_matches_cpu_flat_index_collection(real_dtype, complex_dtype, rtol, window):
     shape = (9, 10, 8)
     surfaces = {
         component: build_component_surface(component, (2, 2, 2), (5, 6, 5), (0.03, 0.04, 0.05), shape)
@@ -126,8 +128,8 @@ def test_device_contract_matches_cpu_flat_index_collection(real_dtype, complex_d
     }
     iterations = 12
     dt = 1e-11
-    cpu = _monitor("cpu", surfaces, real_dtype, complex_dtype, iterations, dt)
-    device = _monitor("device", surfaces, real_dtype, complex_dtype, iterations, dt)
+    cpu = _monitor("cpu", surfaces, real_dtype, complex_dtype, iterations, dt, window)
+    device = _monitor("device", surfaces, real_dtype, complex_dtype, iterations, dt, window)
 
     ids = np.ones((6,) + shape, dtype=np.uint32)
     lookup = {"Ex": 0, "Hx": 3}
@@ -183,13 +185,14 @@ def test_device_contract_matches_cpu_flat_index_collection(real_dtype, complex_d
     "real_dtype,complex_dtype,rtol",
     [(np.dtype("f4"), np.dtype("c8"), 2e-6), (np.dtype("f8"), np.dtype("c16"), 2e-13)],
 )
-def test_device_incident_plane_wave_dft_matches_cpu(real_dtype, complex_dtype, rtol):
+@pytest.mark.parametrize("window", ("rectangular", "hann", "hann_end"))
+def test_device_incident_plane_wave_dft_matches_cpu(real_dtype, complex_dtype, rtol, window):
     shape = (8, 8, 8)
     surface = build_component_surface("Ex", (2, 2, 2), (5, 5, 5), (0.01,) * 3, shape)
     iterations = 16
     dt = 1e-11
-    cpu = _monitor("cpu", {"Ex": surface}, real_dtype, complex_dtype, iterations, dt)
-    device = _monitor("device", {"Ex": surface}, real_dtype, complex_dtype, iterations, dt)
+    cpu = _monitor("cpu", {"Ex": surface}, real_dtype, complex_dtype, iterations, dt, window)
+    device = _monitor("device", {"Ex": surface}, real_dtype, complex_dtype, iterations, dt, window)
 
     def plane_wave():
         fields = np.zeros((3, 1), dtype=real_dtype)

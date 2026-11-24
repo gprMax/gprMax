@@ -120,7 +120,7 @@ def _antenna_scene():
     return scene, far_field
 
 
-def _equivalent_current_scene():
+def _equivalent_current_scene(window="rectangular"):
     dl = 0.004
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
@@ -136,7 +136,7 @@ def _equivalent_current_scene():
             id="surface",
         )
     )
-    transform = gprMax.NTFFFrequencyTransform("surface", "current", (5e9,))
+    transform = gprMax.NTFFFrequencyTransform("surface", "current", (5e9,), window=window)
     far_field = gprMax.NTFFFarField(
         (30, 90, 150),
         (0, 0, 0),
@@ -333,7 +333,7 @@ def test_opencl_layered_equivalent_current_time_far_fields_match_cpu(tmp_path, o
         assert group.attrs["collection_backend"] == "opencl_device_layered"
 
 
-def _plane_wave_rcs_scene():
+def _plane_wave_rcs_scene(window="rectangular"):
     dl = 0.004
     scene = gprMax.Scene()
     scene.add(gprMax.Discretisation(p1=(dl, dl, dl)))
@@ -364,6 +364,7 @@ def _plane_wave_rcs_scene():
         (5e9,),
         save_surface_dft=False,
         plane_wave_index=0,
+        window=window,
     )
     far_field = gprMax.KSIRFarField(
         (90,),
@@ -476,9 +477,10 @@ def test_cuda_reusable_outputs_match_cpu(tmp_path, gpu_device, precision, real_d
         ("double", np.dtype("complex128"), 2e-10),
     ],
 )
-def test_cuda_equivalent_current_far_field_matches_cpu(tmp_path, gpu_device, precision, complex_dtype, rtol):
-    cpu_scene, _, cpu_far = _equivalent_current_scene()
-    cuda_scene, cuda_transform, cuda_far = _equivalent_current_scene()
+@pytest.mark.parametrize("window", ("rectangular", "hann_end"))
+def test_cuda_equivalent_current_far_field_matches_cpu(tmp_path, gpu_device, precision, complex_dtype, rtol, window):
+    cpu_scene, _, cpu_far = _equivalent_current_scene(window)
+    cuda_scene, cuda_transform, cuda_far = _equivalent_current_scene(window)
     gprMax.run(
         scenes=[cpu_scene],
         n=1,
@@ -573,9 +575,10 @@ def test_cuda_antenna_metrics_match_cpu(tmp_path, gpu_device):
         ("double", np.dtype("complex128"), 2e-10),
     ],
 )
-def test_cuda_plane_wave_rcs_incident_reference_matches_cpu(tmp_path, gpu_device, precision, complex_dtype, rtol):
-    cpu_scene, cpu_transform, _ = _plane_wave_rcs_scene()
-    cuda_scene, cuda_transform, cuda_far = _plane_wave_rcs_scene()
+@pytest.mark.parametrize("window", ("rectangular", "hann_end"))
+def test_cuda_plane_wave_rcs_incident_reference_matches_cpu(tmp_path, gpu_device, precision, complex_dtype, rtol, window):
+    cpu_scene, cpu_transform, _ = _plane_wave_rcs_scene(window)
+    cuda_scene, cuda_transform, cuda_far = _plane_wave_rcs_scene(window)
     gprMax.run(
         scenes=[cpu_scene],
         n=1,

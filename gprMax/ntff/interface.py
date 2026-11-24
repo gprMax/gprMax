@@ -49,6 +49,8 @@ from gprMax.ntff.evaluator import (
     spherical_directions,
 )
 from gprMax.ntff.frequency_domain import (
+    HANN_END_FRACTION,
+    WINDOWS,
     KSIRFrequencyDomainMonitor,
     _evaluate_component_with_closure,
 )
@@ -93,7 +95,6 @@ FAR_METRICS = (
     ("radiation_intensity", "rcs") + DIRECTIVITY_OUTPUTS + GAIN_OUTPUTS + EFFICIENCY_OUTPUTS + EXTERIOR_OUTPUTS
 )
 TIME_ORIGINS = ("simulation", "first_arrival")
-WINDOWS = ("rectangular", "hann")
 # Post-processing block sizes are derived per transform from this cache-sized
 # working-set target. It is a performance bound, not a model-size limit.
 FAR_ZONE_TARGET_WORKING_SET_BYTES = 32 * 1024 * 1024
@@ -1905,6 +1906,8 @@ class NTFFCompiledOutputs:
             monitor = self.frequency_monitors[transform_id]
             group = base_group[f"ntff/{transform.surface_id}"].require_group("frequency").create_group(transform_id)
             group.attrs["window"] = transform.window
+            if transform.window == "hann_end":
+                group.attrs["window_taper_fraction"] = HANN_END_FRACTION
             group.attrs["formulation"] = transform.formulation
             group.attrs["phasor_time_sign"] = PHASOR_TIME_DEPENDENCE
             group.attrs["forward_transform_sign"] = FORWARD_TRANSFORM_KERNEL

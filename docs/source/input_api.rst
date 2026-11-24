@@ -1911,6 +1911,14 @@ The following example reuses one surface for an exact time-domain point and a
 frequency-domain radiation pattern. Python keyword arguments replace the
 positional optional parameters used by the equivalent hash commands.
 
+Use the default ``window='rectangular'`` for converged transient spectra.
+``window='hann_end'`` optionally tapers only the final 20% of the sample interval;
+the useful response must have decayed before that interval starts. The full
+symmetric ``window='hann'`` remains available for compatibility but is not
+recommended for transient far-field/RCS amplitudes. Neither taper repairs a
+truncated physical response, and port-normalised gain and efficiency require
+``rectangular``. See :ref:`ntff-frequency-windows` for the definitions and cautions.
+
 .. code-block:: python
 
     scene.add(gprMax.NTFFSurface(
@@ -1929,7 +1937,7 @@ positional optional parameters used by the equivalent hash commands.
         surface_id='radiation_surface',
         id='antenna_band',
         frequencies=(0.8e9, 1.0e9, 1.2e9),
-        window='hann',
+        window='rectangular',
     ))
     scene.add(gprMax.KSIRFarFieldArray(
         theta_start=0,
@@ -2012,7 +2020,7 @@ far fields. For example:
         surface_id='radiation_surface',
         id='current_band',
         frequencies=(0.8e9, 1.0e9, 1.2e9),
-        window='hann',
+        window='rectangular',
     ))
     scene.add(gprMax.NTFFFarFieldArray(
         theta_start=0,

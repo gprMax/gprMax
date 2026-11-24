@@ -1058,8 +1058,12 @@ class KSIRFrequencyTransform(OutputUserObject):
         frequencies (sequence of floats): Unique, finite, non-negative frequencies in Hz,
             not above the temporal Nyquist limit of the model time step.
         window (str): Time window applied to the streaming DFT. One of
-            'rectangular' or 'hann'. Default ``'rectangular'``,
-            which is required for gain normalisation.
+            'rectangular', 'hann_end', or 'hann'. Default ``'rectangular'``,
+            recommended for converged transients and required for gain/efficiency
+            normalisation. ``'hann_end'`` is one until 80% of the sample interval,
+            then falls to zero with a half cosine; use only after the useful
+            response has decayed. The full symmetric ``'hann'`` is retained for
+            compatibility, not recommended for transient far-field/RCS amplitudes.
         save_surface_dft (bool): Write the surface phasors to the transform's
             HDF5 group. Default True. Python API only.
         plane_wave_index (int or None): Index, counted from 0 in the order the
@@ -1196,8 +1200,12 @@ class NTFFFrequencyTransform(KSIRFrequencyTransform):
         frequencies (sequence of floats): Unique, finite, non-negative frequencies in Hz,
             not above the temporal Nyquist limit of the model time step.
         window (str): Time window applied to the streaming DFT. One of
-            'rectangular' or 'hann'. Default ``'rectangular'``,
-            which is required for gain normalisation.
+            'rectangular', 'hann_end', or 'hann'. Default ``'rectangular'``,
+            recommended for converged transients and required for gain/efficiency
+            normalisation. ``'hann_end'`` is one until 80% of the sample interval,
+            then falls to zero with a half cosine; use only after the useful
+            response has decayed. The full symmetric ``'hann'`` is retained for
+            compatibility, not recommended for transient far-field/RCS amplitudes.
         save_surface_dft (bool): Write the surface phasors to the transform's
             HDF5 group. Default True. Python API only.
         plane_wave_index (int or None): Index, counted from 0 in the order the
@@ -1234,8 +1242,12 @@ class NTFFLayeredFrequencyTransform(NTFFFrequencyTransform):
         frequencies (sequence of floats): Unique, finite, strictly positive frequencies in Hz,
             not above the temporal Nyquist limit of the model time step.
         window (str): Time window applied to the streaming DFT. One of
-            'rectangular' or 'hann'. Default ``'rectangular'``,
-            which is required for gain normalisation.
+            'rectangular', 'hann_end', or 'hann'. Default ``'rectangular'``,
+            recommended for converged transients and required for gain/efficiency
+            normalisation. ``'hann_end'`` is one until 80% of the sample interval,
+            then falls to zero with a half cosine; use only after the useful
+            response has decayed. The full symmetric ``'hann'`` is retained for
+            compatibility, not recommended for transient far-field/RCS amplitudes.
         save_surface_dft (bool): Write the surface phasors to the transform's
             HDF5 group. Default True. Python API only.
         plane_wave_index (int or None): Index, counted from 0 in the order the

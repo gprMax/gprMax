@@ -1428,6 +1428,12 @@ precision and collection backend, plus the engineering convention:
 ``exp(+j*omega*t)`` phasors, ``exp(-j*omega*t)`` forward transform, and
 ``exp(-j*k*R)`` outgoing Green function.
 
+For ``window=hann_end``, ``window_taper_fraction=0.2`` records the end-only
+taper's fraction of the sample interval. Saved surface phasors include the
+window and taper definition in their compatibility signature: do not combine
+surface and incident-reference datasets produced with different windows.
+See :ref:`ntff-frequency-windows` for the cautions on transient amplitudes.
+
 For a planar-layered transform, ``layered_background`` records the stack
 axis, positive-to-negative-axis material ordering, physical interface
 coordinates, and the complex relative permittivity and permeability evaluated
