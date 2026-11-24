@@ -215,7 +215,7 @@ What resuming does:
   Completed simulations are verified and reused; incomplete ones run again.
 * ``evaluations`` is the total budget of the whole run, including the
   evaluations completed before the interruption. It is not a number of extra
-  evaluations.
+  evaluations, and it cannot be lower than the number already completed.
 * The saved optimiser and its settings are restored. Omitted arguments take
   their original values. An explicitly different ``optimiser``, ``seed``,
   ``population_size``, ``batch_size``, ``target_value``, ``stop_on_target`` or
@@ -223,7 +223,8 @@ What resuming does:
   the execution settings, to the toolbox, or to the optimiser library version
   also prevent resuming.
 * A finished run (budget used, target reached, or stopped by a failed
-  evaluation) reports its saved result instead of continuing.
+  evaluation) reports its saved result instead of continuing. It cannot be
+  extended by passing a larger ``evaluations``; start a new optimisation instead.
 * Without ``resume=True``, an existing results directory is refused and never
   overwritten.
 

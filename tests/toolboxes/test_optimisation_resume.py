@@ -141,7 +141,9 @@ def test_resumed_run_matches_uninterrupted_run_for_every_optimiser(
         evaluations=evaluations,
         seed=5,
         progress=False,
-        execution=LocalPool(workers=4, cpu_threads_per_worker=1),
+        # Four parallel workers, even where fewer CPUs are visible: an earlier
+        # in-process gprMax run sets OMP_PROC_BIND, which can pin this process.
+        execution=LocalPool(workers=4, cpu_threads_per_worker=1, allow_oversubscription=True),
         **options,
     )
     expected = _optimise(tmp_path / "straight", **settings)
@@ -484,6 +486,47 @@ def test_resume_refuses_a_corrupt_checkpoint(run, damage):
     assert _snapshot(directory) == before
 
 
+@pytest.mark.parametrize("cause", ["corrupt checkpoint", "library version"])
+def test_refused_resume_does_not_record_a_new_evaluations_total(run, cause):
+    directory, data = run
+    if cause == "corrupt checkpoint":
+        checkpoint = directory / "optimiser/checkpoint.bin"
+        checkpoint.write_bytes(checkpoint.read_bytes()[:-1])
+    before = _snapshot(directory)
+    with pytest.MonkeyPatch.context() as patch:
+        if cause == "library version":
+            patch.setattr(importlib.metadata, "version", lambda name: "0.0.0")
+        with pytest.raises(ValueError, match="corrupt|library version changed"):
+            _optimise(directory, resume=True, files=(data,), evaluations=5)
+    # The refused total of 5 must not become the saved total of the run.
+    assert _snapshot(directory) == before
+
+
+@pytest.mark.parametrize("content", ["{", "[]", '{"schema_version": 1}'])
+def test_resume_refuses_a_damaged_settings_file(run, content):
+    directory, data = run
+    (directory / "optimise_settings.json").write_text(content)
+    before = _snapshot(directory)
+    with pytest.raises(ValueError, match="optimise_settings.json is damaged"):
+        _optimise(directory, resume=True, files=(data,))
+    assert _snapshot(directory) == before
+
+
+def test_resume_refuses_a_total_below_the_completed_evaluations(tmp_path):
+    pytest.importorskip("optuna")
+    pytest.importorskip("cloudpickle")
+    directory = tmp_path / "run"
+    with _interrupt_objective_at(3):
+        _optimise(directory, evaluations=3, seed=7, progress=False)
+    before = _snapshot(directory)
+    with pytest.raises(ValueError, match="2 are already complete.*at least 2"):
+        _optimise(directory, resume=True, evaluations=1)
+    assert _snapshot(directory) == before
+    # The refusal did not end the run: it still continues to its total.
+    result = _optimise(directory, resume=True)
+    assert result.stop_reason == "trial_budget" and len(result.trials) == 3
+
+
 def test_resume_refuses_a_tampered_trial_record(run):
     directory, data = run
     record_path = directory / "optimiser/trial-000001.json"
@@ -582,6 +625,16 @@ def test_missing_cloudpickle_fails_before_creating_anything(tmp_path, monkeypatc
     assert not (tmp_path / "new").exists()
 
 
+def test_numpy_integer_for_a_setting_the_optimiser_ignores_is_saved(tmp_path):
+    pytest.importorskip("optuna")
+    pytest.importorskip("cloudpickle")
+    directory = tmp_path / "run"
+    # TPE ignores population_size; the call worked before resume was added.
+    _optimise(directory, evaluations=1, seed=7, population_size=np.int64(4), progress=False)
+    saved = json.loads((directory / "optimise_settings.json").read_text())
+    assert saved["population_size"] == 4
+
+
 def test_run_without_checkpoints_needs_no_cloudpickle_and_cannot_be_resumed(tmp_path, monkeypatch):
     pytest.importorskip("optuna")
     directory = tmp_path / "run"
@@ -607,16 +660,24 @@ def test_simulate_directory_is_not_mistaken_for_an_optimisation(tmp_path):
 # Finished runs keep their existing meaning on resume.
 
 
-def test_resuming_a_run_that_reached_its_target_does_not_continue(tmp_path):
+def test_resuming_a_run_that_reached_its_target_does_not_continue(tmp_path, capsys):
     pytest.importorskip("optuna")
     pytest.importorskip("cloudpickle")
     directory = tmp_path / "run"
-    result = _optimise(directory, evaluations=3, seed=7, target_value=1e6, progress=False)
+    result = _optimise(directory, evaluations=3, seed=7, target_value=1e6)
     assert result.stop_reason == "target_reached" and len(result.trials) == 1
     attempts = _attempts(directory)
+    capsys.readouterr()
     again = _optimise(directory, resume=True)
     assert again.stop_reason == "target_reached" and again.trials == result.trials
     assert _attempts(directory) == attempts
+    output = capsys.readouterr().out
+    assert "already finished (target_reached)" in output and "Resuming" not in output
+    # A larger total does not extend a finished run, and is refused, not ignored.
+    before = _snapshot(directory)
+    with pytest.raises(ValueError, match=r"already finished \(target_reached, 1 evaluations\)"):
+        _optimise(directory, resume=True, evaluations=5)
+    assert _snapshot(directory) == before
 
 
 def test_resuming_a_failed_run_reports_the_failure_again(tmp_path):

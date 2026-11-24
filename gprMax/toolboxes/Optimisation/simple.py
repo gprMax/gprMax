@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import numbers
 from pathlib import Path
 
 from ._storage import json_copy, sha256, write_json
@@ -112,6 +113,18 @@ class _Default:
 # The adapter metadata in optimiser/session.json differs between libraries and
 # does not keep the simple-API names (e.g. "ga"), so it cannot restore them.
 _SETTINGS_FILE = "optimise_settings.json"
+_SAVED_KEYS = {
+    "optimiser",
+    "optimiser_class",
+    "population_size",
+    "batch_size",
+    "seed",
+    "target_value",
+    "stop_on_target",
+    "progress",
+    "proposals_per_batch",
+    "evaluations",
+}
 
 
 def _require_cloudpickle():
@@ -156,7 +169,42 @@ def _read_resumable_settings(storage):
             "interface. Use Campaign.resume and campaign.optimise(..., resume=True) instead; "
             "see the execution guide."
         )
-    return json.loads((storage / _SETTINGS_FILE).read_text())
+    path = storage / _SETTINGS_FILE
+    try:
+        saved = json.loads(path.read_text())
+        valid = saved["schema_version"] == 1 and _SAVED_KEYS <= saved.keys()
+    except (ValueError, TypeError, KeyError):
+        valid = False
+    if not valid:
+        raise ValueError(
+            f"Cannot resume {storage}: {path.name} is damaged or was not written by optimise(). "
+            "The completed simulations remain in the campaign directory; start a new "
+            "optimisation in a new directory."
+        )
+    return saved
+
+
+def _finished_run(storage):
+    """Return (stop reason, evaluations) of a finished run, or None if it can continue.
+
+    run_optimisation marks the checkpoint finished before it writes this final
+    result.json, so a final stop reason here means the run will not continue.
+    "running", "cancelled" and "error" are written while a run can still resume.
+    """
+    try:
+        record = json.loads((storage / "optimiser" / "result.json").read_text())
+        reason = record["stop_reason"]
+        if reason in ("running", "cancelled", "error"):
+            return None
+        return reason, len(record["trials"])
+    except (OSError, ValueError, TypeError, KeyError):
+        return None  # run_optimisation decides from the checkpoint itself.
+
+
+def _checkpoint_stamp(storage):
+    """Identify the checkpoint file; save_checkpoint replaces it with a new file."""
+    status = (storage / "optimiser" / "checkpoint.bin").stat()
+    return status.st_ino, status.st_mtime_ns
 
 
 def _choose_settings(requested, saved):
@@ -256,11 +304,13 @@ def optimise(
     objective, parameters and files. Omitted settings are restored from the
     original run; different ones are refused. ``evaluations`` stays the total
     budget of the whole run, including evaluations completed before the
-    interruption. This resumes the optimisation, not one FDTD simulation:
-    verified completed simulations are reused and incomplete ones run again.
-    A finished run (budget used, target reached or a failed evaluation)
-    reports its saved result instead of continuing. Checkpoints contain
-    pickle data, so only resume runs that you created and trust.
+    interruption, so it cannot be lower than the number already completed.
+    This resumes the optimisation, not one FDTD simulation: verified completed
+    simulations are reused and incomplete ones run again. A finished run
+    (budget used, target reached or a failed evaluation) reports its saved
+    result instead of continuing and cannot be given a new evaluations total.
+    Checkpoints contain pickle data, so only resume runs that you created and
+    trust.
 
     Returns an OptimisationResult with ``best_parameters``, ``best_value``,
     ``trials`` and ``stop_reason``. See the advanced guide for caching, native
@@ -297,6 +347,13 @@ def optimise(
         evaluations = saved["evaluations"] if resume else evaluations.value
     if isinstance(evaluations, bool) or not isinstance(evaluations, int) or evaluations < 1:
         raise ValueError("evaluations must be a positive integer")
+    finished = _finished_run(storage) if resume else None
+    if finished and evaluations != saved["evaluations"]:
+        raise ValueError(
+            f"Cannot resume {storage} with evaluations={evaluations}: this optimisation already "
+            f"finished ({finished[0]}, {finished[1]} evaluations) and cannot be continued. Omit "
+            "evaluations to report its result, or start a new optimisation in a new directory."
+        )
     progress = bool(settings["progress"])
     # Describe the callbacks before creating a campaign: a worker will reload
     # these saved functions later, rather than receive live Python closures.
@@ -342,19 +399,25 @@ def optimise(
     if resume:
         # Campaign.resume re-checks the model, files and execution settings.
         campaign = Campaign.resume(problem, storage, execution)
-        if evaluations != saved["evaluations"]:
-            # Record a changed total so a later resume without evaluations uses it.
-            write_json(storage / _SETTINGS_FILE, {**saved, "evaluations": evaluations})
+        stamp = _checkpoint_stamp(storage)
     else:
         # Stored as JSON, so keep the target as run_optimisation does: a plain float.
         if settings["target_value"] is not None:
             settings["target_value"] = ObjectiveResult(settings["target_value"]).value
         # Check the record before the campaign directory exists, so an unsaveable
         # value fails first. A custom adapter is recorded by its class name only.
+        # An optimiser that does not use population_size or batch_size ignores
+        # them, so a NumPy integer there must still be saved as a plain number.
         record = json_copy(
             {
                 "schema_version": 1,
                 **settings,
+                **{
+                    name: int(settings[name])
+                    for name in ("population_size", "batch_size")
+                    if isinstance(settings[name], numbers.Integral)
+                    and not isinstance(settings[name], bool)
+                },
                 "optimiser": (
                     settings["optimiser"] if isinstance(settings["optimiser"], str) else None
                 ),
@@ -367,7 +430,13 @@ def optimise(
         )
         campaign = Campaign(problem, storage, execution or LocalExecutor())
         write_json(campaign.storage / _SETTINGS_FILE, record)
-    if progress:
+    if progress and finished:
+        print(
+            f"The optimisation in {campaign.storage} already finished ({finished[0]}); "
+            "reporting its saved result.",
+            flush=True,
+        )
+    elif progress:
         total = " in total, including those already completed" if resume else ""
         print(
             f"{'Resuming' if resume else 'Optimising'} {', '.join(problem.parameters.to_dict())}; "
@@ -380,16 +449,24 @@ def optimise(
                 f"Complete batches of {size} permit {evaluations // size * size} evaluations within this limit.",
                 flush=True,
             )
-    result = campaign.optimise(
-        optimiser=adapter,
-        evaluator=evaluator,
-        n_trials=evaluations,
-        seed=settings["seed"],
-        target_value=settings["target_value"],
-        stop_on_target=settings["stop_on_target"],
-        checkpoint=checkpoint,
-        resume=resume,
-    )
+    try:
+        result = campaign.optimise(
+            optimiser=adapter,
+            evaluator=evaluator,
+            n_trials=evaluations,
+            seed=settings["seed"],
+            target_value=settings["target_value"],
+            stop_on_target=settings["stop_on_target"],
+            checkpoint=checkpoint,
+            resume=resume,
+        )
+    finally:
+        # run_optimisation replaces the checkpoint only once its resume checks
+        # have passed, so a refused resume leaves the saved total unchanged.
+        # Record a changed total, even if this run is interrupted again, so a
+        # later resume without evaluations uses it.
+        if resume and evaluations != saved["evaluations"] and _checkpoint_stamp(storage) != stamp:
+            write_json(storage / _SETTINGS_FILE, {**saved, "evaluations": evaluations})
     if result.stop_reason == "trial_failed":
         failed = next((trial for trial in result.trials if trial.status == "failed"), None)
         if failed is None:
