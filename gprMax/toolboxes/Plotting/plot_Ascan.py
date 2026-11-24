@@ -52,7 +52,7 @@ def fft_plot_range(freqs, power, floor_db=-60):
     return np.s_[0:stop]
 
 
-def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, show=True):
+def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, show=True, output_dir=None):
     """Plots electric and magnetic fields and currents from all receiver points
         in the given output file. Each receiver point is plotted in a new figure
         window.
@@ -64,16 +64,23 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, show=True):
         show: boolean flag to display each plot interactively; if False, or
             if the current matplotlib backend is not interactive, each plot
             is saved to file instead.
+        output_dir: Path or str of output directory for saved plots. Defaults
+            to None (saving in the same directory as ``filename``).
 
     Returns:
         plt: matplotlib plot object.
     """
+    if output_dir is not None:
+        if not str(output_dir).strip():
+            raise ValueError("Output directory cannot be empty")
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     with h5py.File(filename, "r") as output:
-        return _mpl_plot_file(Path(filename), outputs, fft, show, output)
+        return _mpl_plot_file(Path(filename), outputs, fft, show, output, output_dir=output_dir)
 
 
-def _mpl_plot_file(file, outputs, fft, show, f):
+def _mpl_plot_file(file, outputs, fft, show, f, output_dir=None):
     """Plot while the public entry point owns the file's lifetime."""
 
     # Paths to grid(s) to traverse for outputs
@@ -305,18 +312,30 @@ def _mpl_plot_file(file, outputs, fft, show, f):
             # loop over all receivers/paths - otherwise only the last
             # receiver's figure would ever be shown/saved.
             suffix = "_" + rxpath.strip("/").replace("/", "_")
-            handle_plot_output(plt, fig, str(file), suffix=suffix, show=show)
+            save_base = (output_dir / file.stem) if output_dir is not None else file
+            handle_plot_output(plt, fig, str(save_base), suffix=suffix, show=show)
 
     if not recorded_receivers:
         f.close()
-        raise ValueError(f"No recorded receivers found in {file}; every receiver has Recorded=false")
+        raise ValueError(
+            f"No recorded receivers found in {file}; every receiver has Recorded=false"
+        )
 
     f.close()
 
     return plt
 
 
-if __name__ == "__main__":
+def main(argv=None):
+    """Plot A-scan from command-line arguments.
+
+    Args:
+        argv: argument list excluding the program name. Defaults to
+            ``sys.argv[1:]`` when None, matching ``argparse`` behaviour.
+
+    Returns:
+        plt: matplotlib plot object from :func:`mpl_plot`.
+    """
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Plots electric and magnetic fields and "
@@ -363,6 +382,28 @@ if __name__ == "__main__":
         default=False,
         help="save plot directly to file, i.e. do not display",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        "--output",
+        default=None,
+        dest="output_dir",
+        help="output directory for saved plots",
+    )
+    args = parser.parse_args(argv)
 
-    mpl_plot(args.outputfile, args.outputs, fft=args.fft, show=not args.save)
+    if args.output_dir is not None and not str(args.output_dir).strip():
+        raise ValueError("Output directory cannot be empty")
+
+    show = not (args.save or args.output_dir is not None)
+    return mpl_plot(
+        args.outputfile,
+        args.outputs,
+        fft=args.fft,
+        show=show,
+        output_dir=args.output_dir,
+    )
+
+
+if __name__ == "__main__":
+    main()
