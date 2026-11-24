@@ -318,7 +318,8 @@ def test_radiometry_state_is_reset_for_geometry_fixed_runs(tmp_path):
         )
 
 
-def test_plane_wave_incident_flux_normalisation_produces_cross_section_density(tmp_path):
+@pytest.mark.parametrize("window", ("rectangular", "hann", "hann_end"))
+def test_plane_wave_incident_flux_normalisation_produces_cross_section_density(tmp_path, window):
     scene = _lossy_scene(plane_wave=True)
     output = gprMax.Radiometry(
         frequencies=(1e9,),
@@ -327,6 +328,7 @@ def test_plane_wave_incident_flux_normalisation_produces_cross_section_density(t
         id="plane_wave",
         normalisation="incident_flux",
         target_flux=2.0,
+        window=window,
     )
     scene.add(output)
 

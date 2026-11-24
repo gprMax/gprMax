@@ -46,7 +46,11 @@ from gprMax.ntff.conventions import (
     PHASOR_TIME_DEPENDENCE,
     engineering_dft,
 )
-from gprMax.ntff.frequency_domain import validate_nyquist_frequencies
+from gprMax.ntff.frequency_domain import (
+    HANN_END_FRACTION,
+    _window,
+    validate_nyquist_frequencies,
+)
 from gprMax.ports import (
     DEFAULT_INCIDENT_FLOOR_DB,
     DEFAULT_MINIMUM_WAVELENGTH_CELLS,
@@ -292,15 +296,6 @@ class RadiometryResult:
     normalising_power: npt.NDArray[np.floating]
 
 
-def _window(name: str, count: int, dtype: np.dtype) -> npt.NDArray[np.floating]:
-    normalised = str(name).lower().replace("-", "_")
-    if normalised in ("rectangular", "boxcar", "none"):
-        return np.ones(count, dtype=dtype)
-    if normalised in ("hann", "hanning"):
-        return np.asarray(np.hanning(count), dtype=dtype)
-    raise ValueError("SAR window must be 'rectangular' or 'hann'")
-
-
 def _material_relative_permittivity(material, frequencies: npt.NDArray[np.floating]):
     values = np.empty(frequencies.shape, dtype=np.complex128)
     if hasattr(material, "poles"):
@@ -534,6 +529,12 @@ class SARMonitor:
                     "SAR waveform/current_moment normalisation does not use target_flux"
                 )
         else:
+            # Port spectra deliberately have no temporal taper. Reject this
+            # mismatch before solving, not during power normalisation at the end.
+            if self.window_name != "rectangular":
+                raise ValueError(
+                    "SAR/radiometry port-power normalisation requires a rectangular transform window"
+                )
             if self.target_flux is not None:
                 raise ValueError("power-normalised SAR does not use target_flux")
             if not self.port_id:
@@ -1558,6 +1559,8 @@ class SARMonitor:
         group.attrs["PhasorTimeDependence"] = PHASOR_TIME_DEPENDENCE
         group.attrs["ForwardTransformKernel"] = FORWARD_TRANSFORM_KERNEL
         group.attrs["Window"] = self.window_name
+        if self.window_name == "hann_end":
+            group.attrs["WindowTaperFraction"] = HANN_END_FRACTION
         group.attrs["CollectionBackend"] = self.collection_backend
         group.attrs["PMLCellPolicy"] = "excluded"
         group.attrs["ExcludedPMLCellCount"] = self.excluded_pml_cell_count
@@ -1797,6 +1800,8 @@ class RadiometryMonitor(SARMonitor):
         group.attrs["PhasorTimeDependence"] = PHASOR_TIME_DEPENDENCE
         group.attrs["ForwardTransformKernel"] = FORWARD_TRANSFORM_KERNEL
         group.attrs["Window"] = self.window_name
+        if self.window_name == "hann_end":
+            group.attrs["WindowTaperFraction"] = HANN_END_FRACTION
         group.attrs["CollectionBackend"] = self.collection_backend
         group.attrs["PMLCellPolicy"] = "excluded"
         group.attrs["ExcludedPMLCellCount"] = self.excluded_pml_cell_count

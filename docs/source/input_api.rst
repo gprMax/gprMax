@@ -1579,6 +1579,13 @@ See the :ref:`electric-only absorption limitation <electric-only-absorption>`
 for the magnetic-material warning and its scope, including directional
 materials and ideal PMC constraints.
 
+Keep the default ``window='rectangular'`` for transient SAR. An optional
+``window='hann_end'`` tapers only the final 20% of the sample interval; use it
+only after the useful fields and source response have decayed. Full symmetric
+``hann`` is not recommended for transient amplitudes. See
+:ref:`sar-temporal-windows` for the definitions, normalisation caveats, and
+the rectangular-only restriction for port-power normalisation.
+
 Both isotropic and grid-aligned diagonal anisotropic volume materials are
 supported. For a primitive with ``material_ids=(mx, my, mz)``, absorption is
 the sum of the x-, y-, and z-component contributions using each material's
@@ -1680,6 +1687,8 @@ Radiometric absorption weighting
 
 The :ref:`electric-only absorption limitation <electric-only-absorption>`
 and its magnetic-material warning apply to every radiometry normalisation.
+The :ref:`temporal-window cautions <sar-temporal-windows>` also apply: windowing
+can distort relative spatial weights, not just total absorbed power.
 
 ``Radiometry`` is the density-independent counterpart of ``SAR``. It uses the
 same tagged-cell field transforms and loss calculation, but writes absorbed

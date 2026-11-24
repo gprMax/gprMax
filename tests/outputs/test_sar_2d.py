@@ -54,7 +54,7 @@ def test_sar_edge_offsets_preserve_yee_geometry(mode, active):
             assert np.unique(component_offsets, axis=0).shape[0] == 2
 
 
-def _scene(mode, axis):
+def _scene(mode, axis, window="rectangular"):
     dl = 0.002
     dimensions = [0.016, 0.018, 0.020]
     dimensions[axis] = INF
@@ -99,6 +99,7 @@ def _scene(mode, axis):
         tags="target",
         id="target_sar",
         spectrum_limit="nyquist",
+        window=window,
     )
     scene.add(output)
     return scene, output, active
@@ -106,8 +107,9 @@ def _scene(mode, axis):
 
 @pytest.mark.integration
 @pytest.mark.parametrize("family,axis", tuple(product(("TM", "TE"), range(3))))
-def test_sar_2d_samples_only_live_plane_and_active_fields(tmp_path, family, axis):
-    scene, output, active = _scene(family, axis)
+@pytest.mark.parametrize("window", ("rectangular", "hann_end"))
+def test_sar_2d_samples_only_live_plane_and_active_fields(tmp_path, family, axis, window):
+    scene, output, active = _scene(family, axis, window=window)
     mode = f"2D {family}{'xyz'[axis]}"
     filename = tmp_path / f"sar_{family.lower()}{'xyz'[axis]}"
 

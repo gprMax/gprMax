@@ -2535,6 +2535,10 @@ to the main grid or the subgrid. See :ref:`sar-output` for the formulation and
 datasets, and :ref:`sar-2d-cylinder-validation` for analytical TMz and TEz
 validation against homogeneous lossy-cylinder series.
 
+This hash command uses the recommended rectangular temporal window. It has
+no positional window argument. For the optional Python API ``hann_end`` taper
+and the cautions on full Hann, see :ref:`sar-temporal-windows`.
+
 For port-power normalisation, replace the numeric target amplitude by
 ``incident_power`` or ``accepted_power`` and insert the target power in watts
 for 3-D, or watts per metre for 2-D, and port ID before the spectrum limit.
@@ -2603,6 +2607,11 @@ The output is written to ``/radiometry/<output ID>`` and contains local
 absorbed-power density, normalised absorption density, and per-tag integrals.
 It does not require ``#material_density``. See :ref:`radiometry-output` for
 the dimensional meaning of each normalisation.
+
+Like ``#sar``, this hash command uses a rectangular temporal window. The
+Python API's alternatives and their limitations are described in
+:ref:`sar-temporal-windows`; full Hann is not recommended for transient
+radiometric weights.
 
 .. warning::
 

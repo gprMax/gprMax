@@ -24,6 +24,21 @@ NTFF windows and ambiguous geometry tags
   descriptive directional material names, or the unambiguous Python API.
   Ordinary tagged geometry and existing material IDs remain supported.
 
+SAR and radiometry temporal windows
+-----------------------------------
+
+* The Python API accepts the same optional ``hann_end`` temporal taper for
+  SAR and radiometry as for NTFF, with ``WindowTaperFraction=0.2`` recorded in
+  HDF5. Rectangular remains the default; existing full Hann weights are
+  unchanged. Both hash commands continue to use rectangular windows.
+* Document that full Hann can bias source-normalised transient absorption
+  and spatial weights, and that an end taper must not suppress genuine
+  late-time fields. See :ref:`sar-temporal-windows`. SFCW/FMCW frequency-band
+  windows are different operations and are unchanged.
+* Enforce the existing rectangular-only restriction for incident/accepted
+  port-power normalisation before time stepping instead of failing during
+  finalisation after the solve.
+
 Non-finite coordinates and step sizes
 -------------------------------------
 

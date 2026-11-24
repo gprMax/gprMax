@@ -142,7 +142,7 @@ def test_sar_kernel_sources_cover_all_accelerator_backends(backend, c_real, mark
     assert c_real in source
 
 
-def _sar_scene():
+def _sar_scene(window="rectangular"):
     scene = gprMax.Scene()
     scene.add(gprMax.Domain(p1=(0.024, 0.024, 0.024)))
     scene.add(gprMax.Discretisation(p1=(0.002, 0.002, 0.002)))
@@ -176,6 +176,17 @@ def _sar_scene():
             id="target_sar",
             spectrum_limit="nyquist",
             averaging_masses=(0.001,),
+            window=window,
+        )
+    )
+    scene.add(
+        gprMax.Radiometry(
+            frequencies=(0.75e9, 1e9, 1.25e9),
+            waveform_id="pulse",
+            tags="target",
+            id="target_radiometry",
+            spectrum_limit="nyquist",
+            window=window,
         )
     )
     return scene
@@ -185,7 +196,8 @@ def _sar_scene():
 @pytest.mark.gpu
 @pytest.mark.parametrize("backend", ("cuda", "opencl"))
 @pytest.mark.parametrize("precision", ("single", "double"))
-def test_device_sar_matches_cpu(tmp_path, request, backend, precision):
+@pytest.mark.parametrize("window", ("rectangular", "hann", "hann_end"))
+def test_device_sar_matches_cpu(tmp_path, request, backend, precision, window):
     if backend == "cuda":
         device_options = {"gpu": [request.getfixturevalue("gpu_device")]}
     else:
@@ -193,14 +205,14 @@ def test_device_sar_matches_cpu(tmp_path, request, backend, precision):
     cpu_path = tmp_path / f"cpu_sar_{precision}"
     device_path = tmp_path / f"{backend}_sar_{precision}"
     gprMax.run(
-        scenes=[_sar_scene()],
+        scenes=[_sar_scene(window)],
         n=1,
         outputfile=cpu_path,
         hide_progress_bars=True,
         cpu_precision=precision,
     )
     gprMax.run(
-        scenes=[_sar_scene()],
+        scenes=[_sar_scene(window)],
         n=1,
         outputfile=device_path,
         hide_progress_bars=True,
@@ -232,6 +244,17 @@ def test_device_sar_matches_cpu(tmp_path, request, backend, precision):
                 rtol=tolerance,
                 atol=tolerance * scale,
                 equal_nan=True,
+            )
+        for root in ("sar/target_sar", "radiometry/target_radiometry"):
+            assert device[root].attrs["Window"] == window
+            if window == "hann_end":
+                assert device[root].attrs["WindowTaperFraction"] == 0.2
+        for name in ("absorbed_power_density", "normalised_absorption_density", "source_spectrum"):
+            path = f"radiometry/target_radiometry/{name}"
+            reference = cpu[path][...]
+            scale = max(float(np.nanmax(np.abs(reference), initial=0.0)), 1e-18)
+            np.testing.assert_allclose(
+                device[path][...], reference, rtol=tolerance, atol=tolerance * scale, equal_nan=True
             )
 
 
