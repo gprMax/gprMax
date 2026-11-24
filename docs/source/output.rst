@@ -297,6 +297,48 @@ phase wavelength. The separate :ref:`pre-simulation spatial-resolution
 diagnostic <spatial-resolution-diagnostic>` reports phase wavelength and
 attenuation length separately.
 
+.. _sar-temporal-windows:
+
+Temporal windows for SAR and radiometry
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Python API accepts ``window='rectangular'`` (the default), ``'hann_end'``,
+and ``'hann'``. The ``#sar`` and ``#radiometry`` hash commands use the default
+rectangular window; they do not have a positional window argument. These
+windows weight time samples before the field and source DFTs, not the FDTD
+updates or the spatial mass average.
+
+``rectangular`` is recommended for transient calculations. Allow all relevant
+fields to decay and verify convergence by extending the simulation.
+``hann_end`` uses the same :ref:`end-only taper as NTFF <ntff-frequency-windows>`:
+weights are one over the first 80% of each history's sample interval, followed
+by a falling half-cosine over the last 20%. A one-sample history retains weight
+one. It is optional, not a correction for an insufficiently long simulation.
+
+.. warning::
+
+   Full symmetric ``hann`` is retained for compatibility but is not recommended
+   for transient SAR or radiometric absorption. It attenuates early excitation
+   and delayed fields differently. Dividing by the windowed source spectrum
+   does not generally cancel this effect, and the squared field magnitudes can
+   amplify the discrepancy. It can also change the relative spatial absorption
+   distribution; subsequently normalising weights to sum to one does not
+   generally remove the error.
+
+   Use ``hann_end`` with care as well. The useful response in every selected
+   cell and the source reference must have decayed before their taper starts,
+   including histories sampled on different subgrid clocks. Otherwise it
+   suppresses real late-time absorption or ringing. Compare with longer
+   untapered runs before interpreting amplitudes or spatial weights.
+
+``incident_power`` and ``accepted_power`` normalisation require
+``window='rectangular'`` because the native port spectra are untapered.
+Other windows are rejected before time stepping. The HDF5 output records
+``Window`` and, for ``hann_end``, ``WindowTaperFraction=0.2``. Existing full
+Hann weights and rectangular results are unchanged. This restriction and
+guidance concern temporal transforms, not the SFCW/FMCW toolboxes' deliberate
+frequency-band windows used during response reconstruction.
+
 .. _radiometry-output:
 
 Radiometric absorption weighting
@@ -313,6 +355,8 @@ irrelevant to the electromagnetic absorption calculation.
 
 The :ref:`electric-only absorption limitation <electric-only-absorption>`
 and its runtime warning apply to all radiometry outputs and normalisations.
+The :ref:`SAR temporal-window guidance <sar-temporal-windows>` also applies,
+including the rectangular-only restriction for port-power normalisation.
 
 The principal local quantities are ``absorbed_power_density`` and
 ``normalised_absorption_density``. The latter has a definition appropriate to
@@ -1427,6 +1471,12 @@ or ``planar_layered_equivalent_current`` formulation, window, configured
 precision and collection backend, plus the engineering convention:
 ``exp(+j*omega*t)`` phasors, ``exp(-j*omega*t)`` forward transform, and
 ``exp(-j*k*R)`` outgoing Green function.
+
+For ``window=hann_end``, ``window_taper_fraction=0.2`` records the end-only
+taper's fraction of the sample interval. Saved surface phasors include the
+window and taper definition in their compatibility signature: do not combine
+surface and incident-reference datasets produced with different windows.
+See :ref:`ntff-frequency-windows` for the cautions on transient amplitudes.
 
 For a planar-layered transform, ``layered_background`` records the stack
 axis, positive-to-negative-axis material ordering, physical interface

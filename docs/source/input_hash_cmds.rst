@@ -1132,13 +1132,28 @@ a later tagged volume replaces the older tag in its cells, while a later
 untagged volume clears those cells to tag ID zero. Consequently
 ``#cylinder: ... plastic n container`` followed by a smaller untagged
 free-space cylinder creates a tagged hollow shell. The tag must always be the
-last argument. To keep the positional grammar unambiguous and backward
-compatible, hash-command users must explicitly provide the preceding ``y`` or
+last argument. Hash-command users must explicitly provide the preceding ``y`` or
 ``n`` smoothing argument whenever a tag is present. A tagged
 ``#fractal_box`` must therefore provide its seed and smoothing arguments
 before the tag. Tags may contain letters, digits, ``_``, ``-``, ``.``, and
 ``:``; spaces are not permitted. The Python API does not require an explicit
 smoothing argument when ``tag`` is used.
+
+The final argument may also be written explicitly as ``tag=name``. This is
+recommended for generated input files. There is an ambiguity in the legacy
+form ``#box: ... a n c``: it can mean three directional materials, or material
+``a`` with smoothing off and tag ``c``. If ``n`` is a defined material ID,
+gprMax rejects this form rather than silently building an isotropic object.
+The same rule applies to ``y``, ``Y``, and ``N`` when that exact material ID
+exists, and to all the volumetric commands listed above. Material IDs are
+case-sensitive and are not globally reserved.
+
+Write ``#box: ... a n tag=c`` to request an isotropic tagged box explicitly.
+For three directional materials, use descriptive IDs such as ``mat_y`` rather
+than ``n``, or append a smoothing marker and tag after all three IDs:
+``#box: ... a n c n tag=body``. The Python API's separate ``material_id``,
+``material_ids``, and ``tag`` arguments do not have this ambiguity. For a
+fractal box, ``tag=name`` still follows the seed and smoothing arguments.
 
 Directional volumes use the three ordered x/y/z material IDs followed by
 the smoothing marker and tag, for example:
@@ -2520,6 +2535,10 @@ to the main grid or the subgrid. See :ref:`sar-output` for the formulation and
 datasets, and :ref:`sar-2d-cylinder-validation` for analytical TMz and TEz
 validation against homogeneous lossy-cylinder series.
 
+This hash command uses the recommended rectangular temporal window. It has
+no positional window argument. For the optional Python API ``hann_end`` taper
+and the cautions on full Hann, see :ref:`sar-temporal-windows`.
+
 For port-power normalisation, replace the numeric target amplitude by
 ``incident_power`` or ``accepted_power`` and insert the target power in watts
 for 3-D, or watts per metre for 2-D, and port ID before the spectrum limit.
@@ -2588,6 +2607,11 @@ The output is written to ``/radiometry/<output ID>`` and contains local
 absorbed-power density, normalised absorption density, and per-tag integrals.
 It does not require ``#material_density``. See :ref:`radiometry-output` for
 the dimensional meaning of each normalisation.
+
+Like ``#sar``, this hash command uses a rectangular temporal window. The
+Python API's alternatives and their limitations are described in
+:ref:`sar-temporal-windows`; full Hann is not recommended for transient
+radiometric weights.
 
 .. warning::
 
@@ -2997,7 +3021,7 @@ point and an equivalent-current frequency-domain radiation pattern:
 
     #ntff_surface: 0.03 0.03 0.03 0.07 0.07 0.07 radiation_surface
     #ksir_time_rx: 0.12 0.05 0.05 radiation_surface transient Ez first_arrival
-    #ntff_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+    #ntff_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 rectangular
     #ntff_far_field_array: 0 180 5 0 360 5 antenna_band pattern Etheta Ephi radiation_intensity
 
 The observation point may lie outside the FDTD domain because KSIR evaluates
@@ -3089,8 +3113,8 @@ Declares a streaming frequency transform for a previously defined surface:
     #ksir_frequency: surface_id transform_id f1 [f2 ...] [window]
 
 ``transform_id`` must be globally unique. At least one non-negative frequency
-is required. The optional final ``window`` is ``rectangular`` (the default) or
-``hann``. Frequencies above the temporal Nyquist limit are rejected rather
+is required. The optional final ``window`` is ``rectangular`` (the default),
+``hann_end``, or ``hann``. Frequencies above the temporal Nyquist limit are rejected rather
 than being silently aliased. Frequencies are accumulated directly during time
 stepping; field histories are not retained. Surface phasors are saved under
 the transform's HDF5 group so that it remains useful even when it has no receiver
@@ -3100,16 +3124,55 @@ The engineering convention is used throughout: phasors have time dependence
 ``exp(+j*omega*t)``, the forward transform kernel is ``exp(-j*omega*t)``, and
 the outgoing Green function contains ``exp(-j*k*R)``.
 
-A frequency transform still requires a sufficiently long FDTD time window.
-The ``hann`` window reduces leakage from a truncated non-zero tail, but it is
-not a replacement for allowing the physical surface fields to decay. A
-``rectangular`` window retains the unmodified engineering phasor and is
-required by gain normalisation, but is more sensitive to end-of-record
-truncation.
+.. _ntff-frequency-windows:
+
+Choosing a frequency-transform window
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+These choices apply to KSIR, equivalent-current NTFF, and layered NTFF
+frequency transforms. They weight the recorded fields, not the FDTD updates.
+
+* ``rectangular`` applies no taper and is recommended for transient radiation
+  and scattering calculations. Run long enough for the relevant fields to
+  decay, and check convergence by extending the time window.
+* ``hann_end`` is an optional **end-only** taper. For ``N > 1`` samples, set
+  ``u = n / (N - 1)``. The weight is exactly one for ``u <= 0.8``, then
+  ``0.5 * (1 + cos(pi * (u - 0.8) / 0.2))`` to zero at the last sample.
+  Thus only the final 20% of the sample interval is tapered. A one-sample
+  record retains weight one. This is a falling half-Hann at the end, **not**
+  a half-Hann declining throughout the run. The fixed taper fraction is
+  recorded as ``window_taper_fraction`` in HDF5; the window name is included
+  in saved-surface compatibility checks.
+* ``hann`` retains the existing full symmetric Hann, zero at both ends and
+  largest at mid-record. It is **not recommended for transient far-field or
+  RCS amplitudes**: it suppresses early pulses, and extending the simulation
+  changes their weights even when the response has already decayed. Its
+  behaviour is unchanged for compatibility with existing calculations.
+
+.. warning::
+
+   Use ``hann_end`` with care: the useful response on every sampled surface
+   must have decayed before the taper starts. It suppresses any physical
+   late-time radiation or ringing that remains, and cannot recover a missing
+   resonant tail. Neither taper makes a too-short simulation physically
+   converged. Compare with longer, untapered runs before interpreting amplitudes.
+
+The incident plane-wave spectrum used for RCS receives the same weights,
+but incident and scattered fields arrive at different times; windowing does
+not generally cancel in their ratio. A scalar window-gain correction cannot
+generally restore the transient spectrum. Gain, realised gain, and
+port-normalised efficiency still require ``rectangular``. A window may also
+change a radiation pattern, not just its overall scale.
 
 .. code-block:: none
 
-    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 hann
+    #ksir_frequency: radiation_surface antenna_band 0.8e9 1.0e9 1.2e9 rectangular
+
+To opt into the end-only taper after verifying adequate field decay:
+
+.. code-block:: none
+
+    #ksir_frequency: radiation_surface tapered_band 0.8e9 1.0e9 1.2e9 hann_end
 
 #ntff_frequency:
 ----------------
@@ -3177,7 +3240,7 @@ surfaces are not yet enabled.
 
 .. code-block:: none
 
-    #ntff_frequency: radiation_surface current_band 0.8e9 1.0e9 1.2e9 hann
+    #ntff_frequency: radiation_surface current_band 0.8e9 1.0e9 1.2e9 rectangular
 
 #ntff_layered_background:
 -------------------------

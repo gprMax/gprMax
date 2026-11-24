@@ -1579,6 +1579,13 @@ See the :ref:`electric-only absorption limitation <electric-only-absorption>`
 for the magnetic-material warning and its scope, including directional
 materials and ideal PMC constraints.
 
+Keep the default ``window='rectangular'`` for transient SAR. An optional
+``window='hann_end'`` tapers only the final 20% of the sample interval; use it
+only after the useful fields and source response have decayed. Full symmetric
+``hann`` is not recommended for transient amplitudes. See
+:ref:`sar-temporal-windows` for the definitions, normalisation caveats, and
+the rectangular-only restriction for port-power normalisation.
+
 Both isotropic and grid-aligned diagonal anisotropic volume materials are
 supported. For a primitive with ``material_ids=(mx, my, mz)``, absorption is
 the sum of the x-, y-, and z-component contributions using each material's
@@ -1680,6 +1687,8 @@ Radiometric absorption weighting
 
 The :ref:`electric-only absorption limitation <electric-only-absorption>`
 and its magnetic-material warning apply to every radiometry normalisation.
+The :ref:`temporal-window cautions <sar-temporal-windows>` also apply: windowing
+can distort relative spatial weights, not just total absorbed power.
 
 ``Radiometry`` is the density-independent counterpart of ``SAR``. It uses the
 same tagged-cell field transforms and loss calculation, but writes absorbed
@@ -1911,6 +1920,14 @@ The following example reuses one surface for an exact time-domain point and a
 frequency-domain radiation pattern. Python keyword arguments replace the
 positional optional parameters used by the equivalent hash commands.
 
+Use the default ``window='rectangular'`` for converged transient spectra.
+``window='hann_end'`` optionally tapers only the final 20% of the sample interval;
+the useful response must have decayed before that interval starts. The full
+symmetric ``window='hann'`` remains available for compatibility but is not
+recommended for transient far-field/RCS amplitudes. Neither taper repairs a
+truncated physical response, and port-normalised gain and efficiency require
+``rectangular``. See :ref:`ntff-frequency-windows` for the definitions and cautions.
+
 .. code-block:: python
 
     scene.add(gprMax.NTFFSurface(
@@ -1929,7 +1946,7 @@ positional optional parameters used by the equivalent hash commands.
         surface_id='radiation_surface',
         id='antenna_band',
         frequencies=(0.8e9, 1.0e9, 1.2e9),
-        window='hann',
+        window='rectangular',
     ))
     scene.add(gprMax.KSIRFarFieldArray(
         theta_start=0,
@@ -2012,7 +2029,7 @@ far fields. For example:
         surface_id='radiation_surface',
         id='current_band',
         frequencies=(0.8e9, 1.0e9, 1.2e9),
-        window='hann',
+        window='rectangular',
     ))
     scene.add(gprMax.NTFFFarFieldArray(
         theta_start=0,

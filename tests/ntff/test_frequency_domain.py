@@ -60,6 +60,7 @@ def _configured_monitor(
     incident_monitor_name=None,
     real_dtype=REAL_DTYPE,
     complex_dtype=COMPLEX_DTYPE,
+    window="rectangular",
 ):
     monitor = KSIRFrequencyDomainMonitor(
         name,
@@ -71,6 +72,7 @@ def _configured_monitor(
         iterations,
         real_dtype=real_dtype,
         complex_dtype=complex_dtype,
+        window=window,
         incident_surface_file=incident_surface_file,
         incident_monitor_name=incident_monitor_name,
     )
@@ -80,12 +82,13 @@ def _configured_monitor(
     return monitor
 
 
+@pytest.mark.parametrize("window", ("rectangular", "hann", "hann_end"))
 @pytest.mark.parametrize(
     "component,time_offset",
     [("Ex", 0.0), ("Hx", 0.5)],
 )
 def test_streaming_surface_dft_matches_reference_engineering_transform(
-    component, time_offset
+    component, time_offset, window
 ):
     iterations = 48
     dt = 2e-11
@@ -94,7 +97,7 @@ def test_streaming_surface_dft_matches_reference_engineering_transform(
         component, (2, 2, 2), (5, 6, 4), (0.1, 0.12, 0.08), (9, 10, 8)
     )
     monitor = _configured_monitor(
-        component, surface, frequencies, dt, iterations
+        component, surface, frequencies, dt, iterations, window=window
     )
     fields = []
     omega = 2 * np.pi * frequencies[0]
@@ -126,12 +129,14 @@ def test_streaming_surface_dft_matches_reference_engineering_transform(
         frequencies,
         dt,
         time_offset=time_offset * dt,
+        window=monitor.window_values,
     )
     outside_dft = engineering_dft(
         np.asarray(outside_series),
         frequencies,
         dt,
         time_offset=time_offset * dt,
+        window=monitor.window_values,
     )
     expected_field = 0.5 * (outside_dft + inside_dft)
     derivative_parts = []
@@ -163,7 +168,8 @@ def _observe_ex_monitor(monitor, surface, iterations, frequency):
     monitor.finalise()
 
 
-def test_saved_surface_dft_round_trip_and_incident_subtraction(tmp_path):
+@pytest.mark.parametrize("window", ("rectangular", "hann", "hann_end"))
+def test_saved_surface_dft_round_trip_and_incident_subtraction(tmp_path, window):
     iterations = 40
     dt = 1e-11
     frequency = 5 / (iterations * dt)
@@ -171,7 +177,7 @@ def test_saved_surface_dft_round_trip_and_incident_subtraction(tmp_path):
         "Ex", (2, 2, 2), (5, 5, 5), (0.02, 0.02, 0.02), (9, 9, 9)
     )
     reference = _configured_monitor(
-        "Ex", surface, [frequency], dt, iterations, name="reference"
+        "Ex", surface, [frequency], dt, iterations, name="reference", window=window
     )
     _observe_ex_monitor(reference, surface, iterations, frequency)
     filename = tmp_path / "reference.h5"
@@ -181,6 +187,9 @@ def test_saved_surface_dft_round_trip_and_incident_subtraction(tmp_path):
     with h5py.File(filename, "r") as output:
         group = output["ntff/reference"]
         assert group.attrs["forward_transform_sign"] == "exp(-j*omega*t)"
+        assert group.attrs["window"] == window
+        if window == "hann_end":
+            assert group.attrs["window_taper_fraction"] == 0.2
         assert "surface/Ex/psi_dft" in group
         assert group["surface/Ex/psi_dft"].shape == (1, surface.npatches)
 
@@ -205,6 +214,7 @@ def test_saved_surface_dft_round_trip_and_incident_subtraction(tmp_path):
         name="target",
         incident_surface_file=filename,
         incident_monitor_name="reference",
+        window=window,
     )
     _observe_ex_monitor(target, surface, iterations, frequency)
 

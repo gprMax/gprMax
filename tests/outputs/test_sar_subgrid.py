@@ -32,6 +32,7 @@ def _subgrid_sar_scene(
     filtering=True,
     threads=1,
     directional=False,
+    window="rectangular",
 ):
     scene = gprMax.Scene()
     scene.add(gprMax.Domain(p1=(0.09, 0.09, 0.09)))
@@ -85,6 +86,7 @@ def _subgrid_sar_scene(
         id="fine_sar",
         spectrum_limit="nyquist",
         averaging_masses=(0.001,),
+        window=window,
     )
     subgrid.add(output)
     return scene, output
@@ -203,8 +205,9 @@ def _subgrid_power_normalised_scene():
 
 @pytest.mark.integration
 @pytest.mark.parametrize("source_on_main_grid", (False, True))
-def test_sar_runs_on_fine_timestep_and_writes_subgrid_group(tmp_path, source_on_main_grid):
-    scene, api_output = _subgrid_sar_scene(source_on_main_grid=source_on_main_grid)
+@pytest.mark.parametrize("window", ("rectangular", "hann_end"))
+def test_sar_runs_on_fine_timestep_and_writes_subgrid_group(tmp_path, source_on_main_grid, window):
+    scene, api_output = _subgrid_sar_scene(source_on_main_grid=source_on_main_grid, window=window)
     output = tmp_path / ("main_source" if source_on_main_grid else "fine_source")
 
     gprMax.run(
@@ -228,6 +231,13 @@ def test_sar_runs_on_fine_timestep_and_writes_subgrid_group(tmp_path, source_on_
         assert fine.attrs["Iterations"] == 3 * result.attrs["Iterations"]
         np.testing.assert_allclose(fine.attrs["dx_dy_dz"], (0.001, 0.001, 0.001))
         sar = fine["sar/fine_sar"]
+        assert sar.attrs["Window"] == window
+        if window == "hann_end":
+            assert sar.attrs["WindowTaperFraction"] == 0.2
+            assert api_output._monitor.window[0] == 1
+            assert api_output._monitor.window[-1] == 0
+            assert api_output._monitor._source_window[0] == 1
+            assert api_output._monitor._source_window[-1] == 0
         assert sar.attrs["CellIndexFrame"] == "subgrid-local"
         expected_origin = (
             np.asarray((0.03, 0.03, 0.03))
@@ -250,8 +260,9 @@ def test_sar_runs_on_fine_timestep_and_writes_subgrid_group(tmp_path, source_on_
 
 
 @pytest.mark.integration
-def test_subgrid_sar_state_is_reset_for_geometry_fixed_runs(tmp_path):
-    scene, _ = _subgrid_sar_scene()
+@pytest.mark.parametrize("window", ("rectangular", "hann_end"))
+def test_subgrid_sar_state_is_reset_for_geometry_fixed_runs(tmp_path, window):
+    scene, _ = _subgrid_sar_scene(window=window)
     output = tmp_path / "reused"
 
     gprMax.run(
@@ -272,7 +283,8 @@ def test_subgrid_sar_state_is_reset_for_geometry_fixed_runs(tmp_path):
 
 
 @pytest.mark.integration
-def test_radiometry_uses_shared_subgrid_absorption_path(tmp_path):
+@pytest.mark.parametrize("window", ("rectangular", "hann_end"))
+def test_radiometry_uses_shared_subgrid_absorption_path(tmp_path, window):
     scene, sar_output = _subgrid_sar_scene()
     subgrid = scene.subgrid_objects[0]
     subgrid.children_output.remove(sar_output)
@@ -284,6 +296,7 @@ def test_radiometry_uses_shared_subgrid_absorption_path(tmp_path):
         spectrum_limit="nyquist",
         normalisation="current_moment",
         target_amplitude=0.001,
+        window=window,
     )
     subgrid.add(output)
     filename = tmp_path / "subgrid_radiometry"
@@ -303,6 +316,41 @@ def test_radiometry_uses_shared_subgrid_absorption_path(tmp_path):
         group = result["subgrids/fine_grid/radiometry/fine_radiometry"]
         assert group.attrs["CellIndexFrame"] == "subgrid-local"
         assert "normalised_absorption_density" in group
+
+
+@pytest.mark.integration
+@pytest.mark.gpu
+@pytest.mark.parametrize("ratio", (1, 3))
+def test_subgrid_end_taper_matches_cuda(tmp_path, gpu_device, ratio):
+    for gpu, name in ((False, "cpu"), (True, "cuda")):
+        # Keep the SAR wavelength-resolution mask satisfied in the lossy target
+        # for both ratios; a 3 mm, ratio-one grid is too coarse at 5 GHz.
+        scene, _ = _subgrid_sar_scene(window="hann_end", ratio=ratio, main_spacing=0.001 if ratio == 1 else 0.003)
+        scene.subgrid_objects[0].add(
+            gprMax.Radiometry(
+                frequencies=(5e9,),
+                waveform_id="pulse",
+                tags="target",
+                id="fine_radiometry",
+                spectrum_limit="nyquist",
+                window="hann_end",
+            )
+        )
+        options = {"gpu": [gpu_device], "gpu_precision": "double"} if gpu else {"cpu_precision": "double"}
+        gprMax.run(
+            scenes=[scene],
+            outputfile=tmp_path / name,
+            subgrid=True,
+            autotranslate=True,
+            hide_progress_bars=True,
+            **options,
+        )
+    with h5py.File(tmp_path / "cpu.h5") as cpu, h5py.File(tmp_path / "cuda.h5") as cuda:
+        for path in ("sar/fine_sar/sar", "radiometry/fine_radiometry/normalised_absorption_density"):
+            path = f"subgrids/fine_grid/{path}"
+            expected = cpu[path][...]
+            assert np.all(np.isfinite(expected))
+            np.testing.assert_allclose(cuda[path][...], expected, rtol=5e-7, atol=5e-7 * np.max(np.abs(expected)))
 
 
 @pytest.mark.integration

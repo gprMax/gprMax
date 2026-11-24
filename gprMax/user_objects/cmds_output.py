@@ -236,8 +236,14 @@ class SAR(OutputUserObject):
         source_floor_db (float): Frequencies below this relative
             source-spectrum level, in dB (negative), are stored as
             invalid/NaN. Default -40.
-        window (str): One of 'rectangular' or 'hann'. Default
-            ``'rectangular'``.
+        window (str): One of 'rectangular', 'hann_end', or 'hann'. Default
+            ``'rectangular'``, recommended for transient source normalisation
+            and required for incident/accepted port-power normalisation.
+            ``'hann_end'`` keeps the first 80% of the sample interval unchanged
+            and tapers the final 20%; use only after the useful fields and
+            source response have decayed. Full symmetric ``'hann'`` is retained
+            for compatibility but is not recommended for transient SAR:
+            source normalisation does not generally cancel window weighting.
         averaging_masses (sequence of floats): Spatial averaging masses in
             kg, positive and without duplicates. The default empty tuple
             writes local cell SAR only. For example, ``(0.001, 0.01)``
@@ -404,8 +410,14 @@ class Radiometry(OutputUserObject):
             explicit research output.
         source_floor_db (float): Source-support validity threshold in dB
             (negative). Default -40.
-        window (str): One of 'rectangular' or 'hann'. Default
-            ``'rectangular'``.
+        window (str): One of 'rectangular', 'hann_end', or 'hann'. Default
+            ``'rectangular'``, recommended for transient source normalisation
+            and required for incident/accepted port-power normalisation.
+            ``'hann_end'`` keeps the first 80% of the sample interval unchanged
+            and tapers the final 20%; use only after the useful fields and
+            source response have decayed. Full symmetric ``'hann'`` is retained
+            for compatibility but is not recommended for transient absorption:
+            it can distort relative spatial weights, not just their scale.
         normalisation (str): One of 'waveform', 'current_moment',
             'incident_flux', 'incident_power' or 'accepted_power',
             as described above. Default ``'waveform'``.
@@ -1058,8 +1070,12 @@ class KSIRFrequencyTransform(OutputUserObject):
         frequencies (sequence of floats): Unique, finite, non-negative frequencies in Hz,
             not above the temporal Nyquist limit of the model time step.
         window (str): Time window applied to the streaming DFT. One of
-            'rectangular' or 'hann'. Default ``'rectangular'``,
-            which is required for gain normalisation.
+            'rectangular', 'hann_end', or 'hann'. Default ``'rectangular'``,
+            recommended for converged transients and required for gain/efficiency
+            normalisation. ``'hann_end'`` is one until 80% of the sample interval,
+            then falls to zero with a half cosine; use only after the useful
+            response has decayed. The full symmetric ``'hann'`` is retained for
+            compatibility, not recommended for transient far-field/RCS amplitudes.
         save_surface_dft (bool): Write the surface phasors to the transform's
             HDF5 group. Default True. Python API only.
         plane_wave_index (int or None): Index, counted from 0 in the order the
@@ -1196,8 +1212,12 @@ class NTFFFrequencyTransform(KSIRFrequencyTransform):
         frequencies (sequence of floats): Unique, finite, non-negative frequencies in Hz,
             not above the temporal Nyquist limit of the model time step.
         window (str): Time window applied to the streaming DFT. One of
-            'rectangular' or 'hann'. Default ``'rectangular'``,
-            which is required for gain normalisation.
+            'rectangular', 'hann_end', or 'hann'. Default ``'rectangular'``,
+            recommended for converged transients and required for gain/efficiency
+            normalisation. ``'hann_end'`` is one until 80% of the sample interval,
+            then falls to zero with a half cosine; use only after the useful
+            response has decayed. The full symmetric ``'hann'`` is retained for
+            compatibility, not recommended for transient far-field/RCS amplitudes.
         save_surface_dft (bool): Write the surface phasors to the transform's
             HDF5 group. Default True. Python API only.
         plane_wave_index (int or None): Index, counted from 0 in the order the
@@ -1234,8 +1254,12 @@ class NTFFLayeredFrequencyTransform(NTFFFrequencyTransform):
         frequencies (sequence of floats): Unique, finite, strictly positive frequencies in Hz,
             not above the temporal Nyquist limit of the model time step.
         window (str): Time window applied to the streaming DFT. One of
-            'rectangular' or 'hann'. Default ``'rectangular'``,
-            which is required for gain normalisation.
+            'rectangular', 'hann_end', or 'hann'. Default ``'rectangular'``,
+            recommended for converged transients and required for gain/efficiency
+            normalisation. ``'hann_end'`` is one until 80% of the sample interval,
+            then falls to zero with a half cosine; use only after the useful
+            response has decayed. The full symmetric ``'hann'`` is retained for
+            compatibility, not recommended for transient far-field/RCS amplitudes.
         save_surface_dft (bool): Write the surface phasors to the transform's
             HDF5 group. Default True. Python API only.
         plane_wave_index (int or None): Index, counted from 0 in the order the

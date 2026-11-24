@@ -281,6 +281,7 @@ def _antenna_gain_input(*, window="rectangular", association=None, extra_source=
     [
         ("rectangular", None, "", "without an antenna-port association"),
         ("hann", "feed1 feed2", "", "requires rectangular"),
+        ("hann_end", "feed1 feed2", "", "requires rectangular"),
         ("rectangular", "feed1", "", "include every physical port"),
         (
             "rectangular",
