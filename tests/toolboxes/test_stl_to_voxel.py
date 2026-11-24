@@ -532,8 +532,7 @@ def test_stl_filename_can_contain_plus_with_explicit_safe_material(tmp_path):
     source = tmp_path / "part+detail.stl"
     assignments = tmp_path / "assignments.csv"
     assignments.write_text(
-        "file,include,priority,material_name,geometry_tag\n"
-        "part+detail.stl,y,0,plastic,part\n",
+        "file,include,priority,material_name,geometry_tag\n" "part+detail.stl,y,0,plastic,part\n",
         encoding="utf-8",
     )
 
@@ -575,3 +574,58 @@ def test_stl_invalid_material_stops_before_voxelisation(tmp_path, monkeypatch, c
     assert error.value.code == 2
     assert "reserved for automatically averaged material" in capsys.readouterr().err
     assert not list(tmp_path.glob("*.h5"))
+
+
+def test_main_accepts_argv_directly(tmp_path):
+    stl = _write_stl(tmp_path / "cube.stl", _box_triangles([0, 0, 0], [20, 20, 20]))
+    stltovoxel.main([str(stl), "-dxdydz", "0.002"])
+    assert (tmp_path / "cube_geo.h5").exists()
+    assert (tmp_path / "cube_geo_materials.json").exists()
+
+
+def test_output_dir_custom_directory_single_file(tmp_path):
+    input_dir = tmp_path / "inputs"
+    input_dir.mkdir()
+    stl = _write_stl(input_dir / "cube.stl", _box_triangles([0, 0, 0], [20, 20, 20]))
+    out_dir = tmp_path / "custom_output"
+
+    stltovoxel.main([str(stl), "-dxdydz", "0.002", "-o", str(out_dir)])
+
+    assert (out_dir / "cube_geo.h5").exists()
+    assert (out_dir / "cube_geo_materials.json").exists()
+    assert not list(input_dir.glob("*.h5"))
+    assert not list(input_dir.glob("*.json"))
+
+
+def test_output_dir_custom_directory_folder(tmp_path):
+    input_dir = tmp_path / "model_folder"
+    input_dir.mkdir()
+    _write_stl(input_dir / "part1.stl", _box_triangles([0, 0, 0], [10, 10, 10]))
+    _write_stl(input_dir / "part2.stl", _box_triangles([10, 10, 10], [20, 20, 20]))
+    out_dir = tmp_path / "folder_output"
+
+    stltovoxel.main([str(input_dir), "-dxdydz", "0.002", "--output-dir", str(out_dir)])
+
+    assert (out_dir / "model_folder_geo.h5").exists()
+    assert (out_dir / "model_folder_geo_materials.json").exists()
+    assert not list(input_dir.glob("*.h5"))
+    assert not list(input_dir.glob("*.json"))
+
+
+def test_output_dir_creates_nested_directories(tmp_path):
+    stl = _write_stl(tmp_path / "cube.stl", _box_triangles([0, 0, 0], [20, 20, 20]))
+    nested_out = tmp_path / "deep" / "nested" / "results"
+
+    stltovoxel.main([str(stl), "-dxdydz", "0.002", "--output", str(nested_out)])
+
+    assert (nested_out / "cube_geo.h5").exists()
+    assert (nested_out / "cube_geo_materials.json").exists()
+
+
+def test_output_dir_empty_rejected(tmp_path, capsys):
+    stl = _write_stl(tmp_path / "cube.stl", _box_triangles([0, 0, 0], [20, 20, 20]))
+    with pytest.raises(SystemExit) as error:
+        stltovoxel.main([str(stl), "-dxdydz", "0.002", "-o", "   "])
+
+    assert error.value.code == 2
+    assert "Output directory cannot be empty" in capsys.readouterr().err

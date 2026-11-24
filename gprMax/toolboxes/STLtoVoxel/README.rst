@@ -49,6 +49,7 @@ Optional arguments:
 * ``--translate DX DY DZ`` moves the geometry, in the ``--unit`` unit, after rotating and scaling.
 * ``--supersample N`` samples each cell ``N`` times along each axis and fills it when most samples are inside. The default, 1, fills a cell when its centre is inside a closed surface, which is what gprMax's own geometry primitives do.
 * ``--pad-cells N`` adds ``N`` empty cells on every side (default 0). Empty cells leave the model unchanged when imported.
+* ``-o DIR``, ``--output-dir DIR`` is the destination directory for the generated HDF5 geometry and material database (defaults to the input file or folder).
 
 The settings used are recorded as JSON in the ``conversion_settings`` attribute of the HDF5 file.
 

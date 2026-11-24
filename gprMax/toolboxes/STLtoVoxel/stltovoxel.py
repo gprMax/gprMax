@@ -161,7 +161,13 @@ def _write_or_preserve_database(database_file, database_id, material_keys, entri
     logger.info(f"Written editable material database: {database_file}")
 
 
-def main():
+def main(argv=None):
+    """Convert one or more STL files to a voxelised gprMax geometry.
+
+    Args:
+        argv: argument list excluding the program name. Defaults to
+            ``sys.argv[1:]`` when None, matching ``argparse`` behaviour.
+    """
     logging.basicConfig(format="%(message)s", level=logging.INFO)
 
     # Parse command line arguments
@@ -250,15 +256,38 @@ def main():
         default=0,
         help="empty cells added on every side of the geometry (default: 0)",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-o",
+        "--output-dir",
+        "--output",
+        default=None,
+        dest="output_dir",
+        help="output directory for voxelised geometry and material database",
+    )
+    args = parser.parse_args(argv)
+
+    output_dir = None
+    if args.output_dir is not None:
+        if not str(args.output_dir).strip():
+            parser.error("Output directory cannot be empty")
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     input_path = Path(args.stlfiles)
     if input_path.is_dir():
         files = sorted(input_path.glob("*.stl"))
-        filename_hdf5 = input_path / f"{input_path.name}_geo.h5"
+        filename_hdf5 = (
+            (output_dir / f"{input_path.name}_geo.h5")
+            if output_dir is not None
+            else input_path / f"{input_path.name}_geo.h5"
+        )
     elif input_path.is_file():
         files = [input_path]
-        filename_hdf5 = input_path.with_name(f"{input_path.stem}_geo.h5")
+        filename_hdf5 = (
+            (output_dir / f"{input_path.stem}_geo.h5")
+            if output_dir is not None
+            else input_path.with_name(f"{input_path.stem}_geo.h5")
+        )
     else:
         parser.error(f"STL file or directory does not exist: {input_path}")
 
@@ -270,7 +299,9 @@ def main():
             write_assignment_template(files, args.prepare, overwrite=args.overwrite)
             logger.info(f"Written STL assignment template: {args.prepare}")
         except FileExistsError as exc:
-            parser.error(f"Assignment template already exists: {exc}. Use --overwrite to replace it.")
+            parser.error(
+                f"Assignment template already exists: {exc}. Use --overwrite to replace it."
+            )
         return
     if args.dxdydz is None:
         parser.error("-dxdydz is required when converting STL geometry")
