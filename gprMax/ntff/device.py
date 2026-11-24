@@ -30,6 +30,26 @@ from gprMax.cuda_opencl.knl_ntff import (
     build_time_domain_ntff_kernel_source,
 )
 
+
+# Each Metal dispatch binds its arguments in a loop that runs for every surface
+# component on every time step. hasattr() on a PyObjC MTLBuffer proxy is slow
+# when the attribute is absent (the miss is resolved through the Objective-C
+# runtime each time), so whether a type is a MetalBufferView is cached per type.
+_METAL_VIEW_TYPES = {}
+
+
+def _metal_buffer_binding(buffer):
+    """Returns (MTLBuffer, byte offset) for a raw buffer or a MetalBufferView."""
+    cls = type(buffer)
+    is_view = _METAL_VIEW_TYPES.get(cls)
+    if is_view is None:
+        is_view = hasattr(buffer, "buffer") and hasattr(buffer, "offset")
+        _METAL_VIEW_TYPES[cls] = is_view
+    if is_view:
+        return buffer.buffer, buffer.offset
+    return buffer, 0
+
+
 ELECTRIC_COMPONENTS = ("Ex", "Ey", "Ez")
 MAGNETIC_COMPONENTS = ("Hx", "Hy", "Hz")
 
@@ -1420,10 +1440,8 @@ class MetalKSIRCollector(_DeviceKSIRCollector):
             record.device["outside_imag"],
         )
         for index, buffer in enumerate(buffers):
-            if hasattr(buffer, "buffer") and hasattr(buffer, "offset"):
-                encoder.setBuffer_offset_atIndex_(buffer.buffer, buffer.offset, index)
-            else:
-                encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+            mtl_buffer, offset = _metal_buffer_binding(buffer)
+            encoder.setBuffer_offset_atIndex_(mtl_buffer, offset, index)
         encoder.dispatchThreads_threadsPerThreadgroup_(
             self.metal.MTLSizeMake(record.total, 1, 1),
             self.metal.MTLSizeMake(
@@ -1433,8 +1451,11 @@ class MetalKSIRCollector(_DeviceKSIRCollector):
             ),
         )
         encoder.endEncoding()
-        command.commit()
-        command.waitUntilCompleted()
+        # Submitted without waiting: the DFT accumulators stay on the device
+        # until finalise(), which synchronises the command queue before any
+        # download. Waiting here stalled the queue once per surface component
+        # per time step.
+        self.queue.submit(command)
 
     def _download(self, record):
         nbytes = record.total * self.real_dtype.itemsize

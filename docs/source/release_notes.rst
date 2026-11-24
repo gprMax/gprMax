@@ -2,6 +2,33 @@
 Release notes
 *************
 
+4.0.3 (Caol Ila)
+================
+
+This release removes per-time-step host overhead from the Apple Metal backend.
+Results are unchanged; only Metal run times are affected.
+
+Execution
+---------
+
+* Metal far-field (KSIR and equivalent-current) frequency-domain collection no
+  longer spends most of its time in Python: whether each kernel argument is a
+  buffer view is now cached per type, instead of being tested with ``hasattr``
+  on PyObjC buffer proxies for every argument, surface component and time step.
+  The same applies to the Metal SAR collector.
+* Metal far-field frequency-domain accumulation is submitted without waiting
+  for each dispatch to complete; the command queue is synchronised before any
+  download, as before.
+* Metal eigenmode-port monitors synchronise only when their DFT phases are
+  re-anchored (every 1024 steps) rather than on every time step.
+* On an Apple M2 Pro, the User Guide waveguide-fed horn (eigenmode port,
+  virtual waveguide, equivalent-current far field) now solves in 5.3 s
+  instead of 45.9 s, with outputs unchanged against CPU double precision.
+
+The `4.0.3 change history
+<https://github.com/gprMax/gprMax/compare/v.4.0.2...v.4.0.3>`_ lists the
+released revisions.
+
 4.0.2 (Caol Ila)
 ================
 

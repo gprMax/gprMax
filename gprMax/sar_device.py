@@ -32,6 +32,25 @@ import numpy as np
 from gprMax.cuda_opencl.knl_sar import build_sar_kernel_source
 
 
+# Each Metal dispatch binds its arguments in a loop that runs for every surface
+# component on every time step. hasattr() on a PyObjC MTLBuffer proxy is slow
+# when the attribute is absent (the miss is resolved through the Objective-C
+# runtime each time), so whether a type is a MetalBufferView is cached per type.
+_METAL_VIEW_TYPES = {}
+
+
+def _metal_buffer_binding(buffer):
+    """Returns (MTLBuffer, byte offset) for a raw buffer or a MetalBufferView."""
+    cls = type(buffer)
+    is_view = _METAL_VIEW_TYPES.get(cls)
+    if is_view is None:
+        is_view = hasattr(buffer, "buffer") and hasattr(buffer, "offset")
+        _METAL_VIEW_TYPES[cls] = is_view
+    if is_view:
+        return buffer.buffer, buffer.offset
+    return buffer, 0
+
+
 @dataclass
 class _ComponentRecord:
     """One component's flat field indices and backend-owned DFT buffers.
@@ -318,10 +337,8 @@ class MetalSARCollector(_DeviceSARCollector):
             component.device["imag"],
         )
         for index, buffer in enumerate(buffers):
-            if hasattr(buffer, "buffer") and hasattr(buffer, "offset"):
-                encoder.setBuffer_offset_atIndex_(buffer.buffer, buffer.offset, index)
-            else:
-                encoder.setBuffer_offset_atIndex_(buffer, 0, index)
+            mtl_buffer, offset = _metal_buffer_binding(buffer)
+            encoder.setBuffer_offset_atIndex_(mtl_buffer, offset, index)
         encoder.dispatchThreads_threadsPerThreadgroup_(
             self.metal.MTLSizeMake(total, 1, 1),
             self.metal.MTLSizeMake(min(total, self.pipeline.maxTotalThreadsPerThreadgroup()), 1, 1),
