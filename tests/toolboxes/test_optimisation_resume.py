@@ -47,7 +47,6 @@ def tiny_model(parameters):
 
 
 def other_model(parameters):
-    """A different model function, used to show that a changed model is refused."""
     return tiny_model(parameters)
 
 
@@ -57,12 +56,10 @@ def peak_error(parameters, output):
 
 
 def other_objective(parameters, output):
-    """A different objective function, used to show that a changed objective is refused."""
     return peak_error(parameters, output)
 
 
 def failing_objective(parameters, output):
-    """An objective that always fails, to check that a failed run is not continued."""
     raise RuntimeError("deliberate objective failure")
 
 
@@ -97,25 +94,18 @@ def _interrupt_objective_at(call):
 
 
 def _trials(result):
-    """What an uninterrupted and a resumed run must agree on, trial by trial."""
     return [(t.candidate_id, dict(t.parameters), t.status, t.value) for t in result.trials]
 
 
 def _attempts(directory):
-    """Every simulation attempt directory of a campaign, relative to it."""
     return sorted(
         p.relative_to(directory) for p in Path(directory).glob("candidates/*/*/attempt-*")
     )
 
 
 def _snapshot(directory):
-    """The content of every file, to show that a refused call changed nothing."""
     directory = Path(directory)
     return {p.relative_to(directory): p.read_bytes() for p in directory.rglob("*") if p.is_file()}
-
-
-# ---------------------------------------------------------------------------
-# Resumed runs give the same answer as uninterrupted runs.
 
 
 @pytest.mark.slow
@@ -152,13 +142,11 @@ def test_resumed_run_matches_uninterrupted_run_for_every_optimiser(
         _optimise(run, **settings)
     assert (run / "optimiser/checkpoint.bin").is_file()
     assert not list(run.rglob("*.tmp")), "Checkpoint and record writes leave no temporary files"
-    # Only the documented arguments: the optimiser, its non-default settings,
-    # the progress flag and the parallel execution are all restored.
+    # Only resume=True: the optimiser, its settings and the execution are restored.
     resumed = _optimise(run, resume=True)
     assert resumed.stop_reason == expected.stop_reason == "trial_budget"
     assert _trials(resumed) == _trials(expected)
     assert len(resumed.trials) == evaluations, "evaluations is the total, not extra evaluations"
-    # The simulations completed before the interruption were reused, not repeated.
     assert _attempts(run) == _attempts(tmp_path / "straight")
 
 
@@ -171,13 +159,11 @@ def test_repeated_interruptions_keep_checkpointing_and_evaluations_stays_the_tot
     with _interrupt_objective_at(2):
         _optimise(run, evaluations=3, seed=7, progress=False)
     first_checkpoint = (run / "optimiser/checkpoint.bin").read_bytes()
-    # Raise the total budget from 3 to 5, then interrupt the resumed run too.
     with _interrupt_objective_at(3):
         _optimise(run, resume=True, evaluations=5)
     assert (
         run / "optimiser/checkpoint.bin"
     ).read_bytes() != first_checkpoint, "A resumed run must keep saving checkpoints"
-    # Omitting evaluations now keeps the raised total of 5, not the original 3.
     resumed = _optimise(run, resume=True)
     assert len(resumed.trials) == 5
     assert _trials(resumed) == _trials(expected)
@@ -211,7 +197,6 @@ def test_simulation_interrupted_part_way_runs_again_in_a_new_attempt(tmp_path):
         Path("candidates/000002/default/attempt-0001"),
         Path("candidates/000002/default/attempt-0002"),
     ]
-    # The incomplete attempt is kept for inspection; the rerun completed.
     second = run / "candidates/000002/default"
     assert not (second / "attempt-0001/result.json").exists()
     assert json.loads((second / "attempt-0002/result.json").read_text())["status"] == "complete"
@@ -317,7 +302,6 @@ def test_documented_restart_command_resumes_a_killed_starter_script(tmp_path):
 
     assert trials(killed) == trials(straight)
     assert len(trials(killed)) == 4
-    # Each candidate has one completed attempt; the first one was never repeated.
     assert len(list(results.glob("candidates/000001/default/attempt-*"))) == 1
     for candidate in results.glob("candidates/*/default"):
         complete = [
@@ -327,10 +311,6 @@ def test_documented_restart_command_resumes_a_killed_starter_script(tmp_path):
             and json.loads((attempt / "result.json").read_text())["status"] == "complete"
         ]
         assert len(complete) == 1, candidate
-
-
-# ---------------------------------------------------------------------------
-# Refusals, using copies of one interrupted run.
 
 
 @pytest.fixture(scope="module")
@@ -380,7 +360,6 @@ def test_resume_with_the_same_settings_passed_explicitly_completes_the_run(run, 
     )
     assert result.stop_reason == "trial_budget" and len(result.trials) == 3
     assert all(trial.status == "complete" for trial in result.trials)
-    # A finished run reports its saved result; nothing is asked or simulated again.
     attempts = _attempts(directory)
     again = _optimise(directory, resume=True, files=(data,))
     assert again.trials == result.trials and _attempts(directory) == attempts
@@ -498,7 +477,6 @@ def test_refused_resume_does_not_record_a_new_evaluations_total(run, cause):
             patch.setattr(importlib.metadata, "version", lambda name: "0.0.0")
         with pytest.raises(ValueError, match="corrupt|library version changed"):
             _optimise(directory, resume=True, files=(data,), evaluations=5)
-    # The refused total of 5 must not become the saved total of the run.
     assert _snapshot(directory) == before
 
 
@@ -522,7 +500,6 @@ def test_resume_refuses_a_total_below_the_completed_evaluations(tmp_path):
     with pytest.raises(ValueError, match="2 are already complete.*at least 2"):
         _optimise(directory, resume=True, evaluations=1)
     assert _snapshot(directory) == before
-    # The refusal did not end the run: it still continues to its total.
     result = _optimise(directory, resume=True)
     assert result.stop_reason == "trial_budget" and len(result.trials) == 3
 
@@ -582,10 +559,6 @@ def test_resume_without_cloudpickle_fails_before_running(run, monkeypatch):
     with pytest.raises(ImportError, match="requirements-optimisers.txt"):
         _optimise(directory, resume=True, files=(data,))
     assert _snapshot(directory) == before
-
-
-# ---------------------------------------------------------------------------
-# Defaults and argument checks.
 
 
 def test_signature_still_shows_the_plain_defaults():
@@ -656,10 +629,6 @@ def test_simulate_directory_is_not_mistaken_for_an_optimisation(tmp_path):
     assert _snapshot(tmp_path / "one") == before
 
 
-# ---------------------------------------------------------------------------
-# Finished runs keep their existing meaning on resume.
-
-
 def test_resuming_a_run_that_reached_its_target_does_not_continue(tmp_path, capsys):
     pytest.importorskip("optuna")
     pytest.importorskip("cloudpickle")
@@ -673,7 +642,6 @@ def test_resuming_a_run_that_reached_its_target_does_not_continue(tmp_path, caps
     assert _attempts(directory) == attempts
     output = capsys.readouterr().out
     assert "already finished (target_reached)" in output and "Resuming" not in output
-    # A larger total does not extend a finished run, and is refused, not ignored.
     before = _snapshot(directory)
     with pytest.raises(ValueError, match=r"already finished \(target_reached, 1 evaluations\)"):
         _optimise(directory, resume=True, evaluations=5)

@@ -128,7 +128,7 @@ def run_optimisation(
                 raise ValueError("Optimiser library version changed since checkpoint")
         completed = len(state["results"])
         if not state.get("finished_reason") and n_trials < completed:
-            # Otherwise the run would be marked finished below its own progress.
+            # Otherwise the loop would end at once and mark the run finished.
             raise ValueError(
                 f"Cannot resume with a total of {n_trials} evaluations: {completed} are already "
                 f"complete and the total includes them. Use a total of at least {completed}."
