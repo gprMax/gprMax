@@ -2,3 +2,5 @@
 optuna==4.9.0
 pymoo==0.6.2
 scikit-optimize==0.10.2
+# Checkpoints for resuming optimise(); disable them with checkpoint=False.
+cloudpickle==3.1.2

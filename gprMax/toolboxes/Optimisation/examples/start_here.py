@@ -3,6 +3,7 @@
 Edit the four numbered sections. The toolbox chooses trial values, runs your
 model and sends the number returned by evaluate() back to the optimiser.
 For a first check, use simulate() as shown in the README before a longer search.
+If a run is interrupted, continue it with: python start_here.py --resume
 """
 
 from pathlib import Path
@@ -16,7 +17,7 @@ from gprMax.toolboxes.Optimisation import Real, optimise
 # The key "permittivity" will also be used in build_model() below.
 PARAMETERS = {"permittivity": Real(2.0, 8.0)}
 TARGET_PEAK_V_PER_M = 50.0
-RESULTS = Path(__file__).with_name("peak_field_results")  # Use a new name for each run.
+RESULTS = Path(__file__).with_name("peak_field_results")  # New name per run; --resume reuses it.
 
 
 # 2. BUILD ONE gprMax MODEL FROM THE TRIAL VALUES.
@@ -63,6 +64,17 @@ def evaluate(parameters, output):
 # 4. RUN THE SEARCH. Change these settings without editing the functions above.
 # This guard lets solver workers load the functions without starting another search.
 if __name__ == "__main__":
+    import argparse
+
+    # Resume from the command line: editing this file would change its fingerprint,
+    # and a run whose model or objective file changed cannot be resumed.
+    cli = argparse.ArgumentParser(description="Run the starter optimisation.")
+    cli.add_argument(
+        "--resume",
+        action="store_true",
+        help="continue an interrupted run in RESULTS instead of starting a new one",
+    )
+    arguments = cli.parse_args()
     result = optimise(
         parameters=PARAMETERS,
         model=build_model,
@@ -74,6 +86,7 @@ if __name__ == "__main__":
         seed=7,
         # Optional: target_value=1.0 stops when peak error is <= 1 V/m.
         # Without a target, this example uses the evaluation limit.
+        resume=arguments.resume,
     )
     # The toolbox prints progress and the best result. These are also available as:
     # result.best_parameters, result.best_value, result.trials
