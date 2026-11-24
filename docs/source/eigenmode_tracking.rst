@@ -596,7 +596,7 @@ resolved pair, including any internally retained partner. The direction must
 be finite, nonzero, real, and transverse. It is normalized; a normalized normal
 component above ``1e-12`` is rejected. The inferred partner is orthogonal.
 
-.. deprecated:: Unreleased
+.. deprecated:: 4.0.2
 
    Two-direction sequences remain supported with both ``tracking="legacy"``
    and ``tracking="auto"``, preserving both requested directions and signs,
