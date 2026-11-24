@@ -70,6 +70,16 @@ from gprMax.waveforms import Waveform as WaveformUser
 
 logger = logging.getLogger(__name__)
 
+
+def _format_point(point) -> str:
+    """Format coordinates for a log message, e.g. ``(0.005, 0)``.
+
+    Formatting each value with ``:g`` keeps NumPy scalars from printing as
+    ``np.float64(0.005)``, as they do inside a tuple with NumPy 2.
+    """
+    return "(" + ", ".join(f"{value:g}" for value in point) + ")"
+
+
 # Keep this module importable before ``gprMax.ports``: that module imports the
 # NTFF package, whose public interface in turn imports the port evaluators.
 # The local value is the public default used by the port layer.
@@ -3819,7 +3829,8 @@ class _EigenmodeSourceBuilder(GridUserObject):
         )
         logger.info(
             f"{self.grid_name(grid)}Eigenmode source with normal {normal}{direction}, "
-            f"transverse bounds {p1} m to {p2} m, normal coordinate {w:g} m, "
+            f"transverse bounds {_format_point(p1)} m to {_format_point(p2)} m, "
+            f"normal coordinate {w:g} m, "
             f"exciting mode {mode_index}, monitoring {mode_count} mode(s) at port {port_index}, "
             f"{frequency_description}, using waveform {waveform_id} created."
         )
@@ -4035,7 +4046,8 @@ class _EigenmodeReceiverBuilder(GridUserObject):
         logger.info(
             f"{self.grid_name(grid)}Eigenmode receiver {port_id!r}, normal {normal}{direction}, "
             f"monitoring modes 1-{mode_count} at port {port_index}, "
-            f"transverse bounds {p1} m to {p2} m, normal coordinate {w:g} m created."
+            f"transverse bounds {_format_point(p1)} m to {_format_point(p2)} m, "
+            f"normal coordinate {w:g} m created."
         )
 
 
@@ -5676,8 +5688,8 @@ class PMLSlab(GridUserObject):
             continuous_upper = uip.discrete_to_continuous(upper)
         logger.info(
             f"{self.grid_name(grid)}Internal PML slab '{ID}' from "
-            f"{tuple(continuous_lower)}m to "
-            f"{tuple(continuous_upper)}m, with maximum "
+            f"{_format_point(continuous_lower)} m to "
+            f"{_format_point(continuous_upper)} m, with maximum "
             f"stretching on its {maximum_face} face"
             + (
                 f", using profile '{profile_id}'"
