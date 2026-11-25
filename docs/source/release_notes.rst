@@ -6,7 +6,7 @@ Unreleased
 ==========
 
 These changes reduce per-time-step host overhead in the Apple Metal backend
-without changing the field equations or source timing.
+and correct the modes of eigenmode ports cut by PMC symmetry planes.
 
 Execution
 ---------
@@ -27,6 +27,21 @@ Execution
   were unchanged; comparison with CPU double precision gave a maximum
   relative difference of 2.36e-5 and a directivity difference of 0.0014 dB.
   Speedups depend on the model and hardware.
+
+Eigenmode ports
+---------------
+
+* Eigenmode ports whose cross-section touches a PMC symmetry boundary now
+  solve the correct modes. The port window was closed with artificial PEC on
+  every edge, which is right on a PEC symmetry plane but turned a PMC plane
+  into an electric wall: for a rectangular guide split along its broad wall,
+  TE10 became evanescent across its band. Window edges on a PMC face now leave
+  tangential E free and use the image-theory ghost value of tangential H,
+  matching the FDTD PMC symmetry update. A quarter model of the User Guide
+  horn, with PEC and PMC symmetry planes and the feed guide continued into the
+  PML, reproduces the full model's S11 to within 0.0004 dB and 0.002 degrees.
+* Virtual waveguides now reject a port whose cross-section touches a PMC
+  symmetry boundary, rather than closing it with PEC.
 
 The `changes since 4.0.2
 <https://github.com/gprMax/gprMax/compare/v.4.0.2...master>`_ lists revisions

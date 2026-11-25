@@ -32,7 +32,7 @@ from gprMax.cython.virtual_waveguide import (
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import process_materials
-from gprMax.modal_window import pec_electric_masks
+from gprMax.modal_window import pec_electric_masks, pmc_symmetry_window_edges
 from gprMax.mode2d import mode2d_geometry
 from gprMax.updates.cpu_updates import CPUUpdates
 
@@ -71,6 +71,7 @@ class VirtualWaveguide:
         self._impedance_edges = ()
         self._impedance_window_edges = ()
 
+        self._validate_symmetry()
         self._validate()
         self.aux_grid = self._build_auxiliary_grid()
         self._prepare_dispersive_aperture()
@@ -93,6 +94,21 @@ class VirtualWaveguide:
         # passive monitors need the same policy once their rear is detached.
         if self.port.port_monitor is not None:
             self.port.port_monitor.magnetic_side = 1
+
+    def _validate_symmetry(self):
+        # The auxiliary grid closes its cross-section with PEC, which is wrong
+        # on a PMC symmetry face.
+        if pmc_symmetry_window_edges(
+            self.main_grid,
+            self.transverse_axes,
+            (self.u0, self.v0),
+            (self.u1, self.v1),
+            getattr(self.port, "invariant_axis", None),
+        ):
+            raise ValueError(
+                "Virtual waveguides do not support a port whose cross-section touches a "
+                "PMC symmetry boundary. Continue the feed guide into the PML instead."
+            )
 
     def _validate(self):
         if self.reduced:

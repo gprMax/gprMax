@@ -41,3 +41,29 @@ def pec_electric_masks(cell_shape, invariant_local=None):
                 mask[tuple(face)] = True
         masks.append(mask)
     return tuple(masks)
+
+
+def pmc_symmetry_window_edges(grid, transverse_axes, start, stop, invariant_axis=None):
+    """Return the window edges that lie on a domain face with a PMC symmetry boundary.
+
+    Edges are named in the local (u, v) basis of the port window: ``u_min``,
+    ``u_max``, ``v_min`` and ``v_max``. ``start`` and ``stop`` are cell indices
+    in the same (global) frame as the grid size. A window edge on a PEC
+    symmetry face needs nothing extra, since the window is already closed
+    with artificial PEC.
+    """
+    boundaries = getattr(grid, "symmetry_boundaries", None) or {}
+    if "pmc" not in boundaries.values():
+        return ()
+    size = np.asarray(getattr(grid, "global_size", getattr(grid, "size", None)))
+    edges = []
+    for local, (axis, low, high) in enumerate(zip(transverse_axes, start, stop)):
+        if invariant_axis is not None and axis == invariant_axis:
+            continue
+        name = "xyz"[axis]
+        if int(low) == 0 and boundaries.get(f"{name}0") == "pmc":
+            edges.append(f"{'uv'[local]}_min")
+        if int(high) == int(size[axis]) and boundaries.get(f"{name}max") == "pmc":
+            edges.append(f"{'uv'[local]}_max")
+    return tuple(edges)
+

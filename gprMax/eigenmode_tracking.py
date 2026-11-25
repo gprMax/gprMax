@@ -596,6 +596,7 @@ def _refined_solver(solver, factor=2):
             guess=solver.guess,
             fdtd_dt=solver.fdtd_dt,
             propagation_spacing=solver.propagation_spacing,
+            pmc_edges=getattr(solver, "pmc_edges", ()),
             **values,
         )
         refined.retain_tracking_operator = True
