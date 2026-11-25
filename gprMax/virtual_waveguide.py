@@ -32,7 +32,11 @@ from gprMax.cython.virtual_waveguide import (
 )
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import process_materials
-from gprMax.modal_window import pec_electric_masks, pmc_symmetry_window_edges
+from gprMax.modal_window import (
+    pec_electric_masks,
+    pmc_symmetry_window_edges,
+    release_pmc_edges,
+)
 from gprMax.mode2d import mode2d_geometry
 from gprMax.updates.cpu_updates import CPUUpdates
 
@@ -71,8 +75,9 @@ class VirtualWaveguide:
         self._impedance_edges = ()
         self._impedance_window_edges = ()
 
-        self._validate_symmetry()
         self._validate()
+        # Needs the aperture cross-section, which _validate() gathers under MPI.
+        self._validate_symmetry()
         self.aux_grid = self._build_auxiliary_grid()
         self._prepare_dispersive_aperture()
         if self._impedance_edges:
@@ -96,19 +101,53 @@ class VirtualWaveguide:
             self.port.port_monitor.magnetic_side = 1
 
     def _validate_symmetry(self):
-        # The auxiliary grid closes its cross-section with PEC, which is wrong
-        # on a PMC symmetry face.
-        if pmc_symmetry_window_edges(
+        """Reject an aperture that a PMC symmetry plane cuts open.
+
+        The auxiliary grid closes its cross-section with PEC. On a PMC
+        symmetry face that is exact only where a physical PEC wall already
+        covers the window edge: the modal solver then has no tangential E to
+        release there, and the guide matches the main grid.
+        """
+        invariant_axis = getattr(self.port, "invariant_axis", None)
+        edges = pmc_symmetry_window_edges(
             self.main_grid,
             self.transverse_axes,
             (self.u0, self.v0),
             (self.u1, self.v1),
-            getattr(self.port, "invariant_axis", None),
+            invariant_axis,
+        )
+        if not edges:
+            return
+        invariant_local = (
+            None if invariant_axis is None else self.transverse_axes.index(invariant_axis)
+        )
+        rim = pec_electric_masks((self.nu, self.nv), invariant_local)
+        released = release_pmc_edges(rim, edges)
+        physical_pec = self._physical_pec_electric_masks()
+        if any(
+            np.any(before & ~after & ~pec)
+            for before, after, pec in zip(rim, released, physical_pec)
         ):
             raise ValueError(
-                "Virtual waveguides do not support a port whose cross-section touches a "
-                "PMC symmetry boundary. Continue the feed guide into the PML instead."
+                "Virtual waveguides do not support a port whose aperture is cut by a PMC "
+                f"symmetry boundary (window edge {', '.join(edges)}): the auxiliary guide "
+                "closes that edge with PEC. Continue the feed guide into the PML instead. "
+                "A window edge on a PMC face is accepted only where a physical PEC wall "
+                "covers it completely."
             )
+
+    def _physical_pec_electric_masks(self):
+        """Physical PEC on the aperture's E samples, in the local (u, v, normal) basis."""
+        materials = self._mpi_materials if self.mpi else self.main_grid.materials
+        is_pec = np.zeros(max(material.numID for material in materials) + 1, dtype=bool)
+        for material in materials:
+            is_pec[material.numID] = material.is_pec
+        component_ids = self._component_cross_section()
+        masks = []
+        for local, component in enumerate((*self.transverse_axes, self.normal_axis)):
+            ids = component_ids[component]
+            masks.append(is_pec[ids[: self.nu + int(local != 0), : self.nv + int(local != 1)]])
+        return tuple(masks)
 
     def _validate(self):
         if self.reduced:

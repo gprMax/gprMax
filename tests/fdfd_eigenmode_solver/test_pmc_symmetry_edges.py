@@ -10,8 +10,9 @@ same mode as the full cross-section.
 import numpy as np
 import pytest
 
+from gprMax.eigenmode_tracking import _physical_enclosure, _refined_solver
 from gprMax.fdfd_eigenmode_solver.fdfd_2d_mode_solver import FDFD_2D_mode_solver
-from gprMax.modal_window import pec_electric_masks
+from gprMax.modal_window import pec_electric_masks, release_pmc_edges
 from testing.eigenmode_support.validate_fdfd_eigenmodes import (
     _configured_solver_constants,
     _homogeneous_2d_arrays,
@@ -21,7 +22,7 @@ SPACING = 1e-3
 FREQUENCY = 10e9
 
 
-def _solve(nu, nv, pmc_edges=()):
+def _solve(nu, nv, pmc_edges=(), **physical_masks):
     with _configured_solver_constants():
         solver = FDFD_2D_mode_solver(
             frequency=FREQUENCY,
@@ -30,10 +31,17 @@ def _solve(nu, nv, pmc_edges=()):
             mode_index=0,
             artificial_pec_masks=pec_electric_masks((nu, nv)),
             pmc_edges=pmc_edges,
+            **physical_masks,
             **_homogeneous_2d_arrays(nu, nv),
         )
         solver.solve()
     return solver
+
+
+def _physical_walls(nu, nv, open_edges=()):
+    """Physical PEC on every window edge except ``open_edges``."""
+    masks = release_pmc_edges(pec_electric_masks((nu, nv)), open_edges)
+    return dict(zip(("pec_u_mask", "pec_v_mask", "pec_w_mask"), masks))
 
 
 def _neff(solver):
@@ -81,3 +89,37 @@ def test_pmc_edge_keeps_pec_on_corner_shared_with_a_pec_edge():
 def test_unknown_pmc_edge_is_rejected():
     with pytest.raises(ValueError, match="Unknown PMC window edge"):
         _solve(4, 4, pmc_edges=("w_max",))
+
+
+def test_pmc_edge_covered_by_physical_pec_changes_nothing():
+    # A physical PEC wall on the whole PMC-facing edge keeps tangential E clamped there,
+    # so declaring the edge PMC must give the mode of the plain PEC-closed window.
+    walls = _physical_walls(12, 6)
+    control = _solve(12, 6, **walls)
+    shielded = _solve(12, 6, pmc_edges=("u_max",), **walls)
+    assert shielded.pec_v_mask[-1, :].all() and shielded.pec_w_mask[-1, :].all()
+    assert _neff(shielded) == pytest.approx(_neff(control), rel=1e-12, abs=1e-14)
+
+
+def test_release_keeps_the_rim_on_every_other_edge():
+    rim = pec_electric_masks((5, 4))
+    released = release_pmc_edges(rim, ("u_min", "v_max"))
+    # E_v and E_w are tangential to u_min; E_u and E_w to v_max.
+    assert not released[1][0, :].any() and not released[0][:, -1].any()
+    # The corner between the two PMC edges is free; corners on a PEC edge are not.
+    assert not released[2][0, 1:].any() and not released[2][:-1, -1].any()
+    assert released[2][0, 0] and released[2][-1, -1]
+    assert released[1][-1, :].all() and released[0][:, 0].all()
+    for before, after in zip(rim, release_pmc_edges(rim, ())):
+        np.testing.assert_array_equal(before, after)
+
+
+def test_closed_guide_reduced_by_pmc_plane_is_physically_enclosed():
+    # Physical PEC walls on three edges and the PMC symmetry plane on the fourth.
+    walls = _physical_walls(12, 6, open_edges=("u_max",))
+    reduced = _solve(12, 6, pmc_edges=("u_max",), **walls)
+    assert _physical_enclosure(reduced)
+    with _configured_solver_constants():
+        assert _physical_enclosure(_refined_solver(reduced))
+    # The same walls without the symmetry plane leave that edge to the artificial rim.
+    assert not _physical_enclosure(_solve(12, 6, **walls))

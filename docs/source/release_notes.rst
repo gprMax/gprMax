@@ -40,8 +40,15 @@ Eigenmode ports
   matching the FDTD PMC symmetry update. A quarter model of the User Guide
   horn, with PEC and PMC symmetry planes and the feed guide continued into the
   PML, reproduces the full model's S11 to within 0.0004 dB and 0.002 degrees.
-* Virtual waveguides now reject a port whose cross-section touches a PMC
-  symmetry boundary, rather than closing it with PEC.
+* Surface-impedance walls that cross a PMC symmetry plane keep their boundary
+  equations on the cut. A rectangular guide with 20 ohm walls, halved by a PMC
+  plane, now gives the modal attenuation of the full guide to round-off.
+* Virtual waveguides now reject a port whose aperture is cut by a PMC symmetry
+  boundary, rather than closing it with PEC. A window edge on a PMC face that
+  a physical PEC wall covers completely is still accepted, as in 4.0.2.
+* Automatic mode verification treats a window edge on a PMC symmetry plane as
+  a physical wall, so a closed guide reduced by symmetry is classified like the
+  full guide instead of reporting insufficient exterior geometry.
 
 The `changes since 4.0.2
 <https://github.com/gprMax/gprMax/compare/v.4.0.2...master>`_ lists revisions

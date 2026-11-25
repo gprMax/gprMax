@@ -37,6 +37,7 @@ from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     BoundaryMagneticTerm,
     FDFDSurfaceBoundary,
 )
+from gprMax.modal_window import PMC_WINDOW_EDGES, release_pmc_edges, window_edge_face
 
 
 class _StaticConstraintOperator(LinearOperator):
@@ -477,7 +478,7 @@ class FDFD_2D_mode_solver:
             raise ValueError(f"{label} index {index} is outside shape {shape}")
         return index
 
-    PMC_EDGES = ("u_min", "u_max", "v_min", "v_max")
+    PMC_EDGES = PMC_WINDOW_EDGES
 
     @classmethod
     def _validated_pmc_edges(cls, edges):
@@ -487,41 +488,16 @@ class FDFD_2D_mode_solver:
             raise ValueError(f"Unknown PMC window edge(s) {unknown}; expected {cls.PMC_EDGES}.")
         return edges
 
-    @staticmethod
-    def _edge_face(edge):
-        axis = 0 if edge[0] == "u" else 1
-        position = 0 if edge.endswith("_min") else -1
-        return axis, position
+    _edge_face = staticmethod(window_edge_face)
 
     def _release_pmc_edges(self, masks):
         """Free tangential E on PMC edges, keeping corners shared with other edges.
 
-        Component ``c`` is tangential to the edges of the other transverse axis
-        and to both edges for ``w``. A sample that also lies on a non-PMC edge
-        to which it is tangential keeps its artificial PEC.
+        Only the artificial rim is released; physical PEC lives in the
+        component masks and still constrains its samples. The rule is shared
+        with the surface-impedance row filter and the virtual-waveguide check.
         """
-        released = []
-        for component, mask in enumerate(masks):
-            original = mask.copy()
-            result = mask.copy()
-            for edge in self.pmc_edges:
-                axis, position = self._edge_face(edge)
-                if axis == component:
-                    continue
-                face = [slice(None), slice(None)]
-                face[axis] = position
-                result[tuple(face)] = False
-            for edge in self.PMC_EDGES:
-                if edge in self.pmc_edges:
-                    continue
-                axis, position = self._edge_face(edge)
-                if axis == component:
-                    continue
-                face = [slice(None), slice(None)]
-                face[axis] = position
-                result[tuple(face)] |= original[tuple(face)]
-            released.append(result)
-        return tuple(released)
+        return release_pmc_edges(masks, self.pmc_edges)
 
     def _pmc_ghost_scale(self, out_shape, axis):
         """Row scale imposing odd tangential H beyond PMC edges along ``axis``.

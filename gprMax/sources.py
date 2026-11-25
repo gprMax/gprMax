@@ -45,7 +45,11 @@ from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     boundary_edge_relative_permittivity,
     evaluate_surface_ade,
 )
-from gprMax.modal_window import pec_electric_masks, pmc_symmetry_window_edges
+from gprMax.modal_window import (
+    pec_electric_masks,
+    pmc_symmetry_window_edges,
+    release_pmc_edges,
+)
 from gprMax.waveforms import Waveform
 
 from .cython.eigenmode_source import update_eigenmode_electric as updateEigenmode_electric
@@ -936,6 +940,20 @@ class EigenmodeSource(Source):
         # constrained row has no Ampere equation and needs no exterior H;
         # every unconstrained surface row still requires its entire stencil.
         window_pec = self._window_pec_electric_masks()
+        pmc_edges = self.pmc_symmetry_edges(G)
+        if pmc_edges:
+            # The modal solver frees tangential E on a PMC symmetry edge, so a
+            # surface row there keeps its equation. The compiled row already
+            # holds the PMC image: only the physical quadrants are retained,
+            # with half the dual area. A rim sample that is physically PEC
+            # stays constrained in the solver and keeps no row.
+            physical_pec = self._yee_pec_electric_component_masks(G, include_window=False)
+            window_pec = tuple(
+                released | (rim & pec)
+                for rim, released, pec in zip(
+                    window_pec, release_pmc_edges(window_pec, pmc_edges), physical_pec
+                )
+            )
         electric_shapes = tuple(mask.shape for mask in electric_retained)
         magnetic_shapes = tuple(mask.shape for mask in magnetic_retained)
         if not system.model_ids:
