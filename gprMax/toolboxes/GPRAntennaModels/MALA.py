@@ -6,23 +6,39 @@
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
 import gprMax
+from gprMax.toolboxes.GPRAntennaModels._placement import (
+    check_rotation,
+    place_antenna,
+    snap_placement,
+)
 from gprMax.utilities.validation import validate_keywords
 
 
-def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
+def antenna_like_MALA_1200(x, y, z, resolution=0.001, *, rotation=0, **kwargs):
     """Inserts a description of an antenna similar to the MALA 1.2GHz antenna.
         Can be used with 1mm (default) or 2mm spatial resolution.
         The external dimensions of the antenna are 184x109x46mm.
         One output point is defined between the arms of the receiver bowtie.
         The bowties are aligned with the y axis so the output is the y component
-        of the electric field.
+        of the electric field (the x component at 90 and 270 degrees).
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the
                             antenna. Coordinates are relative to the geometric
                             centre of the antenna in the x-y plane and the
                             bottom of the antenna skid in the z direction.
+                            The placement point is rounded once to the nearest
+                            grid point; off-grid placements emit a warning.
+                            The antenna has the same shape at every placement.
+                            The case is an odd number of cells wide in y at
+                            1 mm, so its centre is half a cell below y.
         resolution (float): Spatial resolution for the antenna model.
+        rotation (int): Counterclockwise rotation in degrees viewed from +z
+                            towards the x-y plane: 0 (default), 90, 180 or 270.
+                            Rotates the whole antenna about its placement
+                            point. Field outputs use the global positive-axis
+                            convention; multiply by -1 at 90/180 degrees to
+                            compare with the original antenna-local polarity.
         kwargs (dict): Optional variables, e.g. can be fed from an optimisation
                         process.
 
@@ -65,6 +81,16 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
         sourceresistance = 1000
         absorberEr = 6.49
         absorbersig = 0.252
+
+    rotation = check_rotation(rotation, "MALA 1.2 GHz")
+    if resolution not in (0.001, 0.002):
+        raise ValueError(
+            "This antenna module can only be used with a spatial resolution of 1mm or 2mm"
+        )
+    anchor = snap_placement(x, y, z, resolution, "MALA 1.2 GHz")
+    # Build the model about its reference point; place_antenna moves every part
+    # to the placement point by whole cells, so the shape cannot depend on it.
+    x = y = z = 0.0
 
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
@@ -787,4 +813,4 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     )
     # scene_objects.extend((gv1, gv2))
 
-    return scene_objects
+    return place_antenna(scene_objects, anchor, rotation, resolution)

@@ -52,6 +52,23 @@ Eigenmode ports
   a physical wall, so a closed guide reduced by symmetry is classified like the
   full guide instead of reporting insufficient exterior geometry.
 
+Antenna model placement
+-----------------------
+
+* The MALA 1.2 GHz, GSSI 1.5 GHz and GSSI 400 MHz toolbox models now round
+  their centre-bottom placement once and place every part by whole cells,
+  as the GSSI 2 GHz model does. Previously each coordinate was rounded
+  separately, so parts could grow, shrink or move by one cell depending on
+  the placement, without a warning: the MALA model at 1 mm and 2 mm (also at
+  grid-aligned placements) and the GSSI 1.5 GHz model at 2 mm. Moving the
+  MALA model by 1-6 mm changed its free-space response by up to about 5% of
+  the peak. Off-grid placements now warn with the actual position.
+  Grid-aligned placements of the GSSI 1.5 GHz model at 1 mm and the GSSI
+  400 MHz model keep their geometry.
+* These models accept the same optional ``rotation`` keyword (0, 90, 180 or
+  270 degrees) as the GSSI 2 GHz model, with ``Ex`` output at 90/270 degrees;
+  see :doc:`inc_GPRAntennaModels`.
+
 The `changes since 4.0.2
 <https://github.com/gprMax/gprMax/compare/v.4.0.2...master>`_ lists revisions
 merged since the last release.

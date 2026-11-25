@@ -13,23 +13,40 @@ import warnings
 from pathlib import Path
 
 import gprMax
+from gprMax.toolboxes.GPRAntennaModels._placement import (
+    check_rotation,
+    place_antenna,
+    snap_placement,
+)
 from gprMax.utilities.utilities import round_int
 from gprMax.utilities.validation import validate_keywords
 
 
-def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
+def antenna_like_GSSI_1500(x, y, z, resolution=0.001, *, rotation=0, **kwargs):
     """Inserts a description of an antenna similar to the GSSI 1.5GHz antenna.
         Can be used with 1mm (default) or 2mm spatial resolution. The external
         dimensions of the antenna are 170x108x45mm. One output point is defined
         between the arms of the receiver bowtie. The bowties are aligned with
-        the y axis so the output is the y component of the electric field.
+        the y axis so the output is the y component of the electric field
+        (the x component at 90 and 270 degrees).
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the
                             antenna. Coordinates are relative to the geometric
                             centre of the antenna in the x-y plane and the
                             bottom of the antenna skid in the z direction.
+                            The placement point is rounded once to the nearest
+                            grid point; off-grid placements emit a warning.
+                            The antenna has the same shape at every placement.
+                            The case is an odd number of cells long in x at
+                            2 mm, so its centre is half a cell below x.
         resolution (float): Spatial resolution for the antenna model.
+        rotation (int): Counterclockwise rotation in degrees viewed from +z
+                            towards the x-y plane: 0 (default), 90, 180 or 270.
+                            Rotates the whole antenna about its placement
+                            point. Field outputs use the global positive-axis
+                            convention; multiply by -1 at 90/180 degrees to
+                            compare with the original antenna-local polarity.
         kwargs (dict): Optional variables, e.g. can be fed from an optimisation
                         process.
 
@@ -50,6 +67,16 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     bowtiebase = 0.022
     bowtieheight = 0.014
     patchheight = 0.015
+
+    rotation = check_rotation(rotation, "GSSI 1.5 GHz")
+    if resolution not in (0.001, 0.002):
+        raise ValueError(
+            "This antenna module can only be used with a spatial discretisation of 1mm or 2mm"
+        )
+    anchor = snap_placement(x, y, z, resolution, "GSSI 1.5 GHz")
+    # Build the model about its reference point; place_antenna moves every part
+    # to the placement point by whole cells, so the shape cannot depend on it.
+    x = y = z = 0.0
 
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
@@ -481,7 +508,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         r1 = gprMax.Rx(p1=(tx[0] - 0.060, tx[1], tx[2]), id="rxbowtie", outputs=["Ey"])
         scene_objects.append(r1)
 
-    return scene_objects
+    return place_antenna(scene_objects, anchor, rotation, resolution)
 
 
 def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10, rotation=0):
@@ -766,7 +793,7 @@ def antenna_like_GSSI_2000(x, y, z, resolution=0.001, *, spectrum_limit=10, rota
     return scene_objects
 
 
-def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
+def antenna_like_GSSI_400(x, y, z, resolution=0.002, *, rotation=0, **kwargs):
     """Inserts a description of an antenna similar to the GSSI 400MHz antenna.
         This model represents an update to the previous model of the GSSI 400MHz
         antenna and was created and optimised by Stadler et al. (2022)
@@ -775,14 +802,25 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
         The external dimensions of the antenna are 300x300x178mm.
         One output point is defined between the arms of the receiver bowtie.
         The bowties are aligned with the y axis so the output is the y component
-        of the electric field.
+        of the electric field (the x component at 90 and 270 degrees).
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the
                             antenna. Coordinates are relative to the geometric
                             centre of the antenna in the x-y plane and the
                             bottom of the antenna skid in the z direction.
+                            The placement point is rounded once to the nearest
+                            grid point; off-grid placements emit a warning.
+                            The antenna has the same shape at every placement.
         resolution (float): Spatial resolution for the antenna model.
+        rotation (int): Counterclockwise rotation in degrees viewed from +z
+                            towards the x-y plane: 0 (default), 90, 180 or 270.
+                            Rotates the whole antenna about its placement
+                            point. Field outputs use the global positive-axis
+                            convention; multiply by -1 at 90/180 degrees to
+                            compare with the original antenna-local polarity.
+                            At 90/180 degrees the excitation file is passed
+                            on as negated user waveforms.
         kwargs (dict): Optional variables, e.g. can be fed from an optimisation
                         process.
 
@@ -835,6 +873,12 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
         receiverresistance = 288.92728542970417  # Ohms
         absorberEr = 2.42966922703319
         absorbersig = 0.03839822151712033  # S/m
+
+    rotation = check_rotation(rotation, "GSSI 400 MHz")
+    anchor = snap_placement(x, y, z, resolution, "GSSI 400 MHz")
+    # Build the model about its reference point; place_antenna moves every part
+    # to the placement point by whole cells, so the shape cannot depend on it.
+    x = y = z = 0.0
 
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
@@ -1286,4 +1330,4 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     )
     # scene_objects.extend((gv1, gv2))
 
-    return scene_objects
+    return place_antenna(scene_objects, anchor, rotation, resolution)
