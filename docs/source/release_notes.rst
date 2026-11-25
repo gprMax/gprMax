@@ -44,8 +44,10 @@ Eigenmode ports
   equations on the cut. A rectangular guide with 20 ohm walls, halved by a PMC
   plane, now gives the modal attenuation of the full guide to round-off.
 * Virtual waveguides now reject a port whose aperture is cut by a PMC symmetry
-  boundary, rather than closing it with PEC. A window edge on a PMC face that
-  a physical PEC wall covers completely is still accepted, as in 4.0.2.
+  boundary, rather than closing it with PEC. A window edge on a PMC face is
+  still accepted where every affected electric-field sample lies in physical
+  PEC or the excluded interior of an opaque surface-impedance volume, as in
+  4.0.2. Live surface-impedance boundary samples do not qualify for this exception.
 * Automatic mode verification treats a window edge on a PMC symmetry plane as
   a physical wall, so a closed guide reduced by symmetry is classified like the
   full guide instead of reporting insufficient exterior geometry.

@@ -104,9 +104,9 @@ class VirtualWaveguide:
         """Reject an aperture that a PMC symmetry plane cuts open.
 
         The auxiliary grid closes its cross-section with PEC. On a PMC
-        symmetry face that is exact only where a physical PEC wall already
-        covers the window edge: the modal solver then has no tangential E to
-        release there, and the guide matches the main grid.
+        symmetry face that is exact only where every affected E sample is
+        already constrained by physical PEC or excluded inside an opaque
+        SIBC volume. A live SIBC surface sample is not an excluded interior.
         """
         invariant_axis = getattr(self.port, "invariant_axis", None)
         edges = pmc_symmetry_window_edges(
@@ -123,30 +123,35 @@ class VirtualWaveguide:
         )
         rim = pec_electric_masks((self.nu, self.nv), invariant_local)
         released = release_pmc_edges(rim, edges)
-        physical_pec = self._physical_pec_electric_masks()
+        inactive = self._inactive_electric_masks()
         if any(
-            np.any(before & ~after & ~pec)
-            for before, after, pec in zip(rim, released, physical_pec)
+            np.any(before & ~after & ~excluded)
+            for before, after, excluded in zip(rim, released, inactive)
         ):
             raise ValueError(
                 "Virtual waveguides do not support a port whose aperture is cut by a PMC "
                 f"symmetry boundary (window edge {', '.join(edges)}): the auxiliary guide "
                 "closes that edge with PEC. Continue the feed guide into the PML instead. "
-                "A window edge on a PMC face is accepted only where a physical PEC wall "
-                "covers it completely."
+                "A window edge on a PMC face is accepted only where physical PEC or "
+                "excluded opaque SIBC interior covers every affected E sample, not "
+                "where live SIBC surface samples remain."
             )
 
-    def _physical_pec_electric_masks(self):
-        """Physical PEC on the aperture's E samples, in the local (u, v, normal) basis."""
+    def _inactive_electric_masks(self):
+        """PEC or excluded SIBC interior on E samples in the (u, v, normal) basis."""
         materials = self._mpi_materials if self.mpi else self.main_grid.materials
-        is_pec = np.zeros(max(material.numID for material in materials) + 1, dtype=bool)
+        inactive = np.zeros(max(material.numID for material in materials) + 1, dtype=bool)
         for material in materials:
-            is_pec[material.numID] = material.is_pec
+            # A surface-hold sample is updated by the SIBC equations; only the
+            # volume-void interior is electrically inactive like physical PEC.
+            inactive[material.numID] = (
+                material.is_pec or getattr(material, "impedance_role", None) == "volume-void"
+            )
         component_ids = self._component_cross_section()
         masks = []
         for local, component in enumerate((*self.transverse_axes, self.normal_axis)):
             ids = component_ids[component]
-            masks.append(is_pec[ids[: self.nu + int(local != 0), : self.nv + int(local != 1)]])
+            masks.append(inactive[ids[: self.nu + int(local != 0), : self.nv + int(local != 1)]])
         return tuple(masks)
 
     def _validate(self):

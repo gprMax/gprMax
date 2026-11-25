@@ -5,6 +5,7 @@ wide axis, which is a magnetic wall. Each test compares a model cut there by
 a PMC symmetry boundary with the model it stands for.
 """
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -12,6 +13,7 @@ import pytest
 
 import gprMax
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.virtual_waveguide import VirtualWaveguide
 
 pytestmark = pytest.mark.integration
 
@@ -125,48 +127,72 @@ def test_closed_half_guide_is_verified_like_the_full_guide(tmp_path):
     )
 
 
-def _virtual_guide_scene(original, *, pmc, shielded):
-    """The mixed PEC/impedance validation guide with its port window on face x0.
+def _virtual_guide_scene(original, *, pmc, shielded, face="x0", shield_material="pec"):
+    """Put a mixed PEC/impedance guide's window edge inside an opaque wall.
 
-    A PEC block fills x = 0..3 cells, so the window edge on that face is
-    covered by a physical wall unless the block is opened.
+    The left/right PEC block can instead contain excluded SIBC interior.
+    Opening the block exposes an active aperture to the symmetry plane.
     """
 
     def scene(**kwargs):
         result = original(**kwargs)
-        if pmc:
-            result.add(gprMax.SymmetryBoundary(face="x0", type="pmc"))
+        # SIBC contact requires an explicitly declared symmetry face, including
+        # the PEC control. Keep PEC padding at the other transverse faces.
+        if pmc or shield_material != "pec":
+            result.add(gprMax.SymmetryBoundary(face=face, type="pmc" if pmc else "pec"))
+        window = (0, 14) if face == "x0" else (2, 16)
+        wall = (0, 3) if face == "x0" else (13, 16)
         for obj in result.grid_objects:
             if isinstance(obj, gprMax.EigenmodePort):
                 plane = obj.kwargs["p1"][2]
-                obj.kwargs.update(p1=(0, 2 * DL, plane), p2=(14 * DL, 14 * DL, plane))
+                obj.kwargs.update(
+                    p1=(window[0] * DL, 2 * DL, plane),
+                    p2=(window[1] * DL, 14 * DL, plane),
+                )
+        if shield_material != "pec":
+            result.add(gprMax.Box(
+                p1=(wall[0] * DL, DL, 0), p2=(wall[1] * DL, 15 * DL, 72 * DL),
+                material_id=shield_material,
+            ))
         if not shielded:
             result.add(gprMax.Box(
-                p1=(0, 4 * DL, 0), p2=(3 * DL, 12 * DL, 72 * DL), material_id="free_space"
+                p1=(wall[0] * DL, 4 * DL, 0), p2=(wall[1] * DL, 12 * DL, 72 * DL),
+                material_id="free_space",
             ))
         return result
 
     return scene
 
 
-def test_virtual_waveguide_accepts_pmc_edge_covered_by_pec(tmp_path, monkeypatch):
-    """A window edge on a PMC face behind a physical PEC wall is a PEC edge."""
+@pytest.mark.parametrize("face", ("x0", "xmax"))
+@pytest.mark.parametrize("shield_material", ("pec", "wall"))
+def test_virtual_waveguide_accepts_inactive_pmc_edge(tmp_path, monkeypatch, face, shield_material):
+    """PEC constraints and excluded SIBC interiors have no live aperture E."""
     from testing.validation.impedance_surface import virtual_waveguide as validation
 
     original = validation.guide_scene
     options = dict(virtual=True, active=True, resistance=1000.0, steps=300)
+    geometry = dict(face=face, shield_material=shield_material, shielded=True)
 
     monkeypatch.setattr(
-        validation, "guide_scene", _virtual_guide_scene(original, pmc=False, shielded=True)
+        validation, "guide_scene", _virtual_guide_scene(original, pmc=False, **geometry)
     )
     control, control_grid = validation.run_guide(tmp_path / "pec", **options)
     monkeypatch.setattr(
-        validation, "guide_scene", _virtual_guide_scene(original, pmc=True, shielded=True)
+        validation, "guide_scene", _virtual_guide_scene(original, pmc=True, **geometry)
     )
     actual, grid = validation.run_guide(tmp_path / "pmc", **options)
 
     guide = grid.virtual_waveguides[0]
-    assert guide.port.pmc_symmetry_edges(grid) == ("u_min",)
+    assert guide.port.pmc_symmetry_edges(grid) == ("u_min" if face == "x0" else "u_max",)
+    if shield_material == "wall":
+        ids = guide._component_cross_section()
+        side = 0 if face == "x0" else -1
+        for component in (1, 2):
+            assert all(
+                getattr(grid.materials[int(value)], "impedance_role", None) == "volume-void"
+                for value in ids[component, side, 1:-1]
+            )
     scale = np.max(np.abs(control))
     assert scale > 0
     assert np.max(np.abs(actual - control)) / scale < 1e-12
@@ -175,15 +201,57 @@ def test_virtual_waveguide_accepts_pmc_edge_covered_by_pec(tmp_path, monkeypatch
     )
 
 
-def test_virtual_waveguide_rejects_aperture_cut_by_pmc(tmp_path, monkeypatch):
+@pytest.mark.parametrize("face", ("x0", "xmax"))
+@pytest.mark.parametrize("shield_material", ("pec", "wall"))
+def test_virtual_waveguide_rejects_aperture_cut_by_pmc(tmp_path, monkeypatch, face, shield_material):
     from testing.validation.impedance_surface import virtual_waveguide as validation
 
     monkeypatch.setattr(
         validation,
         "guide_scene",
-        _virtual_guide_scene(validation.guide_scene, pmc=True, shielded=False),
+        _virtual_guide_scene(
+            validation.guide_scene, pmc=True, shielded=False, face=face, shield_material=shield_material,
+        ),
     )
     with pytest.raises(ValueError, match="aperture is cut by a PMC symmetry boundary"):
         validation.run_guide(
             tmp_path / "cut", virtual=True, active=True, resistance=1000.0, steps=300
         )
+
+
+@pytest.mark.parametrize("normal", range(3))
+@pytest.mark.parametrize("local_axis,high", ((0, False), (0, True), (1, False), (1, True)))
+@pytest.mark.parametrize("longitudinal", (False, True))
+@pytest.mark.parametrize("active_id", (2, 3), ids=("surface-hold", "dielectric"))
+def test_one_live_sample_on_pmc_edge_is_rejected(normal, local_axis, high, longitudinal, active_id):
+    """In particular, a held SIBC surface sample is not an excluded interior."""
+    guide = VirtualWaveguide.__new__(VirtualWaveguide)
+    guide.mpi = False
+    guide.normal_axis = normal
+    guide.transverse_axes = tuple(axis for axis in range(3) if axis != normal)
+    guide.u0 = guide.v0 = 0
+    guide.u1 = guide.nu = 4
+    guide.v1 = guide.nv = 3
+    guide.port = SimpleNamespace(invariant_axis=None)
+    axis = guide.transverse_axes[local_axis]
+    size = np.full(3, 6)
+    size[list(guide.transverse_axes)] = (guide.nu, guide.nv)
+    guide.main_grid = SimpleNamespace(
+        size=size,
+        symmetry_boundaries={"xyz"[axis] + ("max" if high else "0"): "pmc"},
+        materials=[
+            SimpleNamespace(numID=0, is_pec=True),
+            SimpleNamespace(numID=1, is_pec=False, impedance_role="volume-void"),
+            SimpleNamespace(numID=2, is_pec=False, impedance_role="surface-hold"),
+            SimpleNamespace(numID=3, is_pec=False),
+        ],
+    )
+    ids = np.ones((6, guide.nu + 1, guide.nv + 1), dtype=np.uint32)
+    with patch.object(guide, "_component_cross_section", return_value=ids):
+        guide._validate_symmetry()  # all samples excluded; no active aperture
+        component = normal if longitudinal else guide.transverse_axes[1 - local_axis]
+        point = [1, 1]
+        point[local_axis] = (guide.nu, guide.nv)[local_axis] if high else 0
+        ids[component, point[0], point[1]] = active_id
+        with pytest.raises(ValueError, match="aperture is cut by a PMC symmetry boundary"):
+            guide._validate_symmetry()
