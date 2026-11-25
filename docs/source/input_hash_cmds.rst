@@ -1501,6 +1501,16 @@ database. The syntax of the command is:
       indices but no complete Yee-component arrays. A file containing
       ``/ID``, ``/rigidE``, and ``/rigidH`` records an authoritative component
       mesh, so the optional averaging flag is ignored.
+    * The component arrays are cross-validated on import: the edge-based
+      ``/ID`` array must be exactly one cell larger than the cell-based
+      ``/rigidE``/``/rigidH`` arrays on every spatial axis after placement
+      clipping and any 2D invariant-axis conversion. A file that violates
+      this is rejected with an error naming the command and both shapes,
+      rather than producing undefined behaviour. The rigidity import also
+      evaluates its per-component comparisons on contiguous copies, which
+      avoids an interpreter crash in NumPy 2.0.x and 2.1.x (a strided
+      unsigned array compared against a negative integer; fixed upstream in
+      NumPy 2.2.0). Using NumPy >= 2.2 is recommended regardless.
     * For imported dispersive dielectrics, also enable
       ``#dispersive_averaging: y``. Without that global option, dispersive
       materials remain non-smoothable even if this command requests averaging.

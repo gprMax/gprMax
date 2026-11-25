@@ -761,3 +761,165 @@ def test_a_p1_that_misses_the_domain_fails_the_build(tmp_path, monkeypatch):
     )
     with pytest.raises(ValueError, match="lies entirely outside"):
         _read_geometry_and_get_grid(tmp_path, geofile, database, monkeypatch, p1=(-0.005, 0.0, 0.0))
+
+
+def test_full_geometry_round_trip_preserves_rigid_bits(tmp_path, monkeypatch):
+    """Rigid flags must survive a write/read round trip bit-exactly.
+
+    Regression net for the rigid-array import segfault: numpy 2.0.x/2.1.x
+    crash the interpreter inside _read_rigid's per-bit transparency
+    comparison (strided unsigned view vs negative Python int). On numpy
+    >= 2.2 the crash never manifests, so only the bit-exactness asserted
+    here catches a wrong-window regression on CI.
+    """
+    captured = _capture_built_grid(monkeypatch)
+    scene = gprMax.Scene()
+    scene.add(gprMax.Title(name="w"))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(gprMax.Material(er=4, se=0, mr=4, sm=0, id="dielectric"))
+    scene.add(
+        gprMax.Box(p1=(0.004, 0.004, 0.004), p2=(0.016, 0.016, 0.016), material_id="dielectric")
+    )
+    scene.add(
+        gprMax.Edge(p1=(0.002, 0.002, 0.002), p2=(0.002, 0.002, 0.003), material_id="dielectric")
+    )
+    scene.add(
+        gprMax.MagneticEdge(
+            p1=(0.004, 0.018, 0.002), p2=(0.012, 0.018, 0.002), material_id="dielectric"
+        )
+    )
+    outdir = tmp_path / "rw"
+    scene.add(
+        gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, 0.0), p2=(0.02, 0.02, 0.02), filename=str(outdir))
+    )
+    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=outdir, hide_progress_bars=True)
+    original = captured["grid"]
+    assert original.rigidE.sum() > 0, "scene must produce rigidE bits for the test to mean anything"
+    assert original.rigidH.sum() > 0, "scene must produce rigidH bits for the test to mean anything"
+
+    imported = _read_geometry_and_get_grid(
+        tmp_path,
+        outdir.with_suffix(".h5"),
+        Path(f"{outdir}_materials.json"),
+        monkeypatch,
+    )
+    np.testing.assert_array_equal(imported.rigidE, original.rigidE)
+    np.testing.assert_array_equal(imported.rigidH, original.rigidH)
+
+
+def test_clipped_rigid_import_preserves_visible_bits(tmp_path, monkeypatch):
+    """A placement hanging over the domain edge must import the rigid bits of
+    the visible part exactly, not just avoid crashing.
+
+    The 20-cell-wide file is placed at (-5, -3, 0) cells, so the visible
+    overlap is file cells x 5..19 -> grid x 0..14 and y 3..19 -> grid
+    y 0..16; the z axis is not clipped. Anything the file and the domain
+    share must match the source arrays value-for-value.
+    """
+    captured = _capture_built_grid(monkeypatch)
+    scene = gprMax.Scene()
+    scene.add(gprMax.Title(name="w"))
+    scene.add(gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3)))
+    scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))
+    scene.add(gprMax.PMLThickness(thickness=0))
+    scene.add(gprMax.TimeWindow(time=1e-12))
+    scene.add(gprMax.Material(er=4, se=0, mr=4, sm=0, id="dielectric"))
+    scene.add(
+        gprMax.Box(p1=(0.004, 0.004, 0.004), p2=(0.016, 0.016, 0.016), material_id="dielectric")
+    )
+    outdir = tmp_path / "wc"
+    scene.add(
+        gprMax.GeometryObjectsWrite(p1=(0.0, 0.0, 0.0), p2=(0.02, 0.02, 0.02), filename=str(outdir))
+    )
+    gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=outdir, hide_progress_bars=True)
+    original = captured["grid"]
+
+    imported = _read_geometry_and_get_grid(
+        tmp_path,
+        outdir.with_suffix(".h5"),
+        Path(f"{outdir}_materials.json"),
+        monkeypatch,
+        p1=(-0.005, -0.003, 0.0),
+    )
+    np.testing.assert_array_equal(
+        imported.rigidE[:, :15, :17, :], original.rigidE[:, 5:, 3:, :]
+    )
+    np.testing.assert_array_equal(
+        imported.rigidH[:, :15, :17, :], original.rigidH[:, 5:, 3:, :]
+    )
+
+
+def test_rigid_import_rejects_id_shape_mismatch(tmp_path, monkeypatch):
+    """A file whose rigid array is not cell-sized relative to its /ID array
+    must raise a clean ValueError naming the command and both shapes, not an
+    opaque error or undefined behaviour."""
+    geofile, database = _write_geometry(
+        tmp_path,
+        boxes=[((0.004,) * 3, (0.016,) * 3, "dielectric")],
+        custom_materials=[gprMax.Material(er=4, se=0, mr=4, sm=0, id="dielectric")],
+    )
+    with h5py.File(geofile, "r+") as f:
+        rigid = f["/rigidE"][:]
+        del f["/rigidE"]
+        f["/rigidE"] = rigid[:, :-1, :-1, :-1]  # spatial (19,19,19) vs ID (21,21,21)
+
+    with pytest.raises(ValueError, match="cannot be imported by #geometry_objects_read.*ID array"):
+        _read_geometry_and_get_grid(tmp_path, geofile, database, monkeypatch)
+
+
+def test_rigid_import_subprocess_survives(tmp_path):
+    """Crash canary: the rigid import must not kill the interpreter.
+
+    Runs the write/read round trip in a child process and asserts a clean
+    exit. This is the only test here that can observe the numpy
+    2.0.x/2.1.x segfault directly; it stays unmarked (like the rest of this
+    file) so the slow spawn stays out of the unit matrix. On numpy >= 2.2
+    it is a cheap tautology.
+    """
+    import subprocess
+    import sys
+
+    script = tmp_path / "rigid_roundtrip_child.py"
+    script.write_text(
+        "import pathlib\n"
+        "import gprMax\n"
+        "scene = gprMax.Scene()\n"
+        "scene.add(gprMax.Title(name='c'))\n"
+        "scene.add(gprMax.Discretisation(p1=(1e-3,)*3))\n"
+        "scene.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))\n"
+        "scene.add(gprMax.PMLThickness(thickness=0))\n"
+        "scene.add(gprMax.TimeWindow(time=1e-12))\n"
+        "scene.add(gprMax.Material(er=4, se=0, mr=4, sm=0, id='dielectric'))\n"
+        "scene.add(gprMax.Box(p1=(0.004,)*3, p2=(0.016,)*3, material_id='dielectric'))\n"
+        "out = pathlib.Path(r'%s')\n"
+        "scene.add(gprMax.GeometryObjectsWrite(p1=(0,0,0), p2=(0.02,0.02,0.02),"
+        " filename=str(out)))\n"
+        "gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=out,"
+        " hide_progress_bars=True)\n"
+        "scene2 = gprMax.Scene()\n"
+        "scene2.add(gprMax.Title(name='r'))\n"
+        "scene2.add(gprMax.Discretisation(p1=(1e-3,)*3))\n"
+        "scene2.add(gprMax.Domain(p1=(0.02, 0.02, 0.02)))\n"
+        "scene2.add(gprMax.PMLThickness(thickness=0))\n"
+        "scene2.add(gprMax.TimeWindow(time=1e-12))\n"
+        "scene2.add(gprMax.GeometryObjectsRead(p1=(0,0,0), geofile=str(out)+'.h5',"
+        " material_database=out.name+'_materials', averaging='n'))\n"
+        "gprMax.run(scenes=[scene2], n=1, geometry_only=True,"
+        " outputfile=pathlib.Path(r'%s'), hide_progress_bars=True)\n"
+        "print('CHILD-OK')\n" % (tmp_path / "canary_w", tmp_path / "canary_r")
+    )
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        timeout=300,
+    )
+    assert result.returncode == 0, (
+        f"child process died (rc={result.returncode}); stderr tail:\n"
+        f"{result.stderr[-2000:]}"
+    )
+    assert "CHILD-OK" in result.stdout

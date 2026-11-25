@@ -356,6 +356,39 @@ class TestReadRigidAndId:
         assert np.all(g.rigidE[:, 2:5, 2:5, 2:5] == 1)
         assert not np.any(g.rigidE[:, :2, :2, :2])
 
+    def test_read_rigid_e_survives_strided_id_compare(self, geometry_file, target_grid):
+        """Expects the per-bit transparency comparison to run on a contiguous
+        copy: numpy 2.0.x/2.1.x crash the interpreter comparing a strided
+        unsigned view against ``-1`` (fixed upstream in numpy 2.2.0)."""
+        g = target_grid()
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
+            r.read_rigidE()
+        assert np.all(g.rigidE[:, :3, :3, :3] == 1)
+
+    def test_read_rigid_rejects_id_not_one_larger(self, geometry_file, target_grid, tmp_path):
+        """Expects a clean ``ValueError`` when ``/ID`` is not exactly one
+        larger than ``/rigidE`` on every spatial axis after the read window."""
+        source = geometry_file(shape=(3, 3, 3))
+        bad = tmp_path / "bad_edgesize.h5"
+        with h5py.File(source, "r") as f:
+            attrs = dict(f.attrs)
+            data = f["/data"][:]
+            rigid_e = f["/rigidE"][:]
+            rigid_h = f["/rigidH"][:]
+        with h5py.File(bad, "w") as f:
+            for key, value in attrs.items():
+                f.attrs[key] = value
+            f["/data"] = data
+            f["/rigidE"] = rigid_e
+            f["/rigidH"] = rigid_h
+            f["/ID"] = np.full((6, 4, 4, 3), 3, dtype=np.uint32)  # z not one larger
+        g = target_grid()
+        with pytest.raises(ValueError, match="one larger"):
+            with ReadGeometryObject(bad, g, np.zeros(3, np.int32), ID_MAP) as r:
+                r.read_rigidE()
+
     def test_a_full_import_writes_all_four_arrays(self, geometry_file, target_grid):
         """Expects the complete fast path to reconstruct the geometry without
         re-running the voxel builder."""

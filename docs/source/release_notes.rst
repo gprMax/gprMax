@@ -28,6 +28,20 @@ Execution
   relative difference of 2.36e-5 and a directivity difference of 0.0014 dB.
   Speedups depend on the model and hardware.
 
+Geometry import
+---------------
+
+* ``#geometry_objects_read`` no longer crashes the interpreter when importing
+  a geometry file that contains ``/rigidE``/``/rigidH`` alongside ``/ID`` on
+  NumPy 2.0.x and 2.1.x. The per-component rigidity transparency comparison
+  now runs on a contiguous copy of each window, avoiding an upstream NumPy
+  ufunc bug (a strided unsigned array compared against a negative integer,
+  fixed in NumPy 2.2.0). Rigid imports remain bit-identical on every NumPy
+  version, and the reader now rejects files whose ``/ID`` shape is not
+  exactly one larger than the rigid arrays on every axis with a clear error
+  instead of undefined behaviour. Using NumPy >= 2.2 is recommended
+  regardless.
+
 The `changes since 4.0.2
 <https://github.com/gprMax/gprMax/compare/v.4.0.2...master>`_ lists revisions
 merged since the last release.
