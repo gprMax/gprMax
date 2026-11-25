@@ -38,7 +38,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from gprMax import config
+from gprMax import config, eigenmode_device
+from gprMax.eigenmode_ports import DFT_PHASE_REANCHOR_INTERVAL
 from gprMax.pml import MetalPML
 from gprMax.solvers import Solver
 from gprMax.updates import metal_updates as metal_updates_module
@@ -288,6 +289,88 @@ def test_finalise_synchronises_before_reading_receivers(monkeypatch):
     updates.finalise()
 
     assert events == ["synchronise", "dtoh_rx_array"]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("monitor_count", [1, 2])
+def test_eigenmode_monitors_wait_only_before_phase_reanchors(monkeypatch, monitor_count):
+    """Exercise two reset boundaries without Metal; this checks host scheduling."""
+    monkeypatch.setattr(
+        config, "sim_config", SimpleNamespace(dtypes={"float_or_double": np.float32})
+    )
+    monkeypatch.setattr(
+        eigenmode_device, "upload_device_arrays", lambda arrays, *args, **kwargs: arrays
+    )
+    monitors = []
+    for _ in range(monitor_count):
+        monitor = SimpleNamespace(
+            _next_iteration=0,
+            owner=SimpleNamespace(
+                normal_axis=2,
+                direction="+",
+                transverse_start=(0, 0),
+                transverse_stop=(1, 1),
+                plane_index=1,
+            ),
+            magnetic_side=0,
+            measure=1e-6,
+            handedness=1,
+            electric_dft=np.zeros((2, 1), dtype=np.complex64),
+            magnetic_dft=np.zeros((2, 1), dtype=np.complex64),
+        )
+        for name in (
+            "electric_phase",
+            "magnetic_phase",
+            "phase_step",
+            "conj_eu",
+            "conj_ev",
+            "conj_hu",
+            "conj_hv",
+        ):
+            setattr(monitor, name, np.ones(2, dtype=np.complex64))
+        eigenmode_device.prepare_device_eigenmode_monitor(monitor, "metal")
+        monitors.append(monitor)
+
+    log = []
+    commands = []
+
+    def command_buffer():
+        command = _Command(log, len(commands))
+        command.computeCommandEncoder = _Encoder
+        commands.append(command)
+        return command
+
+    updates = MetalUpdates.__new__(MetalUpdates)
+    updates.cmdqueue = MetalCommandQueue(SimpleNamespace(commandBuffer=command_buffer))
+    updates.metal = SimpleNamespace(MTLSizeMake=lambda *args: args)
+    updates.pso_eigenmode_dft = SimpleNamespace(maxTotalThreadsPerThreadgroup=lambda: 64)
+    updates.grid = SimpleNamespace(dt=1e-12, eigenmodeports=monitors)
+    for field in ("Ex", "Ey", "Ez", "Hx", "Hy", "Hz"):
+        setattr(updates.grid, f"{field}_dev", object())
+    reanchors = []
+
+    def reanchor(monitor, grid, backend):
+        assert grid is updates.grid
+        assert backend == "metal"
+        assert not updates.cmdqueue._submitted
+        assert all(command.status() == _COMPLETED for command in commands)
+        reanchors.append(monitor._next_iteration)
+        log.append(("reanchor", monitor._next_iteration))
+
+    monkeypatch.setattr(metal_updates_module, "reanchor_device_eigenmode_monitor", reanchor)
+    interval = DFT_PHASE_REANCHOR_INTERVAL
+    for iteration in range(2 * interval + 2):
+        log_start = len(log)
+        updates.observe_eigenmode_ports(iteration)
+        if (iteration + 1) % interval:
+            assert [event for event, _ in log[log_start:]] == ["commit"] * monitor_count
+
+    assert reanchors == [interval] * monitor_count + [2 * interval] * monitor_count
+    assert all(monitor._next_iteration == 2 * interval + 2 for monitor in monitors)
+    assert len(updates.cmdqueue._submitted) == 2 * monitor_count
+    updates.cleanup()
+    assert not updates.cmdqueue._submitted
+    assert all(command.status() == _COMPLETED for command in commands)
 
 
 class _Encoder:

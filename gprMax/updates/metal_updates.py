@@ -42,6 +42,7 @@ from gprMax.eigenmode_device import (
     prepare_device_eigenmode_source,
     reanchor_device_eigenmode_monitor,
 )
+from gprMax.eigenmode_ports import DFT_PHASE_REANCHOR_INTERVAL
 from gprMax.grid.metal_grid import MetalGrid
 from gprMax.network_ports import dtoh_rational_network_outputs, htod_rational_network_arrays
 from gprMax.ntff.device import MetalCombinedKSIRCollector
@@ -1048,9 +1049,13 @@ class MetalUpdates(Updates[MetalGrid]):
             )
             self._dispatch_1d(self.pso_eigenmode_dft, (parameters,), buffers, nf)
             monitor._next_iteration += 1
-            # Re-anchoring rewrites the phase arrays from the host.
-            self.cmdqueue.synchronise()
-            reanchor_device_eigenmode_monitor(monitor, self.grid, "metal")
+            # Re-anchoring rewrites the phase arrays from the host, so the
+            # device must be idle first. It happens only every
+            # DFT_PHASE_REANCHOR_INTERVAL steps; synchronising on every step
+            # stalls the command queue.
+            if monitor._next_iteration % DFT_PHASE_REANCHOR_INTERVAL == 0:
+                self.cmdqueue.synchronise()
+                reanchor_device_eigenmode_monitor(monitor, self.grid, "metal")
 
     def _launch_eigenmode_source(self, source, iteration, magnetic):
         nu, nv = np.asarray(source.transverse_stop) - np.asarray(source.transverse_start)
