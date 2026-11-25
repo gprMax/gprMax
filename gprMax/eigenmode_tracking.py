@@ -596,6 +596,7 @@ def _refined_solver(solver, factor=2):
             guess=solver.guess,
             fdtd_dt=solver.fdtd_dt,
             propagation_spacing=solver.propagation_spacing,
+            pmc_edges=getattr(solver, "pmc_edges", ()),
             **values,
         )
         refined.retain_tracking_operator = True
@@ -694,12 +695,18 @@ def _edge_fraction(solver, mode):
 
 
 def _physical_enclosure(solver):
-    """Conservatively recognize physical PEC/PMC walls on every outer edge."""
+    """Conservatively recognize physical PEC/PMC walls on every outer edge.
+
+    A window edge on a PMC symmetry plane of the FDTD domain is a physical
+    magnetic wall over its whole length, whatever the materials beside it.
+    """
     def physical(name):
         # Legacy/direct solvers use explicit masks as physical constraints.
         return getattr(solver, "physical_" + name, getattr(solver, name))
 
     if hasattr(solver, "Eu"):
+        pmc_edges = getattr(solver, "pmc_edges", ())
+        symmetry = tuple(edge in pmc_edges for edge in ("u_min", "u_max", "v_min", "v_max"))
         pec = (
             np.all(physical("pec_v_mask")[0, :]) and np.all(physical("pec_w_mask")[0, :]),
             np.all(physical("pec_v_mask")[-1, :]) and np.all(physical("pec_w_mask")[-1, :]),
@@ -712,7 +719,7 @@ def _physical_enclosure(solver):
             np.all(physical("pmc_u_mask")[:, 0]) and np.all(physical("pmc_w_mask")[:, 0]),
             np.all(physical("pmc_u_mask")[:, -1]) and np.all(physical("pmc_w_mask")[:, -1]),
         )
-        return bool(all(a or b for a, b in zip(pec, pmc)))
+        return bool(all(a or b or c for a, b, c in zip(pec, pmc, symmetry)))
     if solver.polarization == "TM":
         return bool(physical("pec_a_mask")[0] and physical("pec_a_mask")[-1])
     return bool(physical("pmc_a_mask")[0] and physical("pmc_a_mask")[-1])

@@ -41,3 +41,71 @@ def pec_electric_masks(cell_shape, invariant_local=None):
                 mask[tuple(face)] = True
         masks.append(mask)
     return tuple(masks)
+
+
+PMC_WINDOW_EDGES = ("u_min", "u_max", "v_min", "v_max")
+
+
+def window_edge_face(edge):
+    """Return the local transverse axis and end index of a named window edge."""
+    return (0 if edge[0] == "u" else 1), (0 if edge.endswith("_min") else -1)
+
+
+def release_pmc_edges(masks, pmc_edges):
+    """Free the artificial PEC rim on window edges that lie on a PMC symmetry face.
+
+    ``masks`` are the constrained E masks of :func:`pec_electric_masks`.
+    Component ``c`` is tangential to the edges of the other transverse axis,
+    and the propagation component to every edge. A sample that also lies on a
+    non-PMC edge to which it is tangential keeps its artificial PEC. This is
+    the one definition of the rim shared by the modal solver, the
+    surface-impedance row filter and the virtual-waveguide check; physical
+    PEC is held in separate masks and is never released here.
+    """
+    released = []
+    for component, mask in enumerate(masks):
+        original = np.asarray(mask, dtype=bool)
+        result = original.copy()
+        for edge in pmc_edges:
+            axis, position = window_edge_face(edge)
+            if axis == component:
+                continue
+            face = [slice(None), slice(None)]
+            face[axis] = position
+            result[tuple(face)] = False
+        for edge in PMC_WINDOW_EDGES:
+            if edge in pmc_edges:
+                continue
+            axis, position = window_edge_face(edge)
+            if axis == component:
+                continue
+            face = [slice(None), slice(None)]
+            face[axis] = position
+            result[tuple(face)] |= original[tuple(face)]
+        released.append(result)
+    return tuple(released)
+
+
+def pmc_symmetry_window_edges(grid, transverse_axes, start, stop, invariant_axis=None):
+    """Return the window edges that lie on a domain face with a PMC symmetry boundary.
+
+    Edges are named in the local (u, v) basis of the port window: ``u_min``,
+    ``u_max``, ``v_min`` and ``v_max``. ``start`` and ``stop`` are cell indices
+    in the same (global) frame as the grid size. A window edge on a PEC
+    symmetry face needs nothing extra, since the window is already closed
+    with artificial PEC.
+    """
+    boundaries = getattr(grid, "symmetry_boundaries", None) or {}
+    if "pmc" not in boundaries.values():
+        return ()
+    size = np.asarray(getattr(grid, "global_size", getattr(grid, "size", None)))
+    edges = []
+    for local, (axis, low, high) in enumerate(zip(transverse_axes, start, stop)):
+        if invariant_axis is not None and axis == invariant_axis:
+            continue
+        name = "xyz"[axis]
+        if int(low) == 0 and boundaries.get(f"{name}0") == "pmc":
+            edges.append(f"{'uv'[local]}_min")
+        if int(high) == int(size[axis]) and boundaries.get(f"{name}max") == "pmc":
+            edges.append(f"{'uv'[local]}_max")
+    return tuple(edges)

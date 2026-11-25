@@ -37,6 +37,7 @@ from gprMax.fdfd_eigenmode_solver.surface_impedance_operator import (
     BoundaryMagneticTerm,
     FDFDSurfaceBoundary,
 )
+from gprMax.modal_window import PMC_WINDOW_EDGES, release_pmc_edges, window_edge_face
 
 
 class _StaticConstraintOperator(LinearOperator):
@@ -106,6 +107,13 @@ class FDFD_2D_mode_solver:
     while each integral Ampere row replaces the corresponding standard curl
     row and electric material coefficient.
 
+    ``pmc_edges`` names window edges (``u_min``, ``u_max``, ``v_min``,
+    ``v_max``) that lie on a PMC symmetry boundary of the FDTD domain. On
+    such an edge the artificial PEC is removed from the tangential E samples
+    (except where they also lie on a non-PMC edge), and the Ampere rows of
+    those samples use the image-theory ghost value of tangential H (odd about
+    the edge), matching the FDTD PMC symmetry update.
+
     Optional ``fdtd_dt`` (seconds) and ``propagation_spacing`` (metres)
     match the time and normal spatial difference symbols to FDTD.
     ``omega`` and ``k0`` are the physical angular frequency and vacuum
@@ -147,6 +155,7 @@ class FDFD_2D_mode_solver:
         artificial_pec_masks=None,
         fdtd_dt=None,
         propagation_spacing=None,
+        pmc_edges=(),
     ):
         self.epsilon0 = config.sim_config.em_consts["e0"]
         self.mu0 = config.sim_config.em_consts["m0"]
@@ -222,6 +231,9 @@ class FDFD_2D_mode_solver:
             )
         if len(self.artificial_pec_masks) != 3:
             raise ValueError("artificial_pec_masks must contain three component masks.")
+        self.pmc_edges = self._validated_pmc_edges(pmc_edges)
+        if self.pmc_edges:
+            self.artificial_pec_masks = self._release_pmc_edges(self.artificial_pec_masks)
         for axis, rim in zip("uvw", self.artificial_pec_masks):
             mask = getattr(self, f"pec_{axis}_mask")
             if rim.shape != mask.shape:
@@ -466,6 +478,57 @@ class FDFD_2D_mode_solver:
             raise ValueError(f"{label} index {index} is outside shape {shape}")
         return index
 
+    PMC_EDGES = PMC_WINDOW_EDGES
+
+    @classmethod
+    def _validated_pmc_edges(cls, edges):
+        edges = tuple(dict.fromkeys(edges or ()))
+        unknown = [edge for edge in edges if edge not in cls.PMC_EDGES]
+        if unknown:
+            raise ValueError(f"Unknown PMC window edge(s) {unknown}; expected {cls.PMC_EDGES}.")
+        return edges
+
+    _edge_face = staticmethod(window_edge_face)
+
+    def _release_pmc_edges(self, masks):
+        """Free tangential E on PMC edges, keeping corners shared with other edges.
+
+        Only the artificial rim is released; physical PEC lives in the
+        component masks and still constrains its samples. The rule is shared
+        with the surface-impedance row filter and the virtual-waveguide check.
+        """
+        return release_pmc_edges(masks, self.pmc_edges)
+
+    def _pmc_ghost_scale(self, out_shape, axis):
+        """Row scale imposing odd tangential H beyond PMC edges along ``axis``.
+
+        The H-derivative rows of boundary E samples have a single interior
+        term (the H sample outside the window is implicitly zero). Image theory
+        for a PMC wall makes that outside sample the negative of the inside
+        one, which doubles the single term.
+        """
+        nu, nv = out_shape
+        scale = np.ones((nu, nv))
+        for edge in self.pmc_edges:
+            edge_axis, position = self._edge_face(edge)
+            if edge_axis != axis:
+                continue
+            face = [slice(None), slice(None)]
+            face[axis] = position
+            scale[tuple(face)] = 2.0
+        return scale.ravel(order="F")
+
+    def _apply_pmc_ghost_rows(self):
+        if not self.pmc_edges:
+            return
+        def scaled(matrix, out_shape, axis):
+            return (diags(self._pmc_ghost_scale(out_shape, axis)) @ matrix).tocsr()
+
+        self.DHU_HV_TO_EW = scaled(self.DHU_HV_TO_EW, self.shape_ew, 0)
+        self.DHU_HW_TO_HU = scaled(self.DHU_HW_TO_HU, self.shape_ev, 0)
+        self.DHV_HU_TO_EW = scaled(self.DHV_HU_TO_EW, self.shape_ew, 1)
+        self.DHV_HW_TO_HV = scaled(self.DHV_HW_TO_HV, self.shape_eu, 1)
+
     @staticmethod
     def _flat_index(i, j, nu):
         return i + j * nu
@@ -533,6 +596,7 @@ class FDFD_2D_mode_solver:
         self.DHV_HU_TO_EW = -self.DEV_EW_TO_EV.conj().T
         self.DHU_HW_TO_HU = -self.DEU_EV_TO_HW.conj().T
         self.DHV_HW_TO_HV = -self.DEV_EU_TO_HW.conj().T
+        self._apply_pmc_ghost_rows()
         self._apply_surface_ampere_rows()
 
     def _apply_surface_ampere_rows(self):
