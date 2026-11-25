@@ -138,12 +138,13 @@ def process_geometrycmds(geometry):
             from .user_objects.cmds_geometry.geometry_objects_read import GeometryObjectsRead
 
             if len(tmp) not in {6, 7}:
-                logger.exception(
+                message = (
                     "'"
                     + " ".join(tmp)
                     + "' requires five parameters and an optional y/n averaging flag"
                 )
-                raise ValueError
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
 
@@ -164,8 +165,9 @@ def process_geometrycmds(geometry):
 
         elif tmp[0] == "#edge:":
             if len(tmp) != 8:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires exactly seven parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires exactly seven parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             edge = Edge(
                 p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
@@ -177,8 +179,9 @@ def process_geometrycmds(geometry):
 
         elif tmp[0] == "#magnetic_edge:":
             if len(tmp) != 8:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires exactly seven parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires exactly seven parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             magnetic_edge = MagneticEdge(
                 p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
@@ -189,8 +192,9 @@ def process_geometrycmds(geometry):
 
         elif tmp[0] == "#thin_wire:":
             if len(tmp) != 8:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires exactly seven parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires exactly seven parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             thin_wire = ThinWire(
                 p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
@@ -201,8 +205,9 @@ def process_geometrycmds(geometry):
 
         elif tmp[0] == "#plate:":
             if len(tmp) < 8:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least seven parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least seven parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             # Isotropic case
             if len(tmp) == 8:
@@ -221,15 +226,17 @@ def process_geometrycmds(geometry):
                 )
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(plate)
 
         elif tmp[0] == "#triangle:":
             if len(tmp) < 12:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least eleven parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least eleven parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -261,15 +268,17 @@ def process_geometrycmds(geometry):
                 )
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(triangle)
 
         elif tmp[0] == "#box:":
             if len(tmp) < 8:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least seven parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least seven parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -287,15 +296,17 @@ def process_geometrycmds(geometry):
                 box = Box(p1=p1, p2=p2, material_ids=tmp[7:], tag=tag)
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(box)
 
         elif tmp[0] == "#cylinder:":
             if len(tmp) < 9:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least eight parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least eight parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -316,17 +327,17 @@ def process_geometrycmds(geometry):
                 cylinder = Cylinder(p1=p1, p2=p2, r=r, material_ids=tmp[8:], tag=tag)
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(cylinder)
 
         elif tmp[0] == "#helix:":
             if len(tmp) < 13:
-                logger.exception(
-                    "'" + " ".join(tmp) + "' requires at least twelve parameters"
-                )
-                raise ValueError
+                message = "'" + " ".join(tmp) + "' requires at least twelve parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -377,15 +388,17 @@ def process_geometrycmds(geometry):
                 )
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(helix)
 
         elif tmp[0] == "#cone:":
             if len(tmp) < 10:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least nine parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least nine parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -413,15 +426,17 @@ def process_geometrycmds(geometry):
                 cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_ids=tmp[9:], tag=tag)
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(cone)
 
         elif tmp[0] == "#cylindrical_sector:":
             if len(tmp) < 10:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least nine parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least nine parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             normal = tmp[1].lower()
             ctr1 = float(tmp[2])
@@ -479,15 +494,17 @@ def process_geometrycmds(geometry):
                 )
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(cylindrical_sector)
 
         elif tmp[0] == "#sphere:":
             if len(tmp) < 6:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least five parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least five parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             r = float(tmp[4])
@@ -505,15 +522,17 @@ def process_geometrycmds(geometry):
                 sphere = Sphere(p1=p1, r=r, material_ids=tmp[5:], tag=tag)
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(sphere)
 
         elif tmp[0] == "#ellipsoid:":
             if len(tmp) < 8:
-                logger.exception("'" + " ".join(tmp) + "'" + " requires at least seven parameters")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least seven parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             xr = float(tmp[4])
@@ -541,8 +560,9 @@ def process_geometrycmds(geometry):
                 ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_ids=tmp[7:], tag=tag)
 
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(ellipsoid)
 
@@ -550,10 +570,9 @@ def process_geometrycmds(geometry):
             # Default is no dielectric smoothing for a fractal box
 
             if len(tmp) < 14:
-                logger.exception(
-                    "'" + " ".join(tmp) + "'" + " requires at least thirteen parameters"
-                )
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " requires at least thirteen parameters"
+                logger.error(message)
+                raise ValueError(message)
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -600,8 +619,9 @@ def process_geometrycmds(geometry):
                     tag=tag,
                 )
             else:
-                logger.exception("'" + " ".join(tmp) + "'" + " too many parameters have been given")
-                raise ValueError
+                message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                logger.error(message)
+                raise ValueError(message)
 
             scene_objects.append(fb)
 
@@ -611,10 +631,9 @@ def process_geometrycmds(geometry):
 
                 if tmp[0] == "#add_surface_roughness:":
                     if len(tmp) < 13:
-                        logger.exception(
-                            "'" + " ".join(tmp) + "'" + " requires at least twelve parameters"
-                        )
-                        raise ValueError
+                        message = "'" + " ".join(tmp) + "'" + " requires at least twelve parameters"
+                        logger.error(message)
+                        raise ValueError(message)
 
                     # Only build objects attached to the current fractal box
                     if tmp[12] != ID:
@@ -647,19 +666,17 @@ def process_geometrycmds(geometry):
                             seed=fractal_seed(tmp[13], "'" + " ".join(tmp) + "'"),
                         )
                     else:
-                        logger.exception(
-                            "'" + " ".join(tmp) + "'" + " too many parameters have been given"
-                        )
-                        raise ValueError
+                        message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                        logger.error(message)
+                        raise ValueError(message)
 
                     scene_objects.append(asr)
 
                 if tmp[0] == "#add_surface_water:":
                     if len(tmp) != 9:
-                        logger.exception(
-                            "'" + " ".join(tmp) + "'" + " requires exactly eight parameters"
-                        )
-                        raise ValueError
+                        message = "'" + " ".join(tmp) + "'" + " requires exactly eight parameters"
+                        logger.error(message)
+                        raise ValueError(message)
 
                     # Only build objects attached to the current fractal box
                     if tmp[8] != ID:
@@ -675,10 +692,9 @@ def process_geometrycmds(geometry):
 
                 if tmp[0] == "#add_grass:":
                     if len(tmp) < 12:
-                        logger.exception(
-                            "'" + " ".join(tmp) + "'" + " requires at least eleven parameters"
-                        )
-                        raise ValueError
+                        message = "'" + " ".join(tmp) + "'" + " requires at least eleven parameters"
+                        logger.error(message)
+                        raise ValueError(message)
 
                     # Only build objects attached to the current fractal box
                     if tmp[11] != ID:
@@ -711,10 +727,9 @@ def process_geometrycmds(geometry):
                             seed=fractal_seed(tmp[12], "'" + " ".join(tmp) + "'"),
                         )
                     else:
-                        logger.exception(
-                            "'" + " ".join(tmp) + "'" + " too many parameters have been given"
-                        )
-                        raise ValueError
+                        message = "'" + " ".join(tmp) + "'" + " too many parameters have been given"
+                        logger.error(message)
+                        raise ValueError(message)
 
                     scene_objects.append(grass)
 

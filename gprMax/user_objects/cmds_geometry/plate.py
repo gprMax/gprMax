@@ -44,9 +44,14 @@ class Plate(GeometryUserObject):
     def hash(self):
         return "#plate"
 
-    _allowed_kwargs = frozenset({
-        "material_id", "material_ids", "p1", "p2",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "material_id",
+            "material_ids",
+            "p1",
+            "p2",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -56,7 +61,7 @@ class Plate(GeometryUserObject):
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
         except KeyError:
-            logger.exception(f"{self.__str__()} 2 points must be specified")
+            logger.error(f"{self.__str__()} 2 points must be specified")
             raise
 
         mode = config.get_model_config().mode
@@ -70,7 +75,7 @@ class Plate(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} No materials have been specified")
+                logger.error(f"{self.__str__()} No materials have been specified")
                 raise
 
         uip = self._create_uip(grid)
@@ -111,18 +116,22 @@ class Plate(GeometryUserObject):
             or (zs == zf and (xs == xf or ys == yf))
             or (xs != xf and ys != yf and zs != zf)
         ):
-            raise ValueError(f"{self.__str__()} the plate is not specified correctly")
+            message = f"{self.__str__()} the plate is not specified correctly"
+            logger.error(message)
+            raise ValueError(message)
 
         if invariant_axis is not None:
             flat_axis = 0 if xs == xf else 1 if ys == yf else 2
             if flat_axis == invariant_axis:
-                raise ValueError(
+                message = (
                     f"{self.__str__()} in 2D mode, a plate normal to the "
                     f"invariant axis ('{mode[-1]}') would lie exactly on the "
                     "domain wall already forced PEC/PMC there - a material "
                     "plate has no effect in that orientation. Use a plate "
                     "normal to one of the other two axes instead."
                 )
+                logger.error(message)
+                raise ValueError(message)
 
         materials = resolve_geometry_materials(
             grid,

@@ -79,7 +79,7 @@ class Cone(GeometryUserObject):
             r1 = self.kwargs["r1"]
             r2 = self.kwargs["r2"]
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify two points and two radii")
+            logger.error(f"{self.__str__()} please specify two points and two radii")
             raise
 
         if config.get_model_config().mode.startswith("2D"):
@@ -107,7 +107,7 @@ class Cone(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} no materials have been specified")
+                logger.error(f"{self.__str__()} no materials have been specified")
                 raise
 
         uip = self._create_uip(grid)

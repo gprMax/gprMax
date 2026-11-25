@@ -69,7 +69,7 @@ class Sphere(GeometryUserObject):
             p1 = self.kwargs["p1"]
             r = self.kwargs["r"]
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify a point and a radius.")
+            logger.error(f"{self.__str__()} please specify a point and a radius.")
             raise
 
         if not np.isfinite(r) or r <= 0:
@@ -94,7 +94,7 @@ class Sphere(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} no materials have been specified")
+                logger.error(f"{self.__str__()} no materials have been specified")
                 raise
 
         # Centre of sphere. Resolve any `inf` entry first, using the same

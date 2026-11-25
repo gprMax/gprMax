@@ -45,9 +45,14 @@ class AddSurfaceWater(GeometryUserObject):
     def hash(self):
         return "#add_surface_water"
 
-    _allowed_kwargs = frozenset({
-        "depth", "fractal_box_id", "p1", "p2",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "depth",
+            "fractal_box_id",
+            "p1",
+            "p2",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -60,7 +65,7 @@ class AddSurfaceWater(GeometryUserObject):
             fractal_box_id = self.kwargs["fractal_box_id"]
             depth = self.kwargs["depth"]
         except KeyError:
-            logger.exception(f"{self.__str__()} requires exactly eight parameters")
+            logger.error(f"{self.__str__()} requires exactly eight parameters")
             raise
 
         if volumes := [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]:
@@ -97,9 +102,7 @@ class AddSurfaceWater(GeometryUserObject):
             )
         p1_ranged = uip.resolve_inf_point(p1, role="lower")
         p2_ranged = uip.resolve_inf_point(p2, role="upper")
-        if flat_axis is not None and (
-            np.isinf(p1_arr[flat_axis]) or np.isinf(p2_arr[flat_axis])
-        ):
+        if flat_axis is not None and (np.isinf(p1_arr[flat_axis]) or np.isinf(p2_arr[flat_axis])):
             p1_single = uip.resolve_inf_point(p1, role=None)
             p2_single = uip.resolve_inf_point(p2, role=None)
             p1 = tuple(p1_single[a] if a == flat_axis else p1_ranged[a] for a in range(3))

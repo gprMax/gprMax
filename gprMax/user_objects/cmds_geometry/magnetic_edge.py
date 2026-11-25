@@ -65,7 +65,7 @@ class MagneticEdge(GeometryUserObject):
             p2 = self.kwargs["p2"]
             material_id = self.kwargs["material_id"]
         except KeyError:
-            logger.exception(f"{self.__str__()} requires exactly 3 parameters")
+            logger.error(f"{self.__str__()} requires exactly 3 parameters")
             raise
 
         uip = self._create_uip(grid)
