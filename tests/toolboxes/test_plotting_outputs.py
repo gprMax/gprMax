@@ -22,15 +22,20 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import h5py
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
+from matplotlib.figure import Figure
 
 from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range, mpl_plot
 from gprMax.toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
 from gprMax.toolboxes.Plotting.plot_source_wave import check_timewindow
 from gprMax.toolboxes.Plotting.plot_source_wave import mpl_plot as plot_source_wave
 from gprMax.user_objects.cmds_singleuse import TimeWindow
+from gprMax.utilities.utilities import handle_plot_output
 from gprMax.waveforms import Waveform
 
 
@@ -330,3 +335,109 @@ def test_plot_bscan_trace_group_rx_prefix(tmp_path):
     )
     assert len(pyplot.get_fignums()) == 1
     pyplot.close("all")
+
+
+def test_handle_plot_output_rejects_input_alias(tmp_path):
+    fig = plt.figure()
+    input_file = tmp_path / "plot.png"
+    input_file.write_bytes(b"initial")
+
+    initial_figs = set(plt.get_fignums())
+    with pytest.raises(ValueError, match="must not overwrite an input file"):
+        handle_plot_output(plt, fig, str(input_file), suffix="", show=False, input_filenames=[input_file])
+    assert set(plt.get_fignums()) == initial_figs - {fig.number}
+
+
+def test_handle_plot_output_rejects_destination_aliasing_input_hdf5(tmp_path):
+    fig = plt.figure()
+    sim_file = tmp_path / "sim.h5"
+    sim_file.write_bytes(b"hdf5_data")
+    dest_symlink = tmp_path / "sim_rx1.png"
+    dest_symlink.symlink_to(sim_file)
+
+    initial_figs = set(plt.get_fignums())
+    with pytest.raises(ValueError, match="must not overwrite an input file"):
+        handle_plot_output(plt, fig, str(sim_file), suffix="_rx1", show=False, input_filenames=[sim_file])
+    assert set(plt.get_fignums()) == initial_figs - {fig.number}
+
+
+def test_handle_plot_output_allows_explicit_png_output(tmp_path):
+    fig = plt.figure()
+    output_png = tmp_path / "wave.png"
+    handle_plot_output(plt, fig, str(output_png), suffix="", show=False)
+    assert output_png.is_file()
+    assert output_png.stat().st_size > 0
+
+    fig2 = plt.figure()
+    handle_plot_output(plt, fig2, str(output_png), suffix="", show=False)
+    assert output_png.is_file()
+    assert output_png.stat().st_size > 0
+
+
+def test_plot_source_wave_cli_explicit_png_output_integration(tmp_path):
+    from gprMax.toolboxes.Plotting.plot_source_wave import main as plot_source_wave_main
+
+    target = tmp_path / "custom_wave.png"
+    plot_source_wave_main(["gaussian", "1", "1e9", "6e-9", "1.926e-12", "-o", str(target)])
+    assert target.is_file()
+    assert target.stat().st_size > 0
+
+
+def test_handle_plot_output_creates_parent_directories(tmp_path):
+    fig = plt.figure()
+    nested_output = tmp_path / "sub" / "folder" / "sim.h5"
+    handle_plot_output(plt, fig, str(nested_output), suffix="_rx1", show=False)
+    plt.close(fig)
+
+    dest = tmp_path / "sub" / "folder" / "sim_rx1.png"
+    assert dest.is_file()
+    assert dest.stat().st_size > 0
+
+
+def test_handle_plot_output_writes_atomically_and_preserves_existing(tmp_path, monkeypatch):
+    fig = plt.figure()
+    sim_file = tmp_path / "sim.h5"
+    dest = tmp_path / "sim_rx1.png"
+    sentinel = b"existing_plot_content"
+    dest.write_bytes(sentinel)
+
+    def failing_savefig(self, fname, *args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Figure, "savefig", failing_savefig)
+    with pytest.raises(OSError, match="disk full"):
+        handle_plot_output(plt, fig, str(sim_file), suffix="_rx1", show=False)
+    assert dest.read_bytes() == sentinel
+    assert fig.number not in plt.get_fignums()
+
+
+def test_handle_plot_output_handles_symlink_destination(tmp_path):
+    fig = plt.figure()
+    sim_file = tmp_path / "sim.h5"
+    target = tmp_path / "plot_target.png"
+    target.write_bytes(b"stale")
+    link = tmp_path / "sim_rx1.png"
+    link.symlink_to(target)
+
+    handle_plot_output(plt, fig, str(sim_file), suffix="_rx1", show=False)
+    plt.close(fig)
+
+    assert link.is_symlink()
+    assert target.read_bytes().startswith(b"\x89PNG")
+
+
+def test_handle_plot_output_preserves_dotted_filenames(tmp_path):
+    fig1 = plt.figure()
+    dotted_noext = tmp_path / "model_1.5GHz"
+    handle_plot_output(plt, fig1, str(dotted_noext), suffix="_preview", show=False)
+    plt.close(fig1)
+
+    assert (tmp_path / "model_1.5GHz_preview.png").is_file()
+    assert not (tmp_path / "model_1_preview.png").exists()
+
+    fig2 = plt.figure()
+    dotted_h5 = tmp_path / "survey_v1.2.h5"
+    handle_plot_output(plt, fig2, str(dotted_h5), suffix="_rx1", show=False)
+    plt.close(fig2)
+
+    assert (tmp_path / "survey_v1.2_rx1.png").is_file()

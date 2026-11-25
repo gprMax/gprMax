@@ -190,7 +190,7 @@ def mpl_plot(
         cb.set_label("Voltage [V]")
 
     suffix = f"_{safe_trace_id}"
-    handle_plot_output(plt, fig, str(file), suffix=suffix, show=show)
+    handle_plot_output(plt, fig, str(file), suffix=suffix, show=show, input_filenames=[file])
 
     return plt
 

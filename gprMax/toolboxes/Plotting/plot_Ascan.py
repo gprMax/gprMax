@@ -305,7 +305,7 @@ def _mpl_plot_file(file, outputs, fft, show, f):
             # loop over all receivers/paths - otherwise only the last
             # receiver's figure would ever be shown/saved.
             suffix = "_" + rxpath.strip("/").replace("/", "_")
-            handle_plot_output(plt, fig, str(file), suffix=suffix, show=show)
+            handle_plot_output(plt, fig, str(file), suffix=suffix, show=show, input_filenames=[file])
 
     if not recorded_receivers:
         f.close()
