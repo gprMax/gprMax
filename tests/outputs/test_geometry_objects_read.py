@@ -356,6 +356,83 @@ class TestReadRigidAndId:
         assert np.all(g.rigidE[:, 2:5, 2:5, 2:5] == 1)
         assert not np.any(g.rigidE[:, :2, :2, :2])
 
+    def test_read_rigid_e_survives_strided_id_compare(self, geometry_file, target_grid):
+        """Expects the per-bit transparency comparison to run on a contiguous
+        copy: numpy 2.0.x/2.1.x crash the interpreter comparing a strided
+        unsigned view against ``-1`` (fixed upstream in numpy 2.2.0)."""
+        g = target_grid()
+        with ReadGeometryObject(
+            geometry_file(shape=(3, 3, 3)), g, np.zeros(3, np.int32), ID_MAP
+        ) as r:
+            r.read_rigidE()
+        assert np.all(g.rigidE[:, :3, :3, :3] == 1)
+
+    def test_read_rigid_rejects_id_not_one_larger(self, geometry_file, target_grid, tmp_path):
+        """Expects a clean ``ValueError`` when ``/ID`` is not exactly one
+        larger than ``/rigidE`` on every spatial axis after the read window."""
+        source = geometry_file(shape=(3, 3, 3))
+        bad = tmp_path / "bad_edgesize.h5"
+        with h5py.File(source, "r") as f:
+            attrs = dict(f.attrs)
+            data = f["/data"][:]
+            rigid_e = f["/rigidE"][:]
+            rigid_h = f["/rigidH"][:]
+        with h5py.File(bad, "w") as f:
+            for key, value in attrs.items():
+                f.attrs[key] = value
+            f["/data"] = data
+            f["/rigidE"] = rigid_e
+            f["/rigidH"] = rigid_h
+            f["/ID"] = np.full((6, 4, 4, 3), 3, dtype=np.uint32)  # z not one larger
+        g = target_grid()
+        with pytest.raises(ValueError, match="one larger"):
+            with ReadGeometryObject(bad, g, np.zeros(3, np.int32), ID_MAP) as r:
+                r.read_rigidE()
+
+    def test_rigid_transparency_preserves_existing_flags(self, target_grid, tmp_path):
+        """Expects a ``-1`` entry in ``/ID`` to leave the existing rigidity
+        flag in place for exactly the bit/cell combinations that claim the
+        marked edge, while every other cell takes the file's flag.
+
+        An Ex edge at node (i, j, k) is claimed by up to four cells: as its
+        own edge by cell (i, j, k), as its y-low edge by cell (i, j-1, k),
+        as its y,z-low edge by cell (i, j-1, k-1), and as its z-low edge by
+        cell (i, j, k-1) - so each ``-1`` probe below preserves the existing
+        flag of all claimants. The positions are derived by hand from that
+        ownership, independent of the reader's offset tables."""
+        path = tmp_path / "transparent_rigid.h5"
+        with h5py.File(path, "w") as f:
+            f.attrs["gprMax"] = "test"
+            f.attrs["Title"] = "fixture"
+            f.attrs["dx_dy_dz"] = (DL, DL, DL)
+            f["/data"] = np.zeros((3, 3, 3), dtype=np.int16)
+            f["/rigidE"] = np.full((12, 3, 3, 3), 1, dtype=np.int8)
+            f["/rigidH"] = np.full((6, 3, 3, 3), 2, dtype=np.int8)
+            ids = np.full((6, 4, 4, 4), 7, dtype=np.int32)
+            ids[0, 1, 1, 1] = -1  # probe 1: Ex edge at node (1, 1, 1)
+            ids[0, 0, 1, 1] = -1  # probe 2: Ex edge at node (0, 1, 1)
+            f["/ID"] = ids
+        # (bit, cell) claimants of the two probed edges, hand-derived.
+        keep_existing = [
+            (0, (1, 1, 1)),
+            (1, (1, 0, 1)),
+            (2, (1, 0, 0)),
+            (3, (1, 1, 0)),
+            (0, (0, 1, 1)),
+            (1, (0, 0, 1)),
+            (2, (0, 0, 0)),
+            (3, (0, 1, 0)),
+        ]
+        g = target_grid()
+        g.rigidE[...] = 9  # existing flags that transparency must preserve
+        with ReadGeometryObject(path, g, np.zeros(3, np.int32), ID_MAP) as r:
+            r.read_rigidE()
+        region = g.rigidE[:, :3, :3, :3]
+        expected = np.full((12, 3, 3, 3), 1)
+        for bit, (x, y, z) in keep_existing:
+            expected[bit, x, y, z] = 9
+        np.testing.assert_array_equal(region, expected)
+
     def test_a_full_import_writes_all_four_arrays(self, geometry_file, target_grid):
         """Expects the complete fast path to reconstruct the geometry without
         re-running the voxel builder."""

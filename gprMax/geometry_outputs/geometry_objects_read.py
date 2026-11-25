@@ -526,6 +526,25 @@ class ReadGeometryObject(AbstractContextManager):
             component_ids = self._read_spatial_dataset(
                 self.file_handler["/ID"], component_axis=True, edge_based=True
             )
+            # The per-bit windows below slice /ID with cell-sized ranges, so
+            # the edge-based ID array must be exactly one larger than the
+            # cell-based rigid array on every spatial axis after placement
+            # clipping and any 2D invariant-axis resize. Anything else is a
+            # malformed file or a windowing bug and would otherwise surface
+            # as an opaque IndexError or silently wrong data.
+            expected_id_shape = tuple(n + 1 for n in rigid.shape[1:])
+            if component_ids.shape[1:] != expected_id_shape:
+                raise ValueError(
+                    f"'{self.file_handler.filename}' cannot be imported by "
+                    "#geometry_objects_read: its "
+                    f"/rigid{family} array has spatial shape "
+                    f"{tuple(rigid.shape[1:])} but its /ID array has spatial "
+                    f"shape {tuple(component_ids.shape[1:])}; the ID array "
+                    "must be exactly one larger than the rigid array on "
+                    "every axis (edge-based vs cell-based geometry). The "
+                    "file may be malformed, or its placement may be "
+                    "inconsistent with the model domain."
+                )
             self._check_material_coverage(component_ids)
             existing = self._get_assignment_region(getattr(self.grid_view.grid, f"rigid{family}"))
             # Each tuple is (ID component, x offset, y offset, z offset),
@@ -560,7 +579,14 @@ class ReadGeometryObject(AbstractContextManager):
                 spatial = tuple(
                     slice(start, start + size) for start, size in zip(offset, rigid.shape[1:])
                 )
-                transparent = component_ids[(component, *spatial)] == -1
+                # Compare a contiguous copy: numpy 2.0.x/2.1.x crash the
+                # interpreter when a strided unsigned view is compared
+                # against a negative Python int (upstream ufunc bug, fixed
+                # in numpy 2.2.0), and the per-bit window is exactly such a
+                # view. ascontiguousarray is a no-op for already-contiguous
+                # windows.
+                window = np.ascontiguousarray(component_ids[(component, *spatial)])
+                transparent = window == -1
                 rigid[bit] = np.where(transparent, existing[bit], rigid[bit])
         getattr(self.grid_view, f"set_rigid{family}")(rigid)
 
