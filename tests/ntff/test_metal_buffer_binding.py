@@ -5,11 +5,14 @@ per-argument ``hasattr`` on PyObjC buffer proxies, which dominated the
 solve time of Metal models with far-field surfaces.
 """
 
+import numpy as np
 import pytest
 
 from gprMax import sar_device
-from gprMax.grid.metal_grid import MetalBufferView
+from gprMax.grid.metal_grid import MetalArray, MetalBufferView
 from gprMax.ntff import device as ntff_device
+
+pytestmark = pytest.mark.unit
 
 
 class _RawBuffer:
@@ -27,6 +30,20 @@ def test_buffer_view_binds_its_buffer_and_offset(module):
     raw = _RawBuffer()
     view = MetalBufferView(raw, offset=64)
     assert module._metal_buffer_binding(view) == (raw, 64)
+
+
+@pytest.mark.parametrize("module", [ntff_device, sar_device])
+def test_buffer_binding_keeps_array_slice_offsets_and_current_view_values(module):
+    first, second = _RawBuffer(), _RawBuffer()
+    array = MetalArray(first, (3, 4), np.float32)
+    assert module._metal_buffer_binding(array) == (first, 0)
+    assert module._metal_buffer_binding(array[2]) == (first, 32)
+
+    view = MetalBufferView(first, offset=16)
+    assert module._metal_buffer_binding(view) == (first, 16)
+    # Only the type classification is cached, not a particular buffer or offset.
+    view.buffer, view.offset = second, 24
+    assert module._metal_buffer_binding(view) == (second, 24)
 
 
 @pytest.mark.parametrize("module", [ntff_device, sar_device])

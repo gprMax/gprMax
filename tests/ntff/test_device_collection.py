@@ -29,6 +29,7 @@ from gprMax.cuda_opencl.knl_ntff import (
     build_ntff_kernel_source,
     build_time_domain_ntff_kernel_source,
 )
+from gprMax.grid.metal_grid import MetalBufferView
 from gprMax.ntff.device import (
     CUDAKSIRCollector,
     MetalKSIRCollector,
@@ -39,6 +40,7 @@ from gprMax.ntff.device import (
 )
 from gprMax.ntff.frequency_domain import KSIRFrequencyDomainMonitor
 from gprMax.ntff.surfaces import build_component_surface
+from gprMax.updates.metal_updates import MetalCommandQueue, MetalUpdates
 
 
 class _HostEmulatedDeviceCollector(_DeviceKSIRCollector):
@@ -419,6 +421,7 @@ def test_opencl_dispatch_uses_split_configured_real_buffers():
 class _FakeMetalEncoder:
     def __init__(self):
         self.buffers = {}
+        self.offsets = {}
         self.scalar_bytes = {}
         self.dispatched = None
 
@@ -427,6 +430,7 @@ class _FakeMetalEncoder:
 
     def setBuffer_offset_atIndex_(self, buffer, offset, index):
         self.buffers[index] = buffer
+        self.offsets[index] = offset
 
     def setBytes_length_atIndex_(self, value, length, index):
         self.scalar_bytes[index] = (bytes(value), length)
@@ -441,38 +445,102 @@ class _FakeMetalEncoder:
 class _FakeMetalCommand:
     def __init__(self):
         self.encoder = _FakeMetalEncoder()
+        self.commits = 0
+        self.waits = 0
 
     def computeCommandEncoder(self):
         return self.encoder
 
     def commit(self):
-        pass
+        self.commits += 1
+
+    def status(self):
+        return 4 if self.waits else 3  # Completed only when the fake GPU is waited for.
 
     def waitUntilCompleted(self):
-        pass
+        self.waits += 1
 
 
-def test_metal_dispatch_preserves_kernel_buffer_order():
+@pytest.mark.unit
+@pytest.mark.parametrize("field_offset", [None, 16])
+def test_metal_dispatch_preserves_kernel_buffer_order(field_offset):
     collector = MetalKSIRCollector.__new__(MetalKSIRCollector)
     collector.real_dtype = np.dtype("f4")
     collector.pipeline = SimpleNamespace(maxTotalThreadsPerThreadgroup=lambda: 64)
     command = _FakeMetalCommand()
-    collector.queue = SimpleNamespace(commandBuffer=lambda: command)
+    collector.queue = MetalCommandQueue(SimpleNamespace(commandBuffer=lambda: command))
     collector.metal = SimpleNamespace(MTLSizeMake=lambda x, y, z: (x, y, z))
     collector._buffer = lambda values: ("temporary", np.asarray(values).copy())
     record = _dispatch_record()
     field = object()
+    field_argument = field if field_offset is None else MetalBufferView(field, field_offset)
 
-    collector._accumulate(record, field, np.asarray([1 + 2j, 3 + 4j], dtype="c8"))
+    collector._accumulate(record, field_argument, np.asarray([1 + 2j, 3 + 4j], dtype="c8"))
 
     buffers = command.encoder.buffers
     assert set(buffers) == set(range(11))
     assert buffers[2] is record.device["inside_index"]
     assert buffers[3] is record.device["outside_index"]
     assert buffers[6] is field
+    assert command.encoder.offsets[6] == (field_offset or 0)
     assert buffers[7] is record.device["inside_real"]
     assert buffers[10] is record.device["outside_imag"]
     assert command.encoder.dispatched == ((6, 1, 1), (6, 1, 1))
+    assert command.commits == 1
+    assert command.waits == 0
+    assert list(collector.queue._submitted) == [command]
+
+    collector.queue.synchronise()
+
+    assert command.waits == 1
+    assert not collector.queue._submitted
+
+
+@pytest.mark.unit
+def test_metal_frequency_dispatch_keeps_multipliers_until_finalise():
+    collector = MetalKSIRCollector.__new__(MetalKSIRCollector)
+    collector.real_dtype = np.dtype("f4")
+    collector.pipeline = SimpleNamespace(maxTotalThreadsPerThreadgroup=lambda: 64)
+    commands = []
+
+    def command_buffer():
+        command = _FakeMetalCommand()
+        commands.append(command)
+        return command
+
+    collector.queue = MetalCommandQueue(SimpleNamespace(commandBuffer=command_buffer))
+    collector.metal = SimpleNamespace(MTLSizeMake=lambda x, y, z: (x, y, z))
+    # Emulate newBufferWithBytes: each upload owns a copy of its input.
+    collector._buffer = lambda values: np.asarray(values).copy()
+    record = _dispatch_record()
+    field = object()
+    multiplier = np.asarray([1 + 2j, 3 + 4j], dtype="c8")
+    collector._accumulate(record, field, multiplier)
+    multiplier[:] = [7 + 8j, 9 + 10j]
+    collector._accumulate(record, field, multiplier)
+    multiplier[:] = 0
+
+    assert len(commands) == 2
+    assert all(command.commits == 1 and command.waits == 0 for command in commands)
+    for command, expected_real, expected_imag in zip(commands, ([1, 3], [7, 9]), ([2, 4], [8, 10])):
+        np.testing.assert_array_equal(command.encoder.buffers[4], expected_real)
+        np.testing.assert_array_equal(command.encoder.buffers[5], expected_imag)
+
+    readbacks = []
+
+    def readback():
+        assert not collector.queue._submitted
+        assert all(command.waits == 1 for command in commands)
+        readbacks.append(True)
+
+    updates = MetalUpdates.__new__(MetalUpdates)
+    updates.cmdqueue = collector.queue
+    updates.grid = SimpleNamespace(rxs=[], magneticfrillsources=[], snapshots=[])
+    updates.ntff_collector = SimpleNamespace(finalise=readback)
+
+    updates.finalise()
+
+    assert readbacks == [True]
 
 
 def _time_dispatch_record():

@@ -2,11 +2,11 @@
 Release notes
 *************
 
-4.0.3 (Caol Ila)
-================
+Unreleased
+==========
 
-This release removes per-time-step host overhead from the Apple Metal backend.
-Results are unchanged; only Metal run times are affected.
+These changes reduce per-time-step host overhead in the Apple Metal backend
+without changing the field equations or source timing.
 
 Execution
 ---------
@@ -23,11 +23,14 @@ Execution
   re-anchored (every 1024 steps) rather than on every time step.
 * On an Apple M2 Pro, the User Guide waveguide-fed horn (eigenmode port,
   virtual waveguide, equivalent-current far field) now solves in 5.3 s
-  instead of 45.9 s, with outputs unchanged against CPU double precision.
+  instead of 45.9 s in the reported benchmark. Before/after Metal outputs
+  were unchanged; comparison with CPU double precision gave a maximum
+  relative difference of 2.36e-5 and a directivity difference of 0.0014 dB.
+  Speedups depend on the model and hardware.
 
-The `4.0.3 change history
-<https://github.com/gprMax/gprMax/compare/v.4.0.2...v.4.0.3>`_ lists the
-released revisions.
+The `changes since 4.0.2
+<https://github.com/gprMax/gprMax/compare/v.4.0.2...master>`_ lists revisions
+merged since the last release.
 
 4.0.2 (Caol Ila)
 ================
