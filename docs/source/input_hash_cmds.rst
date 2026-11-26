@@ -2109,6 +2109,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 .. note::
 
+    * The active TFSF correction nodes must use the declared background material's electromagnetic properties. The check compares only the properties each corrected component reads: electric parameters and dispersion for E, magnetic parameters for H. A differently named material with equivalent properties for that component is accepted; PEC/PMC on the boundary is rejected. Where equivalence cannot be established reliably, a warning is issued. Use ``#plane_wave_axial`` for layered or half-space models.
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The TFSF box must lie strictly inside the model domain: no face may coincide with a domain boundary. Beyond such a face there is no scattered-field region and the auxiliary one-dimensional grid has no cells outside the domain projection, so the corrections there would be ill-defined. Use ``#plane_wave_axial`` for normally incident waves that fill or half-fill the domain; its box may span the domain.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
@@ -2138,6 +2139,7 @@ For example, to specify a discrete plane wave in a TFSF box (0.010, 0.010, 0.010
 
 .. note::
 
+    * The active TFSF correction nodes must use the declared background material's electromagnetic properties. The check compares only the properties each corrected component reads: electric parameters and dispersion for E, magnetic parameters for H. A differently named material with equivalent properties for that component is accepted; PEC/PMC on the boundary is rejected. Where equivalence cannot be established reliably, a warning is issued. Use ``#plane_wave_axial`` for layered or half-space models.
     * Plane waves support non-dispersive dielectric backgrounds and multi-pole Debye, Lorentz, and Drude media. They do not currently support ``user``-defined waveforms.
     * The TFSF box must lie strictly inside the model domain: no face may coincide with a domain boundary. Beyond such a face there is no scattered-field region and the auxiliary one-dimensional grid has no cells outside the domain projection, so the corrections there would be ill-defined. Use ``#plane_wave_axial`` for normally incident waves that fill or half-fill the domain; its box may span the domain.
     * The plane-wave command must be defined on the main grid. Its TFSF box may contain a complete subgrid, but must strictly enclose the subgrid's HSG outer coupling surface wherever the two regions overlap.
