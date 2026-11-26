@@ -27,6 +27,8 @@ There are optional command line arguments:
 
 * ``--outputs`` to specify a subset of the default output components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot. By default all electric and magnetic field components are plotted.
 * ``-fft`` to plot the Fast Fourier Transform (FFT) of a single output component
+* ``-save`` to save a PNG without opening a plot window.
+* ``-o DIR``, ``--output-dir DIR`` to specify a destination directory for saved plots (saving without displaying interactively).
 
 For example to plot the ``Ez`` output component with it's FFT:
 

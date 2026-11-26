@@ -26,7 +26,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range, mpl_plot
+from gprMax.toolboxes.Plotting.plot_Ascan import fft_plot_range
+from gprMax.toolboxes.Plotting.plot_Ascan import main as plot_ascan_main
+from gprMax.toolboxes.Plotting.plot_Ascan import mpl_plot
 from gprMax.toolboxes.Plotting.plot_Bscan import gather_receiver_outputs
 from gprMax.toolboxes.Plotting.plot_source_wave import check_timewindow
 from gprMax.toolboxes.Plotting.plot_source_wave import mpl_plot as plot_source_wave
@@ -311,6 +313,7 @@ def test_plot_ascan_all_unrecorded_receivers_raises_value_error(tmp_path):
 
 def test_plot_bscan_trace_group_rx_prefix(tmp_path):
     from gprMax.toolboxes.Plotting.plot_Bscan import mpl_plot as bscan_plot
+
     filename = tmp_path / "bscan_rx.h5"
     with h5py.File(filename, "w") as output:
         output.attrs["nrx"] = 1
@@ -330,3 +333,79 @@ def test_plot_bscan_trace_group_rx_prefix(tmp_path):
     )
     assert len(pyplot.get_fignums()) == 1
     pyplot.close("all")
+
+
+def _create_ascan_test_file(path):
+    with h5py.File(path, "w") as output:
+        output.attrs["nrx"] = 2
+        output.attrs["dt"] = 1e-10
+        rx1 = output.create_group("rxs/rx1")
+        rx1.create_dataset("Ez", data=[1.0, 2.0, 3.0])
+        rx2 = output.create_group("rxs/rx2")
+        rx2.create_dataset("Ez", data=[4.0, 5.0, 6.0])
+    return path
+
+
+def test_plot_ascan_main_accepts_argv_and_saves_to_output_dir(tmp_path):
+    input_dir = tmp_path / "models"
+    input_dir.mkdir()
+    ascan_file = _create_ascan_test_file(input_dir / "sim.h5")
+    output_dir = tmp_path / "plots"
+
+    try:
+        plot_ascan_main([str(ascan_file), "--outputs", "Ez", "-o", str(output_dir)])
+    finally:
+        plt.close("all")
+
+    assert (output_dir / "sim_rxs_rx1.png").exists()
+    assert (output_dir / "sim_rxs_rx2.png").exists()
+    assert not list(input_dir.glob("*.png"))
+
+
+def test_plot_ascan_main_long_flags_accepted(tmp_path):
+    ascan_file = _create_ascan_test_file(tmp_path / "sim.h5")
+    output_dir = tmp_path / "plots_long"
+
+    try:
+        plot_ascan_main([str(ascan_file), "--outputs", "Ez", "--output-dir", str(output_dir)])
+    finally:
+        plt.close("all")
+
+    assert (output_dir / "sim_rxs_rx1.png").exists()
+    assert (output_dir / "sim_rxs_rx2.png").exists()
+
+
+def test_plot_ascan_main_nested_directory_creation(tmp_path):
+    ascan_file = _create_ascan_test_file(tmp_path / "sim.h5")
+    nested_dir = tmp_path / "deep" / "nested" / "plots"
+
+    try:
+        plot_ascan_main([str(ascan_file), "--outputs", "Ez", "--output", str(nested_dir)])
+    finally:
+        plt.close("all")
+
+    assert (nested_dir / "sim_rxs_rx1.png").exists()
+    assert (nested_dir / "sim_rxs_rx2.png").exists()
+
+
+def test_plot_ascan_empty_output_dir_rejected(tmp_path):
+    ascan_file = _create_ascan_test_file(tmp_path / "sim.h5")
+    with pytest.raises(ValueError, match="Output directory cannot be empty"):
+        plot_ascan_main([str(ascan_file), "--outputs", "Ez", "-o", ""])
+
+    with pytest.raises(ValueError, match="Output directory cannot be empty"):
+        plot_ascan_main([str(ascan_file), "--outputs", "Ez", "--output-dir", "   "])
+
+    with pytest.raises(ValueError, match="Output directory cannot be empty"):
+        mpl_plot(ascan_file, ["Ez"], show=False, output_dir="")
+
+
+def test_plot_ascan_default_saves_next_to_file_when_save_flag(tmp_path):
+    ascan_file = _create_ascan_test_file(tmp_path / "sim.h5")
+    try:
+        plot_ascan_main([str(ascan_file), "--outputs", "Ez", "-save"])
+    finally:
+        plt.close("all")
+
+    assert (tmp_path / "sim_rxs_rx1.png").exists()
+    assert (tmp_path / "sim_rxs_rx2.png").exists()
