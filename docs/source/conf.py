@@ -6,6 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import os
 from pathlib import Path
 import re
 import sys
@@ -55,6 +56,11 @@ exclude_patterns = []
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 html_css_files = ["css/feature_guides.css"]
+
+# The User Guide is served from more than one domain. Read the Docs passes the
+# address of the canonical one to the build, and each page then names its copy
+# there as the one for search engines to index. Unset in local builds.
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
 
 # -- Options for LaTeX and PDF output ----------------------------------------
 
