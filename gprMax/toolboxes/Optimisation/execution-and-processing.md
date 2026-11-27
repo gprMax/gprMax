@@ -224,8 +224,10 @@ timing or a GPU utilisation measurement.
 
 ## Resume a stopped optimisation
 
-Enable `checkpoint=True` before the first run. After the old workers/allocation
-have stopped:
+The simple `optimise()` saves checkpoints by default and resumes with
+`optimise(..., resume=True)`; see the README. With the explicit Campaign
+interface, enable `checkpoint=True` before the first run. After the old
+workers/allocation have stopped:
 
 ```python
 campaign = Campaign.resume(problem, "results/run", execution=execution)

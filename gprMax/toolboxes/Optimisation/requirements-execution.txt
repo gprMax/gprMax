@@ -1,3 +1,4 @@
 # Optional: MPI execution and native optimiser checkpointing.
+# cloudpickle is also listed in requirements-optimisers.txt.
 mpi4py==4.1.2
 cloudpickle==3.1.2

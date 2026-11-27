@@ -64,7 +64,8 @@ HDF5 result and validates its basic grid/time metadata.
 - New specialised reader: add an optional helper; keep raw-file access available.
 - New optimiser: implement the documented ask/tell or batch interface.
 - New execution backend: implement the execution protocol and preserve task identity.
-- Several scenarios or native checkpoints: use the explicit Campaign interface.
+- Several scenarios: use the explicit Campaign interface. Native checkpoints are
+  on by default in `optimise()`, which resumes through `Campaign.resume`.
 
 Tests cover both layers. The user-interface tests copy examples into another
 folder, rename functions/parameter/receiver names, execute real gprMax simulations,

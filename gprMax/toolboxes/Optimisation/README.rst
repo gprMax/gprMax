@@ -21,11 +21,12 @@ Start with a small working example
 ----------------------------------
 
 Use the Python environment in which this gprMax development checkout runs. From
-the checkout directory, install the starter's optional optimisation package:
+the checkout directory, install the starter's optional optimisation packages
+(``cloudpickle`` saves the checkpoints used to resume an interrupted run):
 
 .. code-block:: console
 
-   python -m pip install optuna==4.9.0
+   python -m pip install optuna==4.9.0 cloudpickle==3.1.2
    mkdir -p my_optimisation
    cp gprMax/toolboxes/Optimisation/examples/start_here.py my_optimisation/my_model.py
    python my_optimisation/my_model.py
@@ -33,7 +34,9 @@ the checkout directory, install the starter's optional optimisation package:
 The example creates a small dielectric-block model, measures the peak receiver
 field and adjusts permittivity to approach a target peak. Its twelve evaluations
 are a short demonstration, not a convergence guarantee. It saves results beside
-the copied script. Set ``RESULTS`` to a fresh directory before running again.
+the copied script. Set ``RESULTS`` to a fresh directory before running again,
+or continue an interrupted run with ``python my_optimisation/my_model.py --resume``
+(see `Resume an interrupted optimisation`_).
 
 :download:`Copy the starter <../../gprMax/toolboxes/Optimisation/examples/start_here.py>`.
 Save callbacks in a Python file; workers must be able to import them. Keep the
@@ -191,8 +194,50 @@ candidate simulations, not one FDTD domain. Use enough candidates per batch to
 fill the available workers. MPI, resource profiles, caching and native optimiser
 checkpoint recovery are covered in the
 :download:`execution guide <../../gprMax/toolboxes/Optimisation/execution-and-processing.md>`.
-The simple ``optimise`` call creates a new campaign; use the explicit Campaign
-interface for checkpoint recovery and shared simulation caches.
+Use the explicit Campaign interface for shared simulation caches.
+
+Resume an interrupted optimisation
+----------------------------------
+
+``optimise`` saves a checkpoint of the optimiser before each batch, so a run
+stopped by a crash, reboot or job time limit can continue where it stopped.
+After every process of the original run has stopped, call ``optimise`` again
+with ``resume=True`` and the same arguments. The starter example does this from
+the command line, without editing the file:
+
+.. code-block:: console
+
+   python my_optimisation/my_model.py --resume
+
+What resuming does:
+
+* It continues the optimisation, not an FDTD simulation stopped part-way.
+  Completed simulations are verified and reused; incomplete ones run again.
+* ``evaluations`` is the total budget of the whole run, including the
+  evaluations completed before the interruption. It is not a number of extra
+  evaluations, and it cannot be lower than the number already completed.
+* The saved optimiser and its settings are restored. Omitted arguments take
+  their original values. An explicitly different ``optimiser``, ``seed``,
+  ``population_size``, ``batch_size``, ``target_value``, ``stop_on_target`` or
+  ``progress`` is refused. Changes to your model, objective or ``files=``, to
+  the execution settings, to the toolbox, or to the optimiser library version
+  also prevent resuming.
+* A finished run (budget used, target reached, or stopped by a failed
+  evaluation) reports its saved result instead of continuing. It cannot be
+  extended by passing a larger ``evaluations``; start a new optimisation instead.
+* Without ``resume=True``, an existing results directory is refused and never
+  overwritten.
+
+Checkpoints need the ``cloudpickle`` package. If it is missing, ``optimise``
+stops before running any simulation. Pass ``checkpoint=False`` to run without
+checkpoints. Such a run, like one made before ``optimise`` saved checkpoints,
+cannot be resumed, although its completed simulations remain on disk.
+
+.. warning::
+
+   Checkpoints contain Python pickle data, and loading one can run arbitrary
+   code. Only resume runs that you created and trust. The checkpoint checksum
+   detects corruption, not deliberately malicious content.
 
 .. include:: ../../gprMax/toolboxes/Optimisation/OPTIMISERS.rst
 

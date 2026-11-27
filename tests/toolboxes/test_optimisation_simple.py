@@ -66,6 +66,7 @@ def test_copy_rename_edit_and_run_without_import_reference_strings(
     tmp_path, target, expected_trials
 ):
     pytest.importorskip("optuna")
+    pytest.importorskip("cloudpickle")  # optimise() saves checkpoints by default.
     from gprMax.toolboxes.Optimisation import read_receiver
     from gprMax.toolboxes.Optimisation.examples import start_here
 
@@ -117,6 +118,7 @@ def test_copy_rename_edit_and_run_without_import_reference_strings(
 
 def test_reference_example_can_be_copied_and_switched_to_a_population_optimiser(tmp_path):
     pytest.importorskip("pymoo")
+    pytest.importorskip("cloudpickle")  # optimise() saves checkpoints by default.
     from gprMax.toolboxes.Optimisation.examples import waveform_matching
 
     original = Path(waveform_matching.__file__)
@@ -179,6 +181,7 @@ def custom_hdf5_objective(parameters, output):
 
 def test_simulate_and_custom_processing_require_no_ez_or_s11_fields(tmp_path):
     pytest.importorskip("optuna")
+    pytest.importorskip("cloudpickle")  # optimise() saves checkpoints by default.
     output = simulate(
         model=model_with_magnetic_output, parameters={"x": 1.5}, directory=tmp_path / "one"
     )

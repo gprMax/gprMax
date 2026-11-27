@@ -8,18 +8,22 @@ optimise joins these functions to Campaign and the chosen optimiser;
 simulate performs one concrete parameter combination without a search.
 This module describes callbacks but never calls gprMax.run itself.
 _simple.py loads the saved callbacks when the coordinator/worker needs
-them. Use explicit Campaign contracts for multiple scenarios or recovery.
+them. optimise(..., resume=True) continues an interrupted run through
+Campaign.resume. Use explicit Campaign contracts for multiple scenarios.
 """
 
 from __future__ import annotations
 
 import inspect
+import json
+import numbers
 from pathlib import Path
 
-from ._storage import sha256
+from ._storage import json_copy, sha256, write_json
 from .adapters import make_optimiser
 from .campaign import Campaign
 from .models import Problem, Scenario
+from .optimisers import ObjectiveResult
 from .parameters import ParameterSpace
 from .processing import Evaluation
 from .runner import LocalExecutor
@@ -86,22 +90,165 @@ def _model_problem(parameters, model_spec, files):
     )
 
 
+class _Default:
+    """Mark an optimise() argument that the caller did not pass.
+
+    A new run uses the wrapped value. A resumed run uses the value saved by
+    the original run instead, so only arguments the caller actually passed
+    are compared with the saved settings. A plain default such as seed=0
+    could not tell "omitted" from "passed 0". repr() shows the wrapped value,
+    so help(optimise) still reads optimiser='tpe'.
+    """
+
+    __slots__ = ("value",)
+
+    def __init__(self, value):
+        self.value = value
+
+    def __repr__(self):
+        return repr(self.value)
+
+
+# optimise() records its own arguments in this file beside campaign.json.
+# The adapter metadata in optimiser/session.json differs between libraries and
+# does not keep the simple-API names (e.g. "ga"), so it cannot restore them.
+_SETTINGS_FILE = "optimise_settings.json"
+_SAVED_KEYS = {
+    "optimiser",
+    "optimiser_class",
+    "population_size",
+    "batch_size",
+    "seed",
+    "target_value",
+    "stop_on_target",
+    "progress",
+    "proposals_per_batch",
+    "evaluations",
+}
+
+
+def _require_cloudpickle():
+    """Fail before any simulation starts when checkpoints cannot be saved."""
+    try:
+        import cloudpickle  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "optimise() saves resumable checkpoints with the cloudpickle package, which is not "
+            "installed. Install the optimisation dependencies with\n"
+            "    python -m pip install -r gprMax/toolboxes/Optimisation/requirements-optimisers.txt\n"
+            "or pass checkpoint=False to run without the ability to resume."
+        ) from exc
+
+
+def _read_resumable_settings(storage):
+    """Return the saved optimise() settings of a run, or explain why it cannot resume."""
+    if not (storage / "campaign.json").is_file():
+        raise FileNotFoundError(
+            f"Cannot resume: {storage} does not contain an optimisation campaign. Check the "
+            "directory, or omit resume=True to start a new optimisation."
+        )
+    if not (storage / "optimiser" / "session.json").is_file():
+        raise ValueError(
+            f"Cannot resume: no optimisation was started in {storage} (simulate() creates "
+            "campaigns like this). Start a new optimisation in a new directory."
+        )
+    if not (storage / "optimiser" / "checkpoint.bin").is_file():
+        raise ValueError(
+            f"Cannot resume {storage}: it was run without checkpoints (checkpoint=False, or made "
+            "before optimise() saved checkpoints). Its completed simulations remain available, "
+            "but the optimiser state needed for exact recovery was not saved. Start a new "
+            "optimisation in a new directory."
+        )
+    if not (storage / _SETTINGS_FILE).is_file():
+        raise ValueError(
+            f"Cannot resume {storage} with optimise(): it was created with the Campaign "
+            "interface. Use Campaign.resume and campaign.optimise(..., resume=True) instead; "
+            "see the execution guide."
+        )
+    path = storage / _SETTINGS_FILE
+    try:
+        saved = json.loads(path.read_text())
+        valid = saved["schema_version"] == 1 and _SAVED_KEYS <= saved.keys()
+    except (ValueError, TypeError, KeyError):
+        valid = False
+    if not valid:
+        raise ValueError(
+            f"Cannot resume {storage}: {path.name} is damaged or was not written by optimise(). "
+            "The completed simulations remain in the campaign directory; start a new "
+            "optimisation in a new directory."
+        )
+    return saved
+
+
+def _finished_run(storage):
+    """Return (stop reason, evaluations) of a finished run, or None if it can continue.
+
+    run_optimisation marks the checkpoint finished before it writes this final
+    result.json, so a final stop reason here means the run will not continue.
+    "running", "cancelled" and "error" are written while a run can still resume.
+    """
+    try:
+        record = json.loads((storage / "optimiser" / "result.json").read_text())
+        reason = record["stop_reason"]
+        if reason in ("running", "cancelled", "error"):
+            return None
+        return reason, len(record["trials"])
+    except (OSError, ValueError, TypeError, KeyError):
+        return None  # run_optimisation decides from the checkpoint itself.
+
+
+def _checkpoint_stamp(storage):
+    """Identify the checkpoint file; save_checkpoint replaces it with a new file."""
+    status = (storage / "optimiser" / "checkpoint.bin").stat()
+    return status.st_ino, status.st_mtime_ns
+
+
+def _choose_settings(requested, saved):
+    """Return the settings for this call: passed or default values, or the saved ones on resume."""
+    if saved is None:
+        return {
+            name: value.value if isinstance(value, _Default) else value
+            for name, value in requested.items()
+        }
+    conflicts = []
+    for name, value in requested.items():
+        if isinstance(value, _Default):
+            continue
+        original = saved[name]
+        if name == "optimiser" and not isinstance(value, str):
+            conflicts.append("optimiser=<object> (the saved optimiser is restored; omit it)")
+        elif value != original:
+            if name == "optimiser" and original is None:
+                original = f"custom {saved['optimiser_class']}"
+            conflicts.append(f"{name}={value!r} (original run: {original!r})")
+    if conflicts:
+        raise ValueError(
+            "Cannot resume with settings that differ from the original run: "
+            + "; ".join(conflicts)
+            + ". Omit these arguments to use the saved values, or start a new optimisation in a "
+            "new directory."
+        )
+    return {name: saved[name] for name in requested}
+
+
 def optimise(
     *,
     parameters,
     model,
     objective,
     directory,
-    optimiser="tpe",
-    evaluations=12,
-    seed=0,
-    population_size=6,
-    batch_size=1,
+    optimiser=_Default("tpe"),
+    evaluations=_Default(12),
+    seed=_Default(0),
+    population_size=_Default(6),
+    batch_size=_Default(1),
     execution=None,
     files=(),
-    progress=True,
-    target_value=None,
-    stop_on_target=True,
+    progress=_Default(True),
+    target_value=_Default(None),
+    stop_on_target=_Default(True),
+    checkpoint=True,
+    resume=False,
 ):
     """Run an optimisation using two ordinary functions from your Python file.
 
@@ -118,12 +265,13 @@ def optimise(
         ``output.receiver(name, component)`` / ``output.port(name)``. Return a
         finite number: smaller is better. ObjectiveResult adds optional metrics.
 
-    ``directory`` must be a new results directory. ``evaluations`` is a maximum
-    number of candidates, not a convergence claim. GA/PSO/DE evaluate complete
-    populations and can leave a remainder unused. ``seed`` fixes the optimiser
-    and simulation seeds. ``execution`` optionally selects a LocalPool or entered
-    MPIPool. ``files`` lists input data/helper files to monitor for changes; the
-    model and objective source files are tracked automatically.
+    ``directory`` must be a new results directory unless ``resume=True``.
+    ``evaluations`` is a maximum number of candidates, not a convergence claim.
+    GA/PSO/DE evaluate complete populations and can leave a remainder unused.
+    ``seed`` fixes the optimiser and simulation seeds. ``execution`` optionally
+    selects a LocalPool or entered MPIPool. ``files`` lists input data/helper
+    files to monitor for changes; the model and objective source files are
+    tracked automatically.
 
     ``target_value`` is an optional acceptable objective score. For minimisation,
     a value less than or equal to it meets the target. ``stop_on_target=True``
@@ -135,26 +283,87 @@ def optimise(
     ``if __name__ == "__main__":`` so workers can load the file safely. Functions
     may be copied/renamed: there are no user-written import-reference strings.
 
+    ``checkpoint=True`` (the default) saves the optimiser state before each
+    batch so that an interrupted run can be resumed. It needs the cloudpickle
+    package and fails before any simulation if that is missing. Pass
+    ``checkpoint=False`` to run without the ability to resume.
+
+    ``resume=True`` continues an interrupted run in ``directory``. Stop every
+    process of the original run first, then call optimise with the same model,
+    objective, parameters and files. Omitted settings are restored from the
+    original run; different ones are refused. ``evaluations`` stays the total
+    budget of the whole run, including evaluations completed before the
+    interruption, so it cannot be lower than the number already completed.
+    This resumes the optimisation, not one FDTD simulation: verified completed
+    simulations are reused and incomplete ones run again. A finished run
+    (budget used, target reached or a failed evaluation) reports its saved
+    result instead of continuing and cannot be given a new evaluations total.
+    Checkpoints contain pickle data, so only resume runs that you created and
+    trust.
+
     Returns an OptimisationResult with ``best_parameters``, ``best_value``,
     ``trials`` and ``stop_reason``. See the advanced guide for caching, native
     checkpoint recovery, multiple scenarios and custom optimiser adapters.
     """
+    if not isinstance(checkpoint, bool) or not isinstance(resume, bool):
+        raise ValueError("checkpoint and resume must be True or False")
+    if resume and not checkpoint:
+        raise ValueError(
+            "A resumed run keeps saving checkpoints; remove checkpoint=False when resume=True"
+        )
+    storage = Path(directory).expanduser().resolve()
+    if not resume and storage.exists():
+        raise FileExistsError(
+            f"The results directory {storage} already exists. To continue an interrupted "
+            "optimisation, call optimise() again with resume=True and the same arguments (the "
+            "starter example accepts --resume). To start a new optimisation, choose a new "
+            "directory."
+        )
+    requested = {
+        "optimiser": optimiser,
+        "population_size": population_size,
+        "batch_size": batch_size,
+        "seed": seed,
+        "target_value": target_value,
+        "stop_on_target": stop_on_target,
+        "progress": progress,
+    }
+    saved = _read_resumable_settings(storage) if resume else None
+    settings = _choose_settings(requested, saved)
+    if isinstance(evaluations, _Default):
+        evaluations = saved["evaluations"] if resume else evaluations.value
     if isinstance(evaluations, bool) or not isinstance(evaluations, int) or evaluations < 1:
         raise ValueError("evaluations must be a positive integer")
+    finished = _finished_run(storage) if resume else None
+    if finished and evaluations != saved["evaluations"]:
+        raise ValueError(
+            f"Cannot resume {storage} with evaluations={evaluations}: this optimisation already "
+            f"finished ({finished[0]}, {finished[1]} evaluations) and cannot be continued. Omit "
+            "evaluations to report its result, or start a new optimisation in a new directory."
+        )
+    progress = bool(settings["progress"])
     # Describe the callbacks before creating a campaign: a worker will reload
     # these saved functions later, rather than receive live Python closures.
     model_spec = _describe_function(model, ({},), "model")
     objective_spec = _describe_function(objective, ({}, None), "objective")
     files = tuple(files)
     problem = _model_problem(parameters, model_spec, files)
-    if isinstance(optimiser, str):
-        options = {"batch_size": batch_size} if optimiser in ("rf", "tpe") else {}
-        if optimiser not in ("rf", "tpe") and batch_size != 1:
+    if resume:
+        # run_optimisation restores the original optimiser from the checkpoint,
+        # so no new optimiser is created and no fresh default is applied.
+        adapter, size = None, saved["proposals_per_batch"]
+    elif isinstance(settings["optimiser"], str):
+        name, batch = settings["optimiser"], settings["batch_size"]
+        options = {"batch_size": batch} if name in ("rf", "tpe") else {}
+        if name not in ("rf", "tpe") and batch != 1:
             raise ValueError("Use population_size for GA/PSO/DE; batch_size applies to RF/TPE")
-        adapter = make_optimiser(optimiser, seed=seed, population_size=population_size, **options)
+        adapter = make_optimiser(
+            name, seed=settings["seed"], population_size=settings["population_size"], **options
+        )
+        size = getattr(adapter, "batch_size", 1)
     else:
-        adapter = optimiser
-    size = getattr(adapter, "batch_size", 1)
+        adapter = settings["optimiser"]
+        size = getattr(adapter, "batch_size", 1)
     if evaluations < size:
         raise ValueError(
             f"This optimiser proposes {size} candidates together; set evaluations to at least {size}"
@@ -168,12 +377,55 @@ def optimise(
             )
         ),
     )
+    # Checked after the arguments, so mistakes in them are reported first, but
+    # still before any campaign directory or simulation exists.
+    if checkpoint:
+        _require_cloudpickle()
     # This is the hand-off to the framework. Campaign owns simulation files;
     # run_optimisation owns the proposal -> score -> optimiser feedback loop.
-    campaign = Campaign(problem, directory, execution or LocalExecutor())
-    if progress:
+    if resume:
+        # Campaign.resume re-checks the model, files and execution settings.
+        campaign = Campaign.resume(problem, storage, execution)
+        stamp = _checkpoint_stamp(storage)
+    else:
+        # Stored as JSON, so keep the target as run_optimisation does: a plain float.
+        if settings["target_value"] is not None:
+            settings["target_value"] = ObjectiveResult(settings["target_value"]).value
+        # Check the record before the campaign directory exists, so an unsaveable
+        # value fails first. Ignored NumPy integer settings are saved as plain ints.
+        record = json_copy(
+            {
+                "schema_version": 1,
+                **settings,
+                **{
+                    name: int(settings[name])
+                    for name in ("population_size", "batch_size")
+                    if isinstance(settings[name], numbers.Integral)
+                    and not isinstance(settings[name], bool)
+                },
+                "optimiser": (
+                    settings["optimiser"] if isinstance(settings["optimiser"], str) else None
+                ),
+                "optimiser_class": type(adapter).__qualname__,
+                "progress": progress,
+                "proposals_per_batch": size,
+                "evaluations": evaluations,
+                "checkpoint": checkpoint,
+            }
+        )
+        campaign = Campaign(problem, storage, execution or LocalExecutor())
+        write_json(campaign.storage / _SETTINGS_FILE, record)
+    if progress and finished:
         print(
-            f"Optimising {', '.join(problem.parameters.to_dict())}; up to {evaluations} evaluations.\n"
+            f"The optimisation in {campaign.storage} already finished ({finished[0]}); "
+            "reporting its saved result.",
+            flush=True,
+        )
+    elif progress:
+        total = " in total, including those already completed" if resume else ""
+        print(
+            f"{'Resuming' if resume else 'Optimising'} {', '.join(problem.parameters.to_dict())}; "
+            f"up to {evaluations} evaluations{total}.\n"
             f"Model: {model.__name__}  Objective: {objective.__name__}\nResults: {campaign.storage}",
             flush=True,
         )
@@ -182,14 +434,23 @@ def optimise(
                 f"Complete batches of {size} permit {evaluations // size * size} evaluations within this limit.",
                 flush=True,
             )
-    result = campaign.optimise(
-        optimiser=adapter,
-        evaluator=evaluator,
-        n_trials=evaluations,
-        seed=seed,
-        target_value=target_value,
-        stop_on_target=stop_on_target,
-    )
+    try:
+        result = campaign.optimise(
+            optimiser=adapter,
+            evaluator=evaluator,
+            n_trials=evaluations,
+            seed=settings["seed"],
+            target_value=settings["target_value"],
+            stop_on_target=settings["stop_on_target"],
+            checkpoint=checkpoint,
+            resume=resume,
+        )
+    finally:
+        # run_optimisation replaces the checkpoint only after its resume checks
+        # pass, so a refused resume leaves the saved total unchanged. Saved in
+        # finally so a raised total is kept if this run is interrupted again.
+        if resume and evaluations != saved["evaluations"] and _checkpoint_stamp(storage) != stamp:
+            write_json(storage / _SETTINGS_FILE, {**saved, "evaluations": evaluations})
     if result.stop_reason == "trial_failed":
         failed = next((trial for trial in result.trials if trial.status == "failed"), None)
         if failed is None:

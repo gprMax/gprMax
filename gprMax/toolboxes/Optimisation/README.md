@@ -28,6 +28,7 @@ python -m gprMax.toolboxes.Optimisation.examples.start_here
 
 You can install only the package you intend to use; see the package guide. The
 starter runs a small CPU example. The patch is substantially more expensive.
-Use a new results directory for each run. `Integer(..., step=2)` declares physical
+Use a new results directory for each run, or continue an interrupted starter run
+with `--resume`. `Integer(..., step=2)` declares physical
 increments for all five adapters; `target_value` optionally stops at an acceptable
 objective after a complete batch.

@@ -46,9 +46,14 @@ def load_checkpoint(directory):
     """Check payload integrity, restore random generators and return the saved session state."""
     import numpy as np
 
-    data = (Path(directory) / "checkpoint.bin").read_bytes()
+    path = Path(directory) / "checkpoint.bin"
+    data = path.read_bytes()
     if hashlib.sha256(data[32:]).digest() != data[:32]:
-        raise ValueError("Optimiser checkpoint integrity verification failed")
+        raise ValueError(
+            f"Optimiser checkpoint integrity verification failed: {path} is corrupt or "
+            "incomplete and cannot be used to resume. The completed simulations remain in the "
+            "campaign directory; start a new optimisation in a new directory."
+        )
     state = pickle.loads(data[32:])
     random.setstate(state.pop("python_random"))
     np.random.set_state(state.pop("numpy_random"))

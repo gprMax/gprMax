@@ -47,7 +47,9 @@ For one package, use the appropriate command:
    python -m pip install scikit-optimize==0.10.2
    python -m pip install pymoo==0.6.2
 
-To install the five general adapters together, use
+``optimise`` also needs ``python -m pip install cloudpickle==3.1.2`` for its
+resumable checkpoints, unless you pass ``checkpoint=False``.
+To install the five general adapters and cloudpickle together, use
 ``python -m pip install -r gprMax/toolboxes/Optimisation/requirements-optimisers.txt``.
 SciPy is already a gprMax dependency; the direct helper is described separately
 below. Check the active interpreter with ``python -m pip show optuna pymoo
