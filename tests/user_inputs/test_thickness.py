@@ -161,6 +161,58 @@ def test_mpi_thickness_crossing_lower_rank_face_remains_clipped(dimension, axis)
     assert local_thickness == pytest.approx(6)
 
 
+@pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
+def test_mpi_empty_negative_clipped_intersection_stays_outside_grid(dimension, axis):
+    """The reported 8.49 mm lower coordinate and 0.49 mm thickness on a
+    1 mm grid round to local level -1 and thickness 0 on the rank starting
+    at 9 mm. Clipping that empty intersection to level 0 used to create a
+    zero-thickness sheet on the rank's lower halo plane."""
+    lower_extent = np.zeros(3, dtype=np.int32)
+    lower_extent[axis] = 9
+    grid = _MPIGrid(
+        dl=np.full(3, 1e-3),
+        size=np.full(3, 20, dtype=np.int32),
+        global_size=np.full(3, 30, dtype=np.int32),
+        lower_extent=lower_extent,
+    )
+    user_input = MPIUserInput(grid)
+
+    within_grid, local_lower, local_thickness = user_input.check_thickness(
+        dimension,
+        lower_extent=8.49e-3,
+        thickness=0.49e-3,
+        cmd_str="#test_object",
+    )
+
+    assert not within_grid
+    assert local_lower == pytest.approx(0)
+    assert local_thickness == pytest.approx(0)
+
+
+@pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
+def test_mpi_zero_thickness_sheet_on_lower_rank_face_is_kept(dimension, axis):
+    lower_extent = np.zeros(3, dtype=np.int32)
+    lower_extent[axis] = 9
+    grid = _MPIGrid(
+        dl=np.full(3, 1e-3),
+        size=np.full(3, 20, dtype=np.int32),
+        global_size=np.full(3, 30, dtype=np.int32),
+        lower_extent=lower_extent,
+    )
+    user_input = MPIUserInput(grid)
+
+    within_grid, local_lower, local_thickness = user_input.check_thickness(
+        dimension,
+        lower_extent=9e-3,
+        thickness=0.0,
+        cmd_str="#test_object",
+    )
+
+    assert within_grid
+    assert local_lower == pytest.approx(0)
+    assert local_thickness == pytest.approx(0)
+
+
 def _main_grid_input(size=10):
     grid = SimpleNamespace(
         dl=np.full(3, 1e-3),

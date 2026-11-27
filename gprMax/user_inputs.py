@@ -379,12 +379,13 @@ class MainGridUserInput(UserInput[GridType]):
         # These should only trigger for MPIGrids.
         # TODO: Can this be structured so these checks happen in the
         # MPIGridUserInput object?
-        # Track whether thickness was originally positive (intentional sheet,
-        # e.g. triangles/cylindrical sectors) or zero (already non-overlapping).
-        # When lower_extent < 0 clips thickness to 0, we must distinguish these
-        # cases: clip to 0 only if thickness was already 0; otherwise treat as
-        # non-overlapping (thickness = 0 with extent flag adjusted below).
-        original_thickness = thickness
+
+        # A negative lower extent can put the whole slab before this rank.
+        # Test that before clipping the lower face to zero: an empty
+        # intersection must not become a zero-thickness sheet on the lower
+        # halo plane (the 8.49 mm lower coordinate / 0.49 mm thickness case).
+        empty_lower_intersection = lower_extent < 0 and lower_extent + thickness <= 0
+
         if lower_extent < 0:
             thickness = max(thickness + lower_extent, 0.0)
             lower_extent = 0.0
@@ -396,26 +397,15 @@ class MainGridUserInput(UserInput[GridType]):
         if lower_extent + thickness > size:
             thickness = size - lower_extent
 
-        # Ensure the returned thickness is non-negative after clipping.
-        # This can happen when lower_extent was already at or beyond size.
+        # lower_extent may already be at or beyond size; keep the returned
+        # thickness non-negative in that case.
         thickness = max(thickness, 0.0)
-
-        # Distinguish intentional zero-thickness sheets (triangles/cylindrical
-        # sectors) from negative-clipped intersections. When the original
-        # thickness was positive and clipping brought it to 0, treat as
-        # non-overlapping by forcing the extent check to exclude this rank's
-        # halo plane (the extra sheet absent from serial geometry).
-        if original_thickness > 0 and thickness == 0.0:
-            # Mark as non-overlapping by adjusting the extent bound check:
-            # the third return value (lower_extent <= size) will still be true,
-            # but the fourth return value (thickness * dl) is 0, and the boolean
-            # condition below will exclude the halo-plane sheet.
-            pass  # intentional fall-through: thickness stays 0, contract holds
 
         dl = self.grid.dl[index]
 
         return (
-            lower_extent <= size
+            not empty_lower_intersection
+            and lower_extent <= size
             and upper_extent >= 0
             and not (upper_extent > size and thickness <= 0),
             lower_extent * dl,
