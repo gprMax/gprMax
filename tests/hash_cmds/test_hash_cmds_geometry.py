@@ -109,7 +109,7 @@ class TestEdge:
         assert edge.kwargs["material_id"] == "wire"
 
     def test_wrong_arity_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires exactly seven parameters"):
             process_geometrycmds(["#edge: 0 0 0 0.1 0.2 0.3"])
 
 
@@ -131,7 +131,7 @@ class TestPlate:
         assert plate.kwargs["material_ids"] == ["m1", "m2"]
 
     def test_wrong_arity_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least seven parameters"):
             process_geometrycmds(["#plate: 0 0 0 0.1 0.1"])
 
 
@@ -157,7 +157,7 @@ class TestTriangle:
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least eleven parameters"):
             process_geometrycmds(["#triangle: 0 0 0 1 0 0 0 1 0 0.01"])
 
 
@@ -184,11 +184,11 @@ class TestBox:
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least seven parameters"):
             process_geometrycmds(["#box: 0 0 0 0.1 0.1 0.1"])
 
     def test_too_many_tokens_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="too many parameters have been given"):
             process_geometrycmds(["#box: 0 0 0 0.1 0.1 0.1 mx my mz extra"])
 
     def test_trailing_positional_tag_is_unambiguous_and_preserves_averaging(self):
@@ -224,7 +224,7 @@ class TestCylinder:
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least eight parameters"):
             process_geometrycmds(["#cylinder: 0 0 0 0.1 0.1 0.1 0.05"])
 
 
@@ -251,7 +251,7 @@ class TestCone:
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least nine parameters"):
             process_geometrycmds(["#cone: 0 0 0 0.1 0.1 0.1 0.05 0.02"])
 
 
@@ -278,7 +278,7 @@ class TestCylindricalSector:
         assert objs[0].kwargs["material_ids"] == ["mx", "my", "mz"]
 
     def test_wrong_arity_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least nine parameters"):
             process_geometrycmds(["#cylindrical_sector: x 0.1 0.1 0 0.1 0.05 0 90"])
 
 
@@ -299,12 +299,12 @@ class TestSphere:
         assert objs[0].kwargs["averaging"] == "y"
 
     def test_too_few_tokens_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least five parameters"):
             process_geometrycmds(["#sphere: 0.05 0.05 0.05 0.02"])
 
     def test_too_many_tokens_rejected(self):
         # 9 tokens: longer than any valid form
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="too many parameters have been given"):
             process_geometrycmds(["#sphere: 0.05 0.05 0.05 0.02 mx my mz extra"])
 
 
@@ -333,7 +333,7 @@ class TestEllipsoid:
         assert objs[0].kwargs["averaging"] == "y"
 
     def test_too_few_tokens_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least seven parameters"):
             process_geometrycmds(["#ellipsoid: 0 0 0 0.1 0.1 0.1"])
 
 
@@ -399,7 +399,7 @@ class TestFractalBox:
         assert objs[0].kwargs["tag"] == "soil_layer"
 
     def test_too_few_tokens_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires 13 to 16 parameters"):
             process_geometrycmds(["#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix"])
 
 
@@ -465,7 +465,7 @@ class TestFractalBoxModifierArity:
             "#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1",
             "#add_surface_roughness: 0 0.1 0 0.1 0.1 0.1 1.5 1 1 0 0.01",
         ]
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"requires exactly 12 or 13 parameter\(s\)"):
             process_geometrycmds(geometry)
 
     def test_surface_water_wrong_arity_rejected(self):
@@ -473,7 +473,7 @@ class TestFractalBoxModifierArity:
             "#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1",
             "#add_surface_water: 0 0.1 0 0.1 0.1 0.1 0.005",
         ]
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"requires exactly 8 parameter\(s\)"):
             process_geometrycmds(geometry)
 
     def test_grass_wrong_arity_rejected(self):
@@ -481,7 +481,7 @@ class TestFractalBoxModifierArity:
             "#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 4 mix fb1",
             "#add_grass: 0 0.1 0 0.1 0.1 0.1 1.5 0.001 0.01 50",
         ]
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"requires exactly 11 or 12 parameter\(s\)"):
             process_geometrycmds(geometry)
 
 
@@ -538,11 +538,11 @@ class TestHelix:
         assert helix.kwargs["tag"] == "wire_tag"
 
     def test_too_few_tokens_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="requires at least twelve parameters"):
             process_geometrycmds([f"#helix: {self.BASE} r"])
 
     def test_too_many_tokens_rejected(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="too many parameters have been given"):
             process_geometrycmds([f"#helix: {self.BASE} r m1 m2 m3 x"])
 
 
@@ -560,6 +560,19 @@ class TestUnknownCommandSilentlyDropped:
     def test_unknown_command_yields_nothing(self):
         objs = process_geometrycmds(["#not_a_real_command: 1 2 3"])
         assert objs == []
+
+
+class TestGeometryHashErrorLogging:
+    def test_rejections_logged_at_error_level_without_traceback(self, caplog):
+        with caplog.at_level("ERROR", logger="gprMax.hash_cmds_geometry"):
+            with pytest.raises(ValueError, match="requires at least seven parameters"):
+                process_geometrycmds(["#box: 1 2 3"])
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.levelname == "ERROR"
+        assert record.exc_info is None
+        assert "requires at least seven parameters" in record.message
 
 
 pytestmark = pytest.mark.unit

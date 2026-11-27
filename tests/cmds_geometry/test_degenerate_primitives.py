@@ -190,6 +190,42 @@ def _scene():
             "the edge is not specified correctly",
         ),
         (
+            "plate_diagonal",
+            gprMax.Plate(
+                p1=(0.005, 0.005, 0.005),
+                p2=(0.010, 0.010, 0.010),
+                material_id="pec",
+            ),
+            "the plate is not specified correctly",
+        ),
+        (
+            "thin_wire_diagonal",
+            gprMax.ThinWire(
+                p1=(0.005, 0.005, 0.005),
+                p2=(0.010, 0.010, 0.005),
+                radius=0.0001,
+            ),
+            "must define one non-zero, axis-aligned line",
+        ),
+        (
+            "thin_wire_zero_radius",
+            gprMax.ThinWire(
+                p1=(0.005, 0.005, 0.005),
+                p2=(0.010, 0.005, 0.005),
+                radius=0.0,
+            ),
+            "requires a finite radius greater than zero",
+        ),
+        (
+            "thin_wire_radius_too_large",
+            gprMax.ThinWire(
+                p1=(0.005, 0.005, 0.005),
+                p2=(0.010, 0.005, 0.005),
+                radius=0.0006,
+            ),
+            "must be smaller than half the minimum transverse cell size",
+        ),
+        (
             "flat_box",
             gprMax.Box(
                 p1=(0.005, 0.005, 0.005),

@@ -76,7 +76,7 @@ class Ellipsoid(GeometryUserObject):
             zr = self.kwargs["zr"]
 
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify a point and the three semiaxes.")
+            logger.error(f"{self.__str__()} please specify a point and the three semiaxes.")
             raise
 
         if not np.all(np.isfinite((xr, yr, zr))) or xr <= 0 or yr <= 0 or zr <= 0:
@@ -104,7 +104,7 @@ class Ellipsoid(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} no materials have been specified")
+                logger.error(f"{self.__str__()} no materials have been specified")
                 raise
 
         # Centre of ellipsoid. Resolve any `inf` entry first, using the same

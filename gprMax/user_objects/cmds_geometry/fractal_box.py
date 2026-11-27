@@ -66,10 +66,20 @@ class FractalBox(GeometryUserObject):
     def hash(self):
         return "#fractal_box"
 
-    _allowed_kwargs = frozenset({
-        "averaging", "frac_dim", "id", "mixing_model_id", "n_materials", "p1", "p2", "seed",
-        "tag", "weighting",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "frac_dim",
+            "id",
+            "mixing_model_id",
+            "n_materials",
+            "p1",
+            "p2",
+            "seed",
+            "tag",
+            "weighting",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -85,7 +95,7 @@ class FractalBox(GeometryUserObject):
             mixing_model_id = self.kwargs["mixing_model_id"]
             ID = self.kwargs["id"]
         except KeyError:
-            logger.exception(f"{self.__str__()} Incorrect parameters")
+            logger.error(f"{self.__str__()} Incorrect parameters")
             raise
 
         try:
@@ -1018,7 +1028,9 @@ class FractalBox(GeometryUserObject):
             for v in range(surface.start[second], surface.stop[second]):
                 # Height-map entries already hold normal-axis coordinates in
                 # the global frame (see AddGrass.build).
-                height_map = surface.fractalsurface[u - surface.start[first], v - surface.start[second]]
+                height_map = surface.fractalsurface[
+                    u - surface.start[first], v - surface.start[second]
+                ]
                 if height_map <= 0:
                     continue
                 height = 0
@@ -1049,7 +1061,9 @@ class FractalBox(GeometryUserObject):
         root = 0
         for u in range(surface.start[first], surface.stop[first]):
             for v in range(surface.start[second], surface.stop[second]):
-                height_map = surface.fractalsurface[u - surface.start[first], v - surface.start[second]]
+                height_map = surface.fractalsurface[
+                    u - surface.start[first], v - surface.start[second]
+                ]
                 if height_map <= 0:
                     continue
                 depth = 0

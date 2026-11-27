@@ -80,7 +80,7 @@ class Triangle(GeometryUserObject):
             up3 = self.kwargs["p3"]
             thickness = self.kwargs["thickness"]
         except KeyError:
-            logger.exception(f"{self.__str__()} specify 3 points and a thickness")
+            logger.error(f"{self.__str__()} specify 3 points and a thickness")
             raise
 
         # Check averaging
@@ -100,7 +100,7 @@ class Triangle(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} no materials have been specified")
+                logger.error(f"{self.__str__()} no materials have been specified")
                 raise
 
         uip = self._create_uip(grid)

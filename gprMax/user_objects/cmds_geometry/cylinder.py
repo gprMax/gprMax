@@ -53,9 +53,17 @@ class Cylinder(GeometryUserObject):
     def hash(self):
         return "#cylinder"
 
-    _allowed_kwargs = frozenset({
-        "averaging", "material_id", "material_ids", "p1", "p2", "r", "tag",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "material_id",
+            "material_ids",
+            "p1",
+            "p2",
+            "r",
+            "tag",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -66,7 +74,7 @@ class Cylinder(GeometryUserObject):
             p2 = self.kwargs["p2"]
             r = self.kwargs["r"]
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify 2 points and a radius")
+            logger.error(f"{self.__str__()} please specify 2 points and a radius")
             raise
 
         # Check averaging
@@ -86,7 +94,7 @@ class Cylinder(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} no materials have been specified")
+                logger.error(f"{self.__str__()} no materials have been specified")
                 raise
 
         uip = self._create_uip(grid)

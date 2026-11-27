@@ -56,9 +56,13 @@ class ThinWire(GeometryUserObject):
     def hash(self):
         return "#thin_wire"
 
-    _allowed_kwargs = frozenset({
-        "p1", "p2", "radius",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "p1",
+            "p2",
+            "radius",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -74,13 +78,17 @@ class ThinWire(GeometryUserObject):
             p2 = self.kwargs["p2"]
             radius = float(self.kwargs["radius"])
         except KeyError:
-            logger.exception(f"{self.__str__()} requires exactly 3 parameters")
+            logger.error(f"{self.__str__()} requires exactly 3 parameters")
             raise
 
         if config.get_model_config().mode.startswith("2D"):
-            raise ValueError(f"{self.__str__()} is not yet supported in 2D mode.")
+            message = f"{self.__str__()} is not yet supported in 2D mode."
+            logger.error(message)
+            raise ValueError(message)
         if not math.isfinite(radius) or radius <= 0:
-            raise ValueError(f"{self.__str__()} requires a finite radius greater than zero.")
+            message = f"{self.__str__()} requires a finite radius greater than zero."
+            logger.error(message)
+            raise ValueError(message)
 
         uip = self._create_uip(grid)
         if hasattr(grid, "comm"):
@@ -94,16 +102,20 @@ class ThinWire(GeometryUserObject):
 
         changed = np.flatnonzero(start != stop)
         if changed.size != 1:
-            raise ValueError(f"{self.__str__()} must define one non-zero, axis-aligned line.")
+            message = f"{self.__str__()} must define one non-zero, axis-aligned line."
+            logger.error(message)
+            raise ValueError(message)
 
         axis_index = int(changed[0])
         transverse = [index for index in range(3) if index != axis_index]
         limiting_step = min(float(grid.dl[index]) for index in transverse)
         if radius >= 0.5 * limiting_step:
-            raise ValueError(
+            message = (
                 f"{self.__str__()} radius {radius:g}m must be smaller than half "
                 f"the minimum transverse cell size ({0.5 * limiting_step:g}m)."
             )
+            logger.error(message)
+            raise ValueError(message)
 
         self.wire_axis = "xyz"[axis_index]
         self.start = np.asarray(start, dtype=np.int32)
@@ -135,19 +147,25 @@ class ThinWire(GeometryUserObject):
         start = np.asarray(uip.discretise_static_point(p1), dtype=np.int32)
         stop = np.asarray(uip.discretise_static_point(p2), dtype=np.int32)
         if np.any(start < 0) or np.any(stop > domain):
-            raise ValueError(f"{self.__str__()} endpoints must lie inside the global MPI domain.")
+            message = f"{self.__str__()} endpoints must lie inside the global MPI domain."
+            logger.error(message)
+            raise ValueError(message)
         changed = np.flatnonzero(start != stop)
         if changed.size != 1 or np.any(start > stop):
-            raise ValueError(f"{self.__str__()} must define one non-zero, axis-aligned line.")
+            message = f"{self.__str__()} must define one non-zero, axis-aligned line."
+            logger.error(message)
+            raise ValueError(message)
 
         axis_index = int(changed[0])
         transverse = [index for index in range(3) if index != axis_index]
         limiting_step = min(float(grid.dl[index]) for index in transverse)
         if radius >= 0.5 * limiting_step:
-            raise ValueError(
+            message = (
                 f"{self.__str__()} radius {radius:g}m must be smaller than half "
                 f"the minimum transverse cell size ({0.5 * limiting_step:g}m)."
             )
+            logger.error(message)
+            raise ValueError(message)
 
         self.wire_axis = "xyz"[axis_index]
         self.global_start = start

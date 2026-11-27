@@ -100,9 +100,15 @@ class GeometryObjectsRead(GeometryUserObject):
     def hash(self):
         return "#geometry_objects_read"
 
-    _allowed_kwargs = frozenset({
-        "averaging", "geofile", "material_database", "matfile", "p1",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "geofile",
+            "material_database",
+            "matfile",
+            "p1",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -156,7 +162,7 @@ class GeometryObjectsRead(GeometryUserObject):
             p1 = self.kwargs["p1"]
             geofile = self.kwargs["geofile"]
         except KeyError:
-            logger.exception(f"{self.__str__()} requires exactly five parameters")
+            logger.error(f"{self.__str__()} requires exactly five parameters")
             raise
         material_database = self.kwargs.get("material_database")
         averaging = self._resolve_averaging()

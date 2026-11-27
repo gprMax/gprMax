@@ -53,9 +53,16 @@ class Box(GeometryUserObject):
     def hash(self):
         return "#box"
 
-    _allowed_kwargs = frozenset({
-        "averaging", "material_id", "material_ids", "p1", "p2", "tag",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "material_id",
+            "material_ids",
+            "p1",
+            "p2",
+            "tag",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -65,7 +72,7 @@ class Box(GeometryUserObject):
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
         except KeyError:
-            logger.exception(f"{self.__str__()} Please specify two points.")
+            logger.error(f"{self.__str__()} Please specify two points.")
             raise
 
         # Check materials have been specified
@@ -77,7 +84,7 @@ class Box(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} No materials have been specified")
+                logger.error(f"{self.__str__()} No materials have been specified")
                 raise
 
         # Check averaging
@@ -104,10 +111,12 @@ class Box(GeometryUserObject):
         p5 = uip.round_to_grid_static_point(p1)
         p6 = uip.round_to_grid_static_point(p2)
         if np.any(p6 <= p5):
-            raise ValueError(
+            message = (
                 f"{self.params_str()} must have positive cell extent on every axis "
                 "after spatial discretisation"
             )
+            logger.error(message)
+            raise ValueError(message)
         xs, ys, zs = p3
         xf, yf, zf = p4
 

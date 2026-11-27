@@ -111,19 +111,21 @@ class Helix(GeometryUserObject):
     def hash(self):
         return "#helix"
 
-    _allowed_kwargs = frozenset({
-        "averaging",
-        "coil_radius",
-        "handedness",
-        "material_id",
-        "material_ids",
-        "p1",
-        "p2",
-        "pitch",
-        "tag",
-        "turns",
-        "wire_radius",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "averaging",
+            "coil_radius",
+            "handedness",
+            "material_id",
+            "material_ids",
+            "p1",
+            "p2",
+            "pitch",
+            "tag",
+            "turns",
+            "wire_radius",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -138,17 +140,19 @@ class Helix(GeometryUserObject):
             wire_radius = self.kwargs["wire_radius"]
             handedness = self.kwargs["handedness"]
         except KeyError:
-            logger.exception(
+            logger.error(
                 f"{self.__str__()} please specify two points, coil radius, pitch, "
                 "turns, wire radius and handedness"
             )
             raise
 
         if config.get_model_config().mode.startswith("2D"):
-            raise ValueError(
+            message = (
                 f"{self.__str__()} cannot be used in 2D mode - a helix is not "
                 "invariant along either transverse axis."
             )
+            logger.error(message)
+            raise ValueError(message)
 
         if not all(np.isfinite(p1)) or not all(np.isfinite(p2)):
             message = f"{self.__str__()} helix points must have finite coordinates."
@@ -157,32 +161,26 @@ class Helix(GeometryUserObject):
 
         if not np.isfinite(coil_radius) or coil_radius <= 0:
             message = (
-                f"{self.__str__()} the coil radius {coil_radius:g} should be a "
-                "positive value."
+                f"{self.__str__()} the coil radius {coil_radius:g} should be a " "positive value."
             )
             logger.error(message)
             raise ValueError(message)
 
         if not np.isfinite(wire_radius) or wire_radius <= 0:
             message = (
-                f"{self.__str__()} the wire radius {wire_radius:g} should be a "
-                "positive value."
+                f"{self.__str__()} the wire radius {wire_radius:g} should be a " "positive value."
             )
             logger.error(message)
             raise ValueError(message)
 
         if not np.isfinite(pitch) or pitch < 0:
-            message = (
-                f"{self.__str__()} the pitch {pitch:g} should be zero or a positive "
-                "value."
-            )
+            message = f"{self.__str__()} the pitch {pitch:g} should be zero or a positive " "value."
             logger.error(message)
             raise ValueError(message)
 
         if not np.isfinite(turns) or turns <= 0:
             message = (
-                f"{self.__str__()} the number of turns {turns:g} should be a "
-                "positive value."
+                f"{self.__str__()} the number of turns {turns:g} should be a " "positive value."
             )
             logger.error(message)
             raise ValueError(message)
@@ -204,7 +202,7 @@ class Helix(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} no materials have been specified")
+                logger.error(f"{self.__str__()} no materials have been specified")
                 raise
 
         uip = self._create_uip(grid)

@@ -55,9 +55,17 @@ class AddGrass(GeometryUserObject):
     def hash(self):
         return "#add_grass"
 
-    _allowed_kwargs = frozenset({
-        "frac_dim", "fractal_box_id", "limits", "n_blades", "p1", "p2", "seed",
-    })
+    _allowed_kwargs = frozenset(
+        {
+            "frac_dim",
+            "fractal_box_id",
+            "limits",
+            "n_blades",
+            "p1",
+            "p2",
+            "seed",
+        }
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -72,7 +80,7 @@ class AddGrass(GeometryUserObject):
             limits = self.kwargs["limits"]
             n_blades = self.kwargs["n_blades"]
         except KeyError:
-            logger.exception(f"{self.__str__()} requires at least eleven parameters")
+            logger.error(f"{self.__str__()} requires at least eleven parameters")
             raise
 
         try:
@@ -89,7 +97,9 @@ class AddGrass(GeometryUserObject):
         # be drawn once on the coordinator and shared instead of relying on
         # each rank's own entropy.
         if seed is None and getattr(grid, "is_distributed", False):
-            seed = int(np.random.default_rng().integers(0, 2**32)) if grid.is_coordinator() else None
+            seed = (
+                int(np.random.default_rng().integers(0, 2**32)) if grid.is_coordinator() else None
+            )
             seed = grid.comm.bcast(seed, root=grid.COORDINATOR_RANK)
 
         # Get the correct fractal volume
@@ -130,9 +140,7 @@ class AddGrass(GeometryUserObject):
             )
         p1_ranged = uip.resolve_inf_point(p1, role="lower")
         p2_ranged = uip.resolve_inf_point(p2, role="upper")
-        if flat_axis is not None and (
-            np.isinf(p1_arr[flat_axis]) or np.isinf(p2_arr[flat_axis])
-        ):
+        if flat_axis is not None and (np.isinf(p1_arr[flat_axis]) or np.isinf(p2_arr[flat_axis])):
             p1_single = uip.resolve_inf_point(p1, role=None)
             p2_single = uip.resolve_inf_point(p2, role=None)
             p1 = tuple(p1_single[a] if a == flat_axis else p1_ranged[a] for a in range(3))
@@ -325,9 +333,9 @@ class AddGrass(GeometryUserObject):
         height_offset = int(lower_extent[normal]) if lower_extent is not None else 0
         heights = np.zeros((density.shape[0], density.shape[1]))
         for i in range(len(bladesindex[0])):
-            heights[bladesindex[0][i], bladesindex[1][i]] = R.randint(
-                surface.fractalrange[0], surface.fractalrange[1]
-            ) + height_offset
+            heights[bladesindex[0][i], bladesindex[1][i]] = (
+                R.randint(surface.fractalrange[0], surface.fractalrange[1]) + height_offset
+            )
 
         if te_axis is not None:
             # Deliberately do NOT broadcast heights to both invariant-axis

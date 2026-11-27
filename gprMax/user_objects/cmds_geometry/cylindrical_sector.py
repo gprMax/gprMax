@@ -94,7 +94,7 @@ class CylindricalSector(GeometryUserObject):
             end = self.kwargs["end"]
             r = self.kwargs["r"]
         except KeyError:
-            logger.exception(self.__str__())
+            logger.error(self.__str__())
             raise
 
         if normal not in ["x", "y", "z"]:
@@ -189,7 +189,7 @@ class CylindricalSector(GeometryUserObject):
             try:
                 materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f"{self.__str__()} No materials have been specified")
+                logger.error(f"{self.__str__()} No materials have been specified")
                 raise
 
         sectorstartangle = 2 * np.pi * (start / 360)
