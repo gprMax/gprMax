@@ -1413,8 +1413,8 @@ class MPIGrid(FDTDGrid):
 
         global_point = self.local_to_global_coordinate(local_point)
         return any(
-            spec.xs <= global_point[Dim.X] <= spec.xf
-            and spec.ys <= global_point[Dim.Y] <= spec.yf
-            and spec.zs <= global_point[Dim.Z] <= spec.zf
+            spec.xs <= global_point[Dim.X] < spec.xf
+            and spec.ys <= global_point[Dim.Y] < spec.yf
+            and spec.zs <= global_point[Dim.Z] < spec.zf
             for spec in self.pmls["internal_specs"]
         )

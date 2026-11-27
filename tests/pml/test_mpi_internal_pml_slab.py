@@ -20,6 +20,8 @@
 import numpy as np
 import pytest
 
+pytest.importorskip("mpi4py")
+
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.pml import InternalPMLSpec
 
@@ -115,3 +117,64 @@ def test_rank_without_slab_overlap_has_no_local_pml():
     grid = _grid((29, 0, 0), (40, 40, 40), (1, 0, 0))
 
     assert grid._localise_internal_pml_spec(_spec()) is None
+
+
+def _mock_mpi_grid_for_within_pml():
+    grid = object.__new__(MPIGrid)
+    grid.nx = grid.ny = grid.nz = 20
+    grid.pmls = {
+        "thickness": {"x0": 0, "xmax": 0, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0},
+        "internal_specs": [],
+    }
+    grid.negative_halo_offset = np.array([0, 0, 0], dtype=np.int32)
+    grid.size = np.array([20, 20, 20], dtype=np.int32)
+    grid.local_to_global_coordinate = lambda point: np.asarray(point, dtype=np.int32)
+    return grid
+
+
+def test_mpi_within_pml_internal_uses_half_open_upper_bounds():
+    grid = _mock_mpi_grid_for_within_pml()
+    grid.pmls["internal_specs"] = [
+        InternalPMLSpec(
+            ID="slab",
+            maximum_face="xmax",
+            direction="xplus",
+            xs=5,
+            xf=8,
+            ys=6,
+            yf=9,
+            zs=7,
+            zf=10,
+        )
+    ]
+
+    assert bool(grid.within_pml(np.array([5, 6, 7], dtype=np.int32))) is True
+    assert bool(grid.within_pml(np.array([7, 8, 9], dtype=np.int32))) is True
+    assert bool(grid.within_pml(np.array([8, 8, 9], dtype=np.int32))) is False
+    assert bool(grid.within_pml(np.array([7, 9, 9], dtype=np.int32))) is False
+    assert bool(grid.within_pml(np.array([7, 8, 10], dtype=np.int32))) is False
+
+
+def test_mpi_within_pml_boundary_and_internal_semantics_are_distinct():
+    grid = _mock_mpi_grid_for_within_pml()
+    grid.pmls["thickness"]["xmax"] = 2
+    grid.pmls["internal_specs"] = [
+        InternalPMLSpec(
+            ID="slab",
+            maximum_face="ymax",
+            direction="yplus",
+            xs=10,
+            xf=12,
+            ys=10,
+            yf=12,
+            zs=10,
+            zf=12,
+        )
+    ]
+
+    # Boundary PML uses > nx-thickness: index 18 is outside for nx=20, thickness=2.
+    assert bool(grid.within_pml(np.array([18, 5, 5], dtype=np.int32))) is False
+    assert bool(grid.within_pml(np.array([19, 5, 5], dtype=np.int32))) is True
+    # Internal PML is half-open on upper bound.
+    assert bool(grid.within_pml(np.array([10, 11, 11], dtype=np.int32))) is True
+    assert bool(grid.within_pml(np.array([12, 11, 11], dtype=np.int32))) is False
