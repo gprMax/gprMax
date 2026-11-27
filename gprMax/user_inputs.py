@@ -379,20 +379,33 @@ class MainGridUserInput(UserInput[GridType]):
         # These should only trigger for MPIGrids.
         # TODO: Can this be structured so these checks happen in the
         # MPIGridUserInput object?
+
+        # A negative lower extent can put the whole slab before this rank.
+        # Test that before clipping the lower face to zero: an empty
+        # intersection must not become a zero-thickness sheet on the lower
+        # halo plane (the 8.49 mm lower coordinate / 0.49 mm thickness case).
+        empty_lower_intersection = lower_extent < 0 and lower_extent + thickness <= 0
+
         if lower_extent < 0:
-            thickness += lower_extent
-            lower_extent = 0
-        # lower_extent and thickness are rounded independently, so their
-        # cell sum can overshoot the axis end by one even when the upper
-        # face itself discretises in-bounds; clip to the last cell so the
-        # returned pair always satisfies lower_extent + thickness <= size.
+            thickness = max(thickness + lower_extent, 0.0)
+            lower_extent = 0.0
+        # lower_extent and thickness are independently discretised, so
+        # their cell sum can overshoot the axis end by one even when
+        # the upper face itself discretises in-bounds. Clip thickness
+        # so the returned pair always satisfies lower_extent + thickness <= size,
+        # the contract the Cython volume loops rely on.
         if lower_extent + thickness > size:
             thickness = size - lower_extent
+
+        # lower_extent may already be at or beyond size; keep the returned
+        # thickness non-negative in that case.
+        thickness = max(thickness, 0.0)
 
         dl = self.grid.dl[index]
 
         return (
-            lower_extent <= size
+            not empty_lower_intersection
+            and lower_extent <= size
             and upper_extent >= 0
             and not (upper_extent > size and thickness <= 0),
             lower_extent * dl,
