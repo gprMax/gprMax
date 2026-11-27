@@ -600,6 +600,25 @@ def test_eigenmode_study_restart_preserves_completed_columns(tmp_path):
         np.testing.assert_array_equal(complete["S"][:, :, 0], original)
 
 
+@pytest.mark.integration
+def test_eigenmode_study_aggregate_keeps_dotted_output_name(tmp_path):
+    scene, excitation = _two_port_waveguide_scene()
+    study = _study(excitation)
+    gprMax.run(
+        scenes=[scene],
+        study=study,
+        outputfile=tmp_path / "guide_v1.2",
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    assert study.result.output_file == tmp_path / "guide_v1.2_study.h5"
+    assert not (tmp_path / "guide_v1.h5").exists()
+    with h5py.File(tmp_path / "guide_v1.2_study.h5") as output:
+        assert output.attrs["Complete"]
+        assert output.attrs["CasesCompleted"] == 2
+
+
 def test_modal_array_weights_and_embedded_response_synthesis():
     frequency = np.asarray((1e9, 2e9))
     excitations = (

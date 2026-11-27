@@ -276,6 +276,27 @@ def test_port_study_restart_preserves_compatible_completed_columns(tmp_path):
         np.testing.assert_array_equal(complete["S_source"][...], original)
 
 
+@pytest.mark.integration
+def test_port_study_aggregate_keeps_dotted_output_name(tmp_path):
+    for name in ("patch_v1.2", "patch_v1.3"):
+        scene, sources = _two_port_scene()
+        study = _two_port_study(sources)
+        gprMax.run(
+            scenes=[scene],
+            study=study,
+            outputfile=tmp_path / name,
+            hide_progress_bars=True,
+            log_level=30,
+        )
+        assert study.result.output_file == tmp_path / f"{name}_study.h5"
+
+    assert not (tmp_path / "patch_v1.h5").exists()
+    for name in ("patch_v1.2", "patch_v1.3"):
+        with h5py.File(tmp_path / f"{name}_study.h5") as output:
+            assert output.attrs["Complete"]
+            assert output.attrs["CasesCompleted"] == 2
+
+
 def test_port_study_csv_factory(tmp_path):
     cases = tmp_path / "ports.csv"
     cases.write_text(
