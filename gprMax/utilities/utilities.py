@@ -22,12 +22,15 @@ import os
 import re
 import textwrap
 from numbers import Integral
+from pathlib import Path
 from shutil import get_terminal_size
 from time import perf_counter as timer_fn
 from typing import Union
 
 import numpy as np
 from colorama import Fore, Style, init
+
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
 
 init()
 
@@ -268,7 +271,7 @@ def timer():
     return timer_fn()
 
 
-def handle_plot_output(plt, fig, base_filename, suffix="", show=True):
+def handle_plot_output(plt, fig, base_filename, suffix="", show=True, *, input_filenames=None):
     """Shows a figure interactively, or saves it to disk when that is not
         possible (e.g. a headless/non-interactive matplotlib backend), so
         plotting tools do not crash under a headless backend and do not
@@ -284,14 +287,43 @@ def handle_plot_output(plt, fig, base_filename, suffix="", show=True):
         show: bool, whether the caller wants the figure displayed
             interactively. Ignored (falls back to saving) when the current
             matplotlib backend is not interactive.
+        input_filenames: optional collection of input files that the saved
+            plot destination must not overwrite.
     """
 
     is_interactive = plt.get_backend().lower() not in ["agg", "pdf", "svg", "ps", "template"]
-    save_path = os.path.splitext(os.path.abspath(base_filename))[0] + suffix + ".png"
+    base_path = Path(os.path.abspath(base_filename))
+    if base_path.suffix.lower() in {".h5", ".hdf5", ".png"}:
+        base_stem = base_path.stem
+    else:
+        base_stem = base_path.name
+    destination = base_path.with_name(f"{base_stem}{suffix}.png")
+
+    if input_filenames is not None:
+        if isinstance(input_filenames, (str, Path)):
+            actual_inputs = [Path(input_filenames)]
+        else:
+            actual_inputs = [Path(p) for p in input_filenames]
+    elif base_path.suffix.lower() in {".h5", ".hdf5", ".out"}:
+        actual_inputs = [base_path]
+    else:
+        actual_inputs = []
 
     if not show or not is_interactive:
-        fig.savefig(save_path, dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
-        logger.info(Fore.GREEN + f"Plot saved to: {save_path}" + Style.RESET_ALL)
+        try:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if actual_inputs:
+                validate_output_path(
+                    destination,
+                    actual_inputs,
+                    message="plot destination must not overwrite an input file",
+                )
+            with atomic_output_path(destination) as temporary:
+                fig.savefig(temporary, dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
+        except Exception:
+            plt.close(fig)
+            raise
+        logger.info(Fore.GREEN + f"Plot saved to: {destination}" + Style.RESET_ALL)
         if show and not is_interactive:
             logger.warning(
                 Fore.YELLOW

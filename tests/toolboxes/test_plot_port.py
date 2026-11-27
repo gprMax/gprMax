@@ -21,6 +21,7 @@ import h5py
 import matplotlib
 import numpy as np
 import pytest
+from matplotlib.figure import Figure
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -279,3 +280,99 @@ def test_reader_rejects_wrong_frequency_shape(tmp_path):
 
     with pytest.raises(ValueError, match="must be a one-dimensional array with 2 values"):
         read_port_output(filename)
+
+
+def test_save_port_figures_rejects_input_alias(port_file, tmp_path):
+    port = read_port_output(port_file, "feed")
+    figure = plot_port_parameters(port)
+    stem = f"{port_file.stem}_ports_feed"
+    alias = tmp_path / f"{stem}_parameters.png"
+    alias.symlink_to(port_file)
+
+    initial_figs = set(plt.get_fignums())
+    with pytest.raises(ValueError, match="must not overwrite an input file"):
+        save_port_figures(
+            port_file,
+            port,
+            output_dir=tmp_path,
+            parameters=figure,
+        )
+    assert set(plt.get_fignums()) == initial_figs - {figure.number}
+
+
+def test_save_port_figures_preserves_destination_on_failure(port_file, tmp_path, monkeypatch):
+    port = read_port_output(port_file, "feed")
+    figure = plot_port_parameters(port)
+
+    paths = save_port_figures(
+        port_file,
+        port,
+        output_dir=tmp_path,
+        parameters=figure,
+    )
+    plt.close(figure)
+    dest = paths[0]
+    sentinel = b"existing_port_plot"
+    dest.write_bytes(sentinel)
+
+    new_figure = plot_port_parameters(port)
+
+    def failing_savefig(self, fname, *args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Figure, "savefig", failing_savefig)
+    with pytest.raises(OSError, match="disk full"):
+        save_port_figures(
+            port_file,
+            port,
+            output_dir=tmp_path,
+            parameters=new_figure,
+        )
+    assert dest.read_bytes() == sentinel
+    assert new_figure.number not in plt.get_fignums()
+
+
+def test_save_port_figures_handles_symlink_destination(port_file, tmp_path):
+    port = read_port_output(port_file, "feed")
+    figure = plot_port_parameters(port)
+
+    stem = f"{port_file.stem}_ports_feed"
+    target = tmp_path / "plot_target.png"
+    target.write_bytes(b"stale")
+    link = tmp_path / f"{stem}_parameters.png"
+    link.symlink_to(target)
+
+    paths = save_port_figures(
+        port_file,
+        port,
+        output_dir=tmp_path,
+        parameters=figure,
+    )
+    plt.close(figure)
+
+    assert link.is_symlink()
+    assert target.read_bytes().startswith(b"\x89PNG")
+
+
+def test_plot_port_cli_closes_figures_on_error(port_file, tmp_path, monkeypatch):
+    def failing_savefig(self, fname, *args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Figure, "savefig", failing_savefig)
+    initial_figs = set(plt.get_fignums())
+    with pytest.raises(OSError, match="disk full"):
+        main([str(port_file), "--parameters-only", "--save", "--output-dir", str(tmp_path)])
+    assert set(plt.get_fignums()) == initial_figs
+
+
+def test_plot_port_cli_closes_parameters_figure_if_signals_plot_fails(port_file, monkeypatch):
+    import gprMax.toolboxes.Plotting.plot_port as plot_port_mod
+
+    def failing_signals(*args, **kwargs):
+        raise RuntimeError("signals plot failed")
+
+    monkeypatch.setattr(plot_port_mod, "plot_port_signals", failing_signals)
+    initial_figs = set(plt.get_fignums())
+    with pytest.raises(RuntimeError, match="signals plot failed"):
+        main([str(port_file), "-save"])
+    assert set(plt.get_fignums()) == initial_figs

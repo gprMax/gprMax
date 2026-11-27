@@ -22,6 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
+from gprMax.toolboxes.Utilities.output_paths import atomic_output_path, validate_output_path
+
 logger = logging.getLogger(__name__)
 
 
@@ -701,20 +703,32 @@ def save_port_figures(
         raise ValueError("dpi must be positive")
     input_path = Path(filename)
     directory = Path(output_dir) if output_dir is not None else input_path.parent
-    directory.mkdir(parents=True, exist_ok=True)
     stem = f"{input_path.stem}_{_safe_filename(port.path)}"
     outputs = []
-    for suffix, figure in (
-        ("parameters", parameters),
-        ("signals", signals),
-        ("validity", validity),
-    ):
-        if figure is None:
-            continue
-        destination = directory / f"{stem}_{suffix}.{image_format}"
-        figure.savefig(destination, dpi=dpi, format=image_format, bbox_inches="tight")
-        outputs.append(destination)
-        logger.info("Plot saved to: %s", destination)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        for suffix, figure in (
+            ("parameters", parameters),
+            ("signals", signals),
+            ("validity", validity),
+        ):
+            if figure is None:
+                continue
+            destination = directory / f"{stem}_{suffix}.{image_format}"
+            validate_output_path(
+                destination,
+                [input_path],
+                message="plot destination must not overwrite an input file",
+            )
+            with atomic_output_path(destination) as temporary:
+                figure.savefig(temporary, dpi=dpi, format=image_format, bbox_inches="tight")
+            outputs.append(destination)
+            logger.info("Plot saved to: %s", destination)
+    except Exception:
+        for figure in (parameters, signals, validity):
+            if figure is not None:
+                plt.close(figure)
+        raise
     return tuple(outputs)
 
 
@@ -762,44 +776,51 @@ def main(argv=None):
         return 0
     selected = select_port_paths(available, args.port, args.outputfile)
     figures = []
-    for path in selected:
-        port = read_port_output(args.outputfile, path)
-        _report_port(port)
-        parameters = plot_port_parameters(
-            port,
-            fmin=args.fmin,
-            fmax=args.fmax,
-            show_invalid=args.show_invalid,
-        )
-        signals = None
-        if not args.parameters_only:
-            signals = plot_port_signals(
+    try:
+        for path in selected:
+            port = read_port_output(args.outputfile, path)
+            _report_port(port)
+            parameters = plot_port_parameters(
                 port,
                 fmin=args.fmin,
                 fmax=args.fmax,
-                tmin=args.tmin,
-                tmax=args.tmax,
+                show_invalid=args.show_invalid,
             )
-        validity = (
-            plot_port_validity(port, fmin=args.fmin, fmax=args.fmax) if args.validity else None
-        )
-        figures.extend(figure for figure in (parameters, signals, validity) if figure is not None)
-        if args.save or args.output_dir is not None:
-            save_port_figures(
-                args.outputfile,
-                port,
-                output_dir=args.output_dir,
-                image_format=args.format,
-                dpi=args.dpi,
-                parameters=parameters,
-                signals=signals,
-                validity=validity,
-            )
+            if parameters is not None:
+                figures.append(parameters)
+            signals = None
+            if not args.parameters_only:
+                signals = plot_port_signals(
+                    port,
+                    fmin=args.fmin,
+                    fmax=args.fmax,
+                    tmin=args.tmin,
+                    tmax=args.tmax,
+                )
+                if signals is not None:
+                    figures.append(signals)
+            validity = None
+            if args.validity:
+                validity = plot_port_validity(port, fmin=args.fmin, fmax=args.fmax)
+                if validity is not None:
+                    figures.append(validity)
+            if args.save or args.output_dir is not None:
+                save_port_figures(
+                    args.outputfile,
+                    port,
+                    output_dir=args.output_dir,
+                    image_format=args.format,
+                    dpi=args.dpi,
+                    parameters=parameters,
+                    signals=signals,
+                    validity=validity,
+                )
 
-    if not args.save and args.output_dir is None:
-        plt.show()
-    for figure in figures:
-        plt.close(figure)
+        if not args.save and args.output_dir is None:
+            plt.show()
+    finally:
+        for figure in figures:
+            plt.close(figure)
     return 0
 
 
