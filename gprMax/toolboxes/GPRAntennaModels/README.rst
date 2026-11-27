@@ -89,12 +89,11 @@ The antenna models can be accessed from within a block of Python code in an inpu
 
 .. note::
 
-    Use survey steps that are multiples of the spatial resolution. The GSSI
-    2 GHz model rounds its placement once and preserves its geometry, but
+    Use survey steps that are multiples of the spatial resolution. Every
+    antenna model rounds its placement once and preserves its geometry, but
     sub-cell steps can still map successive positions to the same grid point.
-    Other antenna models still round individual coordinates and can change
-    shape at off-grid placements. Moving a complete antenna requires rebuilding
-    its geometry; ``src_steps``/``rx_steps`` move sources/receivers only.
+    Moving a complete antenna requires rebuilding its geometry;
+    ``src_steps``/``rx_steps`` move sources/receivers only.
 
 GSSI 2 GHz placement and in-plane rotation
 ------------------------------------------
@@ -115,8 +114,8 @@ Positive rotation is counterclockwise when looking from +z towards the x-y
 plane, about the snapped placement point. The complete antenna rotates,
 including its geometry, transmitter, passive receiver load and field monitor.
 Its z coordinates and the surrounding model are unchanged. This is an exact
-grid-aligned rotation, not arbitrary-angle voxelisation. Other toolbox antenna
-models do not yet offer this option.
+grid-aligned rotation, not arbitrary-angle voxelisation. The other toolbox
+antenna models offer the same option (see below).
 
 .. code-block:: python
 
@@ -155,6 +154,45 @@ Read port voltages directly using their own saved time axis; do not assume
 they share the raw field receiver's sample times. Consistent voltage/current
 sign reversals leave impedance and power unchanged. Rotation relative to a
 fixed target can, of course, change the physical response.
+
+MALA 1.2 GHz, GSSI 1.5 GHz and GSSI 400 MHz placement and rotation
+------------------------------------------------------------------
+
+``antenna_like_MALA_1200``, ``antenna_like_GSSI_1500`` and
+``antenna_like_GSSI_400`` place their geometry the same way. The supplied
+``(x, y, z)`` (horizontal centre of the case at the bottom of the skid) is
+rounded once to the nearest grid point; a warning gives the actual position
+when it moves. Every part is then placed using whole-cell offsets from that
+point, so the antenna has the same shape wherever it is placed. Previously
+each coordinate was rounded separately: where a dimension fell on a half cell,
+floating-point round-off decided the rounding, and parts could grow, shrink
+or move by one cell from one placement to the next, including at grid-aligned
+placements (the MALA case is 109 mm wide, a half cell from its centre at
+1 mm).
+
+Where a dimension is an odd number of cells, it is split with the half cell
+below the placement point. At 1 mm the MALA case spans ``y - 55`` to
+``y + 54`` cells, and at 2 mm the GSSI 1.5 GHz case spans ``x - 43`` to
+``x + 42`` cells. Grid-aligned placements of the GSSI 1.5 GHz model at 1 mm
+and the GSSI 400 MHz model keep their original geometry. The MALA model at
+both resolutions and the GSSI 1.5 GHz model at 2 mm previously changed with
+placement, so their geometry now matches one of the previous placements
+rather than all of them.
+
+The ``rotation`` keyword, rotation convention, output components and
+polarity table are the same as for the GSSI 2 GHz model above. Each field
+receiver is ``rxbowtie``. At 90 and 180 degrees the transmitter waveform is
+negated to keep the antenna-local excitation. The GSSI 400 MHz model reads its
+excitation from a file, which cannot be scaled; at those rotations the file's
+columns are passed on as user waveforms with the same IDs, interpolation and
+fill value, with the transmitter column negated.
+
+.. code-block:: python
+
+    from gprMax.toolboxes.GPRAntennaModels.MALA import antenna_like_MALA_1200
+
+    for obj in antenna_like_MALA_1200(0.150, 0.150, 0.050, rotation=90):
+        scene.add(obj)
 
 Example
 -------
