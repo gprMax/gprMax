@@ -65,6 +65,7 @@ from .cython.plane_wave import (
     updatePlaneWave_magnetic_axial,
 )
 from .utilities.utilities import round_value
+from .utilities.tfsf_background import validate_plane_wave_tfsf_background
 
 logger = logging.getLogger(__name__)
 
@@ -5475,6 +5476,24 @@ class DiscretePlaneWave(Source):
             raise ValueError
 
     def grid_init(self, G):
+        # A vector/angle DPW assumes a homogeneous background. Objects fully
+        # inside the box are allowed, but an active correction node that uses
+        # incompatible electromagnetic properties injects the incident field
+        # inconsistently and fails silently. Each MPI rank checks its owned
+        # TFSF nodes and the results are combined, so internal rank seams are
+        # never treated as physical boundaries.
+        if self.axial == 0:
+            validate_plane_wave_tfsf_background(
+                G,
+                self.tfsf_corners,
+                self.tfsf_owned_lower,
+                self.tfsf_owned_upper,
+                self.material,
+                self.projections,
+                self.skip_axis,
+                comm=getattr(G, "comm", None),
+            )
+
         # Initialize the ID array for axial propagation problems only extending accordingly for the two PML regions
         if self.axial != 0:
             self.ID = np.zeros((6, self.length), dtype=np.uint32)  # 6 for the 6 field components

@@ -255,6 +255,16 @@ Discrete plane waves
   normally incident waves that fill or half-fill the domain, whose box may
   span the domain (its two-sided 1D grid keeps valid samples beyond both
   faces).
+* A vector/angle discrete plane wave whose active TFSF correction nodes use
+  incompatible electromagnetic properties is now rejected. The check follows
+  the actual correction kernels and compares only the properties each
+  corrected component reads: electric parameters and dispersion for E,
+  magnetic parameters for H. A differently named material with equivalent
+  component properties is accepted; PEC/PMC on the boundary is rejected.
+  Where equivalence cannot be established reliably, a warning is issued
+  instead. Such models previously ran and could produce silently incorrect
+  incident fields. Use ``#plane_wave_axial`` for layered or half-space
+  models.
 
 Scenes, studies and subgrids
 ----------------------------
