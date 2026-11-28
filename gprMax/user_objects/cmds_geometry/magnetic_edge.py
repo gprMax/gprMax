@@ -27,7 +27,7 @@ from gprMax.cython.geometry_primitives import (
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.user_objects import GeometryUserObject
 
-from .cmds_geometry import resolve_geometry_materials
+from .cmds_geometry import resolve_geometry_materials, validate_geometry_rasterisation
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,8 @@ class MagneticEdge(GeometryUserObject):
         # Exit early if none of the edge is in this grid as there is
         # nothing else to do.
         if not edge_within_grid:
+            if getattr(grid, "is_distributed", False) is True:
+                validate_geometry_rasterisation(grid, 0, geometry=self.params_str())
             return
 
         xs, ys, zs = discretised_p1
@@ -145,6 +147,9 @@ class MagneticEdge(GeometryUserObject):
         elif zs != zf:
             for k in range(zs, zf):
                 build_magnetic_edge_z(xs, ys, k, material.numID, grid.rigidH, grid.ID)
+
+        occupied = xf - xs if xs != xf else yf - ys if ys != yf else zf - zs
+        validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
 
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)

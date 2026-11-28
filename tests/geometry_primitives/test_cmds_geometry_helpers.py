@@ -77,5 +77,19 @@ class TestGeometryRasterisationReporting:
         with pytest.raises(ValueError, match="does not occupy any Yee cells or faces"):
             validate_distributed_geometry_rasterisation(grid)
 
+    def test_distributed_zero_record_can_be_valid_when_global_count_nonzero(self):
+        class _TwoRankZeroLocalComm:
+            def allgather(self, value):
+                return [value, value]
+
+            def Allreduce(self, send, receive):
+                receive[:] = np.array([3], dtype=np.int64)
+
+        grid = SimpleNamespace(is_distributed=True, comm=_TwoRankZeroLocalComm())
+        validate_geometry_rasterisation(grid, 0, geometry="#edge")
+        validate_distributed_geometry_rasterisation(grid)
+
+        assert grid.geometry_rasterisation_records == [(0, "#edge")]
+
 
 pytestmark = pytest.mark.unit

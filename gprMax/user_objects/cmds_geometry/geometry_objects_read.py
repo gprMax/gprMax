@@ -239,6 +239,11 @@ class GeometryObjectsRead(GeometryUserObject):
                 f.read_rigidH()
                 f.read_tags()
 
+                if getattr(grid, "is_distributed", False) is True:
+                    has_placement = f.grid_view is not None
+                    occupied = int(np.count_nonzero(f.get_data() >= 0)) if has_placement else 0
+                    validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
+
                 logger.info(
                     f"{self.grid_name(grid)}Geometry objects from file {geofile}"
                     f" inserted at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
@@ -246,6 +251,7 @@ class GeometryObjectsRead(GeometryUserObject):
                 )
             else:
                 data = f.get_data()
+                occupied = 0
                 if data is not None:
                     data_start = f.get_local_data_start()
                     assert data_start is not None
@@ -267,6 +273,10 @@ class GeometryObjectsRead(GeometryUserObject):
                         grid.rigidH,
                         grid.ID,
                     )
+                    if getattr(grid, "is_distributed", False) is True:
+                        occupied = int(np.count_nonzero(data >= 0))
+                if getattr(grid, "is_distributed", False) is True:
+                    validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
                 f.read_tags()
                 logger.info(
                     f"{self.grid_name(grid)}Geometry objects from file "
