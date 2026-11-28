@@ -226,6 +226,67 @@ def test_main_grid_thickness_upper_past_end_rejected():
 
 
 @pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
+def test_main_grid_thickness_lower_overhang_is_clipped(dimension, axis):
+    user_input = _main_grid_input(size=10)
+    dl = 1e-3
+
+    within_grid, lower, thickness = user_input.check_thickness(
+        dimension,
+        -2e-3,
+        5e-3,
+        "#test_object",
+    )
+
+    assert within_grid
+    assert lower == pytest.approx(0.0)
+    assert thickness == pytest.approx(3e-3)
+
+
+@pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
+def test_main_grid_thickness_fully_below_domain_is_ignored(dimension, axis):
+    user_input = _main_grid_input(size=10)
+
+    within_grid, lower, thickness = user_input.check_thickness(
+        dimension,
+        -5e-3,
+        2e-3,
+        "#test_object",
+    )
+
+    assert not within_grid
+    assert lower == pytest.approx(0.0)
+    assert thickness == pytest.approx(0.0)
+
+
+@pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
+def test_main_grid_thickness_lower_overhang_rounds_to_boundary_face(dimension, axis):
+    user_input = _main_grid_input(size=10)
+
+    within_grid, lower, thickness = user_input.check_thickness(
+        dimension,
+        -0.2e-3,
+        0.6e-3,
+        "#test_object",
+    )
+
+    assert within_grid
+    assert lower == pytest.approx(0.0)
+    assert thickness == pytest.approx(1e-3)
+
+
+def test_main_grid_thickness_lower_overhang_with_upper_overshoot_is_clipped():
+    user_input = _main_grid_input(size=10)
+
+    with pytest.raises(ValueError, match="extends beyond the size of the model"):
+        user_input.check_thickness(
+            "x",
+            -1.6e-3,
+            12.2e-3,
+            "#test_object",
+        )
+
+
+@pytest.mark.parametrize(("dimension", "axis"), tuple(zip("xyz", range(3))))
 def test_mpi_thickness_overhanging_axis_end_stays_within_local_size(dimension, axis):
     """On a rank whose local axis ends inside the slab, the upper face
     rounds past the local end and the (silent) ownership gate lets it

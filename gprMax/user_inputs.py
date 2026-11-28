@@ -325,12 +325,9 @@ class MainGridUserInput(UserInput[GridType]):
         if thickness < 0:
             raise ValueError(f"'{cmd_str}' requires a non negative thickness")
 
-        if lower_extent < 0:
-            raise ValueError(
-                f"'{cmd_str}' lower extent should be non negative in the {dimension} dimension"
-            )
-
         upper_extent = lower_extent + thickness
+        if upper_extent <= 0:
+            return False, 0.0, 0.0
 
         if dimension == "x":
             lower_point = self.discretise_point((lower_extent, 0, 0))
