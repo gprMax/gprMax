@@ -121,13 +121,13 @@ def test_rank_without_slab_overlap_has_no_local_pml():
 
 def _mock_mpi_grid_for_within_pml():
     grid = object.__new__(MPIGrid)
+    grid.size = np.array([20, 20, 20], dtype=np.int32)
     grid.nx = grid.ny = grid.nz = 20
     grid.pmls = {
         "thickness": {"x0": 0, "xmax": 0, "y0": 0, "ymax": 0, "z0": 0, "zmax": 0},
         "internal_specs": [],
     }
     grid.negative_halo_offset = np.array([0, 0, 0], dtype=np.int32)
-    grid.size = np.array([20, 20, 20], dtype=np.int32)
     grid.local_to_global_coordinate = lambda point: np.asarray(point, dtype=np.int32)
     return grid
 
