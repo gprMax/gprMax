@@ -1656,7 +1656,7 @@ class FDTDGrid:
             return True
 
         return any(
-            spec.xs <= p[0] <= spec.xf and spec.ys <= p[1] <= spec.yf and spec.zs <= p[2] <= spec.zf
+            spec.xs <= p[0] < spec.xf and spec.ys <= p[1] < spec.yf and spec.zs <= p[2] < spec.zf
             for spec in self.pmls["internal_specs"]
         )
 

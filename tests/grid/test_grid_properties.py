@@ -418,6 +418,53 @@ class TestWithinPml:
         assert bool(g.within_pml(np.array([0, 0, 0]))) is False
         assert bool(g.within_pml(np.array([10, 10, 10]))) is False
 
+    def test_internal_pml_uses_half_open_upper_bounds(self, make_grid):
+        from gprMax.pml import InternalPMLSpec
+
+        g = make_grid(nx=20, ny=20, nz=20, arrays=False, pml_thickness=0)
+        g.pmls["internal_specs"] = [
+            InternalPMLSpec(
+                ID="slab",
+                maximum_face="xmax",
+                direction="xplus",
+                xs=5,
+                xf=8,
+                ys=6,
+                yf=9,
+                zs=7,
+                zf=10,
+            )
+        ]
+
+        assert bool(g.within_pml(np.array([5, 6, 7]))) is True
+        assert bool(g.within_pml(np.array([7, 8, 9]))) is True
+        assert bool(g.within_pml(np.array([8, 8, 9]))) is False
+        assert bool(g.within_pml(np.array([7, 9, 9]))) is False
+        assert bool(g.within_pml(np.array([7, 8, 10]))) is False
+
+    def test_internal_pml_upper_face_exclusion_is_axis_specific(self, make_grid):
+        from gprMax.pml import InternalPMLSpec
+
+        g = make_grid(nx=20, ny=20, nz=20, arrays=False, pml_thickness=0)
+        g.pmls["internal_specs"] = [
+            InternalPMLSpec(
+                ID="slab",
+                maximum_face="ymax",
+                direction="yplus",
+                xs=2,
+                xf=4,
+                ys=3,
+                yf=6,
+                zs=1,
+                zf=3,
+            )
+        ]
+
+        assert bool(g.within_pml(np.array([3, 5, 2]))) is True
+        assert bool(g.within_pml(np.array([4, 5, 2]))) is False
+        assert bool(g.within_pml(np.array([3, 6, 2]))) is False
+        assert bool(g.within_pml(np.array([3, 5, 3]))) is False
+
 
 class TestGetWaveformById:
     def test_returns_the_matching_waveform(self, make_grid, make_waveform):
