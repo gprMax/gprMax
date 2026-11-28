@@ -123,6 +123,71 @@ def test_cylindrical_sector_overhang_clipped_to_domain(monkeypatch, tmp_path):
     assert set(np.nonzero((grid.rigidE > 0).any(axis=(0, 2, 3)))[0]) == {9}
 
 
+def test_cylindrical_sector_lower_overhang_clipped_to_domain(monkeypatch, tmp_path):
+    scene = _scene()
+    scene.add(
+        gprMax.CylindricalSector(
+            normal="x",
+            ctr1=0.005,
+            ctr2=0.005,
+            extent1=-0.0006,
+            extent2=0.0004,
+            r=0.004,
+            start=0,
+            end=180,
+            material_id="diel",
+        )
+    )
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "sec_lower_overhang",
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+    diel = next(m for m in grid.materials if m.ID == "diel")
+
+    assert not np.any(grid.solid == diel.numID)
+    assert np.any(grid.ID[1, 0] == diel.numID)
+    assert np.any(grid.ID[2, 0] == diel.numID)
+    assert not np.any(grid.ID[0, 0] == diel.numID)
+    assert np.any(grid.rigidE[:, 0])
+    assert set(np.nonzero((grid.rigidE > 0).any(axis=(0, 2, 3)))[0]) == {0}
+
+
+def test_cylindrical_sector_fully_below_domain_is_ignored(monkeypatch, tmp_path):
+    scene = _scene()
+    scene.add(
+        gprMax.CylindricalSector(
+            normal="x",
+            ctr1=0.005,
+            ctr2=0.005,
+            extent1=-0.0010,
+            extent2=-0.0004,
+            r=0.004,
+            start=0,
+            end=180,
+            material_id="diel",
+        )
+    )
+    captured = _capture_grid(monkeypatch)
+    gprMax.run(
+        scenes=[scene],
+        n=1,
+        geometry_only=True,
+        outputfile=tmp_path / "sec_below",
+        hide_progress_bars=True,
+    )
+    grid = captured["grid"]
+    diel = next(m for m in grid.materials if m.ID == "diel")
+
+    assert not np.any(grid.solid == diel.numID)
+    assert not np.any(grid.ID[1] == diel.numID)
+    assert not np.any(grid.ID[2] == diel.numID)
+
+
 def test_triangle_fully_inside_still_builds(monkeypatch, tmp_path):
     """The same prism fully inside the domain is unaffected."""
     scene = _scene()
