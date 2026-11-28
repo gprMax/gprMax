@@ -42,6 +42,7 @@ from gprMax.material_database import (
     load_material_spec,
     material_matches_spec,
 )
+from gprMax.user_objects.cmds_geometry.cmds_geometry import validate_geometry_rasterisation
 from gprMax.user_objects.user_objects import GeometryUserObject
 
 logger = logging.getLogger(__name__)
