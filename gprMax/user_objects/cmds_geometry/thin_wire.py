@@ -34,6 +34,8 @@ import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.user_objects.user_objects import GeometryUserObject
 
+from .cmds_geometry import validate_geometry_rasterisation
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,6 +92,8 @@ class ThinWire(GeometryUserObject):
         p2 = uip.resolve_inf_point(p2, role="upper")
         within_grid, start, stop = uip.check_box_points(p1, p2, self.__str__())
         if not within_grid:
+            if getattr(grid, "is_distributed", False) is True:
+                validate_geometry_rasterisation(grid, 0, geometry=self.params_str())
             return
 
         changed = np.flatnonzero(start != stop)
@@ -110,6 +114,9 @@ class ThinWire(GeometryUserObject):
         self.stop = np.asarray(stop, dtype=np.int32)
         self.radius = radius
         grid.thinwires.append(self)
+
+        occupied = int(self.stop[axis_index] - self.start[axis_index])
+        validate_geometry_rasterisation(grid, occupied, geometry=self.params_str())
 
         rounded_start = uip.round_to_grid_static_point(p1)
         rounded_stop = uip.round_to_grid_static_point(p2)
@@ -158,6 +165,16 @@ class ThinWire(GeometryUserObject):
         self.stop = grid.global_to_local_coordinate(stop)
         self.radius = radius
         grid.thinwires.append(self)
+
+        local_occupied = 0
+        rank_start = grid.lower_extent[axis_index]
+        rank_stop = grid.upper_extent[axis_index]
+        wire_start = int(start[axis_index])
+        wire_stop = int(stop[axis_index])
+        overlap_start = max(wire_start, rank_start)
+        overlap_stop = min(wire_stop, rank_stop)
+        local_occupied = max(0, overlap_stop - overlap_start)
+        validate_geometry_rasterisation(grid, local_occupied, geometry=self.params_str())
 
         if grid.is_coordinator():
             rounded_start = start * grid.dl
