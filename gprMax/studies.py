@@ -1327,7 +1327,9 @@ class PortStudy(Study):
             suffix = model_config.appendmodelnumber
             if suffix and base.name.endswith(suffix):
                 base = base.with_name(base.name[: -len(suffix)])
-            self._aggregate_output_path = base.with_name(base.name + "_study").with_suffix(".h5")
+            # Keep dots in the base name; with_suffix() would treat them as
+            # an extension and drop the suffix after the last dot.
+            self._aggregate_output_path = base.with_name(base.name + "_study.h5")
 
     def write_hdf5(self, h5file) -> None:
         super().write_hdf5(h5file)
@@ -2576,7 +2578,9 @@ class EigenmodeStudy(Study):
             suffix = model_config.appendmodelnumber
             if suffix and base.name.endswith(suffix):
                 base = base.with_name(base.name[: -len(suffix)])
-            self._aggregate_output_path = base.with_name(base.name + "_study").with_suffix(".h5")
+            # Keep dots in the base name; with_suffix() would treat them as
+            # an extension and drop the suffix after the last dot.
+            self._aggregate_output_path = base.with_name(base.name + "_study.h5")
 
     def collect_case(self, model) -> None:
         """Collect one excitation run's complete incident/outgoing modal waves."""
