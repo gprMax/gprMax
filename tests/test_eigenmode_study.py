@@ -1179,6 +1179,59 @@ def test_opencl_embedded_far_field_array_state_matches_cpu(tmp_path, opencl_devi
     _assert_device_embedded_far_field_array_state_matches_cpu(tmp_path, "opencl", opencl_device)
 
 
+@pytest.mark.integration
+def test_eigenmode_study_aggregate_name_preserves_dots(tmp_path):
+    output = tmp_path / "guide_v1.2"
+    scene, excitation = _two_port_waveguide_scene()
+    study = _study(excitation)
+    gprMax.run(
+        scenes=[scene],
+        study=study,
+        outputfile=output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    assert study.result.output_file == tmp_path / "guide_v1.2_study.h5"
+    assert (tmp_path / "guide_v1.2_study.h5").exists()
+    assert not (tmp_path / "guide_v1.h5").exists()
+    assert (tmp_path / "guide_v1.21.h5").exists()
+    assert (tmp_path / "guide_v1.22.h5").exists()
+
+
+@pytest.mark.integration
+def test_eigenmode_study_restart_uses_dotted_aggregate_name(tmp_path):
+    output = tmp_path / "restart_v1.2"
+    scene, excitation = _two_port_waveguide_scene()
+    study = _study(excitation)
+    gprMax.run(
+        scenes=[scene],
+        study=study,
+        outputfile=output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+    with h5py.File(tmp_path / "restart_v1.2_study.h5") as complete:
+        original = complete["S"][:, :, 0].copy()
+
+    restart_scene, restart_excitation = _two_port_waveguide_scene()
+    restarted = _study(restart_excitation)
+    gprMax.run(
+        scenes=[restart_scene],
+        study=restarted,
+        i=2,
+        outputfile=output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    assert not (tmp_path / "restart_v1.h5").exists()
+    with h5py.File(tmp_path / "restart_v1.2_study.h5") as complete:
+        assert complete.attrs["Complete"]
+        assert complete.attrs["CasesCompleted"] == 2
+        np.testing.assert_array_equal(complete["S"][:, :, 0], original)
+
+
 def _two_virtual_port_scene(active_port=1):
     dl = 1e-3
     scene = gprMax.Scene()

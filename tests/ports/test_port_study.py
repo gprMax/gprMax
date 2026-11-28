@@ -372,3 +372,91 @@ def test_cuda_port_study_matches_cpu(tmp_path, gpu_device):
 @pytest.mark.gpu
 def test_opencl_port_study_matches_cpu(tmp_path, opencl_device):
     _assert_device_port_study_matches_cpu(tmp_path, "opencl", opencl=[opencl_device])
+
+
+@pytest.mark.integration
+def test_port_study_aggregate_name_preserves_dots(tmp_path):
+    output = tmp_path / "patch_v1.2"
+    scene, sources = _two_port_scene()
+    study = _two_port_study(sources)
+    gprMax.run(
+        scenes=[scene],
+        study=study,
+        outputfile=output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    assert study.result.output_file == tmp_path / "patch_v1.2_study.h5"
+    assert (tmp_path / "patch_v1.2_study.h5").exists()
+    assert not (tmp_path / "patch_v1.h5").exists()
+    assert (tmp_path / "patch_v1.21.h5").exists()
+    assert (tmp_path / "patch_v1.22.h5").exists()
+
+
+@pytest.mark.integration
+def test_port_study_dotted_output_names_do_not_collide(tmp_path):
+    scene, sources = _two_port_scene()
+    study = _two_port_study(sources)
+    gprMax.run(
+        scenes=[scene],
+        study=study,
+        outputfile=tmp_path / "patch_v1.2",
+        hide_progress_bars=True,
+        log_level=30,
+    )
+    with h5py.File(tmp_path / "patch_v1.2_study.h5") as output:
+        first_s = output["S_source"][...]
+
+    scene2, sources2 = _two_port_scene()
+    study2 = _two_port_study(sources2)
+    gprMax.run(
+        scenes=[scene2],
+        study=study2,
+        outputfile=tmp_path / "patch_v1.3",
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    assert (tmp_path / "patch_v1.2_study.h5").exists()
+    assert (tmp_path / "patch_v1.3_study.h5").exists()
+    assert not (tmp_path / "patch_v1.h5").exists()
+    with h5py.File(tmp_path / "patch_v1.2_study.h5") as output:
+        np.testing.assert_array_equal(output["S_source"][...], first_s)
+    with h5py.File(tmp_path / "patch_v1.3_study.h5") as output:
+        assert output.attrs["Complete"]
+        assert output["S_source"].shape == first_s.shape
+
+
+@pytest.mark.integration
+def test_port_study_restart_uses_dotted_aggregate_name(tmp_path):
+    output = tmp_path / "restart_v1.2"
+    scene, sources = _two_port_scene()
+    study = _two_port_study(sources)
+    gprMax.run(
+        scenes=[scene],
+        study=study,
+        outputfile=output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+    with h5py.File(tmp_path / "restart_v1.2_study.h5") as complete:
+        original = complete["S_source"][...]
+        assert complete.attrs["Complete"]
+
+    restart_scene, restart_sources = _two_port_scene()
+    restarted = _two_port_study(restart_sources)
+    gprMax.run(
+        scenes=[restart_scene],
+        study=restarted,
+        i=2,
+        outputfile=output,
+        hide_progress_bars=True,
+        log_level=30,
+    )
+
+    assert not (tmp_path / "restart_v1.h5").exists()
+    with h5py.File(tmp_path / "restart_v1.2_study.h5") as complete:
+        assert complete.attrs["Complete"]
+        assert complete.attrs["CasesCompleted"] == 2
+        np.testing.assert_array_equal(complete["S_source"][...], original)
